@@ -344,7 +344,7 @@
 /* #undef HAVE_READLINK */
 
 /* Define to 1 if you have the `rint' function. */
-/*#define HAVE_RINT 1*/
+#define HAVE_RINT 1
 
 /* Define to 1 if you have the global variable
    'rl_completion_append_character'. */
@@ -702,7 +702,7 @@
 /* Define to 1 to use Intel SSE 4.2 CRC instructions with a runtime check. */
 #if (_MSC_VER < 1500)
 #define USE_SLICING_BY_8_CRC32C 1
-#end
+#endif
 
 /* Define to 1 use Intel SSE 4.2 CRC instructions. */
 /* #undef USE_SSE42_CRC32C */

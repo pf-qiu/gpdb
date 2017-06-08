@@ -4,6 +4,7 @@
 #ifndef __PTHREAD_H
 #define __PTHREAD_H
 
+typedef DWORD pthread_t;
 typedef ULONG pthread_key_t;
 typedef CRITICAL_SECTION *pthread_mutex_t;
 typedef int pthread_once_t;

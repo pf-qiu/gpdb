@@ -299,11 +299,8 @@ sizeof(pg_encname_tbl) / sizeof(pg_encname_tbl[0]) - 1;
  * XXX must be sorted by the same order as enum pg_enc (in mb/pg_wchar.h)
  * ----------
  */
-#ifndef WIN32
 #define DEF_ENC2NAME(name, codepage) { #name, PG_##name }
-#else
-#define DEF_ENC2NAME(name, codepage) { #name, PG_##name, codepage }
-#endif
+
 pg_enc2name pg_enc2name_tbl[] =
 {
 	DEF_ENC2NAME(SQL_ASCII, 0),

@@ -8,11 +8,11 @@
  * Make sure _WIN32_WINNT has the minimum required value.
  * Leave a higher value in place.
 */
-#if defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0501
+#if defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0601
 #undef _WIN32_WINNT
 #endif
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501
+#define _WIN32_WINNT 0x0601
 #endif
 /*
  * Always build with SSPI support. Keep it as a #define in case
@@ -454,9 +454,6 @@ typedef unsigned short mode_t;
 #define F_OK 0
 #define W_OK 2
 #define R_OK 4
-
-#define isinf(x) ((_fpclass(x) == _FPCLASS_PINF) || (_fpclass(x) == _FPCLASS_NINF))
-#define isnan(x) _isnan(x)
 
 /* Pulled from Makefile.port in mingw */
 #define DLSUFFIX ".dll"

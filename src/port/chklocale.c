@@ -26,6 +26,7 @@
 
 #include "mb/pg_wchar.h"
 
+#include <Windows.h>
 
 /*
  * This table needs to recognize all the CODESET spellings for supported
@@ -195,6 +196,17 @@ static const struct encoding_match encoding_match_list[] = {
  * locale machinery determine the code page.  See comments at IsoLocaleName().
  * For other compilers, follow the locale's predictable format.
  *
+ * Visual Studio 2015 should still be able to do the same, but the declaration
+ * of lc_codepage is missing in _locale_t, causing this code compilation to
+ * fail, hence this falls back instead on 
+ Ex. VS 2015 may be an
+ * exception and post-VS2015 versions should be able to handle properly the
+ * codepage number using _create_locale(). So, instead of the same logic as
+ * VS 2012 and VS 2013, this routine uses GetLocaleInfoEx to parse short
+ * locale names like "de-DE", "fr-FR", etc. If those cannot be parsed correctly
+ * process falls back to the pre-VS-2010 manual parsing done with
+ * using <Language>_<Country>.<CodePage> as a base.
+ *
  * Returns a malloc()'d string for the caller to free.
  */
 static char *
@@ -202,7 +214,7 @@ win32_langinfo(const char *ctype)
 {
 	char	   *r = NULL;
 
-#if (_MSC_VER >= 1700)
+#if (_MSC_VER >= 1700) && (_MSC_VER < 1900)
 	_locale_t	loct = NULL;
 
 	loct = _create_locale(LC_CTYPE, ctype);
@@ -216,26 +228,71 @@ win32_langinfo(const char *ctype)
 #else
 	char	   *codepage;
 
-	/*
-	 * Locale format on Win32 is <Language>_<Country>.<CodePage> . For
-	 * example, English_United States.1252.
-	 */
-	codepage = strrchr(ctype, '.');
-	if (codepage != NULL)
-	{
-		int			ln;
+#if (_MSC_VER >= 1900)
+	uint32		cp;
+	WCHAR		wctype[LOCALE_NAME_MAX_LENGTH];
 
-		codepage++;
-		ln = strlen(codepage);
-		r = malloc(ln + 3);
+	memset(wctype, 0, sizeof(wctype));
+	MultiByteToWideChar(CP_ACP, 0, ctype, -1, wctype, LOCALE_NAME_MAX_LENGTH);
+
+	if (GetLocaleInfoEx(wctype,
+		LOCALE_IDEFAULTANSICODEPAGE | LOCALE_RETURN_NUMBER,
+		(LPWSTR)&cp, sizeof(cp) / sizeof(WCHAR)) > 0)
+	{
+		r = malloc(16);			/* excess */
 		if (r != NULL)
-			sprintf(r, "CP%s", codepage);
+			sprintf(r, "CP%u", cp);
+	}
+	else
+#endif
+	{
+		/*
+		 * Locale format on Win32 is <Language>_<Country>.<CodePage> . For
+		 * example, English_United States.1252.
+		 */
+		codepage = strrchr(ctype, '.');
+		if (codepage != NULL)
+		{
+			int			ln;
+
+			codepage++;
+			ln = strlen(codepage);
+			r = malloc(ln + 3);
+			if (r != NULL)
+				sprintf(r, "CP%s", codepage);
+		}
+
 	}
 #endif
 
 	return r;
 }
-#endif   /* WIN32 */
+
+#ifndef FRONTEND
+/*
+ * Given a Windows code page identifier, find the corresponding PostgreSQL
+ * encoding.  Issue a warning and return -1 if none found.
+ */
+int
+pg_codepage_to_encoding(UINT cp)
+{
+	char		sys[16];
+	int			i;
+
+	sprintf(sys, "CP%u", cp);
+
+	/* Check the table */
+	for (i = 0; encoding_match_list[i].system_enc_name; i++)
+		if (pg_strcasecmp(sys, encoding_match_list[i].system_enc_name) == 0)
+			return encoding_match_list[i].pg_enc_code;
+
+	ereport(WARNING,
+		(errmsg("could not determine encoding for codeset \"%s\"", sys)));
+
+	return -1;
+}
+#endif
+#endif							/* WIN32 */
 
 #if (defined(HAVE_LANGINFO_H) && defined(CODESET)) || defined(WIN32)
 
