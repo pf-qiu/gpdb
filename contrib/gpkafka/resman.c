@@ -9,6 +9,7 @@ gpkafkaResHandle *createGpkafkaResHandle(void) {
 
     resHandle = (gpkafkaResHandle *)MemoryContextAlloc(TopMemoryContext, sizeof(gpkafkaResHandle));
 
+    resHandle->messageData = makeStringInfo();
     resHandle->owner = CurrentResourceOwner;
     resHandle->next = openedResHandles;
     resHandle->prev = NULL;

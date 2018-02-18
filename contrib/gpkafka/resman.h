@@ -7,7 +7,7 @@
 typedef struct gpkafkaResHandle
 {
     rd_kafka_t *kafka;
-
+    StringInfo messageData;
     ResourceOwner owner; /* owner of this handle */
 
     struct gpkafkaResHandle *next;
