@@ -36,6 +36,9 @@ void destroyGpkafkaResHandle(gpkafkaResHandle *resHandle) {
         resHandle->next->prev = resHandle->prev;
     }
 
+    if (resHandle->kafka != NULL) {
+        rd_kafka_destroy(resHandle->kafka);
+    }
     pfree(resHandle);
 }
 
@@ -58,7 +61,7 @@ void gpkafkaAbortCallback(ResourceReleasePhase phase, bool isCommit, bool isTopL
             if (isCommit)
                 elog(WARNING, "gpkafka external table reference leak: %p still referenced", curr);
 
-            destroygpkafkaResHandle(curr);
+            destroyGpkafkaResHandle(curr);
         }
     }
 }
