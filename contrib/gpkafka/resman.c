@@ -10,6 +10,10 @@ gpkafkaResHandle *createGpkafkaResHandle(void) {
     resHandle = (gpkafkaResHandle *)MemoryContextAlloc(TopMemoryContext, sizeof(gpkafkaResHandle));
 
     resHandle->messageData = makeStringInfo();
+    resHandle->kafka = NULL;
+    resHandle->topic = NULL;
+    resHandle->partition = -1;
+
     resHandle->owner = CurrentResourceOwner;
     resHandle->next = openedResHandles;
     resHandle->prev = NULL;
@@ -37,7 +41,12 @@ void destroyGpkafkaResHandle(gpkafkaResHandle *resHandle) {
         resHandle->next->prev = resHandle->prev;
     }
 
-    if (resHandle->kafka != NULL) {
+    if (resHandle->topic) {
+        rd_kafka_consume_stop(resHandle->topic, resHandle->partition);
+        rd_kafka_topic_destroy(resHandle->topic);
+    }
+
+    if (resHandle->kafka) {
         rd_kafka_destroy(resHandle->kafka);
     }
     pfree(resHandle);

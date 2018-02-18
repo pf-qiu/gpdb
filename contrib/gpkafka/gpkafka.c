@@ -3,6 +3,7 @@
 #include "funcapi.h"
 
 #include "access/extprotocol.h"
+#include "access/xact.h"
 #include "catalog/pg_exttable.h"
 #include "cdb/cdbvars.h"
 
@@ -18,49 +19,56 @@ PG_FUNCTION_INFO_V1(gpkafka_export);
 Datum gpkafka_import(PG_FUNCTION_ARGS);
 Datum gpkafka_export(PG_FUNCTION_ARGS);
 
+static bool QueryAbortInProgress(void)
+{
+    return QueryCancelPending || IsAbortInProgress();
+}
+
 static int consume_message(gpkafkaResHandle *gpkafka, char *databuf, int datalen)
 {
     StringInfo data = gpkafka->messageData;
-    int remain = data->len - data->cursor;
-    if (remain == 0)
+    
+    if (data->len == data->cursor)
     {
-        // No more data left, fetch new message
-        rd_kafka_message_t *msg = rd_kafka_consumer_poll(gpkafka->kafka, 1000);
-        if (msg)
+        // No more data left, fetch new message.
+        // Keep trying to poll from kafka, stop if message consumed or cancel is requested.
+        while (!QueryAbortInProgress())
         {
-            if (msg->err == 0)
+            rd_kafka_poll(gpkafka->kafka, 0);
+            rd_kafka_message_t *msg = rd_kafka_consume(gpkafka->topic, Gp_segment, 100);
+            if (msg)
             {
-                enlargeStringInfo(data, msg->len);
-                resetStringInfo(data);
-                appendBinaryStringInfo(data, msg->payload, msg->len);
-                rd_kafka_message_destroy(msg);
+                if (msg->err == 0)
+                {
+                    enlargeStringInfo(data, msg->len);
+                    resetStringInfo(data);
+                    appendBinaryStringInfo(data, msg->payload, msg->len);
+                    rd_kafka_message_destroy(msg);
+                    break;
+                }
+                else if (msg->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
+                {
+                    rd_kafka_message_destroy(msg);
+                    elog(DEBUG5, "partition reach end");
+                    return 0;
+                }
+                else
+                {
+                    rd_kafka_message_destroy(msg);
+                    elog(ERROR, "kafka consumer error: %s", rd_kafka_err2str(msg->err));
+                }
             }
-            else if (msg->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
-            {
-                rd_kafka_message_destroy(msg);
-                elog(DEBUG5, "partition reach end");
-                return 0;
-            }
-            else
-            {
-                rd_kafka_message_destroy(msg);
-                elog(ERROR, "kafka consumer error: %s", rd_kafka_err2str(msg->err));
-            }
-        }
-        else
-        {
-            elog(ERROR, "can't pull message from kafka");
         }
     }
 
+    int remain = data->len - data->cursor;
     int consumed = remain < datalen ? remain : datalen;
     memcpy(databuf, data->data + data->cursor, consumed);
     data->cursor += consumed;
     return consumed;
 }
 
-Datum
-gpkafka_import(PG_FUNCTION_ARGS)
+Datum gpkafka_import(PG_FUNCTION_ARGS)
 {
     /* Must be called via the external table format manager */
     if (!CALLED_AS_EXTPROTOCOL(fcinfo))
@@ -92,23 +100,34 @@ gpkafka_import(PG_FUNCTION_ARGS)
         resHandle = createGpkafkaResHandle();
         EXTPROTOCOL_SET_USER_CTX(fcinfo, resHandle);
         const char *url = EXTPROTOCOL_GET_URL(fcinfo);
-        elog(INFO, "Kafka url: %s", url);
-
         KafkaMeta *meta = RequestMetaFromCoordinator(url);
+
         rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        rd_kafka_t *kafka = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
+        char errstr[512];
+
+        if (rd_kafka_conf_set(conf, "group.id", "gpkafka", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK)
+        {
+            elog(ERROR, "rd_kafka_conf_set failed: %s", errstr);
+        }
+
+        rd_kafka_t *kafka = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+        if (kafka == NULL)
+        {
+            elog(ERROR, "rd_kafka_new failed: %s", errstr);
+        }
+
         resHandle->kafka = kafka;
 
-        if (rd_kafka_brokers_add(kafka, meta->broker) == 0)
+        if (rd_kafka_brokers_add(kafka, meta->broker) > 0)
         {
-            rd_kafka_topic_partition_list_t *list = rd_kafka_topic_partition_list_new(1);
-            rd_kafka_topic_partition_list_add(list, meta->topic, Gp_segment);
-            
-            rd_kafka_resp_err_t err;
-            if ((err = rd_kafka_subscribe(kafka, list)))
+            rd_kafka_topic_t *topic = rd_kafka_topic_new(kafka, meta->topic, NULL);
+            if (rd_kafka_consume_start(topic, Gp_segment, RD_KAFKA_OFFSET_BEGINNING) == -1)
             {
-                elog(ERROR, "rd_kafka_subscribe: %s", rd_kafka_err2str(err));
+                rd_kafka_resp_err_t err = rd_kafka_last_error();
+                elog(ERROR, "rd_kafka_consume_start failed: %s", rd_kafka_err2str(err));
             }
+            resHandle->topic = topic;
+            resHandle->partition = Gp_segment;
         }
         else
         {
