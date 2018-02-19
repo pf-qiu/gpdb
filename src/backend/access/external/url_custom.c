@@ -161,6 +161,8 @@ InvokeExtProtocol(void *ptr, size_t nbytes, URL_CUSTOM_FILE *file, CopyState pst
 	extprotocol->prot_databuf  = (last_call ? NULL : (char *)ptr);
 	extprotocol->prot_maxbytes = nbytes;
 	extprotocol->prot_last_call = last_call;
+	extprotocol->prot_linebuf  = &pstate->line_buf;
+	extprotocol->prot_is_complete_record = false;
 	
 	InitFunctionCallInfoData(/* FunctionCallInfoData */ fcinfo,
 							 /* FmgrInfo */ extprotocol_udf,
@@ -176,6 +178,12 @@ InvokeExtProtocol(void *ptr, size_t nbytes, URL_CUSTOM_FILE *file, CopyState pst
 	/* We do not expect a null result */
 	if (fcinfo.isnull)
 		elog(ERROR, "function %u returned NULL", fcinfo.flinfo->fn_oid);
+
+	/* Custom protocol reads a full record, */
+	if (extprotocol->prot_is_complete_record)
+	{
+		pstate->line_done = true;
+	}
 
 	return DatumGetInt32(d);
 }

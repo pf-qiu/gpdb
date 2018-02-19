@@ -24,48 +24,49 @@ static bool QueryAbortInProgress(void)
     return QueryCancelPending || IsAbortInProgress();
 }
 
-static int consume_message(gpkafkaResHandle *gpkafka, char *databuf, int datalen)
+static bool is_custom_format(FunctionCallInfo fcinfo)
 {
-    StringInfo data = gpkafka->messageData;
-    
-    if (data->len == data->cursor)
+    Relation rel = EXTPROTOCOL_GET_RELATION(fcinfo);
+    ExtTableEntry *exttbl = GetExtTableEntry(rel->rd_id);
+    exttbl->options
+    return fmttype_is_custom(exttbl->fmtcode);
+}
+
+static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool custom)
+{
+    while (!QueryAbortInProgress())
     {
-        // No more data left, fetch new message.
-        // Keep trying to poll from kafka, stop if message consumed or cancel is requested.
-        while (!QueryAbortInProgress())
+        rd_kafka_poll(gpkafka->kafka, 0);
+        rd_kafka_message_t *msg = rd_kafka_consume(gpkafka->topic, Gp_segment, 100);
+        if (msg)
         {
-            rd_kafka_poll(gpkafka->kafka, 0);
-            rd_kafka_message_t *msg = rd_kafka_consume(gpkafka->topic, Gp_segment, 100);
-            if (msg)
+            if (msg->err == 0)
             {
-                if (msg->err == 0)
+                resetStringInfo(data);
+                appendBinaryStringInfo(data, msg->payload, msg->len);
+
+                if (!custom)
                 {
-                    enlargeStringInfo(data, msg->len);
-                    resetStringInfo(data);
-                    appendBinaryStringInfo(data, msg->payload, msg->len);
-                    rd_kafka_message_destroy(msg);
-                    break;
+                    /* text and csv format needs line end */
+                    appendStringInfoChar(data, '\n');
                 }
-                else if (msg->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
-                {
-                    rd_kafka_message_destroy(msg);
-                    elog(DEBUG5, "partition reach end");
-                    return 0;
-                }
-                else
-                {
-                    rd_kafka_message_destroy(msg);
-                    elog(ERROR, "kafka consumer error: %s", rd_kafka_err2str(msg->err));
-                }
+                rd_kafka_message_destroy(msg);
+                return data->len;
+            }
+            else if (msg->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
+            {
+                rd_kafka_message_destroy(msg);
+                elog(DEBUG5, "partition reach end");
+                return 0;
+            }
+            else
+            {
+                rd_kafka_message_destroy(msg);
+                elog(ERROR, "kafka consumer error: %s", rd_kafka_err2str(msg->err));
             }
         }
     }
-
-    int remain = data->len - data->cursor;
-    int consumed = remain < datalen ? remain : datalen;
-    memcpy(databuf, data->data + data->cursor, consumed);
-    data->cursor += consumed;
-    return consumed;
+    return 0;
 }
 
 Datum gpkafka_import(PG_FUNCTION_ARGS)
@@ -89,9 +90,6 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
         PG_RETURN_INT32(0);
     }
-
-    char *databuf = EXTPROTOCOL_GET_DATABUF(fcinfo);
-    int datalen = EXTPROTOCOL_GET_DATALEN(fcinfo);
 
     /* first call. do any desired init */
     if (resHandle == NULL)
@@ -135,6 +133,13 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         }
     }
 
-    int consumed = consume_message(resHandle, databuf, datalen);
+    StringInfo linebuf = EXTPROTOCOL_GET_LINEBUF(fcinfo);
+    bool custom = is_custom_format(fcinfo);
+    int consumed = consume_message(resHandle, linebuf, custom);
+    if (consumed > 0)
+    {
+        /* Tell gpdb that no line detection is needed. */
+        EXTPROTOCOL_SET_IS_COMPLETE_RECORD(fcinfo);
+    }
     PG_RETURN_INT32(consumed);
 }

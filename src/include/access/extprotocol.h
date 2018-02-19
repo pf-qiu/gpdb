@@ -36,7 +36,8 @@ typedef struct ExtProtocolData
 	int				prot_maxbytes;
 	void*			prot_user_ctx;
 	bool			prot_last_call;
-		
+	StringInfo      prot_linebuf;
+	bool            prot_is_complete_record;
 } ExtProtocolData;
 
 typedef ExtProtocolData *ExtProtocol;
@@ -50,11 +51,13 @@ typedef ExtProtocolData *ExtProtocol;
 #define EXTPROTOCOL_GET_DATALEN(fcinfo)    (((ExtProtocolData*) fcinfo->context)->prot_maxbytes)
 #define EXTPROTOCOL_GET_USER_CTX(fcinfo)   (((ExtProtocolData*) fcinfo->context)->prot_user_ctx)
 #define EXTPROTOCOL_IS_LAST_CALL(fcinfo)   (((ExtProtocolData*) fcinfo->context)->prot_last_call)
+#define EXTPROTOCOL_GET_LINEBUF(fcinfo)    (((ExtProtocolData*) fcinfo->context)->prot_linebuf)
+#define EXTPROTOCOL_GET_IS_COMPLETE_RECORD(fcinfo) (((ExtProtocolData*) fcinfo->context)->prot_is_complete_record)
 
 #define EXTPROTOCOL_SET_LAST_CALL(fcinfo)  (((ExtProtocolData*) fcinfo->context)->prot_last_call = true)
 #define EXTPROTOCOL_SET_USER_CTX(fcinfo, p) \
 	(((ExtProtocolData*) fcinfo->context)->prot_user_ctx = p)
-
+#define EXTPROTOCOL_SET_IS_COMPLETE_RECORD(fcinfo) (((ExtProtocolData*) fcinfo->context)->prot_is_complete_record = true)
 
 /* ------------------------- Validator function API -----------------------------*/
 

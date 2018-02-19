@@ -808,10 +808,20 @@ parse_next_line(FileScanDesc scan)
 
 	PG_TRY();
 	{
-		/* Get a line */
-		pstate->line_done = pstate->csv_mode ?
-			CopyReadLineCSV(pstate, pstate->bytesread) :
-			CopyReadLineText(pstate, pstate->bytesread);
+		/* line_done can be set by custom protocol if the data source has
+		 * a natural boundry. In this case custom protocol feeds data
+		 * directly to line_buf, raw_buf can be considered done. */
+		if (pstate->line_done)
+		{
+			pstate->raw_buf_done = true;
+		}
+		else
+		{
+			/* Get a line */
+			pstate->line_done = pstate->csv_mode ?
+				CopyReadLineCSV(pstate, pstate->bytesread) :
+				CopyReadLineText(pstate, pstate->bytesread);
+		}
 
 		/* Did not get a complete and valid data line? */
 		if (!pstate->line_done)
