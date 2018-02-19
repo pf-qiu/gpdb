@@ -10,7 +10,6 @@ gpkafkaResHandle *createGpkafkaResHandle(void) {
     resHandle = (gpkafkaResHandle *)MemoryContextAlloc(TopMemoryContext, sizeof(gpkafkaResHandle));
 
     resHandle->messageData = makeStringInfo();
-    resHandle->kafka = NULL;
     resHandle->topic = NULL;
     resHandle->partition = -1;
 
@@ -46,9 +45,6 @@ void destroyGpkafkaResHandle(gpkafkaResHandle *resHandle) {
         rd_kafka_topic_destroy(resHandle->topic);
     }
 
-    if (resHandle->kafka) {
-        rd_kafka_destroy(resHandle->kafka);
-    }
     pfree(resHandle);
 }
 
