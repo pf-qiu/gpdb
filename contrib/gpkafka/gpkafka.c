@@ -4,7 +4,11 @@
 
 #include "access/extprotocol.h"
 #include "access/xact.h"
+#include "access/heapam.h"
 #include "catalog/pg_exttable.h"
+#include "catalog/pg_class.h"
+#include "utils/tqual.h"
+#include "utils/fmgroids.h"
 #include "cdb/cdbvars.h"
 
 #include "librdkafka/rdkafka.h"
@@ -28,7 +32,6 @@ static bool is_custom_format(FunctionCallInfo fcinfo)
 {
     Relation rel = EXTPROTOCOL_GET_RELATION(fcinfo);
     ExtTableEntry *exttbl = GetExtTableEntry(rel->rd_id);
-    exttbl->options
     return fmttype_is_custom(exttbl->fmtcode);
 }
 
@@ -67,6 +70,60 @@ static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool cust
         }
     }
     return 0;
+}
+
+static Oid lookup_oid(const char* table)
+{
+    Oid oid;
+    Relation rel;
+    ScanKeyData keys[2];
+    HeapScanDesc scan;
+    HeapTuple tuple;
+
+    oid = InvalidOid;
+    rel = heap_open(RelationRelationId, AccessShareLock);
+    ScanKeyInit(&keys[0], Anum_pg_class_relname, BTEqualStrategyNumber, F_NAMEEQ, CStringGetDatum(table));
+    ScanKeyInit(&keys[1], Anum_pg_class_reltype, BTEqualStrategyNumber, F_CHAREQ, CharGetDatum(RELKIND_RELATION));
+
+    scan = heap_beginscan(rel, SnapshotNow, sizeof(keys), keys);
+    if ((tuple = heap_getnext(scan, ForwardScanDirection)))
+    {
+        oid = HeapTupleGetOid(tuple);
+    }
+
+    heap_endscan(scan);
+    heap_close(rel, AccessShareLock);
+    return oid;
+}
+
+#define InvalidOffset ((int64)-1)
+
+static int64 lookup_offset(Oid table)
+{
+    Relation rel;
+    ScanKeyData key;
+    HeapScanDesc scan;
+    HeapTuple tuple;
+    TupleDesc desc;
+    bool isnull;
+    Datum offset;
+    rel = heap_open(table, AccessShareLock);
+    ScanKeyInit(&key, 1, BTEqualStrategyNumber, F_INT4EQ, Int32GetDatum(Gp_segment));
+    scan = heap_beginscan(rel, SnapshotNow, 1, &key);
+    if ((tuple = heap_getnext(scan, ForwardScanDirection)))
+    {
+        desc = RelationGetDescr(rel);
+        isnull = false;
+        offset = heap_getattr(tuple, 2, desc, &isnull);
+        if (isnull)
+        {
+            offset = InvalidOffset;
+        }
+    }
+    
+    heap_endscan(scan);
+    heap_close(rel, AccessShareLock);
+    return DatumGetInt64(offset);
 }
 
 Datum gpkafka_import(PG_FUNCTION_ARGS)
