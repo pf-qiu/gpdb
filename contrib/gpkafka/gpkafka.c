@@ -184,9 +184,24 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         }
 
         rd_kafka_topic_t *topic = rd_kafka_topic_new(kafka, meta->topic, NULL);
-        if (rd_kafka_consume_start(topic, Gp_segment, RD_KAFKA_OFFSET_BEGINNING) == -1)
+        const struct rd_kafka_metadata *topicmeta;
+        rd_kafka_resp_err_t err = rd_kafka_metadata(kafka, 0, topic, &topicmeta, 100);
+        if (err != RD_KAFKA_RESP_ERR_NO_ERROR)
         {
-            rd_kafka_resp_err_t err = rd_kafka_last_error();
+            elog(ERROR, "rd_kafka_metadata failed: %s", rd_kafka_err2str(err));
+        }
+        if (topicmeta->topics->partition_cnt - 1 < Gp_segment)
+        {
+            elog(INFO, "No available partition: %d", Gp_segment);
+            rd_kafka_topic_destroy(topic);
+            rd_kafka_metadata_destroy(topicmeta);
+            PG_RETURN_INT32(0);
+        }
+
+        rd_kafka_metadata_destroy(topicmeta);
+        if (rd_kafka_consume_start(topic, Gp_segment, RD_KAFKA_OFFSET_BEGINNING) != 0)
+        {
+            err = rd_kafka_last_error();
             elog(ERROR, "rd_kafka_consume_start failed: %s", rd_kafka_err2str(err));
         }
         resHandle->topic = topic;
