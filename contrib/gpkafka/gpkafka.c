@@ -41,13 +41,14 @@ static bool is_custom_format(FunctionCallInfo fcinfo)
 }
 
 static rd_kafka_t *kafka;
+static int max_partition;
 
 static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool custom)
 {
     while (!QueryAbortInProgress())
     {
         rd_kafka_poll(kafka, 0);
-        rd_kafka_message_t *msg = rd_kafka_consume(gpkafka->topic, Gp_segment, 100);
+        rd_kafka_message_t *msg = rd_kafka_consume(gpkafka->topic, gpkafka->partition, 100);
         if (msg)
         {
             if (msg->err == 0)
@@ -67,7 +68,28 @@ static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool cust
             {
                 rd_kafka_message_destroy(msg);
                 elog(DEBUG5, "partition reach end");
-                return 0;
+                rd_kafka_resp_err_t err;
+                if (rd_kafka_consume_stop(gpkafka->topic, gpkafka->partition) != 0)
+                {
+                    err = rd_kafka_last_error();
+                    elog(ERROR, "rd_kafka_consume_stop failed: %s", rd_kafka_err2str(err));
+                }
+                int next = gpkafka->partition + GpIdentity.numsegments;
+                gpkafka->partition = -1;
+
+                if (next > max_partition)
+                {
+                    return 0;
+                }
+
+                if (rd_kafka_consume_start(gpkafka->topic, next, RD_KAFKA_OFFSET_BEGINNING) != 0)
+                {
+                    err = rd_kafka_last_error();
+                    elog(ERROR, "rd_kafka_consume_start failed: %s", rd_kafka_err2str(err));
+                }
+                gpkafka->partition = next;
+
+                continue;
             }
             else
             {
@@ -190,15 +212,15 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         {
             elog(ERROR, "rd_kafka_metadata failed: %s", rd_kafka_err2str(err));
         }
-        if (topicmeta->topics->partition_cnt - 1 < Gp_segment)
+        max_partition = topicmeta->topics->partition_cnt - 1;
+        rd_kafka_metadata_destroy(topicmeta);
+
+        if (Gp_segment > max_partition)
         {
-            elog(INFO, "No available partition: %d", Gp_segment);
             rd_kafka_topic_destroy(topic);
-            rd_kafka_metadata_destroy(topicmeta);
             PG_RETURN_INT32(0);
         }
 
-        rd_kafka_metadata_destroy(topicmeta);
         if (rd_kafka_consume_start(topic, Gp_segment, RD_KAFKA_OFFSET_BEGINNING) != 0)
         {
             err = rd_kafka_last_error();
