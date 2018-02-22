@@ -5,4 +5,4 @@ typedef struct KafkaMeta {
     char* topic;
 } KafkaMeta;
 
-KafkaMeta* RequestMetaFromCoordinator(const char *url);
+KafkaMeta* GetUrlMeta(const char *url);

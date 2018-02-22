@@ -181,7 +181,7 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         EXTPROTOCOL_SET_USER_CTX(fcinfo, resHandle);
         const char *url = EXTPROTOCOL_GET_URL(fcinfo);
 
-        KafkaMeta *meta = RequestMetaFromCoordinator(url);
+        KafkaMeta *meta = GetUrlMeta(url);
         if (kafka == NULL)
         {
 

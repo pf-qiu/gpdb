@@ -1,7 +1,7 @@
 #include "postgres.h"
 #include "meta.h"
 
-KafkaMeta* RequestMetaFromCoordinator(const char *url)
+KafkaMeta* GetUrlMeta(const char *url)
 {
     KafkaMeta* meta = (KafkaMeta*)palloc(sizeof(KafkaMeta));
     const char proto[] = "gpkafka://";
@@ -70,7 +70,7 @@ static KafkaMeta* parseKafkaMeta(char* buffer)
     return meta;
 }
 
-KafkaMeta* RequestMetaFromCoordinator2(const char *url)
+KafkaMeta* RequestMetaFromCoordinator(const char *url)
 {
     CURL *curl = curl_easy_init();
     if(curl) 
