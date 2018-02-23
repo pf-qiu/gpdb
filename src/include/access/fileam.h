@@ -15,11 +15,22 @@
 #ifndef FILEAM_H
 #define FILEAM_H
 
+#include "access/url.h"
 #include "access/formatter.h"
 #include "access/relscan.h"
 #include "access/sdir.h"
-#include "access/url.h"
+#include "access/extprotocol.h"
 #include "utils/rel.h"
+
+typedef struct ExtProtocolDesc
+{
+	Relation rel;
+	char *url;
+	FmgrInfo   *protocol_udf;
+	ExtProtocol extprotocol;
+	MemoryContext protcxt;
+	StringInfoData data_buffer;
+} ExtProtocolDesc;
 
 /*
  * ExternalInsertDescData is used for storing state related
@@ -28,7 +39,7 @@
 typedef struct ExternalInsertDescData
 {
 	Relation	ext_rel;
-	URL_FILE   *ext_file;
+	ExtProtocolDesc   *ext_data;
 	char	   *ext_uri;		/* "command:<cmd>" or "tablespace:<path>" */
 	bool		ext_noop;		/* no op. this segdb needs to do nothing (e.g.
 								 * mirror seg) */
@@ -62,10 +73,5 @@ extern void external_rescan(FileScanDesc scan);
 extern void external_endscan(FileScanDesc scan);
 extern void external_stopscan(FileScanDesc scan);
 extern HeapTuple external_getnext(FileScanDesc scan, ScanDirection direction);
-extern ExternalInsertDesc external_insert_init(Relation rel);
-extern Oid	external_insert(ExternalInsertDesc extInsertDesc, HeapTuple instup);
-extern void external_insert_finish(ExternalInsertDesc extInsertDesc);
-extern void external_set_env_vars(extvar_t *extvar, char *uri, bool csv, char *escape, char *quote, bool header, uint32 scancounter);
-extern char *linenumber_atoi(char buffer[20], int64 linenumber);
 
 #endif   /* FILEAM_H */
