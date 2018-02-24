@@ -9,6 +9,10 @@ typedef struct gpkafkaResHandle
     rd_kafka_topic_t *topic;
     int partition;
     
+    TupleDesc desc;
+    Datum *values;
+    bool *isnull;
+    
     StringInfo messageData;
     ResourceOwner owner; /* owner of this handle */
 

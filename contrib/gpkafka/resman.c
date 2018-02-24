@@ -46,7 +46,21 @@ void destroyGpkafkaResHandle(gpkafkaResHandle *resHandle) {
             rd_kafka_consume_stop(resHandle->topic, resHandle->partition);
         }        
         rd_kafka_topic_destroy(resHandle->topic);
+        resHandle->topic = NULL;
+        resHandle->partition = -1;
     }
+
+    if (resHandle->values) {
+        pfree(resHandle->values);
+        resHandle->values = NULL;
+    }
+
+    if (resHandle->isnull) {
+        pfree(resHandle->isnull);
+        resHandle->isnull = NULL;
+    }
+
+    resHandle->desc = NULL;
 
     pfree(resHandle);
 }

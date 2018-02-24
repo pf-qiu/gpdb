@@ -20,30 +20,17 @@ PG_MODULE_MAGIC;
 PG_FUNCTION_INFO_V1(gpkafka_import);
 PG_FUNCTION_INFO_V1(gpkafka_export);
 
-Datum gpkafka_import(PG_FUNCTION_ARGS);
-Datum gpkafka_export(PG_FUNCTION_ARGS);
+HeapTuple gpkafka_import(PG_FUNCTION_ARGS);
 
 static bool QueryAbortInProgress(void)
 {
     return QueryCancelPending || IsAbortInProgress();
 }
 
-static bool is_custom_format(FunctionCallInfo fcinfo)
-{
-    static ExtTableEntry *exttbl;
-
-    if (exttbl == NULL)
-    {
-        Relation rel = EXTPROTOCOL_GET_RELATION(fcinfo);
-        exttbl = GetExtTableEntry(rel->rd_id);
-    }
-    return fmttype_is_custom(exttbl->fmtcode);
-}
-
 static rd_kafka_t *kafka;
 static int max_partition;
 
-static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool custom)
+static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data)
 {
     while (!QueryAbortInProgress())
     {
@@ -55,12 +42,6 @@ static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool cust
             {
                 resetStringInfo(data);
                 appendBinaryStringInfo(data, msg->payload, msg->len);
-
-                if (!custom)
-                {
-                    /* text and csv format needs line end */
-                    appendStringInfoChar(data, '\n');
-                }
                 rd_kafka_message_destroy(msg);
                 return data->len;
             }
@@ -101,61 +82,7 @@ static int consume_message(gpkafkaResHandle *gpkafka, StringInfo data, bool cust
     return 0;
 }
 
-static Oid lookup_oid(const char *table)
-{
-    Oid oid;
-    Relation rel;
-    ScanKeyData keys[2];
-    HeapScanDesc scan;
-    HeapTuple tuple;
-
-    oid = InvalidOid;
-    rel = heap_open(RelationRelationId, AccessShareLock);
-    ScanKeyInit(&keys[0], Anum_pg_class_relname, BTEqualStrategyNumber, F_NAMEEQ, CStringGetDatum(table));
-    ScanKeyInit(&keys[1], Anum_pg_class_reltype, BTEqualStrategyNumber, F_CHAREQ, CharGetDatum(RELKIND_RELATION));
-
-    scan = heap_beginscan(rel, SnapshotNow, sizeof(keys), keys);
-    if ((tuple = heap_getnext(scan, ForwardScanDirection)))
-    {
-        oid = HeapTupleGetOid(tuple);
-    }
-
-    heap_endscan(scan);
-    heap_close(rel, AccessShareLock);
-    return oid;
-}
-
-#define InvalidOffset ((int64)-1)
-
-static int64 lookup_offset(Oid table)
-{
-    Relation rel;
-    ScanKeyData key;
-    HeapScanDesc scan;
-    HeapTuple tuple;
-    TupleDesc desc;
-    bool isnull;
-    Datum offset;
-    rel = heap_open(table, AccessShareLock);
-    ScanKeyInit(&key, 1, BTEqualStrategyNumber, F_INT4EQ, Int32GetDatum(Gp_segment));
-    scan = heap_beginscan(rel, SnapshotNow, 1, &key);
-    if ((tuple = heap_getnext(scan, ForwardScanDirection)))
-    {
-        desc = RelationGetDescr(rel);
-        isnull = false;
-        offset = heap_getattr(tuple, 2, desc, &isnull);
-        if (isnull)
-        {
-            offset = InvalidOffset;
-        }
-    }
-
-    heap_endscan(scan);
-    heap_close(rel, AccessShareLock);
-    return DatumGetInt64(offset);
-}
-
-Datum gpkafka_import(PG_FUNCTION_ARGS)
+HeapTuple gpkafka_import(PG_FUNCTION_ARGS)
 {
     /* Must be called via the external table format manager */
     if (!CALLED_AS_EXTPROTOCOL(fcinfo))
@@ -170,7 +97,7 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         destroyGpkafkaResHandle(resHandle);
 
         EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
-        PG_RETURN_INT32(0);
+        return NULL;
     }
 
     /* first call. do any desired init */
@@ -218,7 +145,7 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         if (Gp_segment > max_partition)
         {
             rd_kafka_topic_destroy(topic);
-            PG_RETURN_INT32(0);
+            return NULL;
         }
 
         if (rd_kafka_consume_start(topic, Gp_segment, RD_KAFKA_OFFSET_BEGINNING) != 0)
@@ -228,15 +155,60 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         }
         resHandle->topic = topic;
         resHandle->partition = Gp_segment;
+
+        resHandle->desc = RelationGetDescr(EXTPROTOCOL_GET_RELATION(fcinfo));
+        int ncolumns = resHandle->desc->natts;
+        resHandle->isnull = palloc(sizeof(bool) * ncolumns);
+        resHandle->values = palloc(sizeof(Datum) * ncolumns);
     }
 
     StringInfo linebuf = EXTPROTOCOL_GET_LINEBUF(fcinfo);
-    bool custom = is_custom_format(fcinfo);
-    int consumed = consume_message(resHandle, linebuf, custom);
+    int consumed = consume_message(resHandle, linebuf);
     if (consumed > 0)
     {
-        /* Tell gpdb that no line detection is needed. */
-        EXTPROTOCOL_SET_IS_COMPLETE_RECORD(fcinfo);
+        FmgrInfo *funcs = EXTPROTOCOL_GET_CONV_FUNCS(fcinfo);
+        Oid* typioparams = EXTPROTOCOL_GET_TYPIOPARAMS(fcinfo);
+
+        int n = resHandle->desc->natts;
+        char *buf = linebuf->data;
+        Datum *values = resHandle->values;
+        bool *isnull = resHandle->isnull;
+        TupleDesc desc = resHandle->desc;
+
+        int i;
+        for (i = 0; i < n - 1; i++)
+        {
+            char *p = strchr(buf, ',');
+            if (p == NULL)
+            {
+                elog(ERROR, "invalid data");
+            }
+            *p = '\0';
+            if (p == buf + 1)
+            {
+                isnull[i] = true;
+            }
+            else
+            {
+            values[i] = InputFunctionCall(&funcs[i], buf, typioparams[i], desc->attrs[i]->atttypmod);
+            isnull[i] = false;
+            }
+            buf = p + 1;
+        }
+
+        if (*buf)
+        {
+            values[i] = InputFunctionCall(&funcs[i], buf, typioparams[i], desc->attrs[i]->atttypmod);
+            isnull[i] = false;
+        }
+        else
+        {
+            isnull[i] = true;
+        }
+        return heap_form_tuple(desc, values, isnull);
     }
-    PG_RETURN_INT32(consumed);
+    else
+    {
+        return NULL;
+    }
 }

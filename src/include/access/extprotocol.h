@@ -35,6 +35,8 @@ typedef struct ExtProtocolData
 	void*			prot_user_ctx;
 	bool			prot_last_call;
 	StringInfo      prot_linebuf;
+	FmgrInfo   	   *conv_funcs; /* in_fuctions (RET) or out_functions (WET) */
+	Oid            *typioparams;
 } ExtProtocolData;
 
 typedef ExtProtocolData *ExtProtocol;
@@ -47,6 +49,9 @@ typedef ExtProtocolData *ExtProtocol;
 #define EXTPROTOCOL_GET_USER_CTX(fcinfo)   (((ExtProtocolData*) fcinfo->context)->prot_user_ctx)
 #define EXTPROTOCOL_IS_LAST_CALL(fcinfo)   (((ExtProtocolData*) fcinfo->context)->prot_last_call)
 #define EXTPROTOCOL_GET_LINEBUF(fcinfo)    (((ExtProtocolData*) fcinfo->context)->prot_linebuf)
+#define EXTPROTOCOL_GET_CONV_FUNCS(fcinfo) (((ExtProtocolData*) fcinfo->context)->conv_funcs)
+#define EXTPROTOCOL_GET_TYPIOPARAMS(fcinfo) (((ExtProtocolData*) fcinfo->context)->typioparams)
+
 #define EXTPROTOCOL_SET_LAST_CALL(fcinfo)  (((ExtProtocolData*) fcinfo->context)->prot_last_call = true)
 #define EXTPROTOCOL_SET_USER_CTX(fcinfo, p) \
 	(((ExtProtocolData*) fcinfo->context)->prot_user_ctx = p)

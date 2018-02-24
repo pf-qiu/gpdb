@@ -69,7 +69,7 @@ static void open_external_readable_source(FileScanDesc scan);
 static void close_external_readable_source(FileScanDesc scan);
 static void external_scan_error_callback(void *arg);
 
-static Datum InvokeExtProtocol(ExtProtocolDesc *file, bool last_call);
+static HeapTuple InvokeExtProtocol(ExtProtocolDesc *file, bool last_call);
 
 /* ----------------------------------------------------------------
 *				   external_ interface functions
@@ -378,7 +378,6 @@ externalgettup(FileScanDesc scan,
 {
 	ExtProtocolDesc *ext = scan->fs_file;
 	HeapTuple tup = NULL;
-	Datum d;
 	ErrorContextCallback externalscan_error_context;
 
 	Assert(ScanDirectionIsForward(dir));
@@ -400,7 +399,7 @@ externalgettup(FileScanDesc scan,
 		/* (set current state...) */
 	}
 
-	d = InvokeExtProtocol(ext, false);
+	tup = InvokeExtProtocol(ext, false);
 
 	/* Restore the previous error callback */
 	error_context_stack = externalscan_error_context.previous;
@@ -453,6 +452,8 @@ open_external_readable_source(FileScanDesc scan)
 		
 	ext->protocol_udf = palloc(sizeof(FmgrInfo));
 	ext->extprotocol = (ExtProtocolData *) palloc0 (sizeof(ExtProtocolData));
+	ext->extprotocol->conv_funcs = scan->in_functions;
+	ext->extprotocol->typioparams = scan->typioparams;
 
 	/* we found our function. set it in custom file handler */
 	fmgr_info(procOid, ext->protocol_udf);
@@ -493,14 +494,14 @@ external_scan_error_callback(void *arg)
 	return;
 }
 
-static Datum
+static HeapTuple
 InvokeExtProtocol(ExtProtocolDesc *file, bool last_call)
 {
 	FunctionCallInfoData	fcinfo;
 	ExtProtocolData *extprotocol = file->extprotocol;
 	FmgrInfo	   *extprotocol_udf = file->protocol_udf;
-	Datum					d;
 	MemoryContext			oldcontext;
+	HeapTuple tup;
 
 	/* must have been created during url_fopen() */
 	Assert(extprotocol);
@@ -519,14 +520,14 @@ InvokeExtProtocol(ExtProtocolDesc *file, bool last_call)
 	
 	/* invoke the protocol within a designated memory context */
 	oldcontext = MemoryContextSwitchTo(file->protcxt);
-	d = FunctionCallInvoke(&fcinfo);
+	tup = FunctionCallInvoke(&fcinfo);
 	MemoryContextSwitchTo(oldcontext);
 
 	/* We do not expect a null result */
 	if (fcinfo.isnull)
 		elog(ERROR, "function %u returned NULL", fcinfo.flinfo->fn_oid);
 
-	return d;
+	return tup;
 }
 
 

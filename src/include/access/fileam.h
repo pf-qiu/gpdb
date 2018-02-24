@@ -24,12 +24,12 @@
 
 typedef struct ExtProtocolDesc
 {
-	Relation rel;
-	char *url;
-	FmgrInfo   *protocol_udf;
-	ExtProtocol extprotocol;
-	MemoryContext protcxt;
-	StringInfoData data_buffer;
+	Relation        rel;
+	char           *url;
+	FmgrInfo       *protocol_udf;
+	ExtProtocol     extprotocol;
+	MemoryContext   protcxt;
+	StringInfoData  data_buffer;
 } ExtProtocolDesc;
 
 /*
