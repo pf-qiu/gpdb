@@ -95,6 +95,7 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	createStmt->options = NIL;
 	createStmt->oncommit = ONCOMMIT_NOOP;
 	createStmt->tablespacename = NULL;
+	createStmt->distributedBy = createExtStmt->distributedBy;
 	createStmt->policy = createExtStmt->policy; /* policy was set in transform */
 
 	switch (exttypeDesc->exttabletype)
