@@ -10,6 +10,7 @@ gpkafkaResHandle *createGpkafkaResHandle(void) {
     resHandle = (gpkafkaResHandle *)MemoryContextAlloc(TopMemoryContext, sizeof(gpkafkaResHandle));
 
     resHandle->messageData = makeStringInfo();
+    resHandle->kafka = NULL;
     resHandle->topic = NULL;
     resHandle->partition = -1;
 
@@ -43,13 +44,23 @@ void destroyGpkafkaResHandle(gpkafkaResHandle *resHandle) {
     if (resHandle->topic) {
         if (resHandle->partition != -1)
         {
-            rd_kafka_consume_stop(resHandle->topic, resHandle->partition);
-        }        
+            if (resHandle->mode == KAFKA_CONSUMER)
+            {
+                rd_kafka_consume_stop(resHandle->topic, resHandle->partition);
+            }
+            else
+            {
+                rd_kafka_flush(resHandle->kafka, 10*1000 /* wait for max 10 seconds */);
+            }
+        }    
         rd_kafka_topic_destroy(resHandle->topic);
         resHandle->topic = NULL;
         resHandle->partition = -1;
     }
 
+    if (resHandle->kafka) {
+        rd_kafka_destroy(resHandle->kafka);
+    }
     pfree(resHandle);
 }
 

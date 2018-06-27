@@ -4,10 +4,17 @@
 #include "utils/resowner.h"
 
 #include "librdkafka/rdkafka.h"
+
+
+#define KAFKA_CONSUMER 0
+#define KAFKA_PRODUCER 1
+
 typedef struct gpkafkaResHandle
 {
+    rd_kafka_t *kafka;
     rd_kafka_topic_t *topic;
     int partition;
+    int mode;
     
     StringInfo messageData;
     ResourceOwner owner; /* owner of this handle */
