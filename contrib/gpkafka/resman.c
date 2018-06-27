@@ -50,6 +50,13 @@ void destroyGpkafkaResHandle(gpkafkaResHandle *resHandle) {
             }
             else
             {
+                rd_kafka_produce(
+                    resHandle->topic,
+                    resHandle->partition,
+                    RD_KAFKA_MSG_F_COPY,
+                    NULL, 0,
+                    "EOF", 3,
+                    NULL);
                 rd_kafka_flush(resHandle->kafka, 10*1000 /* wait for max 10 seconds */);
             }
         }    

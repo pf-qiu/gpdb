@@ -31,6 +31,10 @@ static int consume_message(gpkafkaResHandle *gpkafka)
         {
             if (msg->err == 0)
             {
+                if (msg->key_len != 0)
+                {
+                    return 0;
+                }
                 resetStringInfo(gpkafka->messageData);
                 appendBinaryStringInfo(gpkafka->messageData, msg->payload, msg->len);
                 appendStringInfoChar(gpkafka->messageData, '\n');
@@ -41,14 +45,7 @@ static int consume_message(gpkafkaResHandle *gpkafka)
             else if (msg->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
             {
                 rd_kafka_message_destroy(msg);
-                elog(DEBUG5, "partition reach end");
-                rd_kafka_resp_err_t err;
-                if (rd_kafka_consume_stop(gpkafka->topic, gpkafka->partition) != 0)
-                {
-err = rd_kafka_last_error();
-elog(ERROR, "rd_kafka_consume_stop failed: %s", rd_kafka_err2str(err));
-                }
-                return 0;
+                continue;
             }
             else
             {
