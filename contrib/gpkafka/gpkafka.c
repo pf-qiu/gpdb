@@ -23,6 +23,7 @@ static int max_partition;
 
 static int consume_message(gpkafkaResHandle *gpkafka)
 {
+    bool eof = false;
     while (!QueryAbortInProgress())
     {
         rd_kafka_poll(gpkafka->kafka, 0);
@@ -33,7 +34,8 @@ static int consume_message(gpkafkaResHandle *gpkafka)
             {
                 if (msg->key_len != 0)
                 {
-                    return 0;
+                    eof = true;
+                    continue;
                 }
                 resetStringInfo(gpkafka->messageData);
                 appendBinaryStringInfo(gpkafka->messageData, msg->payload, msg->len);
@@ -45,7 +47,8 @@ static int consume_message(gpkafkaResHandle *gpkafka)
             else if (msg->err == RD_KAFKA_RESP_ERR__PARTITION_EOF)
             {
                 rd_kafka_message_destroy(msg);
-                continue;
+                if (eof) return 0;
+                else continue;
             }
             else
             {
