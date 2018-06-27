@@ -173,6 +173,12 @@ Datum gpkafka_export(PG_FUNCTION_ARGS)
         PG_RETURN_INT32(0);
     }
 
+    char *data_buf = EXTPROTOCOL_GET_DATABUF(fcinfo);
+    int32 data_len = EXTPROTOCOL_GET_DATALEN(fcinfo);
+//    if (GpIdentity.segindex != 0)
+//    {
+//    PG_RETURN_INT32(data_len);
+//    }
     /* first call. do any desired init */
     if (resHandle == NULL)
     {
@@ -207,9 +213,8 @@ Datum gpkafka_export(PG_FUNCTION_ARGS)
         resHandle->topic = topic;
         resHandle->partition = segid;
     }
-
-    char *data_buf = EXTPROTOCOL_GET_DATABUF(fcinfo);
-    int32 data_len = EXTPROTOCOL_GET_DATALEN(fcinfo);
+    int len = data_len;
+    if (data_buf[len - 1] == '\n') len--;
     while(rd_kafka_produce(
         /* Topic object */
         resHandle->topic,
@@ -218,7 +223,7 @@ Datum gpkafka_export(PG_FUNCTION_ARGS)
         /* Make a copy of the payload. */
         RD_KAFKA_MSG_F_COPY,
         /* Message payload (value) and length */
-        data_buf, data_len,
+        data_buf, len,
         /* Optional key and its length */
         NULL, 0,
         /* Message opaque, provided in
