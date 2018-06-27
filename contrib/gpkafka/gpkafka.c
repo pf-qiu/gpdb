@@ -35,6 +35,7 @@ static int consume_message(gpkafkaResHandle *gpkafka)
                 if (msg->key_len != 0)
                 {
                     eof = true;
+                    rd_kafka_message_destroy(msg);
                     continue;
                 }
                 resetStringInfo(gpkafka->messageData);
@@ -78,6 +79,7 @@ Datum gpkafka_import(PG_FUNCTION_ARGS)
         PG_RETURN_INT32(0);
     }
 
+    if (GpIdentity.segindex != 0) return 0;
     /* first call. do any desired init */
     if (resHandle == NULL)
     {
