@@ -34,6 +34,8 @@ file (WRITE "${GPDB_SRC_DIR}/src/port/pg_config_paths.h"
     "\n#define MANDIR \"${GPDB_SRC_DIR}/share/man\""
 )
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 add_subdirectory(src/common)
 add_subdirectory(src/port)
 add_subdirectory(src/interfaces/libpq)
@@ -45,3 +47,4 @@ add_subdirectory(src/bin/pg_config)
 add_subdirectory(src/bin/pg_controldata)
 add_subdirectory(src/bin/pg_dump)
 add_subdirectory(src/bin/pg_resetxlog)
+add_subdirectory(src/bin/scripts)

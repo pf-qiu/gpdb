@@ -13,12 +13,6 @@ set(SOURCE_FILES
 	pg_backup_utils.c
     parallel.c
     compress_io.c
-    dumputils.c
-)
-
-set(KEYWORD_FILES
-    keywords.c
-    ${GPDB_SRC_DIR}/src/backend/parser/kwlookup.c
 )
 
 set(HEADER_FILES
@@ -47,7 +41,6 @@ include_directories(${HEADER_DIRS})
 
 set(PG_DUMP_FILES
     ${SOURCE_FILES}
-    ${KEYWORD_FILES}
     pg_dump.c
     common.c
     pg_dump_sort.c
@@ -57,7 +50,6 @@ target_link_libraries(pg_dump port libpq common ws2_32 secur32)
 
 set(PG_RESTORE_FILES
     ${SOURCE_FILES}
-    ${KEYWORD_FILES}
     pg_restore.c
 )
 add_executable(pg_restore ${HEADER_FILES} ${PG_RESTORE_FILES})
@@ -66,7 +58,6 @@ target_link_libraries(pg_restore port libpq common ws2_32 secur32)
 set(PG_DUMPALL_FILES
     ${KEYWORD_FILES}
     pg_dumpall.c
-    dumputils.c
 )
 add_executable(pg_dumpall ${HEADER_FILES} ${PG_DUMPALL_FILES})
 target_link_libraries(pg_dumpall port libpq common ws2_32 secur32)

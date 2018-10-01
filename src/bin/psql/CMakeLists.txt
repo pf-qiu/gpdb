@@ -48,8 +48,6 @@ set(HEADER_FILES
     input.h
     large_obj.h
     mainloop.h
-    mbprint.h
-    print.h
     prompt.h
     psqlscan.h
     settings.h

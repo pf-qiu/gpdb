@@ -7,6 +7,11 @@ add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
 set(SOURCE_FILES
    fe_memutils.c
    relpath.c
+   ${GPDB_SRC_DIR}/src/bin/psql/print.c
+   ${GPDB_SRC_DIR}/src/bin/psql/mbprint.c
+   ${GPDB_SRC_DIR}/src/bin/pg_dump/keywords.c
+   ${GPDB_SRC_DIR}/src/bin/pg_dump/dumputils.c
+   ${GPDB_SRC_DIR}/src/backend/parser/kwlookup.c
 )
 
 set(HEADER_FILES
@@ -16,6 +21,9 @@ set(HEADER_FILES
 
 set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include
+    ${GPDB_SRC_DIR}/src/interfaces/libpq
+    ${GPDB_SRC_DIR}/src/bin/psql
+    ${GPDB_SRC_DIR}/src/bin/pg_dump
     ${GPDB_SRC_DIR}/src/include/port
     ${GPDB_SRC_DIR}/src/include/port/win32
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
