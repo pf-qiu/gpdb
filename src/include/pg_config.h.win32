@@ -751,3 +751,33 @@
 /* Define to empty if the keyword `volatile' does not work. Warning: valid
    code using `volatile' can become incorrect without. Disable with care. */
 /* #undef volatile */
+
+/* Size of a disk block --- this also limits the size of a tuple. You can set
+   it bigger if you need bigger tuples (although TOAST should reduce the need
+   to have large tuples, since fields can be spread across multiple tuples).
+   BLCKSZ must be a power of 2. The maximum possible value of BLCKSZ is
+   currently 2^15 (32768). This is determined by the 15-bit widths of the
+   lp_off and lp_len fields in ItemIdData (see include/storage/itemid.h).
+   Changing BLCKSZ requires an initdb. */
+#define BLCKSZ 32768
+
+/* float4 values are passed by value if 'true', by reference if 'false'
+   (always true in GPDB) */
+#define FLOAT4PASSBYVAL true
+
+/* float8, int8, and related values are passed by value if 'true', by
+   reference if 'false' (always true in GPDB) */
+#define FLOAT8PASSBYVAL true
+
+/* Size of a WAL file block. This need have no particular relation to BLCKSZ.
+   XLOG_BLCKSZ must be a power of 2, and if your system supports O_DIRECT I/O,
+   XLOG_BLCKSZ must be a multiple of the alignment requirement for direct-I/O
+   buffers, else direct I/O may fail. Changing XLOG_BLCKSZ requires an initdb.
+   */
+#define XLOG_BLCKSZ 32768
+
+/* XLOG_SEG_SIZE is the size of a single WAL file. This must be a power of 2
+   and larger than XLOG_BLCKSZ (preferably, a great deal larger than
+   XLOG_BLCKSZ). Changing XLOG_SEG_SIZE requires an initdb. */
+#define XLOG_SEG_SIZE (64 * 1024 * 1024)
+

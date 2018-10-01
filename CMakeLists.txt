@@ -11,9 +11,12 @@ configure_file("${GPDB_SRC_DIR}/src/include/port/win32.h" "${GPDB_SRC_DIR}/src/i
 # Extract version number from subgroup, into $CMAKE_MATCH_1
 # Append definition to final pg_config.h
 set(VERSION_PATTERN "PG_PACKAGE_VERSION=([^\]]*)")
+set(GPDB_VERSION_PATTER "\\\[Greenplum Database\\\], \\\[([^\]]*)\\\]")
 file(STRINGS "${GPDB_SRC_DIR}/configure.in" CONFIGURE_FILE)
 string(REGEX MATCH "${VERSION_PATTERN}" PG_MAJORVERSION ${CONFIGURE_FILE})
-file(APPEND "${GPDB_SRC_DIR}/src/include/pg_config.h" "#define PG_MAJORVERSION \"${CMAKE_MATCH_1}\"" )
+file(APPEND "${GPDB_SRC_DIR}/src/include/pg_config.h" "\n#define PG_MAJORVERSION \"${CMAKE_MATCH_1}\"\n" )
+string(REGEX MATCH "${GPDB_VERSION_PATTER}" GP_VERSION ${CONFIGURE_FILE})
+file(APPEND "${GPDB_SRC_DIR}/src/include/pg_config.h" "\n#define GP_VERSION \"${CMAKE_MATCH_1}\"\n" )
 
 # pg_config_paths.h is shared by both port and libpq
 file (WRITE "${GPDB_SRC_DIR}/src/port/pg_config_paths.h"
@@ -35,3 +38,8 @@ add_subdirectory(src/common)
 add_subdirectory(src/port)
 add_subdirectory(src/interfaces/libpq)
 add_subdirectory(src/bin/psql)
+add_subdirectory(src/bin/initdb)
+add_subdirectory(src/bin/pg_ctl)
+add_subdirectory(src/bin/pg_basebackup)
+add_subdirectory(src/bin/pg_config)
+add_subdirectory(src/bin/pg_controldata)
