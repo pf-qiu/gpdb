@@ -35,27 +35,20 @@ pthread_getspecific(pthread_key_t key)
 int
 pthread_mutex_init(pthread_mutex_t *mp, void *attr)
 {
-	*mp = (CRITICAL_SECTION *) malloc(sizeof(CRITICAL_SECTION));
-	if (!*mp)
-		return 1;
-	InitializeCriticalSection(*mp);
+	InitializeCriticalSection(mp);
 	return 0;
 }
 
 int
 pthread_mutex_lock(pthread_mutex_t *mp)
 {
-	if (!*mp)
-		return 1;
-	EnterCriticalSection(*mp);
+	EnterCriticalSection(mp);
 	return 0;
 }
 
 int
 pthread_mutex_unlock(pthread_mutex_t *mp)
 {
-	if (!*mp)
-		return 1;
-	LeaveCriticalSection(*mp);
+	LeaveCriticalSection(mp);
 	return 0;
 }

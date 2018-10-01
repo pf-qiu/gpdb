@@ -1,15 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 project(pg_controldata)
 
-include(FindPerl)
-if (PERL_FOUND)
-    execute_process(COMMAND ${PERL_EXECUTABLE} "${GPDB_SRC_DIR}/src/backend/utils/generate-errcodes.pl" "${GPDB_SRC_DIR}/src/backend/utils/errcodes.txt"
-    OUTPUT_FILE "${GPDB_SRC_DIR}/src/backend/utils/errcodes.h"
-    )
-else ()
-    message(SEND_ERROR "Perl not found")
-endif()
-
 add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4267 /MP")
 
 set(SOURCE_FILES
