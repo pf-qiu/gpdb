@@ -439,6 +439,9 @@ typedef long ssize_t;
 typedef __int64 ssize_t;
 #endif
 
+typedef unsigned int uint32_t;
+#define INT16_MAX 32767
+
 #ifndef __BORLANDC__
 typedef unsigned short mode_t;
 

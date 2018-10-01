@@ -2091,7 +2091,7 @@ DatumStreamBlockRead_GetReady(
 {
 	if (dsr->datumStreamVersion == DatumStreamVersion_Original)
 	{
-		return DatumStreamBlockRead_GetReadyOrig(
+		DatumStreamBlockRead_GetReadyOrig(
 												 dsr,
 												 buffer,
 												 bufferSize,
@@ -2104,7 +2104,7 @@ DatumStreamBlockRead_GetReady(
 	{
 		Assert(dsr->datumStreamVersion == DatumStreamVersion_Dense ||
 			 (dsr->datumStreamVersion == DatumStreamVersion_Dense_Enhanced));
-		return DatumStreamBlockRead_GetReadyDense(
+		DatumStreamBlockRead_GetReadyDense(
 												  dsr,
 												  buffer,
 												  bufferSize,

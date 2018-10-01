@@ -832,7 +832,7 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
  */
 void
 ExecutorRun(QueryDesc *queryDesc,
-			ScanDirection direction, long count)
+			ScanDirection direction, int64 count)
 {
 	if (ExecutorRun_hook)
 		(*ExecutorRun_hook) (queryDesc, direction, count);

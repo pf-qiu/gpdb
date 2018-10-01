@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.6)
+
+add_subdirectory(psql)
+add_subdirectory(initdb)
+add_subdirectory(pg_ctl)
+add_subdirectory(pg_basebackup)
+add_subdirectory(pg_config)
+add_subdirectory(pg_controldata)
+add_subdirectory(pg_dump)
+add_subdirectory(pg_resetxlog)
+add_subdirectory(scripts)

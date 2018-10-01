@@ -56,12 +56,12 @@
  *     mode for older uses of 32-bit alignment.
  *
  *    Note that content is not required to be an integral number of 64-bit or 32-bit items.
- *    Content can be any byte length in the range 1 through 1Gb � 1.
+ *    Content can be any byte length in the range 1 through 1Gb.
  *
  * Logical EOF
  *
  *     For Append-Only Tables the end of data is versioned.  When a transaction successfully
- *     commits it adds a new version � that is, more data that can be read by future
+ *     commits it adds a new version, that is, more data that can be read by future
  *     transactions.  The versioned EOFs are kept in a system catalog table.  Readers look
  *     through their transaction snapshot and get the logical EOF for data they are suppose
  *     to see, which can be less than what is currently committed.

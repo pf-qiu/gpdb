@@ -103,7 +103,6 @@ extern int find_other_exec(const char *argv0, const char *target,
 extern BOOL AddUserToTokenDacl(HANDLE hToken);
 #endif
 
-
 #if defined(WIN32) || defined(__CYGWIN__)
 #define EXE ".exe"
 #else

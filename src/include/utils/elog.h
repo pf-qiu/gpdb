@@ -380,9 +380,16 @@ __attribute__((format(PG_PRINTF_ATTRIBUTE, 1, 2)));
  * if (guc)
  *     elog(LOG, ...)
  */
+#ifdef WIN32
+#define elogif(p, level, ...) do { \
+	if (p) elog(level, __VA_ARGS__); \
+    } while(false);
+
+#else
 #define elogif(p, ...) do { \
 	if (p) elog(__VA_ARGS__); \
     } while(false);
+#endif
 
 /* Support for attaching context information to error reports */
 
