@@ -1,13 +1,10 @@
 cmake_minimum_required(VERSION 3.6)
-project(initdb)
+project(pg_resetxlog)
 
 add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4267 /MP")
 
 set(SOURCE_FILES
-    initdb.c
-    findtimezone.c
-    ${GPDB_SRC_DIR}/src/backend/utils/mb/encnames.c
-    ${GPDB_SRC_DIR}/src/timezone/localtime.c
+    pg_resetxlog.c
 )
 
 set(HEADER_FILES
@@ -16,12 +13,13 @@ set(HEADER_FILES
 
 set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include
-    ${GPDB_SRC_DIR}/src/timezone
+    ${GPDB_SRC_DIR}/src/backend
+    ${GPDB_SRC_DIR}/src/port
     ${GPDB_SRC_DIR}/src/include/port/win32
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 
 include_directories(${HEADER_DIRS})
 
-add_executable(initdb ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(initdb port common ws2_32 secur32)
+add_executable(pg_resetxlog ${HEADER_FILES} ${SOURCE_FILES})
+target_link_libraries(pg_resetxlog port common ws2_32 secur32)

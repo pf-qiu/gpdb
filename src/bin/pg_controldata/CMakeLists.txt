@@ -10,7 +10,7 @@ else ()
     message(SEND_ERROR "Perl not found")
 endif()
 
-add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090")
+add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4267 /MP")
 
 set(SOURCE_FILES
     pg_controldata.c
