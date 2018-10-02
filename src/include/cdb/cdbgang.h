@@ -16,11 +16,7 @@
 
 #include "cdb/cdbutil.h"
 #include "executor/execdesc.h"
-#ifdef WIN32
-#include "pthread-win32.h"
-#else
 #include <pthread.h>
-#endif
 #include "utils/faultinjector.h"
 #include "utils/portal.h"
 
@@ -112,11 +108,7 @@ extern bool segment_failure_due_to_recovery(const char *error_message);
  *
  * This routine is also called from the sigalarm signal handler (hopefully that is safe to do).
  */
-#ifdef WIN32
-extern int gp_pthread_create(DWORD *thread, void *(*start_routine)(void *), void *arg, const char *caller);
-#else
 extern int gp_pthread_create(pthread_t *thread, void *(*start_routine)(void *), void *arg, const char *caller);
-#endif
 
 /*
  * cdbgang_parse_gpqeid_params

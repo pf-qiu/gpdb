@@ -27,18 +27,13 @@ add_subdirectory(executor)
 #add_subdirectory(tcop)
 #add_subdirectory(tsearch)
 
-#[[
 project(backend)
 
-add_definitions("/D MAX_PATH=260")
 add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
 add_definitions("/MP")
 
 set(SOURCE_FILES
-)
-
-set(HEADER_FILES
-    ${GPDB_SRC_DIR}/src/include/pg_config.h
+    pthread.c
 )
 
 set(HEADER_DIRS
@@ -50,5 +45,5 @@ set(HEADER_DIRS
 
 include_directories(${HEADER_DIRS})
 
-add_library(port ${HEADER_FILES} ${SOURCE_FILES})
-]]
+add_executable(postgres ${HEADER_FILES} ${SOURCE_FILES})
+target_link_libraries(postgres port ws2_32 secur32)

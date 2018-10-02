@@ -41,12 +41,6 @@
 #include "port/atomics.h"
 #include "utils/timestamp.h"
 
-#ifndef _WIN32
-#define mythread() ((unsigned long) pthread_self())
-#else
-#define mythread() ((unsigned long) pthread_self().p)
-#endif
-
 #define DISPATCH_WAIT_TIMEOUT_SEC 2
 
 
@@ -342,11 +336,7 @@ CdbCheckDispatchResult_internal(struct CdbDispatcherState *ds,
 				elog(FATAL,
 					 "CheckDispatchResult: pthread_join failed on thread %d (%lu) of %d (returned %d attempting to join to %lu)",
 					 i + 1,
-#ifndef _WIN32
 					 (unsigned long) pParms->thread,
-#else
-					 (unsigned long) pParms->thread.p,
-#endif
 					 pThreads->threadCount, pthread_err,
 					 (unsigned long) mythread());
 		}

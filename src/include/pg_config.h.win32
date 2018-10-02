@@ -794,4 +794,4 @@
    RELSEG_SIZE requires an initdb. */
 #define RELSEG_SIZE 32768
 
-
+#define HAVE_POLL_H

@@ -332,7 +332,7 @@ CdbDispatchCommand(const char *strCommand,
 
 	pQueryParms = cdbdisp_buildCommandQueryParms(strCommand, flags);
 
-	return cdbdisp_dispatchCommandInternal(pQueryParms, flags, cdb_pgresults);
+	cdbdisp_dispatchCommandInternal(pQueryParms, flags, cdb_pgresults);
 }
 
 /*
@@ -369,7 +369,7 @@ CdbDispatchUtilityStatement(struct Node *stmt,
 
 	pQueryParms = cdbdisp_buildUtilityQueryParms(stmt, flags, oid_assignments);
 
-	return cdbdisp_dispatchCommandInternal(pQueryParms, flags, cdb_pgresults);
+	cdbdisp_dispatchCommandInternal(pQueryParms, flags, cdb_pgresults);
 }
 
 static void

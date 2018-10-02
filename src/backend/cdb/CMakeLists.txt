@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 3.6)
 
+find_package( ZLIB REQUIRED )
+if ( ZLIB_FOUND )
+    include_directories( ${ZLIB_INCLUDE_DIRS} )
+else ()
+    message(SEND_ERROR "zlib not found")
+endif( ZLIB_FOUND )
+
+add_subdirectory(dispatcher)
+
 project(cdb)
 
-add_definitions("/D BUILDING_DLL /wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /MP")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /MP")
 
 set(SOURCE_FILES
 cdbappendonlystorageformat.c
