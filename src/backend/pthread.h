@@ -21,12 +21,19 @@ int pthread_attr_destroy(pthread_attr_t* attr );
 int pthread_attr_setstacksize(pthread_attr_t* attr, int v);
 
 typedef SRWLOCK pthread_mutex_t;
+
 #define PTHREAD_MUTEX_INITIALIZER {0}
 
-int			pthread_mutex_init(pthread_mutex_t *, void *attr);
-int			pthread_mutex_lock(pthread_mutex_t *);
+int	pthread_mutex_init(pthread_mutex_t *, void *attr);
+int	pthread_mutex_lock(pthread_mutex_t *);
+int	pthread_mutex_unlock(pthread_mutex_t *);
 
-/* blocking */
-int			pthread_mutex_unlock(pthread_mutex_t *);
+typedef int pthread_mutexattr_t;
 
+int pthread_mutexattr_init(pthread_mutexattr_t *attr);
+int pthread_mutexattr_destroy(pthread_mutexattr_t *attr);
+int pthread_mutexattr_gettype(const pthread_mutexattr_t *attr, int *type);
+int pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type);
+
+#define PTHREAD_MUTEX_ERRORCHECK 0
 #endif

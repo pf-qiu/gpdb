@@ -140,10 +140,9 @@ typedef struct ICBufferList
 }	ICBufferList;
 
 #define CONTAINER_OF(ptr, type, member) \
-	({ \
-		const typeof( ((type *)0)->member ) *__member_ptr = (ptr); \
-		(type *)( (char *)__member_ptr - offsetof(type,member) ); \
-	})
+	( \
+		(type *)( (char *)ptr - offsetof(type,member) ) \
+	)
 
 #define GET_ICBUFFER_FROM_PRIMARY(ptr) CONTAINER_OF(ptr, ICBuffer, primary)
 #define GET_ICBUFFER_FROM_SECONDARY(ptr) CONTAINER_OF(ptr, ICBuffer, secondary)

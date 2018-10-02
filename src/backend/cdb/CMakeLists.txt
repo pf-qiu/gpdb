@@ -8,6 +8,7 @@ else ()
 endif( ZLIB_FOUND )
 
 add_subdirectory(dispatcher)
+add_subdirectory(motion)
 
 project(cdb)
 

@@ -103,8 +103,6 @@ WSAPoll(
 );
 #endif
 
-#define poll WSAPoll
-
 /*
  * Postgres normally uses it's own custom select implementation
  * on Windows, but they haven't implemented execeptfds, which
