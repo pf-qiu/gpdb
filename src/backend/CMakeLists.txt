@@ -31,7 +31,7 @@ add_subdirectory(executor)
 project(backend)
 
 add_definitions("/D MAX_PATH=260")
-add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
 add_definitions("/MP")
 
 set(SOURCE_FILES

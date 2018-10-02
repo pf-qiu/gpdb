@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 3.6)
 project(port)
 
-configure_file("${GPDB_SRC_DIR}/src/port/pthread-win32.h" "${GPDB_SRC_DIR}/src/include/port/pthread.h" COPYONLY)
-
 add_definitions("/D MAX_PATH=260")
-add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
 add_definitions("/MP")
 
 set(SOURCE_FILES

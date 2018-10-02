@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
 project(pg_resetxlog)
 
-add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4267 /MP")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4267 /MP")
 
 set(SOURCE_FILES
     pg_resetxlog.c

@@ -15,7 +15,7 @@ else()
     message(SEND_ERROR "Flex not found")
 endif()
 
-add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4090 /wd4267 /MP")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4267 /MP")
 
 set(SOURCE_FILES
     command.c

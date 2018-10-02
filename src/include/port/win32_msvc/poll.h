@@ -8,7 +8,13 @@
    Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
    details. */
 
-#ifndef _SYS_POLL_H
-#define _SYS_POLL_H
+#ifndef __POLL_H
+#define __POLL_H
+
+#ifdef WIN32
+#include <winsock2.h>
+#define poll(fds, nfds, timeout) WSAPoll(fds, nfds, timeout)
+#endif
+
 
 #endif /* _SYS_POLL_H */

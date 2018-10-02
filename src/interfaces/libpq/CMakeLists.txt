@@ -1,9 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
 project(libpq)
 
-configure_file("${GPDB_SRC_DIR}/src/port/pthread-win32.h" "${GPDB_SRC_DIR}/src/interfaces/libpq/pthread-win32.h" COPYONLY)
-
-add_definitions("/D FRONTEND /wd4996 /wd4018 /wd4244")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4244")
 
 set(GPDB_BACKEND_SRC_DIR "${GPDB_SRC_DIR}/src/backend")
 
@@ -33,7 +31,7 @@ set(HEADER_FILES
     libpq-fe.h
     libpq-int.h
     pqexpbuffer.h
-    pthread-win32.h
+    #pthread-win32.h
     win32.h
     ${GPDB_SRC_DIR}/src/include/pg_config.h
 )
