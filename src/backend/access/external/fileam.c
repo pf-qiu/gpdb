@@ -2230,8 +2230,13 @@ static void
 external_set_env_vars_ext(extvar_t *extvar, char *uri, bool csv, char *escape, char *quote, int eol_type, bool header,
 						  uint32 scancounter, List *params)
 {
+#ifdef WIN32
+	SYSTEMTIME tm;
+	GetLocalTime(&tm);
+#else
 	time_t		now = time(0);
 	struct tm  *tm = localtime(&now);
+#endif
 	char	   *result = (char *) palloc(7);	/* sign, 5 digits, '\0' */
 
 	char	   *encoded_delim;
@@ -2275,10 +2280,17 @@ external_set_env_vars_ext(extvar_t *extvar, char *uri, bool csv, char *escape, c
 												 * pg_conf file  */
 	extvar->GP_SEG_DATADIR = data_directory;	/* location of the segments
 												 * datadirectory */
+#ifdef WIN32
+	sprintf(extvar->GP_DATE, "%04d%02d%02d",
+		tm.wYear, tm.wMonth, tm.wDay);
+	sprintf(extvar->GP_TIME, "%02d%02d%02d",
+		tm.wHour, tm.wMinute, tm.wSecond);
+#else
 	sprintf(extvar->GP_DATE, "%04d%02d%02d",
 			1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday);
 	sprintf(extvar->GP_TIME, "%02d%02d%02d",
 			tm->tm_hour, tm->tm_min, tm->tm_sec);
+#endif
 	if (!getDistributedTransactionIdentifier(extvar->GP_XID))
 		ereport(ERROR,
 				(errcode_for_file_access(),

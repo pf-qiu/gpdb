@@ -629,6 +629,9 @@
 /* PostgreSQL version as a number */
 #define PG_VERSION_NUM 90300
 
+/* GreenplumDB version as a number */
+#define GP_VERSION_NUM 60000
+
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "greenplum"
 
