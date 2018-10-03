@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.12)
 
 add_subdirectory(utils)
 add_subdirectory(access)
-#add_subdirectory(bootstrap)
-#add_subdirectory(catalog)
+add_subdirectory(bootstrap)
+add_subdirectory(catalog)
 add_subdirectory(cdb)
 #add_subdirectory(commands)
 add_subdirectory(executor)

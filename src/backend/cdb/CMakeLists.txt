@@ -1,11 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
-
-find_package( ZLIB REQUIRED )
-if ( ZLIB_FOUND )
-    include_directories( ${ZLIB_INCLUDE_DIRS} )
-else ()
-    message(SEND_ERROR "zlib not found")
-endif( ZLIB_FOUND )
+cmake_minimum_required(VERSION 3.12)
 
 add_subdirectory(dispatcher)
 add_subdirectory(motion)

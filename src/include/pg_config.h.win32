@@ -798,3 +798,5 @@
 #define RELSEG_SIZE 32768
 
 #define HAVE_POLL_H
+
+#define HAVE_LIBZ

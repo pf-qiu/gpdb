@@ -78,10 +78,10 @@ ExtProtocolCreate(const char *protocolName,
 	 * Until we add system protocols to pg_extprotocol, make sure no
 	 * protocols with the same name are created.
 	 */
-	if (strcasecmp(protocolName, "file") == 0 ||
-		strcasecmp(protocolName, "http") == 0 ||
-		strcasecmp(protocolName, "gpfdist") == 0 ||
-		strcasecmp(protocolName, "gpfdists") == 0)
+	if (pg_strcasecmp(protocolName, "file") == 0 ||
+		pg_strcasecmp(protocolName, "http") == 0 ||
+		pg_strcasecmp(protocolName, "gpfdist") == 0 ||
+		pg_strcasecmp(protocolName, "gpfdists") == 0)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_RESERVED_NAME),

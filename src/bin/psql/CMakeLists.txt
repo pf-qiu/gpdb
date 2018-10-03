@@ -1,19 +1,10 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.12)
 project(psql)
 
-include(FindPerl)
-if (PERL_FOUND)
-    execute_process(COMMAND ${PERL_EXECUTABLE} "${GPDB_SRC_DIR}/src/bin/psql/create_help.pl" "${GPDB_SRC_DIR}/doc/src/sgml/ref" "${GPDB_SRC_DIR}/src/bin/psql/sql_help")
-else ()
-    message(SEND_ERROR "Perl not found")
-endif()
-
-include(FindFLEX)
-if (FLEX_FOUND)
-    execute_process(COMMAND ${FLEX_EXECUTABLE} -Cfe "-o${GPDB_SRC_DIR}/src/bin/psql/psqlscan.c" "${GPDB_SRC_DIR}/src/bin/psql/psqlscan.l")
-else()
-    message(SEND_ERROR "Flex not found")
-endif()
+execute_process(COMMAND ${PERL_EXECUTABLE} "${GPDB_SRC_DIR}/src/bin/psql/create_help.pl" 
+    "${GPDB_SRC_DIR}/doc/src/sgml/ref" "${GPDB_SRC_DIR}/src/bin/psql/sql_help")
+execute_process(COMMAND ${FLEX_EXECUTABLE} -Cfe "-o${GPDB_SRC_DIR}/src/bin/psql/psqlscan.c" 
+    "${GPDB_SRC_DIR}/src/bin/psql/psqlscan.l")
 
 add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4267 /MP")
 
