@@ -46,14 +46,14 @@ set(PG_DUMP_FILES
     pg_dump_sort.c
 )
 add_executable(pg_dump ${HEADER_FILES} ${PG_DUMP_FILES})
-target_link_libraries(pg_dump port libpq common ws2_32 secur32)
+target_link_libraries(pg_dump port libpq common ws2_32 secur32 ${ZLIB_LIBRARIES})
 
 set(PG_RESTORE_FILES
     ${SOURCE_FILES}
     pg_restore.c
 )
 add_executable(pg_restore ${HEADER_FILES} ${PG_RESTORE_FILES})
-target_link_libraries(pg_restore port libpq common ws2_32 secur32)
+target_link_libraries(pg_restore port libpq common ws2_32 secur32 ${ZLIB_LIBRARIES})
 
 set(PG_DUMPALL_FILES
     ${KEYWORD_FILES}

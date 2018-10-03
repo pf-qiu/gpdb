@@ -29,7 +29,7 @@ set(HEADER_DIRS
 include_directories(${HEADER_DIRS})
 
 add_executable(pg_basebackup ${HEADER_FILES} ${SOURCE_FILES_BASEBACKUP})
-target_link_libraries(pg_basebackup port libpq common ws2_32 secur32)
+target_link_libraries(pg_basebackup port libpq common ws2_32 secur32 ${ZLIB_LIBRARIES})
 
 add_executable(pg_receivexlog ${HEADER_FILES} ${SOURCE_FILES_RECEIVEXLOG})
 target_link_libraries(pg_receivexlog port libpq common ws2_32 secur32)

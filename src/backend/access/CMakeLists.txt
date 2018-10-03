@@ -153,6 +153,7 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include
     ${GPDB_SRC_DIR}/src/backend
     ${GPDB_SRC_DIR}/src/port
+    ${GPDB_SRC_DIR}/src/interfaces/libpq
     ${GPDB_SRC_DIR}/src/include/port
     ${GPDB_SRC_DIR}/src/include/port/win32
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
