@@ -39,11 +39,10 @@ add_subdirectory(commands)
 add_subdirectory(executor)
 add_subdirectory(foreign)
 add_subdirectory(fts)
-#add_subdirectory(lib)
-#add_subdirectory(libpq)
-#add_subdirectory(main)
-#add_subdirectory(nodes)
-#add_subdirectory(optimizer)
+add_subdirectory(lib)
+add_subdirectory(libpq)
+add_subdirectory(nodes)
+add_subdirectory(optimizer)
 add_subdirectory(parser)
 #add_subdirectory(po)
 #add_subdirectory(port)
@@ -63,6 +62,7 @@ add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd
 add_definitions("/MP")
 
 set(SOURCE_FILES
+    main/main.c
     pthread.c
 )
 

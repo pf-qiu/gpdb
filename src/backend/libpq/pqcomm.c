@@ -1336,7 +1336,11 @@ pq_send_mutex_lock()
 					MyProcPort->sock = -1;
 					whereToSendOutput = DestNone;
 #ifndef __darwin__
+#ifdef WIN32
+					shutdown(saved_fd, SD_SEND);
+#else
 					shutdown(saved_fd, SHUT_WR);
+#endif
 #endif
 					closesocket(saved_fd);
 					return false;
