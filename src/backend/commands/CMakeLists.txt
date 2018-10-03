@@ -13,8 +13,15 @@ add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 
 set(SOURCE_FILES
-    bootstrap.c
-    bootparse.c
+aggregatecmds.c alter.c analyze.c analyzeutils.c async.c cluster.c comment.c
+	collationcmds.c constraint.c conversioncmds.c copy.c createas.c
+	dbcommands.c define.c discard.c dropcmds.c
+	event_trigger.c explain.c extension.c foreigncmds.c functioncmds.c
+	indexcmds.c lockcmds.c matview.c operatorcmds.c opclasscmds.c
+	portalcmds.c prepare.c proclang.c
+	schemacmds.c seclabel.c sequence.c tablecmds.c tablespace.c trigger.c
+	tsearchcmds.c typecmds.c user.c vacuum.c vacuumlazy.c
+	variable.c view.c
 )
 
 set(HEADER_DIRS
