@@ -95,6 +95,9 @@
 #define xxx		1
 
 #define DUPMAX	_POSIX2_RE_DUP_MAX
+#ifdef INFINITY
+#undef INFINITY
+#endif
 #define INFINITY	(DUPMAX+1)
 
 #define REMAGIC 0xfed7			/* magic number for main struct */

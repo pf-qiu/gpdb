@@ -45,6 +45,7 @@
 
 #include <signal.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "access/timeline.h"
 #include "access/transam.h"
