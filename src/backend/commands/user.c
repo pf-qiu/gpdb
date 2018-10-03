@@ -2073,7 +2073,7 @@ static void CheckKeywordIsValid(char *keyword, const char **arr, const int arrsi
 
 	for(i = 0 ; i < arrsize ; i++)
 	{
-		if(strcasecmp(keyword, arr[i]) == 0)
+		if(pg_strcasecmp(keyword, arr[i]) == 0)
 			ok = true;
 	}
 

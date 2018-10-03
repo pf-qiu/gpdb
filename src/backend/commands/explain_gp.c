@@ -571,7 +571,7 @@ cdbexplain_sendExecStats(QueryDesc *queryDesc)
 	/* Append MemoryAccount Tree */
 	ctx.hdr.memAccountStartOffset = ctx.buf.len - hoff;
 	initStringInfo(&memoryAccountTreeBuffer);
-	uint		totalSerialized = MemoryAccounting_Serialize(&memoryAccountTreeBuffer);
+	uint32 totalSerialized = MemoryAccounting_Serialize(&memoryAccountTreeBuffer);
 
 	ctx.hdr.memAccountCount = totalSerialized;
 	appendBinaryStringInfo(&ctx.buf, memoryAccountTreeBuffer.data, memoryAccountTreeBuffer.len);

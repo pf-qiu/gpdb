@@ -4,12 +4,6 @@ file(READ "${GPDB_SRC_DIR}/src/include/catalog/gp_version.in" GP_VERSION_IN)
 string(REPLACE "$$Name:  $$" ${GP_VERSION} GP_VERSION_OUT "${GP_VERSION_IN}")
 file(WRITE "${GPDB_SRC_DIR}/src/include/catalog/gp_version.h" "${GP_VERSION_OUT}")
 
-configure_file("${GPDB_SRC_DIR}/src/include/catalog/pg_proc.h" 
-    "${CMAKE_CURRENT_SOURCE_DIR}/pg_proc_combined.h" COPYONLY)
-
-file(READ "${GPDB_SRC_DIR}/src/include/catalog/pg_proc_gp.h" FILE_CONTENT)
-file(APPEND "${CMAKE_CURRENT_SOURCE_DIR}/pg_proc_combined.h" ${FILE_CONTENT})
-
 set(POSTGRES_BKI_SRCS pg_type.h pg_attribute.h pg_class.h
 	pg_attrdef.h pg_constraint.h pg_inherits.h pg_index.h pg_operator.h
 	pg_opfamily.h pg_opclass.h pg_am.h pg_amop.h pg_amproc.h
