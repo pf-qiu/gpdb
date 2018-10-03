@@ -4468,7 +4468,7 @@ BeginCopyFrom(Relation rel,
 	{
 		/* Read special header from QD */
 		static const size_t sigsize = sizeof(QDtoQESignature);
-		char		readSig[sigsize];
+		char		readSig[sizeof(QDtoQESignature)];
 		copy_from_dispatch_header header_frame;
 
 		if (CopyGetData(cstate, &readSig, sigsize) != sigsize ||

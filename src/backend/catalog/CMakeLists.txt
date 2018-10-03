@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
 
+file(READ "${GPDB_SRC_DIR}/src/include/catalog/gp_version.in" GP_VERSION_IN)
+string(REPLACE "$$Name:  $$" ${GP_VERSION} GP_VERSION_OUT "${GP_VERSION_IN}")
+file(WRITE "${GPDB_SRC_DIR}/src/include/catalog/gp_version.h" "${GP_VERSION_OUT}")
+
 configure_file("${GPDB_SRC_DIR}/src/include/catalog/pg_proc.h" 
     "${CMAKE_CURRENT_SOURCE_DIR}/pg_proc_combined.h" COPYONLY)
 
@@ -50,10 +54,6 @@ if (NOT ret EQUAL 0)
     message(FATAL_ERROR "genbki.pl failed")
 endif()
 
-file(READ "${GPDB_SRC_DIR}/src/include/catalog/gp_version.in" GP_VERSION_IN)
-string(REPLACE "$$Name:  $$" ${GP_VERSION} GP_VERSION_OUT "${GP_VERSION_IN}")
-file(WRITE "${GPDB_SRC_DIR}/src/include/catalog/gp_version.h" "${GP_VERSION_OUT}")
-
 project(catalog)
 
 add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D USE_CURL")
@@ -79,7 +79,6 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include
     ${GPDB_SRC_DIR}/src/backend
     ${GPDB_SRC_DIR}/src/port
-    ${GPDB_SRC_DIR}/src/interfaces/libpq
     ${GPDB_SRC_DIR}/src/include/port
     ${GPDB_SRC_DIR}/src/include/port/win32
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
