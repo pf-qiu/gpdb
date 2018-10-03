@@ -117,6 +117,11 @@ static Latch sysLoggerLatch;
  * An inactive buffer is not removed from its list, just held for re-use.
  * An inactive buffer has pid == 0 and undefined contents of data.
  */
+typedef struct
+{
+	int32           pid;                    /* PID of source process */
+	StringInfoData data;            /* accumulated data, as a StringInfo */
+} save_buffer;
 
 #if 0
 #define NBUFFER_LISTS 256
@@ -1008,18 +1013,18 @@ syslogger_forkexec(void)
 	{
 #ifndef WIN32
 		if (alertLogFile != NULL)
-			snprintf(alertFileNoBuf, sizeof(alertFileNoBuf), "%d",
+			snprintf(alertFileNobuf, sizeof(alertFileNobuf), "%d",
 					 fileno(alertLogFile));
 		else
-			strcpy(alertFileNoBuf, "-1");
+			strcpy(alertFileNobuf, "-1");
 #else							/* WIN32 */
 		if (alertLogFile != NULL)
-			snprintf(alertFileNoBuf, sizeof(alertFileNoBuf), "%ld",
+			snprintf(alertFileNobuf, sizeof(alertFileNobuf), "%ld",
 					 _get_osfhandle(_fileno(alertLogFile)));
 		else
-			strcpy(alertFileNoBuf, "0");
+			strcpy(alertFileNobuf, "0");
 #endif
-		av[ac++] = alertFileNoBuf;
+		av[ac++] = alertFileNobuf;
 	}
 	av[ac] = NULL;
 	Assert(ac < lengthof(av));
@@ -1936,7 +1941,7 @@ process_pipe_input(char *logbuffer, int *bytes_in_logbuffer)
 					break;
 			}
 			/* fall back on the stderr log as the destination */
-			write_syslogger_file(cursor, chunklen /*, LOG_DESTINATION_STDERR*/);
+			write_syslogger_file(cursor, chunklen, LOG_DESTINATION_STDERR);
 			cursor += chunklen;
 			count -= chunklen;
 		}
@@ -1965,13 +1970,7 @@ static void write_binary_to_file(const char *buffer, int count, FILE *fh)
 {
     int			rc;
 
-#ifndef WIN32
     rc = fwrite(buffer, 1, count, fh);
-#else
-    EnterCriticalSection(&fileSection);
-    rc = fwrite(buffer, 1, count, fh);
-    LeaveCriticalSection(&fileSection);
-#endif
 
     /* can't use ereport here because of possible recursion */
     if (rc != count)
