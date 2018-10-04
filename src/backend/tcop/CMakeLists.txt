@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 
 project(tcop)
 
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D WIN32_STACK_RLIMIT=4194304")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /D WIN32_STACK_RLIMIT=4194304")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 

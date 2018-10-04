@@ -102,3 +102,21 @@ url_execute_fwrite(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
 {
 	elog(ERROR, "Not implemented on Win32");
 }
+
+int
+popen_with_stderr(int *pipes, const char *exe, bool forwrite)
+{
+	return -1;
+}
+
+int
+pclose_with_stderr(int pid, int *pipes, StringInfo sinfo)
+{
+	return -1;
+}
+
+char *
+make_command(const char *cmd, extvar_t *ev)
+{
+	return NULL;
+}

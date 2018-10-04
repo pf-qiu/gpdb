@@ -47,10 +47,17 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(ZLIB REQUIRED)
 if (ZLIB_FOUND)
-    include_directories( ${ZLIB_INCLUDE_DIRS} )
+    include_directories(${ZLIB_INCLUDE_DIRS})
 else ()
     message(FATAL_ERROR "zlib not found")
 endif(ZLIB_FOUND)
+
+find_package(CURL REQUIRED)
+if (CURL_FOUND)
+    include_directories(${CURL_INCLUDE_DIRS})
+else ()
+    message(FATAL_ERROR "curl not found")
+endif(CURL_FOUND)
 
 include(FindPerl)
 if (NOT PERL_FOUND)
@@ -64,7 +71,7 @@ endif()
 
 include(FindBISON)
 if (NOT BISON_FOUND)
-    message(SEND_ERROR "bison not found")
+    message(FATAL_ERROR "bison not found")
 endif()
 
 add_subdirectory(src/common)

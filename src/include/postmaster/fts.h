@@ -135,4 +135,6 @@ extern bool FtsIsActive(void);
 extern void HandleFtsMessage(const char* query_string);
 extern void probeWalRepUpdateConfig(int16 dbid, int16 segindex, char role,
 									bool IsSegmentAlive, bool IsInSync);
+
+extern void FtsProbeMain(int argc, char *argv[]);
 #endif   /* FTS_H */

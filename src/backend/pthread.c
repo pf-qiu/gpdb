@@ -69,6 +69,15 @@ int	pthread_mutex_lock(pthread_mutex_t *m)
 	return 0;
 }
 
+int pthread_mutex_trylock(pthread_mutex_t *m)
+{
+	if (TryAcquireSRWLockExclusive(m))
+	{
+		return 0;
+	}
+	return 1;
+}
+
 int	pthread_mutex_unlock(pthread_mutex_t *m)
 {
 	ReleaseSRWLockExclusive(m);

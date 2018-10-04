@@ -81,6 +81,7 @@ query_info_collect_hook_type query_info_collect_hook = NULL;
 int
 perfmon_segmentinfo_start(void)
 {
+#ifndef WIN32
 	pid_t		segmentInfoId = -1;
 
 	switch ((segmentInfoId = fork_process()))
@@ -103,6 +104,7 @@ perfmon_segmentinfo_start(void)
 
 	/* shouldn't get here */
 	Assert(false);
+#endif
 	return 0;
 }
 

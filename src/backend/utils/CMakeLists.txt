@@ -39,7 +39,10 @@ foreach(SUBDIR ${SUBDIRS})
     set(UTILS_FILES ${UTILS_FILES} ${CHILD_FILES})    
 endforeach(SUBDIR)
 
-set(SOURCE_FILES ${UTILS_FILES})
+set(SOURCE_FILES
+    fmgrtab.c
+    session_state.c
+    ${UTILS_FILES})
 
 set(CHILD_FILES ${UTILS_FILES} PARENT_SCOPE)
 
@@ -53,7 +56,7 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D _USE_MATH_DEFINES")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /D _USE_MATH_DEFINES")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 

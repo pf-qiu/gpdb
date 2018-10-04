@@ -1197,6 +1197,7 @@ gp_adjust_priority_int(PG_FUNCTION_ARGS)
 int
 backoff_start(void)
 {
+#ifndef WIN32
 	pid_t		backoffId = -1;
 
 	switch ((backoffId = fork_process()))
@@ -1219,6 +1220,7 @@ backoff_start(void)
 
 	/* shouldn't get here */
 	Assert(false);
+#endif
 	return 0;
 }
 

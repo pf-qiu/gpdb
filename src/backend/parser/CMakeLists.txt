@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 
 project(parser)
 
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D USE_CURL")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /D USE_CURL")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 
@@ -11,6 +11,7 @@ set(SOURCE_FILES
     parse_agg.c parse_clause.c parse_coerce.c parse_collate.c parse_cte.c
     parse_expr.c parse_func.c parse_node.c parse_oper.c parse_param.c
     parse_relation.c parse_target.c parse_type.c parse_utilcmd.c scansup.c
+    parse_partition.c
 )
 
 set(HEADER_DIRS

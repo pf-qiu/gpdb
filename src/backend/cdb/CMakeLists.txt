@@ -5,7 +5,7 @@ add_subdirectory(motion)
 
 project(cdb)
 
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /MP")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /MP")
 
 set(SOURCE_FILES
 cdbappendonlystorageformat.c

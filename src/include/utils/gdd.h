@@ -17,5 +17,7 @@ extern int global_deadlock_detector_start(void);
 
 extern int gp_global_deadlock_detector_period;
 
+extern void GlobalDeadLockDetectorMain(int argc, char *argv[]);
+
 #endif   /* GDD_H */
 

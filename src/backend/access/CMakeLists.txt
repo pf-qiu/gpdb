@@ -1,15 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
-
-find_package( CURL REQUIRED )
-if ( CURL_FOUND )
-    include_directories( ${CURL_INCLUDE_DIRS} )
-else ()
-    message(SEND_ERROR "curl not found")
-endif( CURL_FOUND )
-
 project(access)
 
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D USE_CURL")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /D USE_CURL")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 

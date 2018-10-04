@@ -9,7 +9,7 @@ execute_process(COMMAND ${BISON_EXECUTABLE} "-o" "repl_gram.c" "repl_gram.y"
 execute_process(COMMAND ${FLEX_EXECUTABLE} "-orepl_scanner.c" "repl_scanner.l"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D USE_CURL")
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /D USE_CURL")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 

@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
 
-
 set(CATALOGDIR ${GPDB_SRC_DIR}/src/backend/catalog)
 
 # utils/pg_proc_combined.h, catalog/pg_proc_combined.h
@@ -55,7 +54,7 @@ add_subdirectory(tsearch)
 add_subdirectory(utils)
 
 project(backend)
-add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
 add_definitions("/MP")
 
@@ -77,8 +76,8 @@ include_directories(${HEADER_DIRS})
 add_executable(postgres ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(postgres
     access bootstrap catalog parser commands executor foreign
-    fts lib libpq_be nodes optimizer port postmaster regex
+    fts lib libpq_be nodes optimizer port_be postmaster regex
     replication rewrite storage tcop tsearch utils
-    timezone
-    cdb
-    port ws2_32 secur32)
+    cdb motion dispatcher
+    libpq port timezone common
+    ws2_32 secur32 ${ZLIB_LIBRARIES} ${CURL_LIBRARIES})

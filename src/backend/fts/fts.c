@@ -97,7 +97,7 @@ static char *probeDatabase = "postgres";
 #ifdef EXEC_BACKEND
 static pid_t ftsprobe_forkexec(void);
 #endif
-NON_EXEC_STATIC void ftsMain(int argc, char *argv[]);
+NON_EXEC_STATIC void FtsProbeMain(int argc, char *argv[]);
 static void FtsLoop(void);
 
 static CdbComponentDatabases *readCdbComponentInfoAndUpdateStatus(MemoryContext);
@@ -129,7 +129,7 @@ ftsprobe_start(void)
 			/* Close the postmaster's sockets */
 			ClosePostmasterPorts(false);
 
-			ftsMain(0, NULL);
+			FtsProbeMain(0, NULL);
 			break;
 #endif
 		default:
@@ -194,7 +194,7 @@ sigIntHandler(SIGNAL_ARGS)
  * FtsProbeMain
  */
 NON_EXEC_STATIC void
-ftsMain(int argc, char *argv[])
+FtsProbeMain(int argc, char *argv[])
 {
 	sigjmp_buf	local_sigjmp_buf;
 	char	   *fullpath;
