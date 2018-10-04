@@ -482,8 +482,12 @@ hll_add_hash_dense(HLLCounter hloglog, uint64_t hash)
     /* get idx (keep only the first 'b' bits) */
     idx  = hash >> (HASH_LENGTH - hloglog->b);
 
-    /* rho needs to be independent from 'idx' */
+	/* rho needs to be independent from 'idx' */
+#ifdef WIN32
+	rho = __lzcnt(hash << hloglog->b) + 1;
+#else
     rho = __builtin_clzll(hash << hloglog->b) + 1;
+#endif
 
     /* We only have (64 - hloglog->b) bits leftover after the index bits
      * however the chance that we need more is 2^-(64 - hloglog->b) which
@@ -500,7 +504,11 @@ hll_add_hash_dense(HLLCounter hloglog, uint64_t hash)
 	    while (addn == HASH_LENGTH && rho < POW2(hloglog->binbits)){
 		    hash = MurmurHash64A((const char * )&hash, HASH_LENGTH/8, HASH_SEED);
             /* zero length runs should be 1 so counter gets set */
+#ifdef WIN32
+			addn = __lzcnt(hash) + 1;
+#else
 		    addn = __builtin_clzll(hash) + 1;
+#endif
 		    rho += addn;
 	    }
     }

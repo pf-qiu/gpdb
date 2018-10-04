@@ -7,5 +7,4 @@ execute_process(COMMAND ${PERL_EXECUTABLE} "gen_qsort_tuple.pl"
 set(CHILD_FILES 
     logtape.c sortsupport.c tuplesort.c tuplestore.c tuplestorenew.c
     tuplesort_mk.c tuplesort_mkheap.c tuplesort_mkqsort.c
-    qsort_tuple.c
     PARENT_SCOPE)

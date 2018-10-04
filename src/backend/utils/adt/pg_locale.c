@@ -628,10 +628,6 @@ cache_locale_time(void)
 	char	   *save_lc_ctype;
 #endif
 
-#ifdef WIN32
-	char	   *save_lc_ctype;
-#endif
-
 	/* did we do this already? */
 	if (CurrentLCTimeValid)
 		return;

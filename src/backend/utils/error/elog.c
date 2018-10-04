@@ -4876,6 +4876,10 @@ debug_backtrace(void)
  */
 uint32 gp_backtrace(void **stackAddresses, uint32 maxStackDepth)
 {
+#ifdef WIN32
+	/* Not supported on Win32 */
+	return 0;
+#else
 #if defined(__i386) || defined(__x86_64__)
 
 	/*
@@ -4931,6 +4935,7 @@ uint32 gp_backtrace(void **stackAddresses, uint32 maxStackDepth)
 
 #else
 	return backtrace(stackAddresses, maxStackDepth);
+#endif
 #endif
 }
 

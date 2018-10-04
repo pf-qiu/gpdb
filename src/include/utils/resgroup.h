@@ -188,7 +188,7 @@ extern bool CpusetIsEmpty(const char *cpuset);
 extern void SetCpusetEmpty(char *cpuset, int cpusetSize);
 extern bool EnsureCpusetIsAvailable(int elevel);
 
-#define LOG_RESGROUP_DEBUG(...) \
-	do {if (Debug_resource_group) elog(__VA_ARGS__); } while(false);
+#define LOG_RESGROUP_DEBUG(LEVEL, ...) \
+	do {if (Debug_resource_group) elog(LEVEL, __VA_ARGS__); } while(false);
 
 #endif   /* RES_GROUP_H */

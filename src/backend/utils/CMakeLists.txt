@@ -53,6 +53,10 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 
+add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D _USE_MATH_DEFINES")
+add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
+add_definitions("/MP")
+
 include_directories(${HEADER_DIRS})
 
 add_library(utils ${SOURCE_FILES})
