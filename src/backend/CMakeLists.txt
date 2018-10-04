@@ -48,16 +48,15 @@ add_subdirectory(port)
 add_subdirectory(postmaster)
 add_subdirectory(regex)
 add_subdirectory(replication)
-#add_subdirectory(rewrite)
-#add_subdirectory(snowball)
-#add_subdirectory(storage)
-#add_subdirectory(tcop)
-#add_subdirectory(tsearch)
+add_subdirectory(rewrite)
+add_subdirectory(storage)
+add_subdirectory(tcop)
+add_subdirectory(tsearch)
 add_subdirectory(utils)
 
 project(backend)
-
-add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
+add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY")
+add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
 add_definitions("/MP")
 
 set(SOURCE_FILES
@@ -66,6 +65,7 @@ set(SOURCE_FILES
 )
 
 set(HEADER_DIRS
+    ${GPDB_SRC_DIR}/src/backend
     ${GPDB_SRC_DIR}/src/include
     ${GPDB_SRC_DIR}/src/include/port
     ${GPDB_SRC_DIR}/src/include/port/win32
@@ -75,4 +75,10 @@ set(HEADER_DIRS
 include_directories(${HEADER_DIRS})
 
 add_executable(postgres ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(postgres port ws2_32 secur32)
+target_link_libraries(postgres
+    access bootstrap catalog parser commands executor foreign
+    fts lib libpq_be nodes optimizer port postmaster regex
+    replication rewrite storage tcop tsearch utils
+    timezone
+    cdb
+    port ws2_32 secur32)

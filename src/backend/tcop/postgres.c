@@ -220,11 +220,7 @@ static bool EchoQuery = false;	/* -E switch */
 static bool DoingPqReading = false; /* in the middle of recv call of secure_read */
 
 extern pthread_t main_tid;
-#ifndef _WIN32
 pthread_t main_tid = (pthread_t)0;
-#else
-pthread_t main_tid = {0,0};
-#endif
 
 /* if we're in the middle of dying, let our threads exit with some dignity */
 static volatile sig_atomic_t in_quickdie = false;
@@ -3495,13 +3491,8 @@ CdbProgramErrorHandler(SIGNAL_ARGS)
 
 	if (!pthread_equal(main_tid, pthread_self()))
 	{
-#ifndef _WIN32
 		write_stderr("\nUnexpected internal error: Master %d received signal %d in worker thread %lu (forwarding signal to main thread)\n\n",
 					 MyProcPid, postgres_signal_arg, (unsigned long)pthread_self());
-#else
-		write_stderr("\nUnexpected internal error: Master %d received signal %d in worker thread %lu (forwarding signal to main thread)\n\n",
-					 MyProcPid, postgres_signal_arg, (unsigned long)pthread_self().p);
-#endif
 		/* Only forward if the main thread isn't quick-dying. */
 		if (!in_quickdie)
 			pthread_kill(main_tid, postgres_signal_arg);
@@ -3514,8 +3505,11 @@ CdbProgramErrorHandler(SIGNAL_ARGS)
 		 */
 		if (!(gp_reraise_signal &&
 			  (postgres_signal_arg == SIGSEGV ||
-			   postgres_signal_arg == SIGILL ||
-			   postgres_signal_arg == SIGBUS)))
+			   postgres_signal_arg == SIGILL
+#ifndef WIN32
+			   || postgres_signal_arg == SIGBUS
+#endif
+				  )))
 		{
 			pthread_exit(NULL);
 		}

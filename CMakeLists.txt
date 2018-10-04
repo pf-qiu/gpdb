@@ -69,6 +69,7 @@ endif()
 
 add_subdirectory(src/common)
 add_subdirectory(src/port)
+add_subdirectory(src/timezone)
 add_subdirectory(src/interfaces/libpq)
 add_subdirectory(src/bin)
 add_subdirectory(src/backend)

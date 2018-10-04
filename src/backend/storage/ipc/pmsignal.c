@@ -299,7 +299,10 @@ PostmasterIsAlive(void)
 bool
 ParentProcIsAlive()
 {
-	/* if parent exits, init process (PID 1) is reported as parent */
-	return (getppid() != 1);
+	DWORD code;
+	if (!GetExitCodeProcess(PostmasterHandle, &code))
+		return false;
+
+	return code == STILL_ACTIVE;
 }
 

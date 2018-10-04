@@ -19,3 +19,42 @@ execute_process(COMMAND ${PERL_EXECUTABLE} "-I" "${CATALOGDIR}" "Gen_fmgrtab.pl"
 execute_process(COMMAND ${PERL_EXECUTABLE} "generate-errcodes.pl" "errcodes.txt"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     OUTPUT_FILE "errcodes.h")
+
+project(utils)
+
+set(MMGR_FILES
+    aset.c mcxt.c memaccounting.c mpool.c portalmem.c memprot.c vmem_tracker.c
+    redzone_handler.c runaway_cleaner.c idle_tracker.c event_version.c ext_alloc.c
+    psprintf.c)
+list(TRANSFORM MMGR_FILES PREPEND "mmgr/")
+
+set(SUBDIRS adt cache datumstream error fmgr gdd hash init mb misc mmgr resowner
+    resgroup resscheduler sort time gpmon gp workfile_manager resource_manager
+    hyperloglog)
+set(UTILS_FILES)
+
+foreach(SUBDIR ${SUBDIRS})
+    add_subdirectory(${SUBDIR})
+    list(TRANSFORM CHILD_FILES PREPEND "${SUBDIR}/")
+    set(UTILS_FILES ${UTILS_FILES} ${CHILD_FILES})    
+endforeach(SUBDIR)
+
+set(SOURCE_FILES ${UTILS_FILES})
+
+set(CHILD_FILES ${UTILS_FILES} PARENT_SCOPE)
+
+set(HEADER_DIRS
+    ${GPDB_SRC_DIR}/src/include
+    ${GPDB_SRC_DIR}/src/backend
+    ${GPDB_SRC_DIR}/src/port
+    ${GPDB_SRC_DIR}/src/interfaces/libpq
+    ${GPDB_SRC_DIR}/src/include/port
+    ${GPDB_SRC_DIR}/src/include/port/win32
+    ${GPDB_SRC_DIR}/src/include/port/win32_msvc
+)
+
+include_directories(${HEADER_DIRS})
+
+add_library(utils ${SOURCE_FILES})
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})

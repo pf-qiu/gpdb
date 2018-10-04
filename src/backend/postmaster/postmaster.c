@@ -662,6 +662,7 @@ int			postmaster_alive_fds[2] = {-1, -1};
 #else
 /* Process handle of postmaster used for the same purpose on Windows */
 HANDLE		PostmasterHandle;
+HANDLE      ParentHandle;
 #endif
 
 /*
