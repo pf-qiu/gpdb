@@ -30,41 +30,36 @@ execute_process(COMMAND ${BISON_EXECUTABLE} "-d" "-o" "gram.c" "gram.y"
 # Use a pre-generated scan.c.include
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/parser/scan.c.in" "${CMAKE_CURRENT_SOURCE_DIR}/parser/scan.c" COPYONLY)
 
-add_subdirectory(access)
-add_subdirectory(bootstrap)
-add_subdirectory(catalog)
-add_subdirectory(cdb)
-add_subdirectory(commands)
-add_subdirectory(executor)
-add_subdirectory(foreign)
-add_subdirectory(fts)
-add_subdirectory(lib)
-add_subdirectory(libpq)
-add_subdirectory(nodes)
-add_subdirectory(optimizer)
-add_subdirectory(parser)
-add_subdirectory(port)
-add_subdirectory(postmaster)
-add_subdirectory(regex)
-add_subdirectory(replication)
-add_subdirectory(rewrite)
-add_subdirectory(storage)
-add_subdirectory(tcop)
-add_subdirectory(tsearch)
-add_subdirectory(utils)
-
 project(backend)
-add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND")
-add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267")
+add_definitions("/D BUILDING_DLL")
+add_definitions("/D ENABLE_THREAD_SAFETY")
+add_definitions("/D EXEC_BACKEND")
+add_definitions("/D USE_CURL")
+add_definitions("/D _USE_MATH_DEFINES")
+add_definitions("/D WIN32_STACK_RLIMIT=4194304")
+add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 
+set(SUBDIRS access bootstrap catalog parser commands executor foreign
+    fts lib libpq main nodes optimizer port postmaster regex
+    replication rewrite storage tcop tsearch utils
+    cdb)
+set(BACKEND_FILES)
+
+foreach(SUBDIR ${SUBDIRS})
+    add_subdirectory(${SUBDIR})
+    list(TRANSFORM CHILD_FILES PREPEND "${SUBDIR}/")
+    set(BACKEND_FILES ${BACKEND_FILES} ${CHILD_FILES})    
+endforeach(SUBDIR)
+
 set(SOURCE_FILES
-    main/main.c
-    pthread.c
+    ${BACKEND_FILES}
 )
 
 set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/backend
+    ${GPDB_SRC_DIR}/src/port
+    ${GPDB_SRC_DIR}/src/interfaces/libpq
     ${GPDB_SRC_DIR}/src/include
     ${GPDB_SRC_DIR}/src/include/port
     ${GPDB_SRC_DIR}/src/include/port/win32
@@ -75,9 +70,7 @@ include_directories(${HEADER_DIRS})
 
 add_executable(postgres ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(postgres
-    access bootstrap catalog parser commands executor foreign
-    fts lib libpq_be nodes optimizer port_be postmaster regex
-    replication rewrite storage tcop tsearch utils
-    cdb motion dispatcher
     libpq port timezone common
     ws2_32 secur32 ${ZLIB_LIBRARIES} ${CURL_LIBRARIES})
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})

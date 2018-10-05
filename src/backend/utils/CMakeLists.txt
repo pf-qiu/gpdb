@@ -22,12 +22,6 @@ execute_process(COMMAND ${PERL_EXECUTABLE} "generate-errcodes.pl" "errcodes.txt"
 
 project(utils)
 
-set(MMGR_FILES
-    aset.c mcxt.c memaccounting.c mpool.c portalmem.c memprot.c vmem_tracker.c
-    redzone_handler.c runaway_cleaner.c idle_tracker.c event_version.c ext_alloc.c
-    psprintf.c)
-list(TRANSFORM MMGR_FILES PREPEND "mmgr/")
-
 set(SUBDIRS adt cache datumstream error fmgr gdd hash init mb misc mmgr resowner
     resgroup resscheduler sort time gpmon gp workfile_manager resource_manager
     hyperloglog)
@@ -39,29 +33,9 @@ foreach(SUBDIR ${SUBDIRS})
     set(UTILS_FILES ${UTILS_FILES} ${CHILD_FILES})    
 endforeach(SUBDIR)
 
-set(SOURCE_FILES
+set(CHILD_FILES
     fmgrtab.c
     session_state.c
-    ${UTILS_FILES})
-
-set(CHILD_FILES ${UTILS_FILES} PARENT_SCOPE)
-
-set(HEADER_DIRS
-    ${GPDB_SRC_DIR}/src/include
-    ${GPDB_SRC_DIR}/src/backend
-    ${GPDB_SRC_DIR}/src/port
-    ${GPDB_SRC_DIR}/src/interfaces/libpq
-    ${GPDB_SRC_DIR}/src/include/port
-    ${GPDB_SRC_DIR}/src/include/port/win32
-    ${GPDB_SRC_DIR}/src/include/port/win32_msvc
+    ${UTILS_FILES}
+    PARENT_SCOPE
 )
-
-add_definitions("/D BUILDING_DLL /D ENABLE_THREAD_SAFETY /D EXEC_BACKEND /D _USE_MATH_DEFINES")
-add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
-add_definitions("/MP")
-
-include_directories(${HEADER_DIRS})
-
-add_library(utils ${SOURCE_FILES})
-
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})

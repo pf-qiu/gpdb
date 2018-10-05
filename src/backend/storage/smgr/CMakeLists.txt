@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
 
 set(CHILD_FILES
-    foreign.c
-    PARENT_SCOPE
-)
+    md.c smgr.c smgrtype.c
+    PARENT_SCOPE)
