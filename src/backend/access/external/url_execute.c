@@ -62,6 +62,7 @@ typedef struct URL_EXECUTE_FILE
 	execute_handle_t *handle;	/* ResourceOwner-tracked stuff */
 } URL_EXECUTE_FILE;
 
+#ifndef WIN32
 static void pclose_without_stderr(int *rwepipe);
 static char *interpretError(int exitCode, char *buf, size_t buflen, char *err, size_t errlen);
 static const char *getSignalNameFromCode(int signo);
@@ -838,3 +839,64 @@ pclose_without_stderr(int *pipes)
 	close(pipes[EXEC_DATA_P]);
 	close(pipes[EXEC_ERR_P]);
 }
+#else
+
+/**
+ * execute_fopen()
+ *
+ * refactor the fopen code for execute into this routine
+ */
+URL_FILE *
+url_execute_fopen(char *url, bool forwrite, extvar_t *ev, CopyState pstate)
+{
+	elog(ERROR, "Not implemented on Win32");
+}
+
+void
+url_execute_fclose(URL_FILE *file, bool failOnError, const char *relname)
+{
+	elog(ERROR, "Not implemented on Win32");
+}
+
+bool
+url_execute_feof(URL_FILE *file, int bytesread)
+{
+	return (bytesread == 0);
+}
+
+bool
+url_execute_ferror(URL_FILE *file, int bytesread, char *ebuf, int ebuflen)
+{
+	elog(ERROR, "Not implemented on Win32");
+}
+
+size_t
+url_execute_fread(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
+{
+	elog(ERROR, "Not implemented on Win32");
+}
+
+size_t
+url_execute_fwrite(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
+{
+	elog(ERROR, "Not implemented on Win32");
+}
+
+int
+popen_with_stderr(int *pipes, const char *exe, bool forwrite)
+{
+	return -1;
+}
+
+int
+pclose_with_stderr(int pid, int *pipes, StringInfo sinfo)
+{
+	return -1;
+}
+
+char *
+make_command(const char *cmd, extvar_t *ev)
+{
+	return NULL;
+}
+#endif
