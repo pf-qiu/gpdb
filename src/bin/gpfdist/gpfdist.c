@@ -18,7 +18,6 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 #ifdef GPFXDIST
 #include <regex.h>
 #include <gpfxdist.h>
@@ -1293,7 +1292,7 @@ session_get_block(const request_t* r, block_t* retblock, char* line_delim_str, i
 {
 	int 		size;
 	const int 	whole_rows = 1; /* gpfdist must not read data with partial rows */
-	struct fstream_filename_and_offset fos = {};
+	struct fstream_filename_and_offset fos = {0};
 
 	session_t *session = r->session;
 
