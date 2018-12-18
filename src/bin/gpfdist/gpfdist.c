@@ -2140,6 +2140,8 @@ static void do_accept(int fd, short event, void* arg)
 	r->pool = pool;
 	r->sock = sock;
 
+	event_set(&r->ev, 0, 0, 0, 0);
+
 	/* use the block size specified by -m option */
 	r->outblock.data = palloc_safe(r, pool, opt.m, "out of memory when allocating buffer: %d bytes", opt.m);
 
@@ -4191,7 +4193,7 @@ static void do_close(int fd, short event, void *arg)
 		gwarning(r, "gpfdist shutdown the connection, while have not received response from segment");
 	}
 
-	int ret = read(r->sock, buffer, sizeof(buffer) - 1);
+	int ret = recv(r->sock, buffer, sizeof(buffer) - 1, 0);
 	if (ret < 0)
 	{
 		gwarning(r, "gpfdist read error after shutdown. errno: %d, msg: %s", errno, strerror(errno));
