@@ -33,3 +33,5 @@ target_link_libraries(pg_basebackup port libpq common ws2_32 secur32 ${ZLIB_LIBR
 
 add_executable(pg_receivexlog ${HEADER_FILES} ${SOURCE_FILES_RECEIVEXLOG})
 target_link_libraries(pg_receivexlog port libpq common ws2_32 secur32)
+
+install(TARGETS pg_basebackup pg_receivexlog DESTINATION bin)

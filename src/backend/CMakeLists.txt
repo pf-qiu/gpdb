@@ -74,3 +74,11 @@ target_link_libraries(postgres
     ws2_32 secur32 ${ZLIB_LIBRARIES} ${CURL_LIBRARIES})
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
+
+install(TARGETS postgres DESTINATION bin)
+install(TARGETS postgres DESTINATION bin RENAME postmaster)
+install(FILES libpq/pg_hba.conf.sample
+    libpq/pg_ident.conf.sample
+    utils/misc/postgresql.conf.sample
+    access/transam/recovery.conf.sample
+    DESTINATION share/postgresql)

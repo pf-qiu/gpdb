@@ -22,3 +22,4 @@ include_directories(${HEADER_DIRS})
 
 add_executable(pg_ctl ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(pg_ctl port libpq common ws2_32 secur32)
+install(TARGETS pg_ctl DESTINATION bin)

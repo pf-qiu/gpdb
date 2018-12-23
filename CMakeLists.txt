@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
+project(gpdb C)
+
 set (GPDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 configure_file("${GPDB_SRC_DIR}/src/include/pg_config.h.win32" "${GPDB_SRC_DIR}/src/include/pg_config.h" COPYONLY)
@@ -29,21 +31,21 @@ message("GP_MAJORVERSION: " "${GP_MAJORVERSION}")
 
 # pg_config_paths.h is shared by both port and libpq
 file (WRITE "${GPDB_SRC_DIR}/src/port/pg_config_paths.h"
-    "#define PGBINDIR \"${GPDB_SRC_DIR}/bin\""
-    "\n#define PGSHAREDIR \"${GPDB_SRC_DIR}/share/postgresql\""
-    "\n#define SYSCONFDIR \"${GPDB_SRC_DIR}/etc/postgresql\""
-    "\n#define INCLUDEDIR \"${GPDB_SRC_DIR}/include\""
-    "\n#define PKGINCLUDEDIR \"${GPDB_SRC_DIR}/include/postgresql\""
-    "\n#define INCLUDEDIRSERVER \"${GPDB_SRC_DIR}/include/postgresql/server\""
-    "\n#define LIBDIR \"${GPDB_SRC_DIR}/lib\""
-    "\n#define PKGLIBDIR \"${GPDB_SRC_DIR}/lib/postgresql\""
-    "\n#define LOCALEDIR \"${GPDB_SRC_DIR}/share/locale\""
-    "\n#define DOCDIR \"${GPDB_SRC_DIR}/doc/postgresql\""
-    "\n#define HTMLDIR \"${GPDB_SRC_DIR}/doc/postgresql\""
-    "\n#define MANDIR \"${GPDB_SRC_DIR}/share/man\""
+    "#define PGBINDIR \"${CMAKE_INSTALL_PREFIX}/bin\""
+    "\n#define PGSHAREDIR \"${CMAKE_INSTALL_PREFIX}/share/postgresql\""
+    "\n#define SYSCONFDIR \"${CMAKE_INSTALL_PREFIX}/etc/postgresql\""
+    "\n#define INCLUDEDIR \"${CMAKE_INSTALL_PREFIX}/include\""
+    "\n#define PKGINCLUDEDIR \"${CMAKE_INSTALL_PREFIX}/include/postgresql\""
+    "\n#define INCLUDEDIRSERVER \"${CMAKE_INSTALL_PREFIX}/include/postgresql/server\""
+    "\n#define LIBDIR \"${CMAKE_INSTALL_PREFIX}/lib\""
+    "\n#define PKGLIBDIR \"${CMAKE_INSTALL_PREFIX}/lib/postgresql\""
+    "\n#define LOCALEDIR \"${CMAKE_INSTALL_PREFIX}/share/locale\""
+    "\n#define DOCDIR \"${CMAKE_INSTALL_PREFIX}/doc/postgresql\""
+    "\n#define HTMLDIR \"${CMAKE_INSTALL_PREFIX}/doc/postgresql\""
+    "\n#define MANDIR \"${CMAKE_INSTALL_PREFIX}/share/man\""
 )
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+project(gpdb)
 
 find_package(ZLIB REQUIRED)
 if (ZLIB_FOUND)

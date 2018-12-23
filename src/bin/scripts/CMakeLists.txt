@@ -98,3 +98,5 @@ set(PG_ISREADY_FILES
 
 add_executable(pg_isready ${HEADER_FILES} ${PG_ISREADY_FILES})
 target_link_libraries(pg_isready port libpq common ws2_32 secur32)
+
+install(TARGETS createdb createlang createuser dropdb droplang dropuser clusterdb vacuumdb reindexdb pg_isready DESTINATION bin)

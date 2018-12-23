@@ -23,3 +23,7 @@ set(HEADER_DIRS
 include_directories(${HEADER_DIRS})
 
 add_library(timezone ${SOURCE_FILES})
+
+add_subdirectory(tznames)
+
+# TODO zic, timezone

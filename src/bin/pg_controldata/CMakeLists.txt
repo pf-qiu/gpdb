@@ -24,3 +24,4 @@ include_directories(${HEADER_DIRS})
 
 add_executable(pg_controldata ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(pg_controldata port common ws2_32 secur32)
+install(TARGETS pg_controldata DESTINATION bin)

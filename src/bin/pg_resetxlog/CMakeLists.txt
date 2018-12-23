@@ -24,3 +24,5 @@ include_directories(${HEADER_DIRS})
 
 add_executable(pg_resetxlog ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(pg_resetxlog port common ws2_32 secur32)
+
+install(TARGETS pg_resetxlog DESTINATION bin)

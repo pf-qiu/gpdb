@@ -63,3 +63,8 @@ set(CHILD_FILES
     oid_dispatch.c aocatalog.c
 	PARENT_SCOPE
 )
+
+install(FILES postgres.bki postgres.description postgres.shdescription
+    system_views.sql information_schema.sql cdb_util.sql cdb_schema.sql
+	sql_features.txt gp_toolkit.sql
+    DESTINATION share/postgresql)

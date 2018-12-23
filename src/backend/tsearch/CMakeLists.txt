@@ -7,3 +7,7 @@ set(CHILD_FILES
 	to_tsany.c ts_selfuncs.c ts_typanalyze.c ts_utils.c
     PARENT_SCOPE
 )
+
+install(FILES synonym_sample.syn thesaurus_sample.ths hunspell_sample.affix
+	ispell_sample.affix ispell_sample.dict
+	DESTINATION share/postgresql/tsearch_data)

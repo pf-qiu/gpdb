@@ -61,3 +61,5 @@ set(PG_DUMPALL_FILES
 )
 add_executable(pg_dumpall ${HEADER_FILES} ${PG_DUMPALL_FILES})
 target_link_libraries(pg_dumpall port libpq common ws2_32 secur32)
+
+install(TARGETS pg_dump pg_restore pg_dumpall DESTINATION bin)

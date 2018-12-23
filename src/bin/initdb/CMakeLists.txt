@@ -25,3 +25,5 @@ include_directories(${HEADER_DIRS})
 
 add_executable(initdb ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(initdb port common ws2_32 secur32)
+
+install(TARGETS initdb RUNTIME DESTINATION bin)
