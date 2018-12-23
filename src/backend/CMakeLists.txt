@@ -96,6 +96,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
 
 
 add_subdirectory(utils/mb/conversion_procs)
+add_subdirectory(snowball)
 
 install(TARGETS postgres DESTINATION bin)
 install(TARGETS postgres DESTINATION bin RENAME postmaster)

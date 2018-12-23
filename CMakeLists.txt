@@ -3,7 +3,7 @@ set (CMAKE_CONFIGURATION_TYPES Release RelWithDebInfo)
 project(gpdb C)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set (GPDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
+set (DISABLE_WARNING "/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 configure_file("${GPDB_SRC_DIR}/src/include/pg_config.h.win32" "${GPDB_SRC_DIR}/src/include/pg_config.h" COPYONLY)
 configure_file("${GPDB_SRC_DIR}/src/include/pg_config_ext.h.win32" "${GPDB_SRC_DIR}/src/include/pg_config_ext.h" COPYONLY)
 
