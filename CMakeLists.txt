@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
-
+set (CMAKE_CONFIGURATION_TYPES Release RelWithDebInfo)
 project(gpdb C)
-
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set (GPDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 configure_file("${GPDB_SRC_DIR}/src/include/pg_config.h.win32" "${GPDB_SRC_DIR}/src/include/pg_config.h" COPYONLY)

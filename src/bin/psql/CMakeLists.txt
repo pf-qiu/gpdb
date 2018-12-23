@@ -63,4 +63,5 @@ include_directories(${HEADER_DIRS})
 add_executable(psql ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(psql port libpq common ws2_32 secur32)
 
+set_target_properties(psql PROPERTIES FOLDER bin)
 install(TARGETS psql DESTINATION bin)

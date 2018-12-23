@@ -10,6 +10,8 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 include_directories(${HEADER_DIRS})
-add_library(euc_tw_and_big5 SHARED euc_tw_and_big5.c ../../wchar.c ../../conv.c)
-target_link_libraries(euc_tw_and_big5 port common)
+add_library(euc_tw_and_big5 SHARED euc_tw_and_big5.c big5.c)
+add_dependencies(euc_tw_and_big5 postgres)
+target_link_libraries(euc_tw_and_big5 port common conversion_common ${CMAKE_BINARY_DIR}/$<CONFIG>/postgres.lib)
+set_target_properties(euc_tw_and_big5 PROPERTIES FOLDER conversion_procs)
 install(TARGETS euc_tw_and_big5 DESTINATION lib/postgresql)

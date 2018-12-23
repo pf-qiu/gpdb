@@ -37,6 +37,7 @@ add_definitions("/D EXEC_BACKEND")
 add_definitions("/D USE_CURL")
 add_definitions("/D _USE_MATH_DEFINES")
 add_definitions("/D WIN32_STACK_RLIMIT=4194304")
+add_definitions("/D USE_FLOAT8_BYVAL")
 add_definitions("/wd4996 /wd4018 /wd4090 /wd4244 /wd4267 /wd4715")
 add_definitions("/MP")
 
@@ -67,13 +68,34 @@ set(HEADER_DIRS
 )
 
 include_directories(${HEADER_DIRS})
-
 add_executable(postgres ${HEADER_FILES} ${SOURCE_FILES})
+set_property(
+    TARGET postgres
+    PROPERTY LINK_FLAGS /DEF:\$\(IntDir\)postgres.def
+    )
+
+add_custom_command(
+    TARGET postgres
+    PRE_LINK
+    COMMAND perl ${GPDB_SRC_DIR}/src/tools/msvc/gendef.pl \$\(IntDir\)../$<CONFIG> x64
+    COMMAND copy /Y \$\(IntDir\)..\\$<CONFIG>.def \$\(IntDir\)postgres.def
+    COMMENT "Scanning postgres symbols"
+    )
+
+add_custom_command(
+    TARGET postgres
+    POST_BUILD
+    COMMAND (robocopy $<CONFIG> ${CMAKE_BINARY_DIR}/$<CONFIG> postgres.lib) ^& exit 0
+    )
+
 target_link_libraries(postgres
     libpq port timezone common
     ws2_32 secur32 ${ZLIB_LIBRARIES} ${CURL_LIBRARIES})
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
+
+
+add_subdirectory(utils/mb/conversion_procs)
 
 install(TARGETS postgres DESTINATION bin)
 install(TARGETS postgres DESTINATION bin RENAME postmaster)

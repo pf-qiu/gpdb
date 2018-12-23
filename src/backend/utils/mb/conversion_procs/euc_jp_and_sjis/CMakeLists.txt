@@ -10,6 +10,8 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 include_directories(${HEADER_DIRS})
-add_library(euc_jp_and_sjis SHARED euc_jp_and_sjis.c ../../wchar.c ../../conv.c)
-target_link_libraries(euc_jp_and_sjis port common)
+add_library(euc_jp_and_sjis SHARED euc_jp_and_sjis.c)
+add_dependencies(euc_jp_and_sjis postgres)
+target_link_libraries(euc_jp_and_sjis port common conversion_common ${CMAKE_BINARY_DIR}/$<CONFIG>/postgres.lib)
+set_target_properties(euc_jp_and_sjis PROPERTIES FOLDER conversion_procs)
 install(TARGETS euc_jp_and_sjis DESTINATION lib/postgresql)

@@ -28,5 +28,7 @@ include_directories(${HEADER_DIRS})
 #set source files
 add_executable(gpfdist gpfdist.c gfile.c fstream.c gpfdist_helper.c)
 
-#set lib dirs 
+#set lib dirs
 target_link_libraries(gpfdist ${ZLIB_LIBRARIES} ${APR_LIB} ${EVENT_LIB} port ws2_32)
+
+set_target_properties(gpfdist PROPERTIES FOLDER bin)

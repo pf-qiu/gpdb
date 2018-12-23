@@ -10,6 +10,8 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 include_directories(${HEADER_DIRS})
-add_library(latin2_and_win1250 SHARED latin2_and_win1250.c ../../wchar.c ../../conv.c)
-target_link_libraries(latin2_and_win1250 port common)
+add_library(latin2_and_win1250 SHARED latin2_and_win1250.c)
+add_dependencies(latin2_and_win1250 postgres)
+target_link_libraries(latin2_and_win1250 port common conversion_common ${CMAKE_BINARY_DIR}/$<CONFIG>/postgres.lib)
+set_target_properties(latin2_and_win1250 PROPERTIES FOLDER conversion_procs)
 install(TARGETS latin2_and_win1250 DESTINATION lib/postgresql)

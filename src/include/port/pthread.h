@@ -12,6 +12,8 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 	void *(*start_routine) (void *), void *arg);
 int pthread_join(pthread_t thread, void **retval);
 pthread_t pthread_self();
+int pthread_kill(pthread_t thread, int sig);
+void pthread_exit(void *retval);
 void pthread_cleanup_push(void(*routine)(void *), void *arg);
 void pthread_cleanup_pop(int execute);
 int pthread_equal(pthread_t a, pthread_t b);

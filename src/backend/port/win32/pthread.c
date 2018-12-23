@@ -32,6 +32,16 @@ pthread_t pthread_self()
 	return GetCurrentThreadId();
 }
 
+void pthread_exit(void *retval)
+{
+
+}
+
+int pthread_kill(pthread_t thread, int sig)
+{
+	return 0;
+}
+
 void pthread_cleanup_push(void(*routine)(void *), void *arg)
 {
 

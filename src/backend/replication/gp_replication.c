@@ -19,6 +19,9 @@
 #include "replication/walsender_private.h"
 #include "utils/builtins.h"
 
+#ifdef WIN32
+#include <time.h>
+#endif
 /* Set at database system is ready to accept connections */
 extern pg_time_t PMAcceptingConnectionsStartTime;
 

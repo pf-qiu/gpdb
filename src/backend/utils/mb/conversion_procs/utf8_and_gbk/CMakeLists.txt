@@ -10,6 +10,8 @@ set(HEADER_DIRS
     ${GPDB_SRC_DIR}/src/include/port/win32_msvc
 )
 include_directories(${HEADER_DIRS})
-add_library(utf8_and_gbk SHARED utf8_and_gbk.c ../../wchar.c ../../conv.c)
-target_link_libraries(utf8_and_gbk port common)
+add_library(utf8_and_gbk SHARED utf8_and_gbk.c)
+add_dependencies(utf8_and_gbk postgres)
+target_link_libraries(utf8_and_gbk port common conversion_common ${CMAKE_BINARY_DIR}/$<CONFIG>/postgres.lib)
+set_target_properties(utf8_and_gbk PROPERTIES FOLDER conversion_procs)
 install(TARGETS utf8_and_gbk DESTINATION lib/postgresql)
