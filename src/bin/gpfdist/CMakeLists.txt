@@ -26,9 +26,10 @@ include_directories("c:/ext/include")
 include_directories(${HEADER_DIRS})
 
 #set source files
-add_executable(gpfdist gpfdist.c gfile.c fstream.c gpfdist_helper.c)
+add_executable(gpfdist gpfdist.c gfile.c fstream.c gpfdist_helper.c applink.c)
 
 #set lib dirs
-target_link_libraries(gpfdist ${ZLIB_LIBRARIES} ${APR_LIB} ${EVENT_LIB} port ws2_32)
+target_link_libraries(gpfdist ${ZLIB_LIBRARIES} ${APR_LIB} ${EVENT_LIB} ${OPENSSL_LIBRARIES} port ws2_32 Crypt32)
 
 set_target_properties(gpfdist PROPERTIES FOLDER bin)
+install(TARGETS gpfdist DESTINATION bin)

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(libpq)
 
-add_definitions("/D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4244")
+add_definitions("/MP /D FRONTEND /D ENABLE_THREAD_SAFETY /wd4996 /wd4018 /wd4244")
 
 set(GPDB_BACKEND_SRC_DIR "${GPDB_SRC_DIR}/src/backend")
 
@@ -47,3 +47,4 @@ set(HEADER_DIRS
 include_directories(${HEADER_DIRS})
 
 add_library(libpq ${HEADER_FILES} ${SOURCE_FILES})
+target_link_libraries(libpq ${OPENSSL_LIBRARIES})

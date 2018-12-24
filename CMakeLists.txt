@@ -29,6 +29,8 @@ string(REGEX MATCH "[^\.]*" GP_MAJORVERSION ${GP_VERSION})
 file(APPEND "${GPDB_SRC_DIR}/src/include/pg_config.h" "\n#define GP_MAJORVERSION \"${GP_MAJORVERSION}\"\n" )
 message("GP_MAJORVERSION: " "${GP_MAJORVERSION}")
 
+file(APPEND "${GPDB_SRC_DIR}/src/include/pg_config.h" "\n#define USE_SSL 1\n")
+
 # pg_config_paths.h is shared by both port and libpq
 file (WRITE "${GPDB_SRC_DIR}/src/port/pg_config_paths.h"
     "#define PGBINDIR \"${CMAKE_INSTALL_PREFIX}/bin\""
@@ -83,10 +85,17 @@ else ()
     message(FATAL_ERROR "python2 not found")
 endif(Python2_FOUND)
 
+include(FindOpenSSL)
+if (OPENSSL_FOUND)
+    include_directories(${OPENSSL_INCLUDE_DIR})
+else ()
+    message(FATAL_ERROR "openssl not found")
+endif(OPENSSL_FOUND)
+
 add_subdirectory(src/common)
 add_subdirectory(src/port)
 add_subdirectory(src/timezone)
 add_subdirectory(src/interfaces/libpq)
 add_subdirectory(src/bin)
-add_subdirectory(src/backend)
+#add_subdirectory(src/backend)
 add_subdirectory(gpMgmt/bin/pythonSrc/PyGreSQL-4.0/)
