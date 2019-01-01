@@ -1300,9 +1300,11 @@ transformCreateExternalStmt(CreateExternalStmt *stmt, const char *queryString)
 		}
 	}
 	else if (stmt->distributedBy != NIL)
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
-				 errmsg("Readable external tables can\'t specify a DISTRIBUTED BY clause.")));
+	{
+			/* regular DISTRIBUTED BY transformation */
+			transformDistributedBy(pstate, &cxt, stmt->distributedBy, &stmt->policy,
+								   likeDistributedBy, bQuiet);
+	}
 
 	Assert(cxt.ckconstraints == NIL);
 	Assert(cxt.fkconstraints == NIL);

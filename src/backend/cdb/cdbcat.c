@@ -125,44 +125,6 @@ GpPolicyFetch(MemoryContext mcxt, Oid tbloid)
 	}
 
 	/*
-	 * EXECUTE-type external tables have an "ON ..." specification, stored
-	 * in pg_exttable.location. See if it's "MASTER_ONLY". Other types of
-	 * external tables have a gp_distribution_policy row, like normal tables.
-	 */
-	if (get_rel_relstorage(tbloid) == RELSTORAGE_EXTERNAL)
-	{
-		/*
-		 * An external table really should have a pg_exttable entry, but
-		 * there's currently a transient state during creation of an external
-		 * table, where the pg_class entry has been created, and its loaded
-		 * into the relcache, before the pg_exttable entry has been created.
-		 * Silently ignore missing pg_exttable rows to cope with that.
-		 */
-		ExtTableEntry *e = GetExtTableEntryIfExists(tbloid);
-
-		/*
-		 * Writeable external tables have gp_distribution_policy entries,
-		 * like regular tables. Readable external tables are implicitly
-		 * randomly distributed, except for "EXECUTE ... ON MASTER" ones.
-		 */
-		if (e && !e->iswritable)
-		{
-			char *on_clause = (char *) strVal(linitial(e->execlocations));
-
-			if (strcmp(on_clause, "MASTER_ONLY") == 0) {
-				policy = (GpPolicy *) MemoryContextAlloc(mcxt, SizeOfGpPolicy(0));
-				policy->ptype = POLICYTYPE_ENTRY;
-				policy->nattrs = 0;
-				return policy;
-			}
-			policy = (GpPolicy *) MemoryContextAlloc(mcxt, SizeOfGpPolicy(0));
-			policy->ptype = POLICYTYPE_PARTITIONED;
-			policy->nattrs = 0;
-			return policy;
-		}
-	}
-
-	/*
 	 * We need to read the gp_distribution_policy table
 	 */
 	gp_policy_rel = heap_open(GpPolicyRelationId, AccessShareLock);
@@ -226,6 +188,44 @@ GpPolicyFetch(MemoryContext mcxt, Oid tbloid)
 	/* Interpret absence of a valid policy row as POLICYTYPE_ENTRY */
 	if (policy == NULL)
 	{
+	/*
+	 * EXECUTE-type external tables have an "ON ..." specification, stored
+	 * in pg_exttable.location. See if it's "MASTER_ONLY". Other types of
+	 * external tables have a gp_distribution_policy row, like normal tables.
+	 */
+	if (get_rel_relstorage(tbloid) == RELSTORAGE_EXTERNAL)
+	{
+		/*
+		 * An external table really should have a pg_exttable entry, but
+		 * there's currently a transient state during creation of an external
+		 * table, where the pg_class entry has been created, and its loaded
+		 * into the relcache, before the pg_exttable entry has been created.
+		 * Silently ignore missing pg_exttable rows to cope with that.
+		 */
+		ExtTableEntry *e = GetExtTableEntryIfExists(tbloid);
+
+		/*
+		 * Writeable external tables have gp_distribution_policy entries,
+		 * like regular tables. Readable external tables are implicitly
+		 * randomly distributed, except for "EXECUTE ... ON MASTER" ones.
+		 */
+		if (e && !e->iswritable)
+		{
+			char *on_clause = (char *) strVal(linitial(e->execlocations));
+
+			if (strcmp(on_clause, "MASTER_ONLY") == 0) {
+				policy = (GpPolicy *) MemoryContextAlloc(mcxt, SizeOfGpPolicy(0));
+				policy->ptype = POLICYTYPE_ENTRY;
+				policy->nattrs = 0;
+				return policy;
+			}
+			policy = (GpPolicy *) MemoryContextAlloc(mcxt, SizeOfGpPolicy(0));
+			policy->ptype = POLICYTYPE_PARTITIONED;
+			policy->nattrs = 0;
+			return policy;
+		}
+	}
+
 		policy = (GpPolicy *) MemoryContextAlloc(mcxt, SizeOfGpPolicy(0));
 		policy->ptype = POLICYTYPE_ENTRY;
 		policy->nattrs = 0;
