@@ -34,7 +34,6 @@ require "config_default.pl";
 require "config.pl" if (-f "src/tools/msvc/config.pl");
 
 my $vcver = Mkvcbuild::mkvcbuild($config);
-
 # check what sort of build we are doing
 
 my $bconf     = $ENV{CONFIG} || "Release";

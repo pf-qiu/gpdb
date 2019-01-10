@@ -51,10 +51,11 @@ my $contrib_extraincludes =
 my $contrib_extrasource = {
 	'cube' => [ 'cubescan.l', 'cubeparse.y' ],
 	'seg'  => [ 'segscan.l',  'segparse.y' ], };
-my @contrib_excludes = ('pgcrypto', 'intagg', 'sepgsql');
+my @contrib_excludes = ('pgcrypto', 'intagg', 'sepgsql', 'sasdemo');
 
 sub mkvcbuild
 {
+	my $mf;
 	our $config = shift;
 
 	chdir('..\..\..') if (-d '..\msvc' && -d '..\..\..\src');
@@ -65,7 +66,7 @@ sub mkvcbuild
 
 	$solution = CreateSolution($vsVersion, $config);
 
-	our @pgportfiles = qw(
+	our @pgportfiles = qw(glob.c
 	  chklocale.c crypt.c fls.c fseeko.c getrusage.c inet_aton.c random.c
 	  srandom.c getaddrinfo.c gettimeofday.c inet_net_ntop.c kill.c open.c
 	  erand48.c snprintf.c strlcat.c strlcpy.c dirmod.c noblock.c path.c
@@ -91,6 +92,8 @@ sub mkvcbuild
 	$libpgcommon->AddDefine('FRONTEND');
 	$libpgcommon->AddFiles('src\common', @pgcommonfrontendfiles);
 
+	if ($config->{fullbuild})
+	{
 	$postgres = $solution->AddProject('postgres', 'exe', '', 'src\backend');
 	$postgres->AddIncludeDir('src\backend');
 	$postgres->AddDir('src\backend\port\win32');
@@ -409,6 +412,7 @@ sub mkvcbuild
 		die "Unable to find $solution->{options}->{tcl}\\lib\\tcl<version>.lib"
 			unless $found;
 	}
+	}
 
 	$libpq = $solution->AddProject('libpq', 'dll', 'interfaces',
 		'src\interfaces\libpq');
@@ -424,6 +428,8 @@ sub mkvcbuild
 		'src\interfaces\libpq\libpq.rc');
 	$libpq->AddReference($libpgport);
 
+	if ($config->{fullbuild})
+	{
 	my $libpqwalreceiver =
 	  $solution->AddProject('libpqwalreceiver', 'dll', '',
 		'src\backend\replication\libpqwalreceiver');
@@ -543,6 +549,7 @@ sub mkvcbuild
 	$pgevent->RemoveFile('src\bin\pgevent\win32ver.rc');
 	$pgevent->UseDef('src\bin\pgevent\pgevent.def');
 	$pgevent->DisableLinkerWarnings('4104');
+	}
 
 	my $psql = AddSimpleFrontend('psql', 1);
 	$psql->AddIncludeDir('src\bin\pg_dump');
@@ -584,6 +591,8 @@ sub mkvcbuild
 	$pgrestore->AddFile('src\backend\parser\kwlookup.c');
 	$pgrestore->AddLibrary('ws2_32.lib');
 
+	if ($config->{fullbuild})
+	{
 	my $zic = $solution->AddProject('zic', 'exe', 'utils');
 	$zic->AddFiles('src\timezone', 'zic.c');
 	$zic->AddReference($libpgcommon, $libpgport);
@@ -653,7 +662,7 @@ sub mkvcbuild
 	}
 	$pgcrypto->AddReference($postgres);
 	$pgcrypto->AddLibrary('wsock32.lib');
-	my $mf = Project::read_file('contrib/pgcrypto/Makefile');
+	$mf = Project::read_file('contrib/pgcrypto/Makefile');
 	GenerateContribSqlFiles('pgcrypto', $mf);
 
 	my $D;
@@ -687,6 +696,7 @@ sub mkvcbuild
 				'src\backend\utils\mb\conversion_procs\\' . $sub . '\\' . $1);
 		}
 		$p->AddReference($postgres);
+	}
 	}
 
 	$mf = Project::read_file('src\bin\scripts\Makefile');
@@ -731,6 +741,8 @@ sub mkvcbuild
 		$proj->AddLibrary('ws2_32.lib');
 	}
 
+	if ($config->{fullbuild})
+	{
 	# Regression DLL and EXE
 	my $regress = $solution->AddProject('regress', 'dll', 'misc');
 	$regress->AddFile('src\test\regress\regress.c');
@@ -760,8 +772,9 @@ sub mkvcbuild
 	copy(
 		'src/backend/access/transam/xlogreader.c',
 		'contrib/pg_xlogdump/xlogreader.c');
+	}
 
-	$solution->Save();
+	$solution->Save($config->{fullbuild});
 	return $solution->{vcver};
 }
 

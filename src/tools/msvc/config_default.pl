@@ -21,7 +21,10 @@ our $config = {
 	xml     => undef,    # --with-libxml=<path>
 	xslt    => undef,    # --with-libxslt=<path>
 	iconv   => undef,    # (not in configure, path to iconv)
-	zlib    => undef     # --with-zlib=<path>
+	zlib    => undef,    # --with-zlib=<path>
+
+	fullbuild  => 0  # 0: only build client tools
+	                 # 1: build all components
 };
 
 1;
