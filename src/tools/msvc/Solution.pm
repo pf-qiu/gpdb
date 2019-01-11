@@ -125,7 +125,7 @@ sub copyFile
 sub GenerateFiles
 {
 	my $self = shift;
-	my $fullbuild = shift;
+	my $buildclient = shift;
 	my $bits = $self->{platform} eq 'Win32' ? 32 : 64;
 
 	# Parse configure.in to get version numbers
@@ -437,7 +437,7 @@ EOF
 		close(O);
 	}
 
-	if ($fullbuild)
+	if (!$buildclient)
 	{
 	my $mf = Project::read_file('src\backend\catalog\Makefile');
 	$mf =~ s{\\s*[\r\n]+}{}mg;
@@ -563,10 +563,10 @@ sub AddProject
 
 sub Save
 {
-	my ($self, $fullbuild) = @_;
+	my ($self, $buildclient) = @_;
 	my %flduid;
 
-	$self->GenerateFiles($fullbuild);
+	$self->GenerateFiles($buildclient);
 	foreach my $fld (keys %{ $self->{projects} })
 	{
 		foreach my $proj (@{ $self->{projects}->{$fld} })

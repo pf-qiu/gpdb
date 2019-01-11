@@ -85,7 +85,6 @@
 #include <pwd.h>
 #include <unistd.h>
 #endif
-#include <windows.h>
 #include <errno.h>
 #include "glob.h"
 #include <stdio.h>

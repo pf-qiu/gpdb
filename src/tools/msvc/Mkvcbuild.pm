@@ -57,6 +57,7 @@ sub mkvcbuild
 {
 	my $mf;
 	our $config = shift;
+	our $buildclient = shift;
 
 	chdir('..\..\..') if (-d '..\msvc' && -d '..\..\..\src');
 	die 'Must run from root or msvc directory'
@@ -92,7 +93,7 @@ sub mkvcbuild
 	$libpgcommon->AddDefine('FRONTEND');
 	$libpgcommon->AddFiles('src\common', @pgcommonfrontendfiles);
 
-	if ($config->{fullbuild})
+	if (!$buildclient)
 	{
 	$postgres = $solution->AddProject('postgres', 'exe', '', 'src\backend');
 	$postgres->AddIncludeDir('src\backend');
@@ -428,7 +429,7 @@ sub mkvcbuild
 		'src\interfaces\libpq\libpq.rc');
 	$libpq->AddReference($libpgport);
 
-	if ($config->{fullbuild})
+	if (!$buildclient)
 	{
 	my $libpqwalreceiver =
 	  $solution->AddProject('libpqwalreceiver', 'dll', '',
@@ -591,7 +592,7 @@ sub mkvcbuild
 	$pgrestore->AddFile('src\backend\parser\kwlookup.c');
 	$pgrestore->AddLibrary('ws2_32.lib');
 
-	if ($config->{fullbuild})
+	if (!$buildclient)
 	{
 	my $zic = $solution->AddProject('zic', 'exe', 'utils');
 	$zic->AddFiles('src\timezone', 'zic.c');
@@ -741,7 +742,7 @@ sub mkvcbuild
 		$proj->AddLibrary('ws2_32.lib');
 	}
 
-	if ($config->{fullbuild})
+	if (!$buildclient)
 	{
 	# Regression DLL and EXE
 	my $regress = $solution->AddProject('regress', 'dll', 'misc');
@@ -774,7 +775,7 @@ sub mkvcbuild
 		'contrib/pg_xlogdump/xlogreader.c');
 	}
 
-	$solution->Save($config->{fullbuild});
+	$solution->Save($buildclient);
 	return $solution->{vcver};
 }
 

@@ -313,7 +313,6 @@ sub WriteItemDefinitionGroup
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAs>Default</CompileAs>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <OutputFile>.\\$cfgname\\$self->{name}\\$self->{name}.$self->{type}</OutputFile>
