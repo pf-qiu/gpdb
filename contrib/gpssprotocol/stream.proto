@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package gpss;
+
+message Empty {
+}
+
+message StreamMessages {
+    repeated bytes Messages = 1;
+}
+
+message Parameter {
+    string Key = 1;
+    string Value = 2;
+}
+
+message ConsumeRequest {
+    string XID = 1;
+    int32 CID = 2;
+    int32 SN = 3;
+    int32 SegmentID = 4;
+    int32 SegmentCount = 5;
+    int32 SessionID = 6;
+    repeated Parameter Parameters = 7;
+}
+
+service GreenplumStreamServer {
+    rpc Consume(ConsumeRequest) returns(stream StreamMessages) {}
+}
