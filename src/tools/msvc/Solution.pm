@@ -132,7 +132,17 @@ sub GenerateFiles
 	  || confess("Could not open configure.in for reading\n");
 	while (<C>)
 	{
-		if (/^AC_INIT\(\[PostgreSQL\], \[([^\]]+)\]/)
+		if (/^AC_INIT\(\[Greenplum Database\], \[([^\]]+)\]/)
+		{
+			$self->{gpdbver} = $1;
+			if ($self->{gpdbver} !~ /^(\d+)\.(\d+)(?:\.(\d+))?/)
+			{
+				confess "Bad format of version: $self->{gpdbver}\n";
+			}
+			$self->{gpdbnumver} = sprintf("%d%02d%02d", $1, $2, $3);
+			$self->{gpdbmajorver} = sprintf("%d", $1);
+		}
+		if (/\[PG_PACKAGE_VERSION=([^\]]+)\]/)
 		{
 			$self->{strver} = $1;
 			if ($self->{strver} !~ /^(\d+)\.(\d+)(?:\.(\d+))?/)
@@ -170,6 +180,9 @@ sub GenerateFiles
 s{PG_VERSION_STR "[^"]+"}{__STRINGIFY(x) #x\n#define __STRINGIFY2(z) __STRINGIFY(z)\n#define PG_VERSION_STR "PostgreSQL $self->{strver}, compiled by Visual C++ build " __STRINGIFY2(_MSC_VER) ", $bits-bit"};
 			print O;
 		}
+		print O "#define GP_MAJORVERSION \"$self->{gpdbmajorver}\"\n";
+		print O "#define GP_VERSION \"$self->{gpdbver}\"\n";
+		print O "#define GP_VERSION_NUM $self->{gpdbnumver}\n";
 		print O "#define PG_MAJORVERSION \"$self->{majorver}\"\n";
 		print O "#define LOCALEDIR \"/share/locale\"\n"
 		  if ($self->{options}->{nls});
@@ -426,6 +439,24 @@ EOF
 #define HTMLDIR "/doc"
 #define MANDIR "/man"
 EOF
+		close(O);
+	}
+
+	if (IsNewer(
+			'src\include\catalog\gp_version.h',
+			'src\include\catalog\gp_version.in'))
+	{
+		print "Generating gp_version.h...\n";
+		open(I, '<', 'src\include\catalog\gp_version.in')
+		  || confess "Could not open gp_version.in";
+		open(O, '>', 'src\include\catalog\gp_version.h')
+		  || confess "Could not open gp_version.h";
+		while (<I>)
+		{
+			s/\$.*\$/$self->{gpdbver}/;
+			print O;
+		}
+		close(I);
 		close(O);
 	}
 

@@ -51,7 +51,7 @@ my $contrib_extraincludes =
 my $contrib_extrasource = {
 	'cube' => [ 'cubescan.l', 'cubeparse.y' ],
 	'seg'  => [ 'segscan.l',  'segparse.y' ], };
-my @contrib_excludes = ('pgcrypto', 'intagg', 'sepgsql');
+my @contrib_excludes = ('pgcrypto', 'intagg', 'sepgsql', 'sasdemo');
 
 sub mkvcbuild
 {
@@ -75,6 +75,18 @@ sub mkvcbuild
 	  win32env.c win32error.c win32setlocale.c);
 
 	push(@pgportfiles, 'rint.c') if ($vsVersion < '12.00');
+
+	if ($vsVersion >= '9.00')
+	{
+		push(@pgportfiles, 'pg_crc32c_choose.c');
+		push(@pgportfiles, 'pg_crc32c_sse42.c');
+		push(@pgportfiles, 'pg_crc32c_sb8.c');
+		push(@pgportfiles, 'pg_crc.c');
+	}
+	else
+	{
+		push(@pgportfiles, 'pg_crc32c_sb8.c');
+	}
 
 	our @pgcommonallfiles = qw(
 	  exec.c pgfnames.c psprintf.c relpath.c rmtree.c string.c username.c wait_error.c);
