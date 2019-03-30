@@ -11,14 +11,6 @@ use List::Util qw(max);
 # src/tools/msvc/gendef.pl
 #
 
-sub dumpsyms
-{
-	my ($objfile, $symfile) = @_;
-	system("dumpbin /symbols /out:symbols.out $_ >NUL")
-	  && die "Could not call dumpbin";
-	rename("symbols.out", $symfile);
-}
-
 # Given a symbol file path, loops over its contents
 # and returns a list of symbols of interest as a dictionary
 # of 'symbolname' -> symtype, where symtype is:
@@ -170,16 +162,9 @@ if (-f $deffile
 print "Generating $defname.DEF from directory $ARGV[0], platform $platform\n";
 
 my %def = ();
-
-while (<$ARGV[0]/*.obj>)
-{
-	my $objfile = $_;
-	my $symfile = $objfile;
-	$symfile =~ s/\.obj$/.sym/i;
-	dumpsyms($objfile, $symfile);
-	print ".";
-	extract_syms($symfile, \%def);
-}
+my $symfile = "$ARGV[0]/all.sym";
+system("dumpbin /symbols /out:$symfile $ARGV[0]/*obj >NUL");
+extract_syms($symfile, \%def);
 print "\n";
 
 writedef($deffile, $platform, \%def);
