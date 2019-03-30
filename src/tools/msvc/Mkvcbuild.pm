@@ -105,6 +105,8 @@ sub mkvcbuild
 
 	$postgres = $solution->AddProject('postgres', 'exe', '', 'src\backend');
 	$postgres->AddIncludeDir('src\backend');
+	$postgres->AddIncludeDir('src\port');
+	$postgres->AddIncludeDir('src\interfaces\libpq');
 	$postgres->AddDir('src\backend\port\win32');
 	$postgres->AddFile('src\backend\utils\fmgrtab.c');
 	$postgres->ReplaceFile(

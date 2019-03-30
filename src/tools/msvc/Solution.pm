@@ -290,9 +290,22 @@ s{PG_VERSION_STR "[^"]+"}{__STRINGIFY(x) #x\n#define __STRINGIFY2(z) __STRINGIFY
 			'src\backend\utils\fmgrtab.c', 'src\include\catalog\pg_proc.h'))
 	{
 		print "Generating fmgrtab.c and fmgroids.h...\n";
+		chdir('src\include\catalog');
+		copyFile('pg_proc.h', 'pg_proc_combined.h');
+		my $src = 'pg_proc_gp.h';
+		my $dest = 'pg_proc_combined.h';
+		open(I, $src)     || croak "Could not open $src";
+		open(O, ">>$dest") || croak "Could not open $dest";
+		while (<I>)
+		{
+			print O;
+		}
+		close(I);
+		close(O);
+		chdir('..\..\..');
 		chdir('src\backend\utils');
 		system(
-"perl -I ../catalog Gen_fmgrtab.pl ../../../src/include/catalog/pg_proc.h");
+"perl -I ../catalog Gen_fmgrtab.pl ../../../src/include/catalog/pg_proc_combined.h");
 		chdir('..\..\..');
 	}
 	if (IsNewer(

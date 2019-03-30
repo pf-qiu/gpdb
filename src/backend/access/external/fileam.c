@@ -33,6 +33,7 @@
 
 #include "postgres.h"
 
+#include <time.h>
 #include <fstream/gfile.h>
 #include <tcop/tcopprot.h>
 

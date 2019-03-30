@@ -16,6 +16,7 @@
 #ifndef CDB_BITSTREAM_H
 #define CDB_BITSTREAM_H
 
+#include <stdint.h>
 /*
  * Data structure implementing a bitstream abstraction.
  *

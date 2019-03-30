@@ -13,7 +13,12 @@
  *
  *-------------------------------------------------------------------------
  */
+#ifdef WIN32
+#include "pthread-win32.h"
+#else
 #include <pthread.h>
+#endif
+
 #include <limits.h>
 
 #include "postgres.h"
