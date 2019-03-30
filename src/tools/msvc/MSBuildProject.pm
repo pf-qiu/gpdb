@@ -34,10 +34,20 @@ sub WriteHeader
 EOF
 	$self->WriteConfigurationHeader($f, 'Debug');
 	$self->WriteConfigurationHeader($f, 'Release');
+
+	my $sdkVersion = $ENV{'WindowsSDKVersion'};
+	# The WindowsSDKVersion env variable usually conatains a backslash at end. Chop that off if necessary.
+	# If WindowsSDKVersion is not defined MSBuild will use v8.1 like without specifying sdk version.
+	if (defined($sdkVersion) and substr($sdkVersion, -1) eq '\\')
+	{
+		chop $sdkVersion;
+	}
+
 	print $f <<EOF;
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>$self->{guid}</ProjectGuid>
+    <WindowsTargetPlatformVersion>$sdkVersion</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="\$(VCTargetsPath)\\Microsoft.Cpp.Default.props" />
 EOF
