@@ -24,7 +24,6 @@
 
 #include "postgres.h"
 
-#include <pthread.h>
 
 #include "access/transam.h"
 #include "access/xact.h"
@@ -65,6 +64,12 @@
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#ifdef WIN32
+#include "pthread-gpdb-win32.h"
+#else
+#include <pthread.h>
+#endif
 
 /* If we have old platform sdk headers, WSAPoll() might not be there */
 #ifndef POLLIN

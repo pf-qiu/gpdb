@@ -116,7 +116,7 @@ RedZoneHandler_ShmemInit()
 		 */
 		if (redZoneChunks == 0 || IsResGroupEnabled())
 		{
-			redZoneChunks = INT32_MAX;
+			redZoneChunks = PG_INT32_MAX;
 		}
 
 		*isRunawayDetector = 0;

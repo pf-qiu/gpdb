@@ -1091,7 +1091,7 @@ PostmasterMain(int argc, char *argv[])
 	 * getopt(3) library so that it will work correctly in subprocesses.
 	 */
 	optind = 1;
-#if defined(HAVE_INT_OPTRESET) || !defined(HAVE_GETOPT)
+#if (defined(HAVE_INT_OPTRESET) || !defined(HAVE_GETOPT)) && (!defined WIN32)
 	optreset = 1;				/* some systems need this too */
 #endif
 

@@ -115,7 +115,7 @@ CreateRole(CreateRoleStmt *stmt)
 	ListCell   *option;
 	char	   *password = NULL;	/* user password */
 	bool		encrypt_password = Password_encryption; /* encrypt password? */
-	char		encrypted_password[MAX_PASSWD_HASH_LEN + 1];
+	char		*encrypted_password = (MAX_PASSWD_HASH_LEN + 1, 1);
 	bool		issuper = false;	/* Make the user a superuser? */
 	bool		inherit = true; /* Auto inherit privileges? */
 	bool		createrole = false;		/* Can this user create roles? */
@@ -672,7 +672,7 @@ AlterRole(AlterRoleStmt *stmt)
 	ListCell   *option;
 	char	   *password = NULL;	/* user password */
 	bool		encrypt_password = Password_encryption; /* encrypt password? */
-	char		encrypted_password[MAX_PASSWD_HASH_LEN + 1];
+	char		*encrypted_password = calloc(MAX_PASSWD_HASH_LEN + 1, 1);
 	int			issuper = -1;	/* Make the user a superuser? */
 	int			inherit = -1;	/* Auto inherit privileges? */
 	int			createrole = -1;	/* Can this user create roles? */

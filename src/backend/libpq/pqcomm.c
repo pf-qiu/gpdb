@@ -67,7 +67,12 @@
  *------------------------
  */
 #include "postgres.h"
+
+#ifdef WIN32
+#include "pthread-gpdb-win32.h"
+#else
 #include <pthread.h>
+#endif
 
 #include <signal.h>
 #include <fcntl.h>

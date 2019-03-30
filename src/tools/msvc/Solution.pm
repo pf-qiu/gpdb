@@ -478,6 +478,7 @@ EOF
 	$mf =~ /^POSTGRES_BKI_SRCS\s*:?=[^,]+,(.*)\)$/gm
 	  || croak "Could not find POSTGRES_BKI_SRCS in Makefile\n";
 	my @allbki = split /\s+/, $1;
+	push @allbki, 'pg_proc_combined.h';
 	foreach my $bki (@allbki)
 	{
 		next if $bki eq "";

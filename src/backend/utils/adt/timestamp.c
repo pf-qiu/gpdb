@@ -2916,8 +2916,8 @@ bool
 interval_div_internal(Interval *interval1, Interval *interval2,
 					  float8 *quo, Interval *rem)
 {
-	TimeOffset	span1 = interval_cmp_value(interval1);
-	TimeOffset	span2 = interval_cmp_value(interval2);
+	TimeOffset	span1 = interval_cmp_value(interval1).lo;
+	TimeOffset	span2 = interval_cmp_value(interval2).lo;
 	float8 q;
 
 	if (span2 == 0)

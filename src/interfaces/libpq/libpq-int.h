@@ -66,11 +66,14 @@
 /*
  * Define a fake structure compatible with GSSAPI on Unix.
  */
+#ifndef GSS_BUFFER_DESC_DEFINED
 typedef struct
 {
 	void	   *value;
 	int			length;
 } gss_buffer_desc;
+#define GSS_BUFFER_DESC_DEFINED
+#endif
 #endif
 #endif   /* ENABLE_SSPI */
 

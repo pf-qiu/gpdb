@@ -70,7 +70,8 @@ volatile OOMTimeType oomTrackerStartTime = 0;
 #ifndef _WIN32
 static pthread_t memprotOwnerThread = (pthread_t)0;
 #else
-static pthread_t memprotOwnerThread = {0,0};
+#include "pthread-gpdb-win32.h"
+static pthread_t memprotOwnerThread = 0;
 #endif
 /* Is memory protection enabled? */
 bool gp_mp_inited = false;

@@ -17,7 +17,7 @@
 #include "postgres.h"
 
 #include <sys/stat.h>
-#include <sys/unistd.h>
+#include <unistd.h>
 
 #include "access/reloptions.h"
 #include "access/transam.h"
@@ -318,7 +318,11 @@ bool		optimizer_print_optimization_stats;
 bool		optimizer_print_xform_results;
 
 /* array of xforms disable flags */
+#ifdef WIN32
+bool		optimizer_xforms[OPTIMIZER_XFORMS_COUNT] = { false };
+#else
 bool		optimizer_xforms[OPTIMIZER_XFORMS_COUNT] = {[0 ... OPTIMIZER_XFORMS_COUNT - 1] = false};
+#endif
 char	   *optimizer_search_strategy_path = NULL;
 
 /* GUCs to tell Optimizer to enable a physical operator */

@@ -49,7 +49,7 @@ typedef struct
 void
 ResetUnloggedRelations(int op)
 {
-	char		temp_path[MAXPGPATH + 10 + strlen(tablespace_version_directory()) + 1];
+	char		*temp_path = calloc(MAXPGPATH + 10 + strlen(tablespace_version_directory()) + 1, 1);
 	DIR		   *spc_dir;
 	struct dirent *spc_de;
 	MemoryContext tmpctx,

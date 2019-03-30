@@ -139,11 +139,18 @@ typedef struct ICBufferList
 	ICBufferLink head;
 }	ICBufferList;
 
+#ifdef WIN32
+#define CONTAINER_OF(ptr, type, member) \
+	( \
+		(type *)( (char *)ptr - offsetof(type,member) ) \
+	)
+#else
 #define CONTAINER_OF(ptr, type, member) \
 	({ \
 		const typeof( ((type *)0)->member ) *__member_ptr = (ptr); \
 		(type *)( (char *)__member_ptr - offsetof(type,member) ); \
 	})
+#endif
 
 #define GET_ICBUFFER_FROM_PRIMARY(ptr) CONTAINER_OF(ptr, ICBuffer, primary)
 #define GET_ICBUFFER_FROM_SECONDARY(ptr) CONTAINER_OF(ptr, ICBuffer, secondary)

@@ -2181,7 +2181,7 @@ process_pipe_input(char *logbuffer, int *bytes_in_logbuffer)
 					break;
 			}
 			/* fall back on the stderr log as the destination */
-			write_syslogger_file(cursor, chunklen /*, LOG_DESTINATION_STDERR*/);
+			write_syslogger_file(cursor, chunklen, LOG_DESTINATION_STDERR);
 			cursor += chunklen;
 			count -= chunklen;
 		}

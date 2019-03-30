@@ -213,10 +213,11 @@ checkIfFailedDueToRecoveryInProgress(fts_segment_info *ftsInfo)
 		    &tmp_xlogid, &tmp_xrecoff) != 2)
 		{
 #ifdef USE_ASSERT_CHECKING
-			elog(ERROR,
+			int level = ERROR;
 #else
-			elog(LOG,
+			int level = LOG;
 #endif
+			elog(level,
 				"invalid in-recovery message %s "
 				"(content=%d, dbid=%d) state=%d",
 				PQerrorMessage(ftsInfo->conn),

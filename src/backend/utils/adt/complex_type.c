@@ -16,6 +16,9 @@
  */
 #include "postgres.h"
 
+#ifdef WIN32
+#define _USE_MATH_DEFINES /* For M_PI and M_PI2*/
+#endif
 #include <ctype.h>
 #include <float.h>
 #include <math.h>

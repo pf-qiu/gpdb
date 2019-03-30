@@ -2418,8 +2418,9 @@ ExecMakeTableFunctionResult(ExprState *funcexpr,
 			{
 				const int staticBufferLimit = 200;
 				HeapTupleHeader td;
-				Datum staticPd[staticBufferLimit];
-				bool staticNull[staticBufferLimit];
+				
+				Datum *staticPd = calloc(staticBufferLimit, sizeof(Datum));
+				bool *staticNull = calloc(staticBufferLimit, sizeof(bool));
 				Datum *pd;
 				bool *pn;
 

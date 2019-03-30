@@ -119,9 +119,12 @@ sub mkvcbuild
 	$postgres->ReplaceFile('src\backend\port\pg_latch.c',
 		'src\backend\port\win32_latch.c');
 	$postgres->RemoveFile('src\backend\optimizer\plan\orca.c');
+	$postgres->RemoveFile('src\backend\utils\resgroup\resgroup-ops-linux.c');
+	$postgres->RemoveFile('src\backend\utils\mmgr\psprintf.c');
 	$postgres->AddFiles('src\port',   @pgportfiles);
 	$postgres->AddFiles('src\common', @pgcommonbkndfiles);
 	$postgres->AddDir('src\timezone');
+	$postgres->RemoveFile('src\timezone\win32ver.rc');
 	$postgres->AddFiles('src\backend\parser', 'scan.l', 'gram.y');
 	$postgres->AddFiles('src\backend\bootstrap', 'bootscanner.l',
 		'bootparse.y');

@@ -1823,10 +1823,11 @@ RelationDecrementReferenceCount(Relation rel)
 		 * for debug builds elevating ERROR to PANIC.
 		 */
 #ifdef USE_ASSERT_CHECKING
-		elog(PANIC,
+		int level = PANIC;
 #else
-		elog(ERROR,
+		int level = ERROR;
 #endif
+		elog(level,
 			 "Relation decrement reference count found relation %u/%u/%u with bad count (reference count %d)",
 			 rel->rd_node.spcNode,
 			 rel->rd_node.dbNode,
@@ -5446,7 +5447,7 @@ RelationCacheInitFileRemove(void)
 	const char *tblspcdir = "pg_tblspc";
 	DIR		   *dir;
 	struct dirent *de;
-	char		path[MAXPGPATH + 10 + strlen(tablespace_version_directory()) + 1];
+	char		*path = calloc(MAXPGPATH + 10 + strlen(tablespace_version_directory()) + 1, 1);
 
 	snprintf(path, sizeof(path), "global/%s",
 			 RELCACHE_INIT_FILENAME);

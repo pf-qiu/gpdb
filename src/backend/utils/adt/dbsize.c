@@ -152,7 +152,7 @@ calculate_database_size(Oid dbOid)
 	DIR		   *dirdesc;
 	struct dirent *direntry;
 	char		dirpath[MAXPGPATH];
-	char		pathname[MAXPGPATH + 12 + strlen(tablespace_version_directory()) + 1];
+	char		*pathname = calloc(MAXPGPATH + 12 + strlen(tablespace_version_directory()) + 1, 1);
 	AclResult	aclresult;
 
 	/* User must have connect privilege for target database */

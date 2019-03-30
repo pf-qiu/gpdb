@@ -13,11 +13,7 @@
  *
  *-------------------------------------------------------------------------
  */
-#ifdef WIN32
-#include "pthread-win32.h"
-#else
-#include <pthread.h>
-#endif
+
 
 #include <limits.h>
 
@@ -29,13 +25,13 @@
 #include "pgtime.h"
 #include "postmaster/syslogger.h"
 
-
-#ifndef _WIN32
-#define mythread() ((unsigned long) pthread_self())
+#ifdef WIN32
+#include "pthread-gpdb-win32.h"
 #else
-#define mythread() ((unsigned long) pthread_self().p)
+#include <pthread.h>
 #endif
 
+#define mythread() ((unsigned long) pthread_self())
 /*
  * We can't use elog to write to the log if we are running in a thread.
  *
