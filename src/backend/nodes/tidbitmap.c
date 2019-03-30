@@ -161,7 +161,7 @@ tbm_create(long maxbytes)
 	 * 1) or 32768. The executor iterates only over the first 32K tuples for
 	 * lossy bitmap pages [MPP-24326].
 	 */
-	COMPILE_ASSERT(MaxHeapTuplesPerPage <= (INT16_MAX + 1));
+	COMPILE_ASSERT(MaxHeapTuplesPerPage <= (PG_INT16_MAX + 1));
 
 	/* Create the TIDBitmap struct and zero all its fields */
 	tbm = makeNode(TIDBitmap);

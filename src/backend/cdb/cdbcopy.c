@@ -72,7 +72,9 @@
 #include "utils/faultinjector.h"
 #include "utils/memutils.h"
 
+#ifndef WIN32
 #include <poll.h>
+#endif
 
 static void cdbCopyEndInternal(CdbCopy *c, char *abort_msg,
 				   int64 *total_rows_completed_p,

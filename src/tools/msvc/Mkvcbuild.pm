@@ -118,6 +118,7 @@ sub mkvcbuild
 		'src\backend\port\win32_shmem.c');
 	$postgres->ReplaceFile('src\backend\port\pg_latch.c',
 		'src\backend\port\win32_latch.c');
+	$postgres->RemoveFile('src\backend\optimizer\plan\orca.c');
 	$postgres->AddFiles('src\port',   @pgportfiles);
 	$postgres->AddFiles('src\common', @pgcommonbkndfiles);
 	$postgres->AddDir('src\timezone');

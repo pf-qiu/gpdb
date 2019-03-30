@@ -97,6 +97,24 @@ static FILE *csvlogFile = NULL;
 NON_EXEC_STATIC pg_time_t first_syslogger_file_time = 0;
 static char *last_file_name = NULL;
 static char *last_csv_file_name = NULL;
+
+/*
+ * Buffers for saving partial messages from different backends.
+ *
+ * Keep NBUFFER_LISTS lists of these, with the entry for a given source pid
+ * being in the list numbered (pid % NBUFFER_LISTS), so as to cut down on
+ * the number of entries we have to examine for any one incoming message.
+ * There must never be more than one entry for the same source pid.
+ *
+ * An inactive buffer is not removed from its list, just held for re-use.
+ * An inactive buffer has pid == 0 and undefined contents of data.
+ */
+typedef struct
+{
+	int32		pid;			/* PID of source process */
+	StringInfoData data;		/* accumulated data, as a StringInfo */
+} save_buffer;
+
 // Store only those logs the severe of that are at least WARNING level to
 // speed up the access for it when log files become very huge.
 static FILE *alertLogFile = NULL;
@@ -2196,9 +2214,9 @@ write_binary_to_file(const char *buffer, int count, FILE *fh)
 #ifndef WIN32
 	rc = fwrite(buffer, 1, count, fh);
 #else
-	EnterCriticalSection(&fileSection);
+	EnterCriticalSection(&sysloggerSection);
 	rc = fwrite(buffer, 1, count, fh);
-	LeaveCriticalSection(&fileSection);
+	LeaveCriticalSection(&sysloggerSection);
 #endif
 
 	/*

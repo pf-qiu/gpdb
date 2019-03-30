@@ -51,7 +51,6 @@ extern int	postmaster_alive_fds[2];
 /* gpstate must be updated if this message changes */
 #define POSTMASTER_MIRROR_VERSION_DETAIL_MSG "- VERSION:"
 
-extern const char *progname;
 extern PGDLLIMPORT const char *progname;
 
 extern void PostmasterMain(int argc, char *argv[]) __attribute__((noreturn));

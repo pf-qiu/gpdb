@@ -183,7 +183,7 @@ extern bool           gp_select_invisible;
  * Used to set the maximum length of the current query which is displayed
  * when the user queries pg_stat_activty table.
  */
-extern int			pgstat_track_activity_query_size;
+//extern int			pgstat_track_activity_query_size;
 
 /*
  * In order to facilitate testing of reader-gang/writer-gang synchronization

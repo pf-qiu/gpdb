@@ -35,6 +35,11 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 
+#ifdef WIN32
+#define SHUT_RD SD_RECEIVE
+#define SHUT_WR SD_SEND
+#define SHUT_RDWR SD_BOTH
+#endif
 /*
  * backlog for listen() call: it is important that this be something like a
  * good match for the maximum number of QEs. Slow insert performance will

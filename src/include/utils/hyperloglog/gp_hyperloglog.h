@@ -30,6 +30,8 @@
 
 #ifndef _GP_HYPERLOGLOG_H_
 #define _GP_HYPERLOGLOG_H_
+
+#include <stdint.h>
 /* This is an implementation of HyperLogLog algorithm as described in the
  * paper "HyperLogLog: the analysis of near-optimal cardinality estimation
  * algorithm", published by Flajolet, Fusy, Gandouet and Meunier in 2007.

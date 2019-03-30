@@ -14,7 +14,7 @@
 
 #define isHashedPasswd(passwd) (isMD5(passwd) || isSHA256(passwd))
 
-#define MAX_PASSWD_HASH_LEN Max(MD5_PASSWD_LEN, SHA256_PASSWD_LEN)
+#define MAX_PASSWD_HASH_LEN SHA256_PASSWD_LEN
 
 extern bool hash_password(const char *passwd, char *salt, size_t salt_len,
 						  char *buf);
