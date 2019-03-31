@@ -72,7 +72,10 @@
 #include "utils/faultinjector.h"
 #include "utils/memutils.h"
 
-#ifndef WIN32
+#ifdef WIN32
+#include <WinSock2.h>
+#define poll WSAPoll
+#else
 #include <poll.h>
 #endif
 

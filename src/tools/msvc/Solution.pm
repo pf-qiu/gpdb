@@ -609,7 +609,7 @@ sub Save
 		}
 	}
 
-	open(SLN, ">pgsql.sln") || croak "Could not write to pgsql.sln\n";
+	open(SLN, ">gpdb.sln") || croak "Could not write to gpdb.sln\n";
 	print SLN <<EOF;
 Microsoft Visual Studio Solution File, Format Version $self->{solutionFileVersion}
 # $self->{visualStudioName}
