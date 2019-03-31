@@ -43,25 +43,25 @@ void	   *pthread_getspecific(pthread_key_t k)
 
 int			pthread_mutex_init(pthread_mutex_t *m, void *attr)
 {
-	InitializeCriticalSection(m);
+	InitializeSRWLock(m);
 	return 0;
 }
 int			pthread_mutex_lock(pthread_mutex_t *m)
 {
-	EnterCriticalSection(m);
+	AcquireSRWLockExclusive(m);
 	return 0;
 }
 
 /* blocking */
 int			pthread_mutex_unlock(pthread_mutex_t *m)
 {
-	LeaveCriticalSection(m);
+	ReleaseSRWLockExclusive(m);
 	return 0;
 }
 
 int			pthread_mutex_trylock(pthread_mutex_t *m)
 {
-	TryEnterCriticalSection(m);
+	TryAcquireSRWLockExclusive(m);
 	return 0;
 }
 

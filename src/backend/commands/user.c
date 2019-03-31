@@ -2053,7 +2053,7 @@ static void CheckKeywordIsValid(char *keyword, const char **arr, const int arrsi
 
 	for(i = 0 ; i < arrsize ; i++)
 	{
-		if(strcasecmp(keyword, arr[i]) == 0)
+		if(pg_strcasecmp(keyword, arr[i]) == 0)
 			ok = true;
 	}
 
@@ -2073,10 +2073,10 @@ static void CheckKeywordIsValid(char *keyword, const char **arr, const int arrsi
  */
 static void CheckValueBelongsToKey(char *key, char *val, const char **keys, const char **vals)
 {
-	if(strcasecmp(key, keys[0]) == 0)
+	if(pg_strcasecmp(key, keys[0]) == 0)
 	{
-		if(strcasecmp(val, vals[0]) != 0 &&
-		   strcasecmp(val, vals[1]) != 0)
+		if(pg_strcasecmp(val, vals[0]) != 0 &&
+		   pg_strcasecmp(val, vals[1]) != 0)
 
 			ereport(ERROR,
 					(errcode(ERRCODE_SYNTAX_ERROR),
@@ -2084,9 +2084,9 @@ static void CheckValueBelongsToKey(char *key, char *val, const char **keys, cons
 	}
 	else /* keys[1] */
 	{
-		if(strcasecmp(val, "gpfdist") != 0 &&
-		   strcasecmp(val, "gpfdists") != 0 &&
-		   strcasecmp(val, "http") != 0)
+		if(pg_strcasecmp(val, "gpfdist") != 0 &&
+		   pg_strcasecmp(val, "gpfdists") != 0 &&
+		   pg_strcasecmp(val, "http") != 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_SYNTAX_ERROR),
 					 errmsg("invalid %s value \"%s\"", key, val)));
@@ -2152,7 +2152,7 @@ TransformExttabAuthClause(DefElem *defel)
 		genpair.key1 = pstrdup(d1->defname);
 		genpair.val1 = pstrdup(strVal(d1->arg));
 
-		if(strcasecmp(genpair.key1, "type") == 0)
+		if(pg_strcasecmp(genpair.key1, "type") == 0)
 		{
 			/* default value for missing protocol */
 			genpair.key2 = pstrdup("protocol");
@@ -2185,14 +2185,14 @@ TransformExttabAuthClause(DefElem *defel)
 	CheckValueBelongsToKey(genpair.key1, genpair.val1, keys, vals);
 	CheckValueBelongsToKey(genpair.key2, genpair.val2, keys, vals);
 
-	if (strcasecmp(genpair.key1, genpair.key2) == 0)
+	if (pg_strcasecmp(genpair.key1, genpair.key2) == 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
 				 errmsg("redundant option for \"%s\"", genpair.key1)));
 
 	/* now create the result struct */
 	result = (extAuthPair *) palloc(sizeof(extAuthPair));
-	if (strcasecmp(genpair.key1, "protocol") == 0)
+	if (pg_strcasecmp(genpair.key1, "protocol") == 0)
 	{
 		result->protocol = pstrdup(genpair.val1);
 		result->type = pstrdup(genpair.val2);
@@ -2239,10 +2239,10 @@ static void SetCreateExtTableForRole(List* allow,
 			extAuthPair* extauth = (extAuthPair*) lfirst(lc);
 
 			/* we use the same privilege for gpfdist and gpfdists */
-			if ((strcasecmp(extauth->protocol, "gpfdist") == 0) ||
-			    (strcasecmp(extauth->protocol, "gpfdists") == 0))
+			if ((pg_strcasecmp(extauth->protocol, "gpfdist") == 0) ||
+			    (pg_strcasecmp(extauth->protocol, "gpfdists") == 0))
 			{
-				if(strcasecmp(extauth->type, "readable") == 0)
+				if(pg_strcasecmp(extauth->type, "readable") == 0)
 				{
 					*createrextgpfd = true;
 					createrextgpfd_specified = true;
@@ -2255,7 +2255,7 @@ static void SetCreateExtTableForRole(List* allow,
 			}
 			else /* http */
 			{
-				if(strcasecmp(extauth->type, "readable") == 0)
+				if(pg_strcasecmp(extauth->type, "readable") == 0)
 				{
 					*createrexthttp = true;
 					createrexthttp_specified = true;
@@ -2286,10 +2286,10 @@ static void SetCreateExtTableForRole(List* allow,
 			extAuthPair* extauth = (extAuthPair*) lfirst(lc);
 
 			/* we use the same privilege for gpfdist and gpfdists */
-			if ((strcasecmp(extauth->protocol, "gpfdist") == 0) ||
-				(strcasecmp(extauth->protocol, "gpfdists") == 0))
+			if ((pg_strcasecmp(extauth->protocol, "gpfdist") == 0) ||
+				(pg_strcasecmp(extauth->protocol, "gpfdists") == 0))
 			{
-				if(strcasecmp(extauth->type, "readable") == 0)
+				if(pg_strcasecmp(extauth->type, "readable") == 0)
 				{
 					if(createrextgpfd_specified)
 						conflict = true;
@@ -2306,7 +2306,7 @@ static void SetCreateExtTableForRole(List* allow,
 			}
 			else /* http */
 			{
-				if(strcasecmp(extauth->type, "readable") == 0)
+				if(pg_strcasecmp(extauth->type, "readable") == 0)
 				{
 					if(createrexthttp_specified)
 						conflict = true;
@@ -2500,7 +2500,7 @@ ExtractAuthInterpretDay(Value * day)
 		int16		 elems = 7;
 		char		*target = strVal(day);
 		for (ret = 0; ret < elems; ret++)
-			if (strcasecmp(target, daysofweek[ret]) == 0)
+			if (pg_strcasecmp(target, daysofweek[ret]) == 0)
 				break;
 		if (ret == elems)
 			ereport(ERROR,

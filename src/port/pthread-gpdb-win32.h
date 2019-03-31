@@ -5,13 +5,13 @@
 #define __PTHREAD_H
 #include <windows.h>
 typedef ULONG pthread_key_t;
-typedef CRITICAL_SECTION *pthread_mutex_t;
+typedef SRWLOCK pthread_mutex_t;
 typedef int pthread_once_t;
 typedef HANDLE pthread_t;
 typedef DWORD pthread_attr_t;
 typedef DWORD pthread_mutexattr_t;
 
-#define PTHREAD_MUTEX_INITIALIZER 0
+#define PTHREAD_MUTEX_INITIALIZER {0}
 #define PTHREAD_STACK_MIN 1024
 #define PTHREAD_MUTEX_ERRORCHECK 0
 

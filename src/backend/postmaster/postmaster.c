@@ -147,7 +147,10 @@
 #ifdef EXEC_BACKEND
 #include "storage/spin.h"
 
-void FtsProbeMain(int argc, char *argv[]);
+void FtsProbeMain(int argc, char *argv[])
+{
+	ftsMain(argc, argv);
+}
 #endif
 
 /*
@@ -5586,7 +5589,7 @@ SubPostmasterMain(int argc, char *argv[])
 		/* Attach process to shared data structures */
 		CreateSharedMemoryAndSemaphores(false, 0);
 
-		GlobalDeadLockDetector(argc - 2, argv + 2);
+		GlobalDeadLockDetectorMain(argc - 2, argv + 2);
 		proc_exit(0);
 	}
 	if (strcmp(argv[1], "--forkftsprobe") == 0)
@@ -5614,6 +5617,26 @@ SubPostmasterMain(int argc, char *argv[])
 		/* Do not want to attach to shared memory */
 
 		PerfmonMain(argc - 2, argv + 2);
+		proc_exit(0);
+	}
+	if (strcmp(argv[1], "--forkperfmonseginfo") == 0)
+	{
+		/* Close the postmaster's sockets */
+		ClosePostmasterPorts(false);
+
+		/* Do not want to attach to shared memory */
+
+		SegmentInfoSenderMain(argc - 2, argv + 2);
+		proc_exit(0);
+	}
+	if (strcmp(argv[1], "--forkbackoff") == 0)
+	{
+		/* Close the postmaster's sockets */
+		ClosePostmasterPorts(false);
+
+		/* Do not want to attach to shared memory */
+
+		BackoffSweeperMain(argc - 2, argv + 2);
 		proc_exit(0);
 	}
 

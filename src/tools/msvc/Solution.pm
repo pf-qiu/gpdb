@@ -166,6 +166,14 @@ sub GenerateFiles
 	}
 
 	if (IsNewer(
+			"src\\interfaces\\libpq\\win32.c", "src\\backend\\libpq\\win32_be.c"))
+	{
+		print "Copying win32_be.c...\n";
+		copyFile("src\\interfaces\\libpq\\win32.c",
+			"src\\backend\\libpq\\win32_be.c");
+	}
+
+	if (IsNewer(
 			"src\\include\\pg_config.h", "src\\include\\pg_config.h.win32"))
 	{
 		print "Generating pg_config.h...\n";

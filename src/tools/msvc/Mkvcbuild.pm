@@ -109,6 +109,7 @@ sub mkvcbuild
 	$postgres->AddIncludeDir('src\interfaces\libpq');
 	$postgres->AddDir('src\backend\port\win32');
 	$postgres->AddFile('src\backend\utils\fmgrtab.c');
+	$postgres->AddFile('src\backend\libpq\win32_be.c');
 	$postgres->ReplaceFile(
 		'src\backend\port\dynloader.c',
 		'src\backend\port\dynloader\win32.c');

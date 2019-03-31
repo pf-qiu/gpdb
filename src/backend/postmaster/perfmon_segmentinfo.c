@@ -72,6 +72,30 @@ cluster_state_collect_hook_type cluster_state_collect_hook = NULL;
  */
 query_info_collect_hook_type query_info_collect_hook = NULL;
 
+
+#ifdef EXEC_BACKEND
+/*
+ * perfmonseginfo_forkexec()
+ *
+ * Format up the arglist for the perfmon segmentinfo process, then fork and exec.
+ */
+static pid_t
+perfmonseginfo_forkexec(void)
+{
+	char	   *av[10];
+	int			ac = 0;
+
+	av[ac++] = "postgres";
+	av[ac++] = "--forkperfmonseginfo";
+	av[ac++] = NULL;			/* filled in by postmaster_forkexec */
+	av[ac] = NULL;
+
+	Assert(ac < lengthof(av));
+
+	return postmaster_forkexec(ac, av);
+}
+#endif   /* EXEC_BACKEND */
+
 /**
  * Main entry point for segment info process. This forks off a sender process
  * and calls SegmentInfoSenderMain(), which does all the setup.
@@ -83,13 +107,13 @@ perfmon_segmentinfo_start(void)
 {
 	pid_t		segmentInfoId = -1;
 
-	switch ((segmentInfoId = fork_process()))
+	switch ((segmentInfoId = perfmonseginfo_forkexec()))
 	{
 		case -1:
 			ereport(LOG,
 				(errmsg("could not fork stats sender process: %m")));
 		return 0;
-
+#ifndef EXEC_BACKEND
 		case 0:
 			/* in postmaster child ... */
 			/* Close the postmaster's sockets */
@@ -97,6 +121,7 @@ perfmon_segmentinfo_start(void)
 
 			SegmentInfoSenderMain(0, NULL);
 			break;
+#endif
 		default:
 			return (int)segmentInfoId;
 	}

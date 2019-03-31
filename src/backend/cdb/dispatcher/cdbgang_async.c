@@ -15,13 +15,17 @@
 
 #include "postgres.h"
 
+#ifdef WIN32
+#include <WinSock2.h>
+#define poll WSAPoll
+#else
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
 #ifdef HAVE_SYS_POLL_H
 #include <sys/poll.h>
 #endif
-
+#endif
 #include "storage/ipc.h"		/* For proc_exit_inprogress  */
 #include "tcop/tcopprot.h"
 #include "libpq-fe.h"

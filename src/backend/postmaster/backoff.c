@@ -1181,6 +1181,29 @@ gp_adjust_priority_int(PG_FUNCTION_ARGS)
 	PG_RETURN_INT32(numfound);
 }
 
+
+#ifdef EXEC_BACKEND
+/*
+ * backoff_forkexec()
+ *
+ * Format up the arglist for the backoff process, then fork and exec.
+ */
+static pid_t
+backoff_forkexec(void)
+{
+	char	   *av[10];
+	int			ac = 0;
+
+	av[ac++] = "postgres";
+	av[ac++] = "--forkbackoff";
+	av[ac++] = NULL;			/* filled in by postmaster_forkexec */
+	av[ac] = NULL;
+
+	Assert(ac < lengthof(av));
+
+	return postmaster_forkexec(ac, av);
+}
+#endif   /* EXEC_BACKEND */
 /*
  * Main entry point for backoff process. This forks off a sweeper process
  * and calls BackoffSweeperMain(), which does all the setup.
@@ -1191,14 +1214,13 @@ int
 backoff_start(void)
 {
 	pid_t		backoffId = -1;
-
-	switch ((backoffId = fork_process()))
+	switch ((backoffId = backoff_forkexec()))
 	{
 		case -1:
 			ereport(LOG,
 					(errmsg("could not fork sweeper process: %m")));
 			return 0;
-
+#ifndef EXEC_BACKEND
 		case 0:
 			/* in postmaster child ... */
 			/* Close the postmaster's sockets */
@@ -1206,10 +1228,10 @@ backoff_start(void)
 
 			BackoffSweeperMain(0, NULL);
 			break;
+#endif
 		default:
 			return (int) backoffId;
 	}
-
 	/* shouldn't get here */
 	Assert(false);
 	return 0;

@@ -3890,7 +3890,10 @@ write_syslogger_file_string(const char *str, bool amsyslogger, bool append_comma
 	}
 }
 
-
+#ifdef WIN32
+static int mythread() { return 0; }
+static int mainthread() { return 0; }
+#endif
 /*
  * Directly write the message in CSV format to the syslogger file or stderr.
  */
@@ -5382,7 +5385,7 @@ debug_backtrace(void)
  */
 uint32 gp_backtrace(void **stackAddresses, uint32 maxStackDepth)
 {
-#if defined(__i386) || defined(__x86_64__)
+#if defined(__i386) || defined(__x86_64__) || defined(_M_X64)
 
 	/*
 	 * Stack base pointer has not been initialized by PostmasterMain,
@@ -5428,7 +5431,11 @@ uint32 gp_backtrace(void **stackAddresses, uint32 maxStackDepth)
 	}
 	else
 	{
+#ifdef WIN32
+		depth = CaptureStackBackTrace(0, maxStackDepth, stackAddresses, 0);
+#else
 		depth  = backtrace(stackAddresses, maxStackDepth);
+#endif
 	}
 
 	Assert(depth > 0);

@@ -128,6 +128,15 @@
 #define	M_MASK		0xffff
 #define	M_ASCII		0x00ff
 
+#else
+
+#define	M_QUOTE		0x80
+#define	M_PROTECT	0x40
+#define	M_MASK		0xff
+#define	M_ASCII		0x7f
+
+#endif
+
 #ifdef WIN32
 typedef unsigned short Char;
 typedef unsigned int u_int;
@@ -137,18 +146,6 @@ typedef unsigned char u_char;
 #else
 typedef u_short Char;
 #endif
-
-#else
-
-#define	M_QUOTE		0x80
-#define	M_PROTECT	0x40
-#define	M_MASK		0xff
-#define	M_ASCII		0x7f
-
-typedef char Char;
-
-#endif
-
 
 #define	CHAR(c)		((Char)((c)&M_ASCII))
 #define	META(c)		((Char)((c)|M_QUOTE))
