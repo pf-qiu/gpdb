@@ -51,7 +51,7 @@ my $contrib_extraincludes =
 my $contrib_extrasource = {
 	'cube' => [ 'cubescan.l', 'cubeparse.y' ],
 	'seg'  => [ 'segscan.l',  'segparse.y' ], };
-my @contrib_excludes = ('pgcrypto', 'intagg', 'sepgsql', 'sasdemo');
+my @contrib_excludes = ('pgcrypto', 'intagg', 'sepgsql', 'sasdemo', 'pg_upgrade');
 
 sub mkvcbuild
 {
@@ -152,6 +152,7 @@ sub mkvcbuild
 	my $plpgsql =
 	  $solution->AddProject('plpgsql', 'dll', 'PLs', 'src\pl\plpgsql\src');
 	$plpgsql->AddFiles('src\pl\plpgsql\src', 'pl_gram.y');
+	$plpgsql->AddLibrary('ws2_32.lib');
 	$plpgsql->AddReference($postgres);
 
 	if ($solution->{options}->{perl})
@@ -753,6 +754,7 @@ sub mkvcbuild
 	# Regression DLL and EXE
 	my $regress = $solution->AddProject('regress', 'dll', 'misc');
 	$regress->AddFile('src\test\regress\regress.c');
+	$regress->AddLibrary('ws2_32.lib');
 	$regress->AddReference($postgres);
 
 	my $pgregress = $solution->AddProject('pg_regress', 'exe', 'misc');
@@ -825,6 +827,7 @@ sub AddContrib
 			$o =~ s/\.o$/.c/;
 			$proj->AddFile('contrib\\' . $n . '\\' . $o);
 		}
+		$proj->AddLibrary('ws2_32.lib');
 		$proj->AddReference($postgres);
 		if ($mf =~ /^SUBDIRS\s*:?=\s*(.*)$/mg)
 		{
@@ -853,6 +856,7 @@ sub AddContrib
 		{
 			my $proj = $solution->AddProject($mod, 'dll', 'contrib');
 			$proj->AddFile('contrib\\' . $n . '\\' . $mod . '.c');
+			$proj->AddLibrary('ws2_32.lib');
 			$proj->AddReference($postgres);
 			AdjustContribProj($proj);
 		}

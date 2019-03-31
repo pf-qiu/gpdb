@@ -165,19 +165,19 @@ load_format_config(FormatConfig *format_config, FunctionCallInfo fcinfo)
 		key = FORMATTER_GET_NTH_ARG_KEY(fcinfo, i);
 		val = FORMATTER_GET_NTH_ARG_VAL(fcinfo, i);
 		
-		if ( strcasecmp("preserve_blanks", key) == 0)
+		if ( pg_strcasecmp("preserve_blanks", key) == 0)
 		{
-			if ( strcasecmp("on", val) == 0)
+			if ( pg_strcasecmp("on", val) == 0)
 			{
 				format_config->preserve_blanks = 1;
 			}
 		}
-		else if ( strcasecmp("line_delim", key) == 0)
+		else if ( pg_strcasecmp("line_delim", key) == 0)
 		{
 			format_config->line_delimiter = val;
 			format_config->line_delimiter_length = strlen(val);
 		}
-		else if ( strcasecmp("null", key) == 0)
+		else if ( pg_strcasecmp("null", key) == 0)
 		{
 			format_config->null_value = val;
 		}

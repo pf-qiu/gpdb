@@ -27,7 +27,7 @@ typedef enum
 
 /* GUC variables in scan.l (every one of these is a bad idea :-() */
 extern int	backslash_quote;
-extern bool escape_string_warning;
+extern PGDLLIMPORT bool escape_string_warning;
 extern PGDLLIMPORT bool standard_conforming_strings;
 
 
