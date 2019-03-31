@@ -222,7 +222,7 @@ sub CopySolutionOutput
 	my $rem =
 	  qr{Project\("\{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942\}"\) = "([^"]+)"};
 
-	my $sln = read_file("pgsql.sln") || croak "Could not open pgsql.sln\n";
+	my $sln = read_file("gpdb.sln") || croak "Could not open gpdb.sln\n";
 
 	my $vcproj = 'vcproj';
 	if ($sln =~

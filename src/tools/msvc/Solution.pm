@@ -165,7 +165,7 @@ sub GenerateFiles
 			"src\\include\\pg_config_os.h");
 	}
 
-	if (IsNewer(
+	if (!-e "src\\backend\\libpq\\win32_be.c" || IsNewer(
 			"src\\interfaces\\libpq\\win32.c", "src\\backend\\libpq\\win32_be.c"))
 	{
 		print "Copying win32_be.c...\n";

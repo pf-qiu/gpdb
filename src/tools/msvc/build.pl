@@ -49,7 +49,7 @@ elsif (uc($ARGV[0]) ne "RELEASE")
 }
 
 # ... and do it
-
+exit 0;
 if ($buildwhat and $vcver >= 10.00)
 {
 	system(
