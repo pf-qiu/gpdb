@@ -1,6 +1,7 @@
 #include "postgres.h"
 #include "fmgr.h"
 #include "funcapi.h"
+#include "parse_func.h"
 
 #include "access/formatter.h"
 #include "catalog/pg_proc.h"
@@ -13,10 +14,58 @@
 PG_MODULE_MAGIC;
 PG_FUNCTION_INFO_V1(formatter_export);
 PG_FUNCTION_INFO_V1(formatter_import);
+PG_FUNCTION_INFO_V1(formatter_myfunc);
 
 Datum formatter_export(PG_FUNCTION_ARGS);
 Datum formatter_import(PG_FUNCTION_ARGS);
+Datum formatter_myfunc(PG_FUNCTION_ARGS);
 
+static Oid
+lookupCustomTransform(char *formatter_name)
+{
+	List	   *funcname = NIL;
+	Oid			procOid = InvalidOid;
+	Oid			argList[1];
+	Oid			returnOid;
+
+	funcname = lappend(funcname, makeString(formatter_name));
+
+	returnOid = RECORDOID;
+	procOid = LookupFuncName(funcname, 0, argList, true);
+
+	if (!OidIsValid(procOid))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_FUNCTION),
+				 errmsg("function \"%s\" was not found", formatter_name),
+				 errhint("Create it with CREATE FUNCTION.")));
+
+	/* check return type matches */
+	if (get_func_rettype(procOid) != returnOid)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),
+				 errmsg("formatter function \"%s\" has an incorrect return type",
+						formatter_name)));
+
+	/* check allowed volatility */
+	if (func_volatile(procOid) != PROVOLATILE_IMMUTABLE)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_FUNCTION_DEFINITION),
+				 errmsg("formatter function %s is not declared IMUUTABLE",
+						formatter_name)));
+
+	return procOid;
+}
+
+Datum 
+formatter_myfunc(PG_FUNCTION_ARGS)
+{
+	const char* name = PG_GETARG_CSTRING(1);
+	Oid foid = lookupCustomTransform(name);
+	text* j = cstring_to_text("{\"a\": 1, \"b\": \"text\"}");
+	FmgrInfo finfo;
+	fmgr_info(foid, &finfo);
+	return FunctionCall1(&finfo, j);
+}
 
 typedef struct {
 	int        ncols;
