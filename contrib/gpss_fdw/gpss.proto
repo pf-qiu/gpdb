@@ -2,15 +2,23 @@ syntax = "proto3";
 
 package gpssfdw;
 
-message GetPagesRequest {
+message EstimateSizeRequest {
     string id = 1;
 }
 
-message GetPagesResponse {
-    int64 pages = 1;
-    int64 tuples = 2;
+message EstimateSizeResponse {
+    int64 bytes = 1;
+}
+
+message StreamDataRequest {
+    string id = 1;
+}
+
+message StreamDataResponse {
+    bytes data = 1;
 }
 
 service GpssFdw {
-    rpc GetPages(GetPagesRequest) returns (GetPagesResponse);
+    rpc EstimateSize(EstimateSizeRequest) returns (EstimateSizeResponse);
+    rpc StreamData(StreamDataRequest) returns (stream StreamDataResponse);
 }

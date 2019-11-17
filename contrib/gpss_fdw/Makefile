@@ -2,7 +2,7 @@
 
 MODULE_big = gpss_fdw
 
-OBJS = gpss_fdw.o gpss.pb.o gpss.grpc.pb.o
+OBJS = gpss_fdw.o gpss.pb.o gpss.grpc.pb.o gpss_rpc.o
 
 EXTENSION = gpss_fdw
 DATA = gpss_fdw--1.0.sql

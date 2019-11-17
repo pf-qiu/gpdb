@@ -36,12 +36,7 @@
 #include "utils/rel.h"
 #include "utils/sampling.h"
 
-#include <grpcpp/grpcpp.h>
-#include "gpss.grpc.pb.h"
-
-using grpc::Channel;
-using grpc::ClientContext;
-using grpc::Status;
+#include "gpss_rpc.h"
 
 PG_MODULE_MAGIC;
 
@@ -70,8 +65,6 @@ static const struct GpssFdwOption valid_options[] = {
 	/* Format options */
 	/* oids option is not supported */
 	{"formatter", ForeignTableRelationId},
-	{"force_not_null", AttributeRelationId},
-	{"force_null", AttributeRelationId},
 
 	/*
 	 * force_quote is not supported by gpss_fdw because it's for COPY TO.
@@ -86,10 +79,10 @@ static const struct GpssFdwOption valid_options[] = {
  */
 typedef struct GpssFdwPlanState
 {
-	char	   *address;		/* file to read */
-	List	   *options;		/* merged COPY options, excluding address */
-	BlockNumber pages;			/* estimate of file's physical size */
-	double		ntuples;		/* estimate of number of rows in file */
+	char *address;
+	List *options;
+	BlockNumber pages;
+	double ntuples;
 } GpssFdwPlanState;
 
 /*
@@ -97,9 +90,9 @@ typedef struct GpssFdwPlanState
  */
 typedef struct GpssFdwExecutionState
 {
-	char	   *address;		/* file to read */
-	List	   *options;		/* merged COPY options, excluding address */
-	CopyState	cstate;			/* state of reading file */
+	char *address;
+	List *options;
+	void *gpssrpc;
 } GpssFdwExecutionState;
 
 /*
@@ -196,24 +189,6 @@ gpss_fdw_validator(PG_FUNCTION_ARGS)
 	ListCell   *cell;
 
 	/*
-	 * Only superusers are allowed to set options of a gpss_fdw foreign table.
-	 * This is because the address is one of those options, and we don't want
-	 * non-superusers to be able to determine which file gets read.
-	 *
-	 * Putting this sort of permissions check in a validator is a bit of a
-	 * crock, but there doesn't seem to be any other place that can enforce
-	 * the check more cleanly.
-	 *
-	 * Note that the valid_options[] array disallows setting address at any
-	 * options level other than foreign table --- otherwise there'd still be a
-	 * security hole.
-	 */
-	if (catalog == ForeignTableRelationId && !superuser())
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("only superuser can change options of a gpss_fdw foreign table")));
-
-	/*
 	 * Check that only options supported by gpss_fdw, and allowed for the
 	 * current object type, are given.
 	 */
@@ -260,44 +235,12 @@ gpss_fdw_validator(PG_FUNCTION_ARGS)
 						 errmsg("conflicting or redundant options")));
 			address = defGetString(def);
 		}
-
-		/*
-		 * force_not_null is a boolean option; after validation we can discard
-		 * it - it will be retrieved later in get_gpss_fdw_attribute_options()
-		 */
-		else if (strcmp(def->defname, "force_not_null") == 0)
-		{
-			if (force_not_null)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options"),
-						 errhint("option \"force_not_null\" supplied more than once for a column")));
-			force_not_null = def;
-			/* Don't care what the value is, as long as it's a legal boolean */
-			(void) defGetBoolean(def);
-		}
-		/* See comments for force_not_null above */
-		else if (strcmp(def->defname, "force_null") == 0)
-		{
-			if (force_null)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options"),
-						 errhint("option \"force_null\" supplied more than once for a column")));
-			force_null = def;
-			(void) defGetBoolean(def);
-		}
 		else
 			other_options = lappend(other_options, def);
 	}
 
 	/*
-	 * Now apply the core COPY code's validation logic for more checks.
-	 */
-	ProcessCopyOptions(NULL, true, other_options, 0, true);
-
-	/*
-	 * Filename option is required for gpss_fdw foreign tables.
+	 * Address option is required for gpss_fdw foreign tables.
 	 */
 	if (catalog == ForeignTableRelationId && address == NULL)
 		ereport(ERROR,
@@ -622,7 +565,6 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignScan *plan = (ForeignScan *) node->ss.ps.plan;
 	char	   *address;
 	List	   *options;
-	CopyState	cstate;
 	GpssFdwExecutionState *festate;
 
 	/*
@@ -639,26 +581,13 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 	options = list_concat(options, plan->fdw_private);
 
 	/*
-	 * Create CopyState from FDW options.  We always acquire all columns, so
-	 * as to match the expected ScanTupleSlot signature.
-	 */
-	cstate = BeginCopyFrom(node->ss.ss_currentRelation,
-						   address,
-						   false, /* is_program */
-						   NULL,  /* data_source_cb */
-						   NULL,  /* data_source_cb_extra */
-						   NIL,   /* attnamelist */
-						   options,
-						   NIL);  /* ao_segnos */
-
-	/*
 	 * Save state in node->fdw_state.  We must save enough information to call
 	 * BeginCopyFrom() again.
 	 */
 	festate = (GpssFdwExecutionState *) palloc(sizeof(GpssFdwExecutionState));
 	festate->address = address;
 	festate->options = options;
-	festate->cstate = cstate;
+	festate->gpssrpc = create_gpss_stub(address);
 
 	node->fdw_state = (void *) festate;
 }
@@ -674,13 +603,15 @@ gpssIterateForeignScan(ForeignScanState *node)
 	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	bool		found;
-	ErrorContextCallback errcallback;
 
-	/* Set up callback to identify error line number. */
-	errcallback.callback = CopyFromErrorCallback;
-	errcallback.arg = (void *) festate->cstate;
-	errcallback.previous = error_context_stack;
-	error_context_stack = &errcallback;
+    // TODO: enable errcallback
+	// ErrorContextCallback errcallback;
+
+	// /* Set up callback to identify error line number. */
+	// errcallback.callback = CopyFromErrorCallback;
+	// errcallback.arg = (void *) festate->cstate;
+	// errcallback.previous = error_context_stack;
+	// error_context_stack = &errcallback;
 
 	/*
 	 * The protocol for loading a virtual tuple into a slot is first
@@ -695,14 +626,14 @@ gpssIterateForeignScan(ForeignScanState *node)
 	 * foreign tables.
 	 */
 	ExecClearTuple(slot);
-	found = NextCopyFrom(festate->cstate, NULL,
-						 slot_get_values(slot), slot_get_isnull(slot),
-						 NULL);
+	// found = NextCopyFrom(festate->cstate, NULL,
+	// 					 slot_get_values(slot), slot_get_isnull(slot),
+	// 					 NULL);
 	if (found)
 		ExecStoreVirtualTuple(slot);
 
 	/* Remove error callback. */
-	error_context_stack = errcallback.previous;
+	// error_context_stack = errcallback.previous;
 
 	return slot;
 }
@@ -715,17 +646,6 @@ static void
 gpssReScanForeignScan(ForeignScanState *node)
 {
 	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
-
-	EndCopyFrom(festate->cstate);
-
-	festate->cstate = BeginCopyFrom(node->ss.ss_currentRelation,
-									festate->address,
-									false, /* is_program */
-									NULL,  /* data_source_cb */
-									NULL,  /* data_source_cb_extra */
-									NIL,   /* attnamelist */
-									festate->options,
-									NIL);  /* ao_segnos */
 }
 
 /*
@@ -739,7 +659,9 @@ gpssEndForeignScan(ForeignScanState *node)
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (festate)
-		EndCopyFrom(festate->cstate);
+	{
+		delete_gpss_stub(festate->gpssrpc);
+	}
 }
 
 /*
@@ -751,34 +673,7 @@ gpssAnalyzeForeignTable(Relation relation,
 						AcquireSampleRowsFunc *func,
 						BlockNumber *totalpages)
 {
-	char	   *address;
-	List	   *options;
-	struct stat stat_buf;
-
-	/* Fetch options of foreign table */
-	gpssGetOptions(RelationGetRelid(relation), &address, &options);
-
-	/*
-	 * Get size of the file.  (XXX if we fail here, would it be better to just
-	 * return false to skip analyzing the table?)
-	 */
-	if (stat(address, &stat_buf) < 0)
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("could not stat file \"%s\": %m",
-						address)));
-
-	/*
-	 * Convert size to pages.  Must return at least 1 so that we can tell
-	 * later on that pg_class.relpages is not default.
-	 */
-	*totalpages = (stat_buf.st_size + (BLCKSZ - 1)) / BLCKSZ;
-	if (*totalpages < 1)
-		*totalpages = 1;
-
-	*func = file_acquire_sample_rows;
-
-	return true;
+	return false;
 }
 
 /*
@@ -791,125 +686,6 @@ gpssIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
 							  RangeTblEntry *rte)
 {
 	return false;
-}
-
-/*
- * check_selective_binary_conversion
- *
- * Check to see if it's useful to convert only a subset of the file's columns
- * to binary.  If so, construct a list of the column names to be converted,
- * return that at *columns, and return TRUE.  (Note that it's possible to
- * determine that no columns need be converted, for instance with a COUNT(*)
- * query.  So we can't use returning a NIL list to indicate failure.)
- */
-static bool
-check_selective_binary_conversion(RelOptInfo *baserel,
-								  Oid foreigntableid,
-								  List **columns)
-{
-	ForeignTable *table;
-	ListCell   *lc;
-	Relation	rel;
-	TupleDesc	tupleDesc;
-	AttrNumber	attnum;
-	Bitmapset  *attrs_used = NULL;
-	bool		has_wholerow = false;
-	int			numattrs;
-	int			i;
-
-	*columns = NIL;				/* default result */
-
-	/*
-	 * Check format of the file.  If binary format, this is irrelevant.
-	 */
-	table = GetForeignTable(foreigntableid);
-	foreach(lc, table->options)
-	{
-		DefElem    *def = (DefElem *) lfirst(lc);
-
-		if (strcmp(def->defname, "format") == 0)
-		{
-			char	   *format = defGetString(def);
-
-			if (strcmp(format, "binary") == 0)
-				return false;
-			break;
-		}
-	}
-
-	/* Collect all the attributes needed for joins or final output. */
-	pull_varattnos((Node *) baserel->reltarget->exprs, baserel->relid,
-				   &attrs_used);
-
-	/* Add all the attributes used by restriction clauses. */
-	foreach(lc, baserel->baserestrictinfo)
-	{
-		RestrictInfo *rinfo = (RestrictInfo *) lfirst(lc);
-
-		pull_varattnos((Node *) rinfo->clause, baserel->relid,
-					   &attrs_used);
-	}
-
-	/* Convert attribute numbers to column names. */
-	rel = heap_open(foreigntableid, AccessShareLock);
-	tupleDesc = RelationGetDescr(rel);
-
-	while ((attnum = bms_first_member(attrs_used)) >= 0)
-	{
-		/* Adjust for system attributes. */
-		attnum += FirstLowInvalidHeapAttributeNumber;
-
-		if (attnum == 0)
-		{
-			has_wholerow = true;
-			break;
-		}
-
-		/* Ignore system attributes. */
-		if (attnum < 0)
-			continue;
-
-		/* Get user attributes. */
-		if (attnum > 0)
-		{
-			Form_pg_attribute attr = tupleDesc->attrs[attnum - 1];
-			char	   *attname = NameStr(attr->attname);
-
-			/* Skip dropped attributes (probably shouldn't see any here). */
-			if (attr->attisdropped)
-				continue;
-			*columns = lappend(*columns, makeString(pstrdup(attname)));
-		}
-	}
-
-	/* Count non-dropped user attributes while we have the tupdesc. */
-	numattrs = 0;
-	for (i = 0; i < tupleDesc->natts; i++)
-	{
-		Form_pg_attribute attr = tupleDesc->attrs[i];
-
-		if (attr->attisdropped)
-			continue;
-		numattrs++;
-	}
-
-	heap_close(rel, AccessShareLock);
-
-	/* If there's a whole-row reference, fail: we need all the columns. */
-	if (has_wholerow)
-	{
-		*columns = NIL;
-		return false;
-	}
-
-	/* If all the user attributes are needed, fail. */
-	if (numattrs == list_length(*columns))
-	{
-		*columns = NIL;
-		return false;
-	}
-
-	return true;
 }
 
 /*
@@ -928,17 +704,24 @@ estimate_size(PlannerInfo *root, RelOptInfo *baserel,
 	double		ntuples;
 	double		nrows;
 
-	/*
-	 * Get size of the file.  It might not be there at plan time, though, in
-	 * which case we have to use a default estimate.
-	 */
-	if (stat(fdw_private->address, &stat_buf) < 0)
-		stat_buf.st_size = 10 * BLCKSZ;
+	void* gpss = create_gpss_stub(fdw_private->address);
+	if (gpss == NULL)
+		ereport(ERROR,
+			(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+			 errmsg("gpss: could not connect to gpss at \"%s\"", fdw_private->address)));
+	
+	int64 bytes = gpssfdw_estimate_size(gpss, "");
+	delete_gpss_stub(gpss);
+
+	if (bytes == 0)
+		ereport(ERROR,
+			(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+			 errmsg("gpss: could not estimate size", fdw_private->address)));
 
 	/*
 	 * Convert size to pages for use in I/O cost estimate later.
 	 */
-	pages = (stat_buf.st_size + (BLCKSZ - 1)) / BLCKSZ;
+	pages = (bytes + (BLCKSZ - 1)) / BLCKSZ;
 	if (pages < 1)
 		pages = 1;
 	fdw_private->pages = pages;
@@ -1022,158 +805,4 @@ estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 	cpu_per_tuple = cpu_tuple_cost * 10 + baserel->baserestrictcost.per_tuple;
 	run_cost += cpu_per_tuple * ntuples;
 	*total_cost = *startup_cost + run_cost;
-}
-
-/*
- * file_acquire_sample_rows -- acquire a random sample of rows from the table
- *
- * Selected rows are returned in the caller-allocated array rows[],
- * which must have at least targrows entries.
- * The actual number of rows selected is returned as the function result.
- * We also count the total number of rows in the file and return it into
- * *totalrows.  Note that *totaldeadrows is always set to 0.
- *
- * Note that the returned list of rows is not always in order by physical
- * position in the file.  Therefore, correlation estimates derived later
- * may be meaningless, but it's OK because we don't use the estimates
- * currently (the planner only pays attention to correlation for indexscans).
- */
-static int
-file_acquire_sample_rows(Relation onerel, int elevel,
-						 HeapTuple *rows, int targrows,
-						 double *totalrows, double *totaldeadrows)
-{
-	int			numrows = 0;
-	double		rowstoskip = -1;	/* -1 means not set yet */
-	ReservoirStateData rstate;
-	TupleDesc	tupDesc;
-	Datum	   *values;
-	bool	   *nulls;
-	bool		found;
-	char	   *address;
-	List	   *options;
-	CopyState	cstate;
-	ErrorContextCallback errcallback;
-	MemoryContext oldcontext = CurrentMemoryContext;
-	MemoryContext tupcontext;
-
-	Assert(onerel);
-	Assert(targrows > 0);
-
-	tupDesc = RelationGetDescr(onerel);
-	values = (Datum *) palloc(tupDesc->natts * sizeof(Datum));
-	nulls = (bool *) palloc(tupDesc->natts * sizeof(bool));
-
-	/* Fetch options of foreign table */
-	gpssGetOptions(RelationGetRelid(onerel), &address, &options);
-
-	/*
-	 * Create CopyState from FDW options.
-	 */
-	cstate = BeginCopyFrom(onerel, address, false, NULL, NULL, NIL, options, NIL);
-
-	/*
-	 * Use per-tuple memory context to prevent leak of memory used to read
-	 * rows from the file with Copy routines.
-	 */
-	tupcontext = AllocSetContextCreate(CurrentMemoryContext,
-									   "gpss_fdw temporary context",
-									   ALLOCSET_DEFAULT_MINSIZE,
-									   ALLOCSET_DEFAULT_INITSIZE,
-									   ALLOCSET_DEFAULT_MAXSIZE);
-
-	/* Prepare for sampling rows */
-	reservoir_init_selection_state(&rstate, targrows);
-
-	/* Set up callback to identify error line number. */
-	errcallback.callback = CopyFromErrorCallback;
-	errcallback.arg = (void *) cstate;
-	errcallback.previous = error_context_stack;
-	error_context_stack = &errcallback;
-
-	*totalrows = 0;
-	*totaldeadrows = 0;
-	for (;;)
-	{
-		/* Check for user-requested abort or sleep */
-		vacuum_delay_point();
-
-		/* Fetch next row */
-		MemoryContextReset(tupcontext);
-		MemoryContextSwitchTo(tupcontext);
-
-		found = NextCopyFrom(cstate, NULL, values, nulls, NULL);
-
-		MemoryContextSwitchTo(oldcontext);
-
-		if (!found)
-			break;
-
-		/*
-		 * The first targrows sample rows are simply copied into the
-		 * reservoir.  Then we start replacing tuples in the sample until we
-		 * reach the end of the relation. This algorithm is from Jeff Vitter's
-		 * paper (see more info in commands/analyze.c).
-		 */
-		if (numrows < targrows)
-		{
-			rows[numrows++] = heap_form_tuple(tupDesc, values, nulls);
-		}
-		else
-		{
-			/*
-			 * t in Vitter's paper is the number of records already processed.
-			 * If we need to compute a new S value, we must use the
-			 * not-yet-incremented value of totalrows as t.
-			 */
-			if (rowstoskip < 0)
-				rowstoskip = reservoir_get_next_S(&rstate, *totalrows, targrows);
-
-			if (rowstoskip <= 0)
-			{
-				/*
-				 * Found a suitable tuple, so save it, replacing one old tuple
-				 * at random
-				 */
-				int			k = (int) (targrows * sampler_random_fract(rstate.randstate));
-
-				Assert(k >= 0 && k < targrows);
-				heap_freetuple(rows[k]);
-				rows[k] = heap_form_tuple(tupDesc, values, nulls);
-			}
-
-			rowstoskip -= 1;
-		}
-
-		*totalrows += 1;
-	}
-
-	/* Remove error callback. */
-	error_context_stack = errcallback.previous;
-
-	/* Clean up. */
-	MemoryContextDelete(tupcontext);
-
-	EndCopyFrom(cstate);
-
-	pfree(values);
-	pfree(nulls);
-
-	/*
-	 * Emit some interesting relation info
-	 */
-	ereport(elevel,
-			(errmsg("\"%s\": file contains %.0f rows; "
-					"%d rows in sample",
-					RelationGetRelationName(onerel),
-					*totalrows, numrows)));
-
-	return numrows;
-}
-
-static void getGpssHandle(const char* address)
-{
-	auto ch = grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
-	auto stub = gpssfdw::GpssFdw::NewStub(ch);
-
 }

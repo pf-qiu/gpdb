@@ -47,7 +47,7 @@ struct TableStruct_gpss_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxillaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[2]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[4]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -55,38 +55,46 @@ struct TableStruct_gpss_2eproto {
 };
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_gpss_2eproto;
 namespace gpssfdw {
-class GetPagesRequest;
-class GetPagesRequestDefaultTypeInternal;
-extern GetPagesRequestDefaultTypeInternal _GetPagesRequest_default_instance_;
-class GetPagesResponse;
-class GetPagesResponseDefaultTypeInternal;
-extern GetPagesResponseDefaultTypeInternal _GetPagesResponse_default_instance_;
+class EstimateSizeRequest;
+class EstimateSizeRequestDefaultTypeInternal;
+extern EstimateSizeRequestDefaultTypeInternal _EstimateSizeRequest_default_instance_;
+class EstimateSizeResponse;
+class EstimateSizeResponseDefaultTypeInternal;
+extern EstimateSizeResponseDefaultTypeInternal _EstimateSizeResponse_default_instance_;
+class StreamDataRequest;
+class StreamDataRequestDefaultTypeInternal;
+extern StreamDataRequestDefaultTypeInternal _StreamDataRequest_default_instance_;
+class StreamDataResponse;
+class StreamDataResponseDefaultTypeInternal;
+extern StreamDataResponseDefaultTypeInternal _StreamDataResponse_default_instance_;
 }  // namespace gpssfdw
 PROTOBUF_NAMESPACE_OPEN
-template<> ::gpssfdw::GetPagesRequest* Arena::CreateMaybeMessage<::gpssfdw::GetPagesRequest>(Arena*);
-template<> ::gpssfdw::GetPagesResponse* Arena::CreateMaybeMessage<::gpssfdw::GetPagesResponse>(Arena*);
+template<> ::gpssfdw::EstimateSizeRequest* Arena::CreateMaybeMessage<::gpssfdw::EstimateSizeRequest>(Arena*);
+template<> ::gpssfdw::EstimateSizeResponse* Arena::CreateMaybeMessage<::gpssfdw::EstimateSizeResponse>(Arena*);
+template<> ::gpssfdw::StreamDataRequest* Arena::CreateMaybeMessage<::gpssfdw::StreamDataRequest>(Arena*);
+template<> ::gpssfdw::StreamDataResponse* Arena::CreateMaybeMessage<::gpssfdw::StreamDataResponse>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 namespace gpssfdw {
 
 // ===================================================================
 
-class GetPagesRequest :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.GetPagesRequest) */ {
+class EstimateSizeRequest :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.EstimateSizeRequest) */ {
  public:
-  GetPagesRequest();
-  virtual ~GetPagesRequest();
+  EstimateSizeRequest();
+  virtual ~EstimateSizeRequest();
 
-  GetPagesRequest(const GetPagesRequest& from);
-  GetPagesRequest(GetPagesRequest&& from) noexcept
-    : GetPagesRequest() {
+  EstimateSizeRequest(const EstimateSizeRequest& from);
+  EstimateSizeRequest(EstimateSizeRequest&& from) noexcept
+    : EstimateSizeRequest() {
     *this = ::std::move(from);
   }
 
-  inline GetPagesRequest& operator=(const GetPagesRequest& from) {
+  inline EstimateSizeRequest& operator=(const EstimateSizeRequest& from) {
     CopyFrom(from);
     return *this;
   }
-  inline GetPagesRequest& operator=(GetPagesRequest&& from) noexcept {
+  inline EstimateSizeRequest& operator=(EstimateSizeRequest&& from) noexcept {
     if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
       if (this != &from) InternalSwap(&from);
     } else {
@@ -104,34 +112,34 @@ class GetPagesRequest :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return GetMetadataStatic().reflection;
   }
-  static const GetPagesRequest& default_instance();
+  static const EstimateSizeRequest& default_instance();
 
   static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
-  static inline const GetPagesRequest* internal_default_instance() {
-    return reinterpret_cast<const GetPagesRequest*>(
-               &_GetPagesRequest_default_instance_);
+  static inline const EstimateSizeRequest* internal_default_instance() {
+    return reinterpret_cast<const EstimateSizeRequest*>(
+               &_EstimateSizeRequest_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
     0;
 
-  void Swap(GetPagesRequest* other);
-  friend void swap(GetPagesRequest& a, GetPagesRequest& b) {
+  void Swap(EstimateSizeRequest* other);
+  friend void swap(EstimateSizeRequest& a, EstimateSizeRequest& b) {
     a.Swap(&b);
   }
 
   // implements Message ----------------------------------------------
 
-  inline GetPagesRequest* New() const final {
-    return CreateMaybeMessage<GetPagesRequest>(nullptr);
+  inline EstimateSizeRequest* New() const final {
+    return CreateMaybeMessage<EstimateSizeRequest>(nullptr);
   }
 
-  GetPagesRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
-    return CreateMaybeMessage<GetPagesRequest>(arena);
+  EstimateSizeRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<EstimateSizeRequest>(arena);
   }
   void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
   void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
-  void CopyFrom(const GetPagesRequest& from);
-  void MergeFrom(const GetPagesRequest& from);
+  void CopyFrom(const EstimateSizeRequest& from);
+  void MergeFrom(const EstimateSizeRequest& from);
   PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
   bool IsInitialized() const final;
 
@@ -152,10 +160,10 @@ class GetPagesRequest :
   inline void SharedCtor();
   inline void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(GetPagesRequest* other);
+  void InternalSwap(EstimateSizeRequest* other);
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "gpssfdw.GetPagesRequest";
+    return "gpssfdw.EstimateSizeRequest";
   }
   private:
   inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
@@ -191,7 +199,7 @@ class GetPagesRequest :
   std::string* release_id();
   void set_allocated_id(std::string* id);
 
-  // @@protoc_insertion_point(class_scope:gpssfdw.GetPagesRequest)
+  // @@protoc_insertion_point(class_scope:gpssfdw.EstimateSizeRequest)
  private:
   class HasBitSetters;
 
@@ -202,23 +210,23 @@ class GetPagesRequest :
 };
 // -------------------------------------------------------------------
 
-class GetPagesResponse :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.GetPagesResponse) */ {
+class EstimateSizeResponse :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.EstimateSizeResponse) */ {
  public:
-  GetPagesResponse();
-  virtual ~GetPagesResponse();
+  EstimateSizeResponse();
+  virtual ~EstimateSizeResponse();
 
-  GetPagesResponse(const GetPagesResponse& from);
-  GetPagesResponse(GetPagesResponse&& from) noexcept
-    : GetPagesResponse() {
+  EstimateSizeResponse(const EstimateSizeResponse& from);
+  EstimateSizeResponse(EstimateSizeResponse&& from) noexcept
+    : EstimateSizeResponse() {
     *this = ::std::move(from);
   }
 
-  inline GetPagesResponse& operator=(const GetPagesResponse& from) {
+  inline EstimateSizeResponse& operator=(const EstimateSizeResponse& from) {
     CopyFrom(from);
     return *this;
   }
-  inline GetPagesResponse& operator=(GetPagesResponse&& from) noexcept {
+  inline EstimateSizeResponse& operator=(EstimateSizeResponse&& from) noexcept {
     if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
       if (this != &from) InternalSwap(&from);
     } else {
@@ -236,34 +244,34 @@ class GetPagesResponse :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return GetMetadataStatic().reflection;
   }
-  static const GetPagesResponse& default_instance();
+  static const EstimateSizeResponse& default_instance();
 
   static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
-  static inline const GetPagesResponse* internal_default_instance() {
-    return reinterpret_cast<const GetPagesResponse*>(
-               &_GetPagesResponse_default_instance_);
+  static inline const EstimateSizeResponse* internal_default_instance() {
+    return reinterpret_cast<const EstimateSizeResponse*>(
+               &_EstimateSizeResponse_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
     1;
 
-  void Swap(GetPagesResponse* other);
-  friend void swap(GetPagesResponse& a, GetPagesResponse& b) {
+  void Swap(EstimateSizeResponse* other);
+  friend void swap(EstimateSizeResponse& a, EstimateSizeResponse& b) {
     a.Swap(&b);
   }
 
   // implements Message ----------------------------------------------
 
-  inline GetPagesResponse* New() const final {
-    return CreateMaybeMessage<GetPagesResponse>(nullptr);
+  inline EstimateSizeResponse* New() const final {
+    return CreateMaybeMessage<EstimateSizeResponse>(nullptr);
   }
 
-  GetPagesResponse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
-    return CreateMaybeMessage<GetPagesResponse>(arena);
+  EstimateSizeResponse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<EstimateSizeResponse>(arena);
   }
   void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
   void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
-  void CopyFrom(const GetPagesResponse& from);
-  void MergeFrom(const GetPagesResponse& from);
+  void CopyFrom(const EstimateSizeResponse& from);
+  void MergeFrom(const EstimateSizeResponse& from);
   PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
   bool IsInitialized() const final;
 
@@ -284,10 +292,10 @@ class GetPagesResponse :
   inline void SharedCtor();
   inline void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(GetPagesResponse* other);
+  void InternalSwap(EstimateSizeResponse* other);
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "gpssfdw.GetPagesResponse";
+    return "gpssfdw.EstimateSizeResponse";
   }
   private:
   inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
@@ -311,25 +319,282 @@ class GetPagesResponse :
 
   // accessors -------------------------------------------------------
 
-  // int64 pages = 1;
-  void clear_pages();
-  static const int kPagesFieldNumber = 1;
-  ::PROTOBUF_NAMESPACE_ID::int64 pages() const;
-  void set_pages(::PROTOBUF_NAMESPACE_ID::int64 value);
+  // int64 bytes = 1;
+  void clear_bytes();
+  static const int kBytesFieldNumber = 1;
+  ::PROTOBUF_NAMESPACE_ID::int64 bytes() const;
+  void set_bytes(::PROTOBUF_NAMESPACE_ID::int64 value);
 
-  // int64 tuples = 2;
-  void clear_tuples();
-  static const int kTuplesFieldNumber = 2;
-  ::PROTOBUF_NAMESPACE_ID::int64 tuples() const;
-  void set_tuples(::PROTOBUF_NAMESPACE_ID::int64 value);
-
-  // @@protoc_insertion_point(class_scope:gpssfdw.GetPagesResponse)
+  // @@protoc_insertion_point(class_scope:gpssfdw.EstimateSizeResponse)
  private:
   class HasBitSetters;
 
   ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
-  ::PROTOBUF_NAMESPACE_ID::int64 pages_;
-  ::PROTOBUF_NAMESPACE_ID::int64 tuples_;
+  ::PROTOBUF_NAMESPACE_ID::int64 bytes_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_gpss_2eproto;
+};
+// -------------------------------------------------------------------
+
+class StreamDataRequest :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.StreamDataRequest) */ {
+ public:
+  StreamDataRequest();
+  virtual ~StreamDataRequest();
+
+  StreamDataRequest(const StreamDataRequest& from);
+  StreamDataRequest(StreamDataRequest&& from) noexcept
+    : StreamDataRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline StreamDataRequest& operator=(const StreamDataRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StreamDataRequest& operator=(StreamDataRequest&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return GetMetadataStatic().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return GetMetadataStatic().reflection;
+  }
+  static const StreamDataRequest& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const StreamDataRequest* internal_default_instance() {
+    return reinterpret_cast<const StreamDataRequest*>(
+               &_StreamDataRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    2;
+
+  void Swap(StreamDataRequest* other);
+  friend void swap(StreamDataRequest& a, StreamDataRequest& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline StreamDataRequest* New() const final {
+    return CreateMaybeMessage<StreamDataRequest>(nullptr);
+  }
+
+  StreamDataRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<StreamDataRequest>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const StreamDataRequest& from);
+  void MergeFrom(const StreamDataRequest& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  #if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  #else
+  bool MergePartialFromCodedStream(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) final;
+  #endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  void SerializeWithCachedSizes(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* InternalSerializeWithCachedSizesToArray(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  inline void SharedCtor();
+  inline void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StreamDataRequest* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "gpssfdw.StreamDataRequest";
+  }
+  private:
+  inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
+    return nullptr;
+  }
+  inline void* MaybeArenaPtr() const {
+    return nullptr;
+  }
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  private:
+  static ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadataStatic() {
+    ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&::descriptor_table_gpss_2eproto);
+    return ::descriptor_table_gpss_2eproto.file_level_metadata[kIndexInFileMessages];
+  }
+
+  public:
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // string id = 1;
+  void clear_id();
+  static const int kIdFieldNumber = 1;
+  const std::string& id() const;
+  void set_id(const std::string& value);
+  void set_id(std::string&& value);
+  void set_id(const char* value);
+  void set_id(const char* value, size_t size);
+  std::string* mutable_id();
+  std::string* release_id();
+  void set_allocated_id(std::string* id);
+
+  // @@protoc_insertion_point(class_scope:gpssfdw.StreamDataRequest)
+ private:
+  class HasBitSetters;
+
+  ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr id_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_gpss_2eproto;
+};
+// -------------------------------------------------------------------
+
+class StreamDataResponse :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.StreamDataResponse) */ {
+ public:
+  StreamDataResponse();
+  virtual ~StreamDataResponse();
+
+  StreamDataResponse(const StreamDataResponse& from);
+  StreamDataResponse(StreamDataResponse&& from) noexcept
+    : StreamDataResponse() {
+    *this = ::std::move(from);
+  }
+
+  inline StreamDataResponse& operator=(const StreamDataResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StreamDataResponse& operator=(StreamDataResponse&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return GetMetadataStatic().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return GetMetadataStatic().reflection;
+  }
+  static const StreamDataResponse& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const StreamDataResponse* internal_default_instance() {
+    return reinterpret_cast<const StreamDataResponse*>(
+               &_StreamDataResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    3;
+
+  void Swap(StreamDataResponse* other);
+  friend void swap(StreamDataResponse& a, StreamDataResponse& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline StreamDataResponse* New() const final {
+    return CreateMaybeMessage<StreamDataResponse>(nullptr);
+  }
+
+  StreamDataResponse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<StreamDataResponse>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const StreamDataResponse& from);
+  void MergeFrom(const StreamDataResponse& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  #if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  #else
+  bool MergePartialFromCodedStream(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) final;
+  #endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  void SerializeWithCachedSizes(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* InternalSerializeWithCachedSizesToArray(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  inline void SharedCtor();
+  inline void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StreamDataResponse* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "gpssfdw.StreamDataResponse";
+  }
+  private:
+  inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
+    return nullptr;
+  }
+  inline void* MaybeArenaPtr() const {
+    return nullptr;
+  }
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  private:
+  static ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadataStatic() {
+    ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&::descriptor_table_gpss_2eproto);
+    return ::descriptor_table_gpss_2eproto.file_level_metadata[kIndexInFileMessages];
+  }
+
+  public:
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // bytes data = 1;
+  void clear_data();
+  static const int kDataFieldNumber = 1;
+  const std::string& data() const;
+  void set_data(const std::string& value);
+  void set_data(std::string&& value);
+  void set_data(const char* value);
+  void set_data(const void* value, size_t size);
+  std::string* mutable_data();
+  std::string* release_data();
+  void set_allocated_data(std::string* data);
+
+  // @@protoc_insertion_point(class_scope:gpssfdw.StreamDataResponse)
+ private:
+  class HasBitSetters;
+
+  ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr data_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_gpss_2eproto;
 };
@@ -342,94 +607,194 @@ class GetPagesResponse :
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif  // __GNUC__
-// GetPagesRequest
+// EstimateSizeRequest
 
 // string id = 1;
-inline void GetPagesRequest::clear_id() {
+inline void EstimateSizeRequest::clear_id() {
   id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
-inline const std::string& GetPagesRequest::id() const {
-  // @@protoc_insertion_point(field_get:gpssfdw.GetPagesRequest.id)
+inline const std::string& EstimateSizeRequest::id() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.EstimateSizeRequest.id)
   return id_.GetNoArena();
 }
-inline void GetPagesRequest::set_id(const std::string& value) {
+inline void EstimateSizeRequest::set_id(const std::string& value) {
   
   id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
-  // @@protoc_insertion_point(field_set:gpssfdw.GetPagesRequest.id)
+  // @@protoc_insertion_point(field_set:gpssfdw.EstimateSizeRequest.id)
 }
-inline void GetPagesRequest::set_id(std::string&& value) {
+inline void EstimateSizeRequest::set_id(std::string&& value) {
   
   id_.SetNoArena(
     &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
-  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.GetPagesRequest.id)
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.EstimateSizeRequest.id)
 }
-inline void GetPagesRequest::set_id(const char* value) {
+inline void EstimateSizeRequest::set_id(const char* value) {
   GOOGLE_DCHECK(value != nullptr);
   
   id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
-  // @@protoc_insertion_point(field_set_char:gpssfdw.GetPagesRequest.id)
+  // @@protoc_insertion_point(field_set_char:gpssfdw.EstimateSizeRequest.id)
 }
-inline void GetPagesRequest::set_id(const char* value, size_t size) {
+inline void EstimateSizeRequest::set_id(const char* value, size_t size) {
   
   id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
       ::std::string(reinterpret_cast<const char*>(value), size));
-  // @@protoc_insertion_point(field_set_pointer:gpssfdw.GetPagesRequest.id)
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.EstimateSizeRequest.id)
 }
-inline std::string* GetPagesRequest::mutable_id() {
+inline std::string* EstimateSizeRequest::mutable_id() {
   
-  // @@protoc_insertion_point(field_mutable:gpssfdw.GetPagesRequest.id)
+  // @@protoc_insertion_point(field_mutable:gpssfdw.EstimateSizeRequest.id)
   return id_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
-inline std::string* GetPagesRequest::release_id() {
-  // @@protoc_insertion_point(field_release:gpssfdw.GetPagesRequest.id)
+inline std::string* EstimateSizeRequest::release_id() {
+  // @@protoc_insertion_point(field_release:gpssfdw.EstimateSizeRequest.id)
   
   return id_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
-inline void GetPagesRequest::set_allocated_id(std::string* id) {
+inline void EstimateSizeRequest::set_allocated_id(std::string* id) {
   if (id != nullptr) {
     
   } else {
     
   }
   id_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), id);
-  // @@protoc_insertion_point(field_set_allocated:gpssfdw.GetPagesRequest.id)
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.EstimateSizeRequest.id)
 }
 
 // -------------------------------------------------------------------
 
-// GetPagesResponse
+// EstimateSizeResponse
 
-// int64 pages = 1;
-inline void GetPagesResponse::clear_pages() {
-  pages_ = PROTOBUF_LONGLONG(0);
+// int64 bytes = 1;
+inline void EstimateSizeResponse::clear_bytes() {
+  bytes_ = PROTOBUF_LONGLONG(0);
 }
-inline ::PROTOBUF_NAMESPACE_ID::int64 GetPagesResponse::pages() const {
-  // @@protoc_insertion_point(field_get:gpssfdw.GetPagesResponse.pages)
-  return pages_;
+inline ::PROTOBUF_NAMESPACE_ID::int64 EstimateSizeResponse::bytes() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.EstimateSizeResponse.bytes)
+  return bytes_;
 }
-inline void GetPagesResponse::set_pages(::PROTOBUF_NAMESPACE_ID::int64 value) {
+inline void EstimateSizeResponse::set_bytes(::PROTOBUF_NAMESPACE_ID::int64 value) {
   
-  pages_ = value;
-  // @@protoc_insertion_point(field_set:gpssfdw.GetPagesResponse.pages)
+  bytes_ = value;
+  // @@protoc_insertion_point(field_set:gpssfdw.EstimateSizeResponse.bytes)
 }
 
-// int64 tuples = 2;
-inline void GetPagesResponse::clear_tuples() {
-  tuples_ = PROTOBUF_LONGLONG(0);
+// -------------------------------------------------------------------
+
+// StreamDataRequest
+
+// string id = 1;
+inline void StreamDataRequest::clear_id() {
+  id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
-inline ::PROTOBUF_NAMESPACE_ID::int64 GetPagesResponse::tuples() const {
-  // @@protoc_insertion_point(field_get:gpssfdw.GetPagesResponse.tuples)
-  return tuples_;
+inline const std::string& StreamDataRequest::id() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StreamDataRequest.id)
+  return id_.GetNoArena();
 }
-inline void GetPagesResponse::set_tuples(::PROTOBUF_NAMESPACE_ID::int64 value) {
+inline void StreamDataRequest::set_id(const std::string& value) {
   
-  tuples_ = value;
-  // @@protoc_insertion_point(field_set:gpssfdw.GetPagesResponse.tuples)
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:gpssfdw.StreamDataRequest.id)
+}
+inline void StreamDataRequest::set_id(std::string&& value) {
+  
+  id_.SetNoArena(
+    &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.StreamDataRequest.id)
+}
+inline void StreamDataRequest::set_id(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:gpssfdw.StreamDataRequest.id)
+}
+inline void StreamDataRequest::set_id(const char* value, size_t size) {
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.StreamDataRequest.id)
+}
+inline std::string* StreamDataRequest::mutable_id() {
+  
+  // @@protoc_insertion_point(field_mutable:gpssfdw.StreamDataRequest.id)
+  return id_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline std::string* StreamDataRequest::release_id() {
+  // @@protoc_insertion_point(field_release:gpssfdw.StreamDataRequest.id)
+  
+  return id_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline void StreamDataRequest::set_allocated_id(std::string* id) {
+  if (id != nullptr) {
+    
+  } else {
+    
+  }
+  id_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), id);
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.StreamDataRequest.id)
+}
+
+// -------------------------------------------------------------------
+
+// StreamDataResponse
+
+// bytes data = 1;
+inline void StreamDataResponse::clear_data() {
+  data_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline const std::string& StreamDataResponse::data() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StreamDataResponse.data)
+  return data_.GetNoArena();
+}
+inline void StreamDataResponse::set_data(const std::string& value) {
+  
+  data_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:gpssfdw.StreamDataResponse.data)
+}
+inline void StreamDataResponse::set_data(std::string&& value) {
+  
+  data_.SetNoArena(
+    &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.StreamDataResponse.data)
+}
+inline void StreamDataResponse::set_data(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  
+  data_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:gpssfdw.StreamDataResponse.data)
+}
+inline void StreamDataResponse::set_data(const void* value, size_t size) {
+  
+  data_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.StreamDataResponse.data)
+}
+inline std::string* StreamDataResponse::mutable_data() {
+  
+  // @@protoc_insertion_point(field_mutable:gpssfdw.StreamDataResponse.data)
+  return data_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline std::string* StreamDataResponse::release_data() {
+  // @@protoc_insertion_point(field_release:gpssfdw.StreamDataResponse.data)
+  
+  return data_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline void StreamDataResponse::set_allocated_data(std::string* data) {
+  if (data != nullptr) {
+    
+  } else {
+    
+  }
+  data_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), data);
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.StreamDataResponse.data)
 }
 
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 

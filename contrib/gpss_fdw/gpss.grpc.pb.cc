@@ -19,7 +19,8 @@
 namespace gpssfdw {
 
 static const char* GpssFdw_method_names[] = {
-  "/gpssfdw.GpssFdw/GetPages",
+  "/gpssfdw.GpssFdw/EstimateSize",
+  "/gpssfdw.GpssFdw/StreamData",
 };
 
 std::unique_ptr< GpssFdw::Stub> GpssFdw::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -29,52 +30,81 @@ std::unique_ptr< GpssFdw::Stub> GpssFdw::NewStub(const std::shared_ptr< ::grpc::
 }
 
 GpssFdw::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
-  : channel_(channel), rpcmethod_GetPages_(GpssFdw_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  : channel_(channel), rpcmethod_EstimateSize_(GpssFdw_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_StreamData_(GpssFdw_method_names[1], ::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
   {}
 
-::grpc::Status GpssFdw::Stub::GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::gpssfdw::GetPagesResponse* response) {
-  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_GetPages_, context, request, response);
+::grpc::Status GpssFdw::Stub::EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::gpssfdw::EstimateSizeResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_EstimateSize_, context, request, response);
 }
 
-void GpssFdw::Stub::experimental_async::GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, std::function<void(::grpc::Status)> f) {
-  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_GetPages_, context, request, response, std::move(f));
+void GpssFdw::Stub::experimental_async::EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_EstimateSize_, context, request, response, std::move(f));
 }
 
-void GpssFdw::Stub::experimental_async::GetPages(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::GetPagesResponse* response, std::function<void(::grpc::Status)> f) {
-  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_GetPages_, context, request, response, std::move(f));
+void GpssFdw::Stub::experimental_async::EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_EstimateSize_, context, request, response, std::move(f));
 }
 
-void GpssFdw::Stub::experimental_async::GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_GetPages_, context, request, response, reactor);
+void GpssFdw::Stub::experimental_async::EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
+  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_EstimateSize_, context, request, response, reactor);
 }
 
-void GpssFdw::Stub::experimental_async::GetPages(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
-  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_GetPages_, context, request, response, reactor);
+void GpssFdw::Stub::experimental_async::EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
+  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_EstimateSize_, context, request, response, reactor);
 }
 
-::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>* GpssFdw::Stub::AsyncGetPagesRaw(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::GetPagesResponse>::Create(channel_.get(), cq, rpcmethod_GetPages_, context, request, true);
+::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>* GpssFdw::Stub::AsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::EstimateSizeResponse>::Create(channel_.get(), cq, rpcmethod_EstimateSize_, context, request, true);
 }
 
-::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>* GpssFdw::Stub::PrepareAsyncGetPagesRaw(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) {
-  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::GetPagesResponse>::Create(channel_.get(), cq, rpcmethod_GetPages_, context, request, false);
+::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>* GpssFdw::Stub::PrepareAsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::EstimateSizeResponse>::Create(channel_.get(), cq, rpcmethod_EstimateSize_, context, request, false);
+}
+
+::grpc::ClientReader< ::gpssfdw::StreamDataResponse>* GpssFdw::Stub::StreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) {
+  return ::grpc_impl::internal::ClientReaderFactory< ::gpssfdw::StreamDataResponse>::Create(channel_.get(), rpcmethod_StreamData_, context, request);
+}
+
+void GpssFdw::Stub::experimental_async::StreamData(::grpc::ClientContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::experimental::ClientReadReactor< ::gpssfdw::StreamDataResponse>* reactor) {
+  ::grpc_impl::internal::ClientCallbackReaderFactory< ::gpssfdw::StreamDataResponse>::Create(stub_->channel_.get(), stub_->rpcmethod_StreamData_, context, request, reactor);
+}
+
+::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>* GpssFdw::Stub::AsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc_impl::internal::ClientAsyncReaderFactory< ::gpssfdw::StreamDataResponse>::Create(channel_.get(), cq, rpcmethod_StreamData_, context, request, true, tag);
+}
+
+::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>* GpssFdw::Stub::PrepareAsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncReaderFactory< ::gpssfdw::StreamDataResponse>::Create(channel_.get(), cq, rpcmethod_StreamData_, context, request, false, nullptr);
 }
 
 GpssFdw::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       GpssFdw_method_names[0],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< GpssFdw::Service, ::gpssfdw::GetPagesRequest, ::gpssfdw::GetPagesResponse>(
-          std::mem_fn(&GpssFdw::Service::GetPages), this)));
+      new ::grpc::internal::RpcMethodHandler< GpssFdw::Service, ::gpssfdw::EstimateSizeRequest, ::gpssfdw::EstimateSizeResponse>(
+          std::mem_fn(&GpssFdw::Service::EstimateSize), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GpssFdw_method_names[1],
+      ::grpc::internal::RpcMethod::SERVER_STREAMING,
+      new ::grpc::internal::ServerStreamingHandler< GpssFdw::Service, ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>(
+          std::mem_fn(&GpssFdw::Service::StreamData), this)));
 }
 
 GpssFdw::Service::~Service() {
 }
 
-::grpc::Status GpssFdw::Service::GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) {
+::grpc::Status GpssFdw::Service::EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) {
   (void) context;
   (void) request;
   (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GpssFdw::Service::StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) {
+  (void) context;
+  (void) request;
+  (void) writer;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 

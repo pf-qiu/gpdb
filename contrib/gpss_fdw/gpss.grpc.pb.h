@@ -46,43 +46,66 @@ class GpssFdw final {
   class StubInterface {
    public:
     virtual ~StubInterface() {}
-    virtual ::grpc::Status GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::gpssfdw::GetPagesResponse* response) = 0;
-    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::GetPagesResponse>> AsyncGetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::GetPagesResponse>>(AsyncGetPagesRaw(context, request, cq));
+    virtual ::grpc::Status EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::gpssfdw::EstimateSizeResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>> AsyncEstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>>(AsyncEstimateSizeRaw(context, request, cq));
     }
-    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::GetPagesResponse>> PrepareAsyncGetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::GetPagesResponse>>(PrepareAsyncGetPagesRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>> PrepareAsyncEstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>>(PrepareAsyncEstimateSizeRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientReaderInterface< ::gpssfdw::StreamDataResponse>> StreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReaderInterface< ::gpssfdw::StreamDataResponse>>(StreamDataRaw(context, request));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>> AsyncStreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>>(AsyncStreamDataRaw(context, request, cq, tag));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>> PrepareAsyncStreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>>(PrepareAsyncStreamDataRaw(context, request, cq));
     }
     class experimental_async_interface {
      public:
       virtual ~experimental_async_interface() {}
-      virtual void GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, std::function<void(::grpc::Status)>) = 0;
-      virtual void GetPages(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::GetPagesResponse* response, std::function<void(::grpc::Status)>) = 0;
-      virtual void GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
-      virtual void GetPages(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void StreamData(::grpc::ClientContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::experimental::ClientReadReactor< ::gpssfdw::StreamDataResponse>* reactor) = 0;
     };
     virtual class experimental_async_interface* experimental_async() { return nullptr; }
   private:
-    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::GetPagesResponse>* AsyncGetPagesRaw(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) = 0;
-    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::GetPagesResponse>* PrepareAsyncGetPagesRaw(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>* AsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>* PrepareAsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientReaderInterface< ::gpssfdw::StreamDataResponse>* StreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>* AsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
+    virtual ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>* PrepareAsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
     Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel);
-    ::grpc::Status GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::gpssfdw::GetPagesResponse* response) override;
-    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>> AsyncGetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>>(AsyncGetPagesRaw(context, request, cq));
+    ::grpc::Status EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::gpssfdw::EstimateSizeResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>> AsyncEstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>>(AsyncEstimateSizeRaw(context, request, cq));
     }
-    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>> PrepareAsyncGetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) {
-      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>>(PrepareAsyncGetPagesRaw(context, request, cq));
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>> PrepareAsyncEstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>>(PrepareAsyncEstimateSizeRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>> StreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) {
+      return std::unique_ptr< ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>>(StreamDataRaw(context, request));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>> AsyncStreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>>(AsyncStreamDataRaw(context, request, cq, tag));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>> PrepareAsyncStreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>>(PrepareAsyncStreamDataRaw(context, request, cq));
     }
     class experimental_async final :
       public StubInterface::experimental_async_interface {
      public:
-      void GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, std::function<void(::grpc::Status)>) override;
-      void GetPages(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::GetPagesResponse* response, std::function<void(::grpc::Status)>) override;
-      void GetPages(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
-      void GetPages(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)>) override;
+      void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)>) override;
+      void EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void StreamData(::grpc::ClientContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::experimental::ClientReadReactor< ::gpssfdw::StreamDataResponse>* reactor) override;
      private:
       friend class Stub;
       explicit experimental_async(Stub* stub): stub_(stub) { }
@@ -94,9 +117,13 @@ class GpssFdw final {
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
     class experimental_async async_stub_{this};
-    ::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>* AsyncGetPagesRaw(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) override;
-    ::grpc::ClientAsyncResponseReader< ::gpssfdw::GetPagesResponse>* PrepareAsyncGetPagesRaw(::grpc::ClientContext* context, const ::gpssfdw::GetPagesRequest& request, ::grpc::CompletionQueue* cq) override;
-    const ::grpc::internal::RpcMethod rpcmethod_GetPages_;
+    ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>* AsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>* PrepareAsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>* StreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) override;
+    ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>* AsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
+    ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>* PrepareAsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) override;
+    const ::grpc::internal::RpcMethod rpcmethod_EstimateSize_;
+    const ::grpc::internal::RpcMethod rpcmethod_StreamData_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -104,146 +131,268 @@ class GpssFdw final {
    public:
     Service();
     virtual ~Service();
-    virtual ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response);
+    virtual ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response);
+    virtual ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer);
   };
   template <class BaseClass>
-  class WithAsyncMethod_GetPages : public BaseClass {
+  class WithAsyncMethod_EstimateSize : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
-    WithAsyncMethod_GetPages() {
+    WithAsyncMethod_EstimateSize() {
       ::grpc::Service::MarkMethodAsync(0);
     }
-    ~WithAsyncMethod_GetPages() override {
+    ~WithAsyncMethod_EstimateSize() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) override {
+    ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestGetPages(::grpc::ServerContext* context, ::gpssfdw::GetPagesRequest* request, ::grpc::ServerAsyncResponseWriter< ::gpssfdw::GetPagesResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+    void RequestEstimateSize(::grpc::ServerContext* context, ::gpssfdw::EstimateSizeRequest* request, ::grpc::ServerAsyncResponseWriter< ::gpssfdw::EstimateSizeResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_GetPages<Service > AsyncService;
   template <class BaseClass>
-  class ExperimentalWithCallbackMethod_GetPages : public BaseClass {
+  class WithAsyncMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
-    ExperimentalWithCallbackMethod_GetPages() {
+    WithAsyncMethod_StreamData() {
+      ::grpc::Service::MarkMethodAsync(1);
+    }
+    ~WithAsyncMethod_StreamData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestStreamData(::grpc::ServerContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::ServerAsyncWriter< ::gpssfdw::StreamDataResponse>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncServerStreaming(1, context, request, writer, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_EstimateSize<WithAsyncMethod_StreamData<Service > > AsyncService;
+  template <class BaseClass>
+  class ExperimentalWithCallbackMethod_EstimateSize : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    ExperimentalWithCallbackMethod_EstimateSize() {
       ::grpc::Service::experimental().MarkMethodCallback(0,
-        new ::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::GetPagesRequest, ::gpssfdw::GetPagesResponse>(
+        new ::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::EstimateSizeRequest, ::gpssfdw::EstimateSizeResponse>(
           [this](::grpc::ServerContext* context,
-                 const ::gpssfdw::GetPagesRequest* request,
-                 ::gpssfdw::GetPagesResponse* response,
+                 const ::gpssfdw::EstimateSizeRequest* request,
+                 ::gpssfdw::EstimateSizeResponse* response,
                  ::grpc::experimental::ServerCallbackRpcController* controller) {
-                   return this->GetPages(context, request, response, controller);
+                   return this->EstimateSize(context, request, response, controller);
                  }));
     }
-    void SetMessageAllocatorFor_GetPages(
-        ::grpc::experimental::MessageAllocator< ::gpssfdw::GetPagesRequest, ::gpssfdw::GetPagesResponse>* allocator) {
-      static_cast<::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::GetPagesRequest, ::gpssfdw::GetPagesResponse>*>(
+    void SetMessageAllocatorFor_EstimateSize(
+        ::grpc::experimental::MessageAllocator< ::gpssfdw::EstimateSizeRequest, ::gpssfdw::EstimateSizeResponse>* allocator) {
+      static_cast<::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::EstimateSizeRequest, ::gpssfdw::EstimateSizeResponse>*>(
           ::grpc::Service::experimental().GetHandler(0))
               ->SetMessageAllocator(allocator);
     }
-    ~ExperimentalWithCallbackMethod_GetPages() override {
+    ~ExperimentalWithCallbackMethod_EstimateSize() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) override {
+    ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    virtual void GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
+    virtual void EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
   };
-  typedef ExperimentalWithCallbackMethod_GetPages<Service > ExperimentalCallbackService;
   template <class BaseClass>
-  class WithGenericMethod_GetPages : public BaseClass {
+  class ExperimentalWithCallbackMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
-    WithGenericMethod_GetPages() {
+    ExperimentalWithCallbackMethod_StreamData() {
+      ::grpc::Service::experimental().MarkMethodCallback(1,
+        new ::grpc_impl::internal::CallbackServerStreamingHandler< ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>(
+          [this] { return this->StreamData(); }));
+    }
+    ~ExperimentalWithCallbackMethod_StreamData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::experimental::ServerWriteReactor< ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>* StreamData() {
+      return new ::grpc_impl::internal::UnimplementedWriteReactor<
+        ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>;}
+  };
+  typedef ExperimentalWithCallbackMethod_EstimateSize<ExperimentalWithCallbackMethod_StreamData<Service > > ExperimentalCallbackService;
+  template <class BaseClass>
+  class WithGenericMethod_EstimateSize : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithGenericMethod_EstimateSize() {
       ::grpc::Service::MarkMethodGeneric(0);
     }
-    ~WithGenericMethod_GetPages() override {
+    ~WithGenericMethod_EstimateSize() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) override {
+    ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
   };
   template <class BaseClass>
-  class WithRawMethod_GetPages : public BaseClass {
+  class WithGenericMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
-    WithRawMethod_GetPages() {
-      ::grpc::Service::MarkMethodRaw(0);
+    WithGenericMethod_StreamData() {
+      ::grpc::Service::MarkMethodGeneric(1);
     }
-    ~WithRawMethod_GetPages() override {
+    ~WithGenericMethod_StreamData() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) override {
+    ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    void RequestGetPages(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+  };
+  template <class BaseClass>
+  class WithRawMethod_EstimateSize : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithRawMethod_EstimateSize() {
+      ::grpc::Service::MarkMethodRaw(0);
+    }
+    ~WithRawMethod_EstimateSize() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestEstimateSize(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
-  class ExperimentalWithRawCallbackMethod_GetPages : public BaseClass {
+  class WithRawMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
-    ExperimentalWithRawCallbackMethod_GetPages() {
+    WithRawMethod_StreamData() {
+      ::grpc::Service::MarkMethodRaw(1);
+    }
+    ~WithRawMethod_StreamData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestStreamData(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncWriter< ::grpc::ByteBuffer>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncServerStreaming(1, context, request, writer, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class ExperimentalWithRawCallbackMethod_EstimateSize : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    ExperimentalWithRawCallbackMethod_EstimateSize() {
       ::grpc::Service::experimental().MarkMethodRawCallback(0,
         new ::grpc_impl::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
           [this](::grpc::ServerContext* context,
                  const ::grpc::ByteBuffer* request,
                  ::grpc::ByteBuffer* response,
                  ::grpc::experimental::ServerCallbackRpcController* controller) {
-                   this->GetPages(context, request, response, controller);
+                   this->EstimateSize(context, request, response, controller);
                  }));
     }
-    ~ExperimentalWithRawCallbackMethod_GetPages() override {
+    ~ExperimentalWithRawCallbackMethod_EstimateSize() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable synchronous version of this method
-    ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) override {
+    ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
-    virtual void GetPages(::grpc::ServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
+    virtual void EstimateSize(::grpc::ServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
   };
   template <class BaseClass>
-  class WithStreamedUnaryMethod_GetPages : public BaseClass {
+  class ExperimentalWithRawCallbackMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
-    WithStreamedUnaryMethod_GetPages() {
-      ::grpc::Service::MarkMethodStreamed(0,
-        new ::grpc::internal::StreamedUnaryHandler< ::gpssfdw::GetPagesRequest, ::gpssfdw::GetPagesResponse>(std::bind(&WithStreamedUnaryMethod_GetPages<BaseClass>::StreamedGetPages, this, std::placeholders::_1, std::placeholders::_2)));
+    ExperimentalWithRawCallbackMethod_StreamData() {
+      ::grpc::Service::experimental().MarkMethodRawCallback(1,
+        new ::grpc_impl::internal::CallbackServerStreamingHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+          [this] { return this->StreamData(); }));
     }
-    ~WithStreamedUnaryMethod_GetPages() override {
+    ~ExperimentalWithRawCallbackMethod_StreamData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::experimental::ServerWriteReactor< ::grpc::ByteBuffer, ::grpc::ByteBuffer>* StreamData() {
+      return new ::grpc_impl::internal::UnimplementedWriteReactor<
+        ::grpc::ByteBuffer, ::grpc::ByteBuffer>;}
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_EstimateSize : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithStreamedUnaryMethod_EstimateSize() {
+      ::grpc::Service::MarkMethodStreamed(0,
+        new ::grpc::internal::StreamedUnaryHandler< ::gpssfdw::EstimateSizeRequest, ::gpssfdw::EstimateSizeResponse>(std::bind(&WithStreamedUnaryMethod_EstimateSize<BaseClass>::StreamedEstimateSize, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_EstimateSize() override {
       BaseClassMustBeDerivedFromService(this);
     }
     // disable regular version of this method
-    ::grpc::Status GetPages(::grpc::ServerContext* context, const ::gpssfdw::GetPagesRequest* request, ::gpssfdw::GetPagesResponse* response) override {
+    ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     // replace default version of method with streamed unary
-    virtual ::grpc::Status StreamedGetPages(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::gpssfdw::GetPagesRequest,::gpssfdw::GetPagesResponse>* server_unary_streamer) = 0;
+    virtual ::grpc::Status StreamedEstimateSize(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::gpssfdw::EstimateSizeRequest,::gpssfdw::EstimateSizeResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_GetPages<Service > StreamedUnaryService;
-  typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_GetPages<Service > StreamedService;
+  typedef WithStreamedUnaryMethod_EstimateSize<Service > StreamedUnaryService;
+  template <class BaseClass>
+  class WithSplitStreamingMethod_StreamData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithSplitStreamingMethod_StreamData() {
+      ::grpc::Service::MarkMethodStreamed(1,
+        new ::grpc::internal::SplitServerStreamingHandler< ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>(std::bind(&WithSplitStreamingMethod_StreamData<BaseClass>::StreamedStreamData, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithSplitStreamingMethod_StreamData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with split streamed
+    virtual ::grpc::Status StreamedStreamData(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::gpssfdw::StreamDataRequest,::gpssfdw::StreamDataResponse>* server_split_streamer) = 0;
+  };
+  typedef WithSplitStreamingMethod_StreamData<Service > SplitStreamedService;
+  typedef WithStreamedUnaryMethod_EstimateSize<WithSplitStreamingMethod_StreamData<Service > > StreamedService;
 };
 
 }  // namespace gpssfdw
