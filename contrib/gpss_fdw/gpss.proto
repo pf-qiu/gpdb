@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package gpssfdw;
+
+message GetPagesRequest {
+    string id = 1;
+}
+
+message GetPagesResponse {
+    int64 pages = 1;
+}
+
+service GpssFdw {
+    rpc GetPages(GetPagesRequest) returns (GetPagesResponse);
+}
