@@ -105,7 +105,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_gpss_2eproto::offsets[] PROTOB
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
-  PROTOBUF_FIELD_OFFSET(::gpssfdw::EstimateSizeResponse, bytes_),
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::EstimateSizeResponse, estimate_size_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataRequest, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -117,7 +117,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_gpss_2eproto::offsets[] PROTOB
   ~0u,  // no _extensions_
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
-  PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataResponse, data_),
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataResponse, msg_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::gpssfdw::EstimateSizeRequest)},
@@ -135,14 +135,14 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
 
 const char descriptor_table_protodef_gpss_2eproto[] =
   "\n\ngpss.proto\022\007gpssfdw\"!\n\023EstimateSizeReq"
-  "uest\022\n\n\002id\030\001 \001(\t\"%\n\024EstimateSizeResponse"
-  "\022\r\n\005bytes\030\001 \001(\003\"\037\n\021StreamDataRequest\022\n\n\002"
-  "id\030\001 \001(\t\"\"\n\022StreamDataResponse\022\014\n\004data\030\001"
-  " \001(\0142\237\001\n\007GpssFdw\022K\n\014EstimateSize\022\034.gpssf"
-  "dw.EstimateSizeRequest\032\035.gpssfdw.Estimat"
-  "eSizeResponse\022G\n\nStreamData\022\032.gpssfdw.St"
-  "reamDataRequest\032\033.gpssfdw.StreamDataResp"
-  "onse0\001b\006proto3"
+  "uest\022\n\n\002id\030\001 \001(\t\"-\n\024EstimateSizeResponse"
+  "\022\025\n\restimate_size\030\001 \001(\003\"\037\n\021StreamDataReq"
+  "uest\022\n\n\002id\030\001 \001(\t\"!\n\022StreamDataResponse\022\013"
+  "\n\003msg\030\001 \001(\0142\237\001\n\007GpssFdw\022K\n\014EstimateSize\022"
+  "\034.gpssfdw.EstimateSizeRequest\032\035.gpssfdw."
+  "EstimateSizeResponse\022G\n\nStreamData\022\032.gps"
+  "sfdw.StreamDataRequest\032\033.gpssfdw.StreamD"
+  "ataResponse0\001b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_gpss_2eproto_deps[1] = {
 };
@@ -155,7 +155,7 @@ static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_gps
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_gpss_2eproto_once;
 static bool descriptor_table_gpss_2eproto_initialized = false;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_gpss_2eproto = {
-  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 334,
+  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 341,
   &descriptor_table_gpss_2eproto_once, descriptor_table_gpss_2eproto_sccs, descriptor_table_gpss_2eproto_deps, 4, 0,
   schemas, file_default_instances, TableStruct_gpss_2eproto::offsets,
   file_level_metadata_gpss_2eproto, 4, file_level_enum_descriptors_gpss_2eproto, file_level_service_descriptors_gpss_2eproto,
@@ -451,7 +451,7 @@ class EstimateSizeResponse::HasBitSetters {
 };
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
-const int EstimateSizeResponse::kBytesFieldNumber;
+const int EstimateSizeResponse::kEstimateSizeFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 EstimateSizeResponse::EstimateSizeResponse()
@@ -463,12 +463,12 @@ EstimateSizeResponse::EstimateSizeResponse(const EstimateSizeResponse& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       _internal_metadata_(nullptr) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
-  bytes_ = from.bytes_;
+  estimate_size_ = from.estimate_size_;
   // @@protoc_insertion_point(copy_constructor:gpssfdw.EstimateSizeResponse)
 }
 
 void EstimateSizeResponse::SharedCtor() {
-  bytes_ = PROTOBUF_LONGLONG(0);
+  estimate_size_ = PROTOBUF_LONGLONG(0);
 }
 
 EstimateSizeResponse::~EstimateSizeResponse() {
@@ -494,7 +494,7 @@ void EstimateSizeResponse::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  bytes_ = PROTOBUF_LONGLONG(0);
+  estimate_size_ = PROTOBUF_LONGLONG(0);
   _internal_metadata_.Clear();
 }
 
@@ -506,10 +506,10 @@ const char* EstimateSizeResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAM
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     CHK_(ptr);
     switch (tag >> 3) {
-      // int64 bytes = 1;
+      // int64 estimate_size = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
-          bytes_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint(&ptr);
+          estimate_size_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -543,13 +543,13 @@ bool EstimateSizeResponse::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // int64 bytes = 1;
+      // int64 estimate_size = 1;
       case 1: {
         if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (8 & 0xFF)) {
 
           DO_((::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadPrimitive<
                    ::PROTOBUF_NAMESPACE_ID::int64, ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_INT64>(
-                 input, &bytes_)));
+                 input, &estimate_size_)));
         } else {
           goto handle_unusual;
         }
@@ -583,9 +583,9 @@ void EstimateSizeResponse::SerializeWithCachedSizes(
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // int64 bytes = 1;
-  if (this->bytes() != 0) {
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64(1, this->bytes(), output);
+  // int64 estimate_size = 1;
+  if (this->estimate_size() != 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64(1, this->estimate_size(), output);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -601,9 +601,9 @@ void EstimateSizeResponse::SerializeWithCachedSizes(
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // int64 bytes = 1;
-  if (this->bytes() != 0) {
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64ToArray(1, this->bytes(), target);
+  // int64 estimate_size = 1;
+  if (this->estimate_size() != 0) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64ToArray(1, this->estimate_size(), target);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -627,11 +627,11 @@ size_t EstimateSizeResponse::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // int64 bytes = 1;
-  if (this->bytes() != 0) {
+  // int64 estimate_size = 1;
+  if (this->estimate_size() != 0) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int64Size(
-        this->bytes());
+        this->estimate_size());
   }
 
   int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
@@ -661,8 +661,8 @@ void EstimateSizeResponse::MergeFrom(const EstimateSizeResponse& from) {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  if (from.bytes() != 0) {
-    set_bytes(from.bytes());
+  if (from.estimate_size() != 0) {
+    set_estimate_size(from.estimate_size());
   }
 }
 
@@ -691,7 +691,7 @@ void EstimateSizeResponse::Swap(EstimateSizeResponse* other) {
 void EstimateSizeResponse::InternalSwap(EstimateSizeResponse* other) {
   using std::swap;
   _internal_metadata_.Swap(&other->_internal_metadata_);
-  swap(bytes_, other->bytes_);
+  swap(estimate_size_, other->estimate_size_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata EstimateSizeResponse::GetMetadata() const {
@@ -985,7 +985,7 @@ class StreamDataResponse::HasBitSetters {
 };
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
-const int StreamDataResponse::kDataFieldNumber;
+const int StreamDataResponse::kMsgFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 StreamDataResponse::StreamDataResponse()
@@ -997,16 +997,16 @@ StreamDataResponse::StreamDataResponse(const StreamDataResponse& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       _internal_metadata_(nullptr) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
-  data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
-  if (from.data().size() > 0) {
-    data_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.data_);
+  msg_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (from.msg().size() > 0) {
+    msg_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.msg_);
   }
   // @@protoc_insertion_point(copy_constructor:gpssfdw.StreamDataResponse)
 }
 
 void StreamDataResponse::SharedCtor() {
   ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_StreamDataResponse_gpss_2eproto.base);
-  data_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  msg_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 StreamDataResponse::~StreamDataResponse() {
@@ -1015,7 +1015,7 @@ StreamDataResponse::~StreamDataResponse() {
 }
 
 void StreamDataResponse::SharedDtor() {
-  data_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  msg_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 void StreamDataResponse::SetCachedSize(int size) const {
@@ -1033,7 +1033,7 @@ void StreamDataResponse::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  data_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  msg_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   _internal_metadata_.Clear();
 }
 
@@ -1045,10 +1045,10 @@ const char* StreamDataResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMES
     ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
     CHK_(ptr);
     switch (tag >> 3) {
-      // bytes data = 1;
+      // bytes msg = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
-          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(mutable_data(), ptr, ctx);
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(mutable_msg(), ptr, ctx);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -1082,11 +1082,11 @@ bool StreamDataResponse::MergePartialFromCodedStream(
     tag = p.first;
     if (!p.second) goto handle_unusual;
     switch (::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // bytes data = 1;
+      // bytes msg = 1;
       case 1: {
         if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (10 & 0xFF)) {
           DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadBytes(
-                input, this->mutable_data()));
+                input, this->mutable_msg()));
         } else {
           goto handle_unusual;
         }
@@ -1120,10 +1120,10 @@ void StreamDataResponse::SerializeWithCachedSizes(
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // bytes data = 1;
-  if (this->data().size() > 0) {
+  // bytes msg = 1;
+  if (this->msg().size() > 0) {
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBytesMaybeAliased(
-      1, this->data(), output);
+      1, this->msg(), output);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -1139,11 +1139,11 @@ void StreamDataResponse::SerializeWithCachedSizes(
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // bytes data = 1;
-  if (this->data().size() > 0) {
+  // bytes msg = 1;
+  if (this->msg().size() > 0) {
     target =
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteBytesToArray(
-        1, this->data(), target);
+        1, this->msg(), target);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -1167,11 +1167,11 @@ size_t StreamDataResponse::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // bytes data = 1;
-  if (this->data().size() > 0) {
+  // bytes msg = 1;
+  if (this->msg().size() > 0) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
-        this->data());
+        this->msg());
   }
 
   int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
@@ -1201,9 +1201,9 @@ void StreamDataResponse::MergeFrom(const StreamDataResponse& from) {
   ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
   (void) cached_has_bits;
 
-  if (from.data().size() > 0) {
+  if (from.msg().size() > 0) {
 
-    data_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.data_);
+    msg_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.msg_);
   }
 }
 
@@ -1232,7 +1232,7 @@ void StreamDataResponse::Swap(StreamDataResponse* other) {
 void StreamDataResponse::InternalSwap(StreamDataResponse* other) {
   using std::swap;
   _internal_metadata_.Swap(&other->_internal_metadata_);
-  data_.Swap(&other->data_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+  msg_.Swap(&other->msg_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
     GetArenaNoVirtual());
 }
 

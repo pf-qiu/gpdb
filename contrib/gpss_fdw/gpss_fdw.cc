@@ -10,6 +10,8 @@
  *
  *-------------------------------------------------------------------------
  */
+extern "C"
+{
 #include "postgres.h"
 
 #include <sys/stat.h>
@@ -35,7 +37,11 @@
 #include "utils/memutils.h"
 #include "utils/rel.h"
 #include "utils/sampling.h"
-
+#include "utils/builtins.h"
+#include "catalog/pg_proc.h"
+#include "utils/lsyscache.h"
+#include "parser/parse_func.h"
+}
 #include "gpss_rpc.h"
 
 PG_MODULE_MAGIC;
@@ -46,7 +52,7 @@ PG_MODULE_MAGIC;
 struct GpssFdwOption
 {
 	const char *optname;
-	Oid			optcontext;		/* Oid of catalog in which option may appear */
+	Oid optcontext; /* Oid of catalog in which option may appear */
 };
 
 /*
@@ -71,8 +77,7 @@ static const struct GpssFdwOption valid_options[] = {
 	 */
 
 	/* Sentinel */
-	{NULL, InvalidOid}
-};
+	{NULL, InvalidOid}};
 
 /*
  * FDW-specific information for RelOptInfo.fdw_private.
@@ -93,6 +98,7 @@ typedef struct GpssFdwExecutionState
 	char *address;
 	List *options;
 	void *gpssrpc;
+	FmgrInfo fi;
 } GpssFdwExecutionState;
 
 /*
@@ -105,55 +111,47 @@ PG_FUNCTION_INFO_V1(gpss_fdw_validator);
  * FDW callback routines
  */
 static void gpssGetForeignRelSize(PlannerInfo *root,
-					  RelOptInfo *baserel,
-					  Oid foreigntableid);
+								  RelOptInfo *baserel,
+								  Oid foreigntableid);
 static void gpssGetForeignPaths(PlannerInfo *root,
-					RelOptInfo *baserel,
-					Oid foreigntableid);
+								RelOptInfo *baserel,
+								Oid foreigntableid);
 static ForeignScan *gpssGetForeignPlan(PlannerInfo *root,
-				   RelOptInfo *baserel,
-				   Oid foreigntableid,
-				   ForeignPath *best_path,
-				   List *tlist,
-				   List *scan_clauses,
-				   Plan *outer_plan);
+									   RelOptInfo *baserel,
+									   Oid foreigntableid,
+									   ForeignPath *best_path,
+									   List *tlist,
+									   List *scan_clauses,
+									   Plan *outer_plan);
 static void gpssExplainForeignScan(ForeignScanState *node, ExplainState *es);
 static void gpssBeginForeignScan(ForeignScanState *node, int eflags);
 static TupleTableSlot *gpssIterateForeignScan(ForeignScanState *node);
 static void gpssReScanForeignScan(ForeignScanState *node);
 static void gpssEndForeignScan(ForeignScanState *node);
 static bool gpssAnalyzeForeignTable(Relation relation,
-						AcquireSampleRowsFunc *func,
-						BlockNumber *totalpages);
+									AcquireSampleRowsFunc *func,
+									BlockNumber *totalpages);
 static bool gpssIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
-							  RangeTblEntry *rte);
+										  RangeTblEntry *rte);
 
 /*
  * Helper functions
  */
 static bool is_valid_option(const char *option, Oid context);
 static void gpssGetOptions(Oid foreigntableid,
-			   char **address, List **other_options);
-static List *get_gpss_fdw_attribute_options(Oid relid);
-static bool check_selective_binary_conversion(RelOptInfo *baserel,
-								  Oid foreigntableid,
-								  List **columns);
+						   char **address, char **funcname, List **other_options);
+
 static void estimate_size(PlannerInfo *root, RelOptInfo *baserel,
-			  GpssFdwPlanState *fdw_private);
+						  GpssFdwPlanState *fdw_private);
 static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
-			   GpssFdwPlanState *fdw_private,
-			   Cost *startup_cost, Cost *total_cost);
-static int file_acquire_sample_rows(Relation onerel, int elevel,
-						 HeapTuple *rows, int targrows,
-						 double *totalrows, double *totaldeadrows);
-
-
+						   GpssFdwPlanState *fdw_private,
+						   Cost *startup_cost, Cost *total_cost);
+static Oid lookupCustomTransform(char *formatter_name);
 /*
  * Foreign-data wrapper handler function: return a struct with pointers
  * to my callback routines.
  */
-Datum
-gpss_fdw_handler(PG_FUNCTION_ARGS)
+Datum gpss_fdw_handler(PG_FUNCTION_ARGS)
 {
 	FdwRoutine *fdwroutine = makeNode(FdwRoutine);
 
@@ -177,24 +175,21 @@ gpss_fdw_handler(PG_FUNCTION_ARGS)
  *
  * Raise an ERROR if the option or its value is considered invalid.
  */
-Datum
-gpss_fdw_validator(PG_FUNCTION_ARGS)
+Datum gpss_fdw_validator(PG_FUNCTION_ARGS)
 {
-	List	   *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
-	Oid			catalog = PG_GETARG_OID(1);
-	char	   *address = NULL;
-	DefElem    *force_not_null = NULL;
-	DefElem    *force_null = NULL;
-	List	   *other_options = NIL;
-	ListCell   *cell;
+	List *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
+	Oid catalog = PG_GETARG_OID(1);
+	char *address = NULL;
+	List *other_options = NIL;
+	ListCell *cell;
 
 	/*
 	 * Check that only options supported by gpss_fdw, and allowed for the
 	 * current object type, are given.
 	 */
-	foreach(cell, options_list)
+	foreach (cell, options_list)
 	{
-		DefElem    *def = (DefElem *) lfirst(cell);
+		DefElem *def = (DefElem *)lfirst(cell);
 
 		if (!is_valid_option(def->defname, catalog))
 		{
@@ -217,9 +212,9 @@ gpss_fdw_validator(PG_FUNCTION_ARGS)
 					(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 					 errmsg("invalid option \"%s\"", def->defname),
 					 buf.len > 0
-					 ? errhint("Valid options in this context are: %s",
-							   buf.data)
-				  : errhint("There are no valid options in this context.")));
+						 ? errhint("Valid options in this context are: %s",
+								   buf.data)
+						 : errhint("There are no valid options in this context.")));
 		}
 
 		/*
@@ -275,14 +270,14 @@ is_valid_option(const char *option, Oid context)
  */
 static void
 gpssGetOptions(Oid foreigntableid,
-			   char **address, List **other_options)
+			   char **address, char **funcname, List **other_options)
 {
 	ForeignTable *table;
 	ForeignServer *server;
 	ForeignDataWrapper *wrapper;
-	List	   *options;
-	ListCell   *lc,
-			   *prev;
+	List *options;
+	ListCell *lc,
+		*prev;
 
 	/*
 	 * Extract options from FDW objects.  We ignore user mappings because
@@ -300,16 +295,15 @@ gpssGetOptions(Oid foreigntableid,
 	options = list_concat(options, wrapper->options);
 	options = list_concat(options, server->options);
 	options = list_concat(options, table->options);
-	options = list_concat(options, get_gpss_fdw_attribute_options(foreigntableid));
 
 	/*
 	 * Separate out the address.
 	 */
 	*address = NULL;
 	prev = NULL;
-	foreach(lc, options)
+	foreach (lc, options)
 	{
-		DefElem    *def = (DefElem *) lfirst(lc);
+		DefElem *def = (DefElem *)lfirst(lc);
 
 		if (strcmp(def->defname, "address") == 0)
 		{
@@ -327,14 +321,13 @@ gpssGetOptions(Oid foreigntableid,
 	if (*address == NULL)
 		elog(ERROR, "address is required for gpss_fdw foreign tables");
 
-
 	if (table->exec_location == FTEXECLOCATION_ALL_SEGMENTS)
 	{
 		/*
 		 * pass the on_segment option to COPY, which will replace the required
 		 * placeholder "<SEGID>" in address
 		 */
-		options = list_append_unique(options, makeDefElem("on_segment", (Node *)makeInteger(TRUE)));
+		options = list_append_unique(options, makeDefElem((char*)"on_segment", (Node *)makeInteger(TRUE)));
 	}
 	else if (table->exec_location == FTEXECLOCATION_ANY)
 	{
@@ -344,83 +337,6 @@ gpssGetOptions(Oid foreigntableid,
 	}
 
 	*other_options = options;
-}
-
-/*
- * Retrieve per-column generic options from pg_attribute and construct a list
- * of DefElems representing them.
- *
- * At the moment we only have "force_not_null", and "force_null",
- * which should each be combined into a single DefElem listing all such
- * columns, since that's what COPY expects.
- */
-static List *
-get_gpss_fdw_attribute_options(Oid relid)
-{
-	Relation	rel;
-	TupleDesc	tupleDesc;
-	AttrNumber	natts;
-	AttrNumber	attnum;
-	List	   *fnncolumns = NIL;
-	List	   *fncolumns = NIL;
-
-	List	   *options = NIL;
-
-	rel = heap_open(relid, AccessShareLock);
-	tupleDesc = RelationGetDescr(rel);
-	natts = tupleDesc->natts;
-
-	/* Retrieve FDW options for all user-defined attributes. */
-	for (attnum = 1; attnum <= natts; attnum++)
-	{
-		Form_pg_attribute attr = tupleDesc->attrs[attnum - 1];
-		List	   *options;
-		ListCell   *lc;
-
-		/* Skip dropped attributes. */
-		if (attr->attisdropped)
-			continue;
-
-		options = GetForeignColumnOptions(relid, attnum);
-		foreach(lc, options)
-		{
-			DefElem    *def = (DefElem *) lfirst(lc);
-
-			if (strcmp(def->defname, "force_not_null") == 0)
-			{
-				if (defGetBoolean(def))
-				{
-					char	   *attname = pstrdup(NameStr(attr->attname));
-
-					fnncolumns = lappend(fnncolumns, makeString(attname));
-				}
-			}
-			else if (strcmp(def->defname, "force_null") == 0)
-			{
-				if (defGetBoolean(def))
-				{
-					char	   *attname = pstrdup(NameStr(attr->attname));
-
-					fncolumns = lappend(fncolumns, makeString(attname));
-				}
-			}
-			/* maybe in future handle other options here */
-		}
-	}
-
-	heap_close(rel, AccessShareLock);
-
-	/*
-	 * Return DefElem only when some column(s) have force_not_null /
-	 * force_null options set
-	 */
-	if (fnncolumns != NIL)
-		options = lappend(options, makeDefElem("force_not_null", (Node *) fnncolumns));
-
-	if (fncolumns != NIL)
-		options = lappend(options, makeDefElem("force_null", (Node *) fncolumns));
-
-	return options;
 }
 
 /*
@@ -438,10 +354,10 @@ gpssGetForeignRelSize(PlannerInfo *root,
 	 * Fetch options.  We only need address at this point, but we might as
 	 * well get everything and not need to re-fetch it later in planning.
 	 */
-	fdw_private = (GpssFdwPlanState *) palloc(sizeof(GpssFdwPlanState));
+	fdw_private = (GpssFdwPlanState *)palloc(sizeof(GpssFdwPlanState));
 	gpssGetOptions(foreigntableid,
-				   &fdw_private->address, &fdw_private->options);
-	baserel->fdw_private = (void *) fdw_private;
+				   &fdw_private->address, NULL, &fdw_private->options);
+	baserel->fdw_private = (void *)fdw_private;
 
 	/* Estimate relation size */
 	estimate_size(root, baserel, fdw_private);
@@ -460,11 +376,9 @@ gpssGetForeignPaths(PlannerInfo *root,
 					RelOptInfo *baserel,
 					Oid foreigntableid)
 {
-	GpssFdwPlanState *fdw_private = (GpssFdwPlanState *) baserel->fdw_private;
-	Cost		startup_cost;
-	Cost		total_cost;
-	List	   *columns;
-	List	   *coptions = NIL;
+	GpssFdwPlanState *fdw_private = (GpssFdwPlanState *)baserel->fdw_private;
+	Cost startup_cost;
+	Cost total_cost;
 
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private,
@@ -476,15 +390,15 @@ gpssGetForeignPaths(PlannerInfo *root,
 	 * it will be propagated into the fdw_private list of the Plan node.
 	 */
 	add_path(baserel, (Path *)
-			 create_foreignscan_path(root, baserel,
-									 NULL,		/* default pathtarget */
-									 baserel->rows,
-									 startup_cost,
-									 total_cost,
-									 NIL,		/* no pathkeys */
-									 NULL,		/* no outer rel either */
-									 NULL,		/* no extra plan */
-									 NIL));
+						  create_foreignscan_path(root, baserel,
+												  NULL, /* default pathtarget */
+												  baserel->rows,
+												  startup_cost,
+												  total_cost,
+												  NIL,  /* no pathkeys */
+												  NULL, /* no outer rel either */
+												  NULL, /* no extra plan */
+												  NIL));
 
 	/*
 	 * If data file was sorted, and we knew it somehow, we could insert
@@ -506,7 +420,7 @@ gpssGetForeignPlan(PlannerInfo *root,
 				   List *scan_clauses,
 				   Plan *outer_plan)
 {
-	Index		scan_relid = baserel->relid;
+	Index scan_relid = baserel->relid;
 
 	/*
 	 * We have no native ability to evaluate restriction clauses, so we just
@@ -521,10 +435,10 @@ gpssGetForeignPlan(PlannerInfo *root,
 	return make_foreignscan(tlist,
 							scan_clauses,
 							scan_relid,
-							NIL,	/* no expressions to evaluate */
+							NIL, /* no expressions to evaluate */
 							best_path->fdw_private,
-							NIL,	/* no custom tlist */
-							NIL,	/* no remote quals */
+							NIL, /* no custom tlist */
+							NIL, /* no remote quals */
 							outer_plan);
 }
 
@@ -535,12 +449,12 @@ gpssGetForeignPlan(PlannerInfo *root,
 static void
 gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 {
-	char	   *address;
-	List	   *options;
+	char *address;
+	List *options;
 
 	/* Fetch options --- we only need address at this point */
 	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
-				   &address, &options);
+				   &address, NULL, &options);
 
 	ExplainPropertyText("Foreign File", address, es);
 
@@ -550,7 +464,7 @@ gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 		struct stat stat_buf;
 
 		if (stat(address, &stat_buf) == 0)
-			ExplainPropertyLong("Foreign File Size", (long) stat_buf.st_size,
+			ExplainPropertyLong("Foreign File Size", (long)stat_buf.st_size,
 								es);
 	}
 }
@@ -562,9 +476,10 @@ gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 gpssBeginForeignScan(ForeignScanState *node, int eflags)
 {
-	ForeignScan *plan = (ForeignScan *) node->ss.ps.plan;
-	char	   *address;
-	List	   *options;
+	ForeignScan *plan = (ForeignScan *)node->ss.ps.plan;
+	char *address;
+	char *name;
+	List *options;
 	GpssFdwExecutionState *festate;
 
 	/*
@@ -575,7 +490,7 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 
 	/* Fetch options of foreign table */
 	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
-				   &address, &options);
+				   &address, &name, &options);
 
 	/* Add any options from the plan (currently only convert_selectively) */
 	options = list_concat(options, plan->fdw_private);
@@ -584,12 +499,15 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 	 * Save state in node->fdw_state.  We must save enough information to call
 	 * BeginCopyFrom() again.
 	 */
-	festate = (GpssFdwExecutionState *) palloc(sizeof(GpssFdwExecutionState));
+	festate = (GpssFdwExecutionState *)palloc(sizeof(GpssFdwExecutionState));
 	festate->address = address;
 	festate->options = options;
 	festate->gpssrpc = create_gpss_stub(address);
 
-	node->fdw_state = (void *) festate;
+	Oid func = lookupCustomTransform(name);
+	fmgr_info(func, &festate->fi);
+
+	node->fdw_state = (void *)festate;
 }
 
 /*
@@ -600,19 +518,9 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 gpssIterateForeignScan(ForeignScanState *node)
 {
-	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
+	GpssFdwExecutionState *festate = (GpssFdwExecutionState *)node->fdw_state;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-	bool		found;
-
-    // TODO: enable errcallback
-	// ErrorContextCallback errcallback;
-
-	// /* Set up callback to identify error line number. */
-	// errcallback.callback = CopyFromErrorCallback;
-	// errcallback.arg = (void *) festate->cstate;
-	// errcallback.previous = error_context_stack;
-	// error_context_stack = &errcallback;
-
+	
 	/*
 	 * The protocol for loading a virtual tuple into a slot is first
 	 * ExecClearTuple, then fill the values/isnull arrays, then
@@ -626,14 +534,24 @@ gpssIterateForeignScan(ForeignScanState *node)
 	 * foreign tables.
 	 */
 	ExecClearTuple(slot);
-	// found = NextCopyFrom(festate->cstate, NULL,
-	// 					 slot_get_values(slot), slot_get_isnull(slot),
-	// 					 NULL);
-	if (found)
-		ExecStoreVirtualTuple(slot);
+	StringInfoData str;
+	initStringInfoOfSize(&str, 4096);
+	if (gpssfdw_stream_data(festate->gpssrpc, "", &str))
+	{
+		text *data = cstring_to_text_with_len(str.data, str.len);
+		Datum v = PointerGetDatum(data);
+		Datum *values = slot_get_values(slot);
+		bool *isnull = slot_get_isnull(slot);
+		HeapTupleHeader tup = (HeapTupleHeader)FunctionCall1(&festate->fi, v);
+		HeapTupleData tuple;
+		tuple.t_len = HeapTupleHeaderGetDatumLength(tup);
+		ItemPointerSetInvalid(&(tuple.t_self));
+		tuple.t_data = tup;
 
-	/* Remove error callback. */
-	// error_context_stack = errcallback.previous;
+		TupleDesc desc = RelationGetDescr(node->ss.ss_currentRelation);
+		heap_deform_tuple(&tuple, desc, values, isnull);
+		ExecStoreVirtualTuple(slot);
+	}
 
 	return slot;
 }
@@ -645,7 +563,7 @@ gpssIterateForeignScan(ForeignScanState *node)
 static void
 gpssReScanForeignScan(ForeignScanState *node)
 {
-	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
+	
 }
 
 /*
@@ -655,7 +573,7 @@ gpssReScanForeignScan(ForeignScanState *node)
 static void
 gpssEndForeignScan(ForeignScanState *node)
 {
-	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
+	GpssFdwExecutionState *festate = (GpssFdwExecutionState *)node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (festate)
@@ -699,24 +617,23 @@ static void
 estimate_size(PlannerInfo *root, RelOptInfo *baserel,
 			  GpssFdwPlanState *fdw_private)
 {
-	struct stat stat_buf;
 	BlockNumber pages;
-	double		ntuples;
-	double		nrows;
+	double ntuples;
+	double nrows;
 
-	void* gpss = create_gpss_stub(fdw_private->address);
+	void *gpss = create_gpss_stub(fdw_private->address);
 	if (gpss == NULL)
 		ereport(ERROR,
-			(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-			 errmsg("gpss: could not connect to gpss at \"%s\"", fdw_private->address)));
-	
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("gpss: could not connect to gpss at \"%s\"", fdw_private->address)));
+
 	int64 bytes = gpssfdw_estimate_size(gpss, "");
 	delete_gpss_stub(gpss);
 
 	if (bytes == 0)
 		ereport(ERROR,
-			(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-			 errmsg("gpss: could not estimate size", fdw_private->address)));
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("gpss: could not estimate size")));
 
 	/*
 	 * Convert size to pages for use in I/O cost estimate later.
@@ -736,10 +653,10 @@ estimate_size(PlannerInfo *root, RelOptInfo *baserel,
 		 * previous ANALYZE), so compute a tuples-per-page estimate and scale
 		 * that by the current file size.
 		 */
-		double		density;
+		double density;
 
-		density = baserel->tuples / (double) baserel->pages;
-		ntuples = clamp_row_est(density * (double) pages);
+		density = baserel->tuples / (double)baserel->pages;
+		ntuples = clamp_row_est(density * (double)pages);
 	}
 	else
 	{
@@ -751,12 +668,12 @@ estimate_size(PlannerInfo *root, RelOptInfo *baserel,
 		 * representation.  Possibly we could do something better, but the
 		 * real answer to anyone who complains is "ANALYZE" ...
 		 */
-		int			tuple_width;
+		int tuple_width;
 
 		tuple_width = MAXALIGN(baserel->reltarget->width) +
-			MAXALIGN(SizeofHeapTupleHeader);
-		ntuples = clamp_row_est((double) stat_buf.st_size /
-								(double) tuple_width);
+					  MAXALIGN(SizeofHeapTupleHeader);
+		ntuples = clamp_row_est((double)bytes /
+								(double)tuple_width);
 	}
 	fdw_private->ntuples = ntuples;
 
@@ -765,12 +682,12 @@ estimate_size(PlannerInfo *root, RelOptInfo *baserel,
 	 * baserestrictinfo quals.
 	 */
 	nrows = ntuples *
-		clauselist_selectivity(root,
-							   baserel->baserestrictinfo,
-							   0,
-							   JOIN_INNER,
-							   NULL,
-							   false);
+			clauselist_selectivity(root,
+								   baserel->baserestrictinfo,
+								   0,
+								   JOIN_INNER,
+								   NULL,
+								   false);
 
 	nrows = clamp_row_est(nrows);
 
@@ -789,9 +706,9 @@ estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 			   Cost *startup_cost, Cost *total_cost)
 {
 	BlockNumber pages = fdw_private->pages;
-	double		ntuples = fdw_private->ntuples;
-	Cost		run_cost = 0;
-	Cost		cpu_per_tuple;
+	double ntuples = fdw_private->ntuples;
+	Cost run_cost = 0;
+	Cost cpu_per_tuple;
 
 	/*
 	 * We estimate costs almost the same way as cost_seqscan(), thus assuming
@@ -805,4 +722,33 @@ estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 	cpu_per_tuple = cpu_tuple_cost * 10 + baserel->baserestrictcost.per_tuple;
 	run_cost += cpu_per_tuple * ntuples;
 	*total_cost = *startup_cost + run_cost;
+}
+
+
+static Oid
+lookupCustomTransform(char *formatter_name)
+{
+        List       *funcname = NIL;
+        Oid                     procOid = InvalidOid;
+        Oid                     argList[1];
+
+        funcname = lappend(funcname, makeString(formatter_name));
+
+        argList[0] = JSONOID; //json, see pg_type.h
+        procOid = LookupFuncName(funcname, 1, argList, true);
+
+        if (!OidIsValid(procOid))
+                ereport(ERROR,
+                                (errcode(ERRCODE_UNDEFINED_FUNCTION),
+                                 errmsg("function \"%s\" was not found", formatter_name),
+                                 errhint("Create it with CREATE FUNCTION.")));
+
+        /* check allowed volatility */
+        if (func_volatile(procOid) != PROVOLATILE_IMMUTABLE)
+                ereport(ERROR,
+                                (errcode(ERRCODE_INVALID_FUNCTION_DEFINITION),
+                                 errmsg("formatter function %s is not declared IMUUTABLE",
+                                                formatter_name)));
+
+        return procOid;
 }

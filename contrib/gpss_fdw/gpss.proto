@@ -7,7 +7,7 @@ message EstimateSizeRequest {
 }
 
 message EstimateSizeResponse {
-    int64 bytes = 1;
+    int64 estimate_size = 1;
 }
 
 message StreamDataRequest {
@@ -15,7 +15,7 @@ message StreamDataRequest {
 }
 
 message StreamDataResponse {
-    bytes data = 1;
+    bytes msg = 1;
 }
 
 service GpssFdw {
