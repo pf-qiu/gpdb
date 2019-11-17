@@ -1,12 +1,12 @@
 /*-------------------------------------------------------------------------
  *
- * file_fdw.c
+ * gpss_fdw.c
  *		  foreign-data wrapper for server-side flat files.
  *
  * Copyright (c) 2010-2016, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
- *		  contrib/file_fdw/file_fdw.c
+ *		  contrib/gpss_fdw/gpss_fdw.c
  *
  *-------------------------------------------------------------------------
  */
@@ -41,24 +41,24 @@ PG_MODULE_MAGIC;
 /*
  * Describes the valid options for objects that use this wrapper.
  */
-struct FileFdwOption
+struct GpssFdwOption
 {
 	const char *optname;
 	Oid			optcontext;		/* Oid of catalog in which option may appear */
 };
 
 /*
- * Valid options for file_fdw.
+ * Valid options for gpss_fdw.
  * These options are based on the options for the COPY FROM command.
  * But note that force_not_null and force_null are handled as boolean options
  * attached to a column, not as table options.
  *
  * Note: If you are adding new option for user mapping, you need to modify
- * fileGetOptions(), which currently doesn't bother to look at user mappings.
+ * gpssGetOptions(), which currently doesn't bother to look at user mappings.
  */
-static const struct FileFdwOption valid_options[] = {
+static const struct GpssFdwOption valid_options[] = {
 	/* File options */
-	{"filename", ForeignTableRelationId},
+	{"address", ForeignTableRelationId},
 
 	/* Format options */
 	/* oids option is not supported */
@@ -73,7 +73,7 @@ static const struct FileFdwOption valid_options[] = {
 	{"force_null", AttributeRelationId},
 
 	/*
-	 * force_quote is not supported by file_fdw because it's for COPY TO.
+	 * force_quote is not supported by gpss_fdw because it's for COPY TO.
 	 */
 
 	/* Sentinel */
@@ -83,71 +83,71 @@ static const struct FileFdwOption valid_options[] = {
 /*
  * FDW-specific information for RelOptInfo.fdw_private.
  */
-typedef struct FileFdwPlanState
+typedef struct GpssFdwPlanState
 {
-	char	   *filename;		/* file to read */
-	List	   *options;		/* merged COPY options, excluding filename */
+	char	   *address;		/* file to read */
+	List	   *options;		/* merged COPY options, excluding address */
 	BlockNumber pages;			/* estimate of file's physical size */
 	double		ntuples;		/* estimate of number of rows in file */
-} FileFdwPlanState;
+} GpssFdwPlanState;
 
 /*
  * FDW-specific information for ForeignScanState.fdw_state.
  */
-typedef struct FileFdwExecutionState
+typedef struct GpssFdwExecutionState
 {
-	char	   *filename;		/* file to read */
-	List	   *options;		/* merged COPY options, excluding filename */
+	char	   *address;		/* file to read */
+	List	   *options;		/* merged COPY options, excluding address */
 	CopyState	cstate;			/* state of reading file */
-} FileFdwExecutionState;
+} GpssFdwExecutionState;
 
 /*
  * SQL functions
  */
-PG_FUNCTION_INFO_V1(file_fdw_handler);
-PG_FUNCTION_INFO_V1(file_fdw_validator);
+PG_FUNCTION_INFO_V1(gpss_fdw_handler);
+PG_FUNCTION_INFO_V1(gpss_fdw_validator);
 
 /*
  * FDW callback routines
  */
-static void fileGetForeignRelSize(PlannerInfo *root,
+static void gpssGetForeignRelSize(PlannerInfo *root,
 					  RelOptInfo *baserel,
 					  Oid foreigntableid);
-static void fileGetForeignPaths(PlannerInfo *root,
+static void gpssGetForeignPaths(PlannerInfo *root,
 					RelOptInfo *baserel,
 					Oid foreigntableid);
-static ForeignScan *fileGetForeignPlan(PlannerInfo *root,
+static ForeignScan *gpssGetForeignPlan(PlannerInfo *root,
 				   RelOptInfo *baserel,
 				   Oid foreigntableid,
 				   ForeignPath *best_path,
 				   List *tlist,
 				   List *scan_clauses,
 				   Plan *outer_plan);
-static void fileExplainForeignScan(ForeignScanState *node, ExplainState *es);
-static void fileBeginForeignScan(ForeignScanState *node, int eflags);
-static TupleTableSlot *fileIterateForeignScan(ForeignScanState *node);
-static void fileReScanForeignScan(ForeignScanState *node);
-static void fileEndForeignScan(ForeignScanState *node);
-static bool fileAnalyzeForeignTable(Relation relation,
+static void gpssExplainForeignScan(ForeignScanState *node, ExplainState *es);
+static void gpssBeginForeignScan(ForeignScanState *node, int eflags);
+static TupleTableSlot *gpssIterateForeignScan(ForeignScanState *node);
+static void gpssReScanForeignScan(ForeignScanState *node);
+static void gpssEndForeignScan(ForeignScanState *node);
+static bool gpssAnalyzeForeignTable(Relation relation,
 						AcquireSampleRowsFunc *func,
 						BlockNumber *totalpages);
-static bool fileIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
+static bool gpssIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
 							  RangeTblEntry *rte);
 
 /*
  * Helper functions
  */
 static bool is_valid_option(const char *option, Oid context);
-static void fileGetOptions(Oid foreigntableid,
-			   char **filename, List **other_options);
-static List *get_file_fdw_attribute_options(Oid relid);
+static void gpssGetOptions(Oid foreigntableid,
+			   char **address, List **other_options);
+static List *get_gpss_fdw_attribute_options(Oid relid);
 static bool check_selective_binary_conversion(RelOptInfo *baserel,
 								  Oid foreigntableid,
 								  List **columns);
 static void estimate_size(PlannerInfo *root, RelOptInfo *baserel,
-			  FileFdwPlanState *fdw_private);
+			  GpssFdwPlanState *fdw_private);
 static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
-			   FileFdwPlanState *fdw_private,
+			   GpssFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost);
 static int file_acquire_sample_rows(Relation onerel, int elevel,
 						 HeapTuple *rows, int targrows,
@@ -159,61 +159,61 @@ static int file_acquire_sample_rows(Relation onerel, int elevel,
  * to my callback routines.
  */
 Datum
-file_fdw_handler(PG_FUNCTION_ARGS)
+gpss_fdw_handler(PG_FUNCTION_ARGS)
 {
 	FdwRoutine *fdwroutine = makeNode(FdwRoutine);
 
-	fdwroutine->GetForeignRelSize = fileGetForeignRelSize;
-	fdwroutine->GetForeignPaths = fileGetForeignPaths;
-	fdwroutine->GetForeignPlan = fileGetForeignPlan;
-	fdwroutine->ExplainForeignScan = fileExplainForeignScan;
-	fdwroutine->BeginForeignScan = fileBeginForeignScan;
-	fdwroutine->IterateForeignScan = fileIterateForeignScan;
-	fdwroutine->ReScanForeignScan = fileReScanForeignScan;
-	fdwroutine->EndForeignScan = fileEndForeignScan;
-	fdwroutine->AnalyzeForeignTable = fileAnalyzeForeignTable;
-	fdwroutine->IsForeignScanParallelSafe = fileIsForeignScanParallelSafe;
+	fdwroutine->GetForeignRelSize = gpssGetForeignRelSize;
+	fdwroutine->GetForeignPaths = gpssGetForeignPaths;
+	fdwroutine->GetForeignPlan = gpssGetForeignPlan;
+	fdwroutine->ExplainForeignScan = gpssExplainForeignScan;
+	fdwroutine->BeginForeignScan = gpssBeginForeignScan;
+	fdwroutine->IterateForeignScan = gpssIterateForeignScan;
+	fdwroutine->ReScanForeignScan = gpssReScanForeignScan;
+	fdwroutine->EndForeignScan = gpssEndForeignScan;
+	fdwroutine->AnalyzeForeignTable = gpssAnalyzeForeignTable;
+	fdwroutine->IsForeignScanParallelSafe = gpssIsForeignScanParallelSafe;
 
 	PG_RETURN_POINTER(fdwroutine);
 }
 
 /*
  * Validate the generic options given to a FOREIGN DATA WRAPPER, SERVER,
- * USER MAPPING or FOREIGN TABLE that uses file_fdw.
+ * USER MAPPING or FOREIGN TABLE that uses gpss_fdw.
  *
  * Raise an ERROR if the option or its value is considered invalid.
  */
 Datum
-file_fdw_validator(PG_FUNCTION_ARGS)
+gpss_fdw_validator(PG_FUNCTION_ARGS)
 {
 	List	   *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
 	Oid			catalog = PG_GETARG_OID(1);
-	char	   *filename = NULL;
+	char	   *address = NULL;
 	DefElem    *force_not_null = NULL;
 	DefElem    *force_null = NULL;
 	List	   *other_options = NIL;
 	ListCell   *cell;
 
 	/*
-	 * Only superusers are allowed to set options of a file_fdw foreign table.
-	 * This is because the filename is one of those options, and we don't want
+	 * Only superusers are allowed to set options of a gpss_fdw foreign table.
+	 * This is because the address is one of those options, and we don't want
 	 * non-superusers to be able to determine which file gets read.
 	 *
 	 * Putting this sort of permissions check in a validator is a bit of a
 	 * crock, but there doesn't seem to be any other place that can enforce
 	 * the check more cleanly.
 	 *
-	 * Note that the valid_options[] array disallows setting filename at any
+	 * Note that the valid_options[] array disallows setting address at any
 	 * options level other than foreign table --- otherwise there'd still be a
 	 * security hole.
 	 */
 	if (catalog == ForeignTableRelationId && !superuser())
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("only superuser can change options of a file_fdw foreign table")));
+				 errmsg("only superuser can change options of a gpss_fdw foreign table")));
 
 	/*
-	 * Check that only options supported by file_fdw, and allowed for the
+	 * Check that only options supported by gpss_fdw, and allowed for the
 	 * current object type, are given.
 	 */
 	foreach(cell, options_list)
@@ -222,7 +222,7 @@ file_fdw_validator(PG_FUNCTION_ARGS)
 
 		if (!is_valid_option(def->defname, catalog))
 		{
-			const struct FileFdwOption *opt;
+			const struct GpssFdwOption *opt;
 			StringInfoData buf;
 
 			/*
@@ -247,22 +247,22 @@ file_fdw_validator(PG_FUNCTION_ARGS)
 		}
 
 		/*
-		 * Separate out filename and column-specific options, since
+		 * Separate out address and column-specific options, since
 		 * ProcessCopyOptions won't accept them.
 		 */
 
-		if (strcmp(def->defname, "filename") == 0)
+		if (strcmp(def->defname, "address") == 0)
 		{
-			if (filename)
+			if (address)
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
 						 errmsg("conflicting or redundant options")));
-			filename = defGetString(def);
+			address = defGetString(def);
 		}
 
 		/*
 		 * force_not_null is a boolean option; after validation we can discard
-		 * it - it will be retrieved later in get_file_fdw_attribute_options()
+		 * it - it will be retrieved later in get_gpss_fdw_attribute_options()
 		 */
 		else if (strcmp(def->defname, "force_not_null") == 0)
 		{
@@ -296,12 +296,12 @@ file_fdw_validator(PG_FUNCTION_ARGS)
 	ProcessCopyOptions(NULL, true, other_options, 0, true);
 
 	/*
-	 * Filename option is required for file_fdw foreign tables.
+	 * Filename option is required for gpss_fdw foreign tables.
 	 */
-	if (catalog == ForeignTableRelationId && filename == NULL)
+	if (catalog == ForeignTableRelationId && address == NULL)
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_DYNAMIC_PARAMETER_VALUE_NEEDED),
-				 errmsg("filename is required for file_fdw foreign tables")));
+				 errmsg("address is required for gpss_fdw foreign tables")));
 
 	PG_RETURN_VOID();
 }
@@ -313,7 +313,7 @@ file_fdw_validator(PG_FUNCTION_ARGS)
 static bool
 is_valid_option(const char *option, Oid context)
 {
-	const struct FileFdwOption *opt;
+	const struct GpssFdwOption *opt;
 
 	for (opt = valid_options; opt->optname; opt++)
 	{
@@ -324,14 +324,14 @@ is_valid_option(const char *option, Oid context)
 }
 
 /*
- * Fetch the options for a file_fdw foreign table.
+ * Fetch the options for a gpss_fdw foreign table.
  *
- * We have to separate out "filename" from the other options because
+ * We have to separate out "address" from the other options because
  * it must not appear in the options list passed to the core COPY code.
  */
 static void
-fileGetOptions(Oid foreigntableid,
-			   char **filename, List **other_options)
+gpssGetOptions(Oid foreigntableid,
+			   char **address, List **other_options)
 {
 	ForeignTable *table;
 	ForeignServer *server;
@@ -342,7 +342,7 @@ fileGetOptions(Oid foreigntableid,
 
 	/*
 	 * Extract options from FDW objects.  We ignore user mappings because
-	 * file_fdw doesn't have any options that can be specified there.
+	 * gpss_fdw doesn't have any options that can be specified there.
 	 *
 	 * (XXX Actually, given the current contents of valid_options[], there's
 	 * no point in examining anything except the foreign table's own options.
@@ -356,20 +356,20 @@ fileGetOptions(Oid foreigntableid,
 	options = list_concat(options, wrapper->options);
 	options = list_concat(options, server->options);
 	options = list_concat(options, table->options);
-	options = list_concat(options, get_file_fdw_attribute_options(foreigntableid));
+	options = list_concat(options, get_gpss_fdw_attribute_options(foreigntableid));
 
 	/*
-	 * Separate out the filename.
+	 * Separate out the address.
 	 */
-	*filename = NULL;
+	*address = NULL;
 	prev = NULL;
 	foreach(lc, options)
 	{
 		DefElem    *def = (DefElem *) lfirst(lc);
 
-		if (strcmp(def->defname, "filename") == 0)
+		if (strcmp(def->defname, "address") == 0)
 		{
-			*filename = defGetString(def);
+			*address = defGetString(def);
 			options = list_delete_cell(options, lc, prev);
 			break;
 		}
@@ -377,18 +377,18 @@ fileGetOptions(Oid foreigntableid,
 	}
 
 	/*
-	 * The validator should have checked that a filename was included in the
+	 * The validator should have checked that a address was included in the
 	 * options, but check again, just in case.
 	 */
-	if (*filename == NULL)
-		elog(ERROR, "filename is required for file_fdw foreign tables");
+	if (*address == NULL)
+		elog(ERROR, "address is required for gpss_fdw foreign tables");
 
 
 	if (table->exec_location == FTEXECLOCATION_ALL_SEGMENTS)
 	{
 		/*
 		 * pass the on_segment option to COPY, which will replace the required
-		 * placeholder "<SEGID>" in filename
+		 * placeholder "<SEGID>" in address
 		 */
 		options = list_append_unique(options, makeDefElem("on_segment", (Node *)makeInteger(TRUE)));
 	}
@@ -396,7 +396,7 @@ fileGetOptions(Oid foreigntableid,
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("file_fdw does not support mpp_execute option 'any'")));
+				 errmsg("gpss_fdw does not support mpp_execute option 'any'")));
 	}
 
 	*other_options = options;
@@ -411,7 +411,7 @@ fileGetOptions(Oid foreigntableid,
  * columns, since that's what COPY expects.
  */
 static List *
-get_file_fdw_attribute_options(Oid relid)
+get_gpss_fdw_attribute_options(Oid relid)
 {
 	Relation	rel;
 	TupleDesc	tupleDesc;
@@ -480,23 +480,23 @@ get_file_fdw_attribute_options(Oid relid)
 }
 
 /*
- * fileGetForeignRelSize
+ * gpssGetForeignRelSize
  *		Obtain relation size estimates for a foreign table
  */
 static void
-fileGetForeignRelSize(PlannerInfo *root,
+gpssGetForeignRelSize(PlannerInfo *root,
 					  RelOptInfo *baserel,
 					  Oid foreigntableid)
 {
-	FileFdwPlanState *fdw_private;
+	GpssFdwPlanState *fdw_private;
 
 	/*
-	 * Fetch options.  We only need filename at this point, but we might as
+	 * Fetch options.  We only need address at this point, but we might as
 	 * well get everything and not need to re-fetch it later in planning.
 	 */
-	fdw_private = (FileFdwPlanState *) palloc(sizeof(FileFdwPlanState));
-	fileGetOptions(foreigntableid,
-				   &fdw_private->filename, &fdw_private->options);
+	fdw_private = (GpssFdwPlanState *) palloc(sizeof(GpssFdwPlanState));
+	gpssGetOptions(foreigntableid,
+				   &fdw_private->address, &fdw_private->options);
 	baserel->fdw_private = (void *) fdw_private;
 
 	/* Estimate relation size */
@@ -504,7 +504,7 @@ fileGetForeignRelSize(PlannerInfo *root,
 }
 
 /*
- * fileGetForeignPaths
+ * gpssGetForeignPaths
  *		Create possible access paths for a scan on the foreign table
  *
  *		Currently we don't support any push-down feature, so there is only one
@@ -512,11 +512,11 @@ fileGetForeignRelSize(PlannerInfo *root,
  *		the data file.
  */
 static void
-fileGetForeignPaths(PlannerInfo *root,
+gpssGetForeignPaths(PlannerInfo *root,
 					RelOptInfo *baserel,
 					Oid foreigntableid)
 {
-	FileFdwPlanState *fdw_private = (FileFdwPlanState *) baserel->fdw_private;
+	GpssFdwPlanState *fdw_private = (GpssFdwPlanState *) baserel->fdw_private;
 	Cost		startup_cost;
 	Cost		total_cost;
 	List	   *columns;
@@ -557,11 +557,11 @@ fileGetForeignPaths(PlannerInfo *root,
 }
 
 /*
- * fileGetForeignPlan
+ * gpssGetForeignPlan
  *		Create a ForeignScan plan node for scanning the foreign table
  */
 static ForeignScan *
-fileGetForeignPlan(PlannerInfo *root,
+gpssGetForeignPlan(PlannerInfo *root,
 				   RelOptInfo *baserel,
 				   Oid foreigntableid,
 				   ForeignPath *best_path,
@@ -592,44 +592,44 @@ fileGetForeignPlan(PlannerInfo *root,
 }
 
 /*
- * fileExplainForeignScan
+ * gpssExplainForeignScan
  *		Produce extra output for EXPLAIN
  */
 static void
-fileExplainForeignScan(ForeignScanState *node, ExplainState *es)
+gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 {
-	char	   *filename;
+	char	   *address;
 	List	   *options;
 
-	/* Fetch options --- we only need filename at this point */
-	fileGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
-				   &filename, &options);
+	/* Fetch options --- we only need address at this point */
+	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
+				   &address, &options);
 
-	ExplainPropertyText("Foreign File", filename, es);
+	ExplainPropertyText("Foreign File", address, es);
 
 	/* Suppress file size if we're not showing cost details */
 	if (es->costs)
 	{
 		struct stat stat_buf;
 
-		if (stat(filename, &stat_buf) == 0)
+		if (stat(address, &stat_buf) == 0)
 			ExplainPropertyLong("Foreign File Size", (long) stat_buf.st_size,
 								es);
 	}
 }
 
 /*
- * fileBeginForeignScan
+ * gpssBeginForeignScan
  *		Initiate access to the file by creating CopyState
  */
 static void
-fileBeginForeignScan(ForeignScanState *node, int eflags)
+gpssBeginForeignScan(ForeignScanState *node, int eflags)
 {
 	ForeignScan *plan = (ForeignScan *) node->ss.ps.plan;
-	char	   *filename;
+	char	   *address;
 	List	   *options;
 	CopyState	cstate;
-	FileFdwExecutionState *festate;
+	GpssFdwExecutionState *festate;
 
 	/*
 	 * Do nothing in EXPLAIN (no ANALYZE) case.  node->fdw_state stays NULL.
@@ -638,8 +638,8 @@ fileBeginForeignScan(ForeignScanState *node, int eflags)
 		return;
 
 	/* Fetch options of foreign table */
-	fileGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
-				   &filename, &options);
+	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
+				   &address, &options);
 
 	/* Add any options from the plan (currently only convert_selectively) */
 	options = list_concat(options, plan->fdw_private);
@@ -649,7 +649,7 @@ fileBeginForeignScan(ForeignScanState *node, int eflags)
 	 * as to match the expected ScanTupleSlot signature.
 	 */
 	cstate = BeginCopyFrom(node->ss.ss_currentRelation,
-						   filename,
+						   address,
 						   false, /* is_program */
 						   NULL,  /* data_source_cb */
 						   NULL,  /* data_source_cb_extra */
@@ -661,8 +661,8 @@ fileBeginForeignScan(ForeignScanState *node, int eflags)
 	 * Save state in node->fdw_state.  We must save enough information to call
 	 * BeginCopyFrom() again.
 	 */
-	festate = (FileFdwExecutionState *) palloc(sizeof(FileFdwExecutionState));
-	festate->filename = filename;
+	festate = (GpssFdwExecutionState *) palloc(sizeof(GpssFdwExecutionState));
+	festate->address = address;
 	festate->options = options;
 	festate->cstate = cstate;
 
@@ -670,14 +670,14 @@ fileBeginForeignScan(ForeignScanState *node, int eflags)
 }
 
 /*
- * fileIterateForeignScan
+ * gpssIterateForeignScan
  *		Read next record from the data file and store it into the
  *		ScanTupleSlot as a virtual tuple
  */
 static TupleTableSlot *
-fileIterateForeignScan(ForeignScanState *node)
+gpssIterateForeignScan(ForeignScanState *node)
 {
-	FileFdwExecutionState *festate = (FileFdwExecutionState *) node->fdw_state;
+	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	bool		found;
 	ErrorContextCallback errcallback;
@@ -714,18 +714,18 @@ fileIterateForeignScan(ForeignScanState *node)
 }
 
 /*
- * fileReScanForeignScan
+ * gpssReScanForeignScan
  *		Rescan table, possibly with new parameters
  */
 static void
-fileReScanForeignScan(ForeignScanState *node)
+gpssReScanForeignScan(ForeignScanState *node)
 {
-	FileFdwExecutionState *festate = (FileFdwExecutionState *) node->fdw_state;
+	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
 
 	EndCopyFrom(festate->cstate);
 
 	festate->cstate = BeginCopyFrom(node->ss.ss_currentRelation,
-									festate->filename,
+									festate->address,
 									false, /* is_program */
 									NULL,  /* data_source_cb */
 									NULL,  /* data_source_cb_extra */
@@ -735,13 +735,13 @@ fileReScanForeignScan(ForeignScanState *node)
 }
 
 /*
- * fileEndForeignScan
+ * gpssEndForeignScan
  *		Finish scanning foreign table and dispose objects used for this scan
  */
 static void
-fileEndForeignScan(ForeignScanState *node)
+gpssEndForeignScan(ForeignScanState *node)
 {
-	FileFdwExecutionState *festate = (FileFdwExecutionState *) node->fdw_state;
+	GpssFdwExecutionState *festate = (GpssFdwExecutionState *) node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (festate)
@@ -749,30 +749,30 @@ fileEndForeignScan(ForeignScanState *node)
 }
 
 /*
- * fileAnalyzeForeignTable
+ * gpssAnalyzeForeignTable
  *		Test whether analyzing this foreign table is supported
  */
 static bool
-fileAnalyzeForeignTable(Relation relation,
+gpssAnalyzeForeignTable(Relation relation,
 						AcquireSampleRowsFunc *func,
 						BlockNumber *totalpages)
 {
-	char	   *filename;
+	char	   *address;
 	List	   *options;
 	struct stat stat_buf;
 
 	/* Fetch options of foreign table */
-	fileGetOptions(RelationGetRelid(relation), &filename, &options);
+	gpssGetOptions(RelationGetRelid(relation), &address, &options);
 
 	/*
 	 * Get size of the file.  (XXX if we fail here, would it be better to just
 	 * return false to skip analyzing the table?)
 	 */
-	if (stat(filename, &stat_buf) < 0)
+	if (stat(address, &stat_buf) < 0)
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 errmsg("could not stat file \"%s\": %m",
-						filename)));
+						address)));
 
 	/*
 	 * Convert size to pages.  Must return at least 1 so that we can tell
@@ -788,12 +788,12 @@ fileAnalyzeForeignTable(Relation relation,
 }
 
 /*
- * fileIsForeignScanParallelSafe
+ * gpssIsForeignScanParallelSafe
  *		Reading a file in a parallel worker should work just the same as
  *		reading it in the leader, so mark scans safe.
  */
 static bool
-fileIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
+gpssIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
 							  RangeTblEntry *rte)
 {
 	return true;
@@ -927,7 +927,7 @@ check_selective_binary_conversion(RelOptInfo *baserel,
  */
 static void
 estimate_size(PlannerInfo *root, RelOptInfo *baserel,
-			  FileFdwPlanState *fdw_private)
+			  GpssFdwPlanState *fdw_private)
 {
 	struct stat stat_buf;
 	BlockNumber pages;
@@ -938,7 +938,7 @@ estimate_size(PlannerInfo *root, RelOptInfo *baserel,
 	 * Get size of the file.  It might not be there at plan time, though, in
 	 * which case we have to use a default estimate.
 	 */
-	if (stat(fdw_private->filename, &stat_buf) < 0)
+	if (stat(fdw_private->address, &stat_buf) < 0)
 		stat_buf.st_size = 10 * BLCKSZ;
 
 	/*
@@ -1008,7 +1008,7 @@ estimate_size(PlannerInfo *root, RelOptInfo *baserel,
  */
 static void
 estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
-			   FileFdwPlanState *fdw_private,
+			   GpssFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost)
 {
 	BlockNumber pages = fdw_private->pages;
@@ -1056,7 +1056,7 @@ file_acquire_sample_rows(Relation onerel, int elevel,
 	Datum	   *values;
 	bool	   *nulls;
 	bool		found;
-	char	   *filename;
+	char	   *address;
 	List	   *options;
 	CopyState	cstate;
 	ErrorContextCallback errcallback;
@@ -1071,19 +1071,19 @@ file_acquire_sample_rows(Relation onerel, int elevel,
 	nulls = (bool *) palloc(tupDesc->natts * sizeof(bool));
 
 	/* Fetch options of foreign table */
-	fileGetOptions(RelationGetRelid(onerel), &filename, &options);
+	gpssGetOptions(RelationGetRelid(onerel), &address, &options);
 
 	/*
 	 * Create CopyState from FDW options.
 	 */
-	cstate = BeginCopyFrom(onerel, filename, false, NULL, NULL, NIL, options, NIL);
+	cstate = BeginCopyFrom(onerel, address, false, NULL, NULL, NIL, options, NIL);
 
 	/*
 	 * Use per-tuple memory context to prevent leak of memory used to read
 	 * rows from the file with Copy routines.
 	 */
 	tupcontext = AllocSetContextCreate(CurrentMemoryContext,
-									   "file_fdw temporary context",
+									   "gpss_fdw temporary context",
 									   ALLOCSET_DEFAULT_MINSIZE,
 									   ALLOCSET_DEFAULT_INITSIZE,
 									   ALLOCSET_DEFAULT_MAXSIZE);
