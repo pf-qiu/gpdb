@@ -70,6 +70,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_gpss_2eproto::offsets[] PROTOB
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   PROTOBUF_FIELD_OFFSET(::gpssfdw::GetPagesResponse, pages_),
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::GetPagesResponse, tuples_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::gpssfdw::GetPagesRequest)},
@@ -83,10 +84,10 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
 
 const char descriptor_table_protodef_gpss_2eproto[] =
   "\n\ngpss.proto\022\007gpssfdw\"\035\n\017GetPagesRequest"
-  "\022\n\n\002id\030\001 \001(\t\"!\n\020GetPagesResponse\022\r\n\005page"
-  "s\030\001 \001(\0032J\n\007GpssFdw\022\?\n\010GetPages\022\030.gpssfdw"
-  ".GetPagesRequest\032\031.gpssfdw.GetPagesRespo"
-  "nseb\006proto3"
+  "\022\n\n\002id\030\001 \001(\t\"1\n\020GetPagesResponse\022\r\n\005page"
+  "s\030\001 \001(\003\022\016\n\006tuples\030\002 \001(\0032J\n\007GpssFdw\022\?\n\010Ge"
+  "tPages\022\030.gpssfdw.GetPagesRequest\032\031.gpssf"
+  "dw.GetPagesResponseb\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_gpss_2eproto_deps[1] = {
 };
@@ -97,7 +98,7 @@ static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_gps
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_gpss_2eproto_once;
 static bool descriptor_table_gpss_2eproto_initialized = false;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_gpss_2eproto = {
-  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 171,
+  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 187,
   &descriptor_table_gpss_2eproto_once, descriptor_table_gpss_2eproto_sccs, descriptor_table_gpss_2eproto_deps, 2, 0,
   schemas, file_default_instances, TableStruct_gpss_2eproto::offsets,
   file_level_metadata_gpss_2eproto, 2, file_level_enum_descriptors_gpss_2eproto, file_level_service_descriptors_gpss_2eproto,
@@ -394,6 +395,7 @@ class GetPagesResponse::HasBitSetters {
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int GetPagesResponse::kPagesFieldNumber;
+const int GetPagesResponse::kTuplesFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 GetPagesResponse::GetPagesResponse()
@@ -405,12 +407,16 @@ GetPagesResponse::GetPagesResponse(const GetPagesResponse& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       _internal_metadata_(nullptr) {
   _internal_metadata_.MergeFrom(from._internal_metadata_);
-  pages_ = from.pages_;
+  ::memcpy(&pages_, &from.pages_,
+    static_cast<size_t>(reinterpret_cast<char*>(&tuples_) -
+    reinterpret_cast<char*>(&pages_)) + sizeof(tuples_));
   // @@protoc_insertion_point(copy_constructor:gpssfdw.GetPagesResponse)
 }
 
 void GetPagesResponse::SharedCtor() {
-  pages_ = PROTOBUF_LONGLONG(0);
+  ::memset(&pages_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&tuples_) -
+      reinterpret_cast<char*>(&pages_)) + sizeof(tuples_));
 }
 
 GetPagesResponse::~GetPagesResponse() {
@@ -436,7 +442,9 @@ void GetPagesResponse::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  pages_ = PROTOBUF_LONGLONG(0);
+  ::memset(&pages_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&tuples_) -
+      reinterpret_cast<char*>(&pages_)) + sizeof(tuples_));
   _internal_metadata_.Clear();
 }
 
@@ -452,6 +460,13 @@ const char* GetPagesResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPA
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 8)) {
           pages_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint(&ptr);
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // int64 tuples = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
+          tuples_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -498,6 +513,19 @@ bool GetPagesResponse::MergePartialFromCodedStream(
         break;
       }
 
+      // int64 tuples = 2;
+      case 2: {
+        if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (16 & 0xFF)) {
+
+          DO_((::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadPrimitive<
+                   ::PROTOBUF_NAMESPACE_ID::int64, ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_INT64>(
+                 input, &tuples_)));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
       default: {
       handle_unusual:
         if (tag == 0) {
@@ -530,6 +558,11 @@ void GetPagesResponse::SerializeWithCachedSizes(
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64(1, this->pages(), output);
   }
 
+  // int64 tuples = 2;
+  if (this->tuples() != 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64(2, this->tuples(), output);
+  }
+
   if (_internal_metadata_.have_unknown_fields()) {
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFields(
         _internal_metadata_.unknown_fields(), output);
@@ -546,6 +579,11 @@ void GetPagesResponse::SerializeWithCachedSizes(
   // int64 pages = 1;
   if (this->pages() != 0) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64ToArray(1, this->pages(), target);
+  }
+
+  // int64 tuples = 2;
+  if (this->tuples() != 0) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt64ToArray(2, this->tuples(), target);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -574,6 +612,13 @@ size_t GetPagesResponse::ByteSizeLong() const {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int64Size(
         this->pages());
+  }
+
+  // int64 tuples = 2;
+  if (this->tuples() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int64Size(
+        this->tuples());
   }
 
   int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
@@ -606,6 +651,9 @@ void GetPagesResponse::MergeFrom(const GetPagesResponse& from) {
   if (from.pages() != 0) {
     set_pages(from.pages());
   }
+  if (from.tuples() != 0) {
+    set_tuples(from.tuples());
+  }
 }
 
 void GetPagesResponse::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -634,6 +682,7 @@ void GetPagesResponse::InternalSwap(GetPagesResponse* other) {
   using std::swap;
   _internal_metadata_.Swap(&other->_internal_metadata_);
   swap(pages_, other->pages_);
+  swap(tuples_, other->tuples_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata GetPagesResponse::GetMetadata() const {

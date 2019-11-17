@@ -317,12 +317,19 @@ class GetPagesResponse :
   ::PROTOBUF_NAMESPACE_ID::int64 pages() const;
   void set_pages(::PROTOBUF_NAMESPACE_ID::int64 value);
 
+  // int64 tuples = 2;
+  void clear_tuples();
+  static const int kTuplesFieldNumber = 2;
+  ::PROTOBUF_NAMESPACE_ID::int64 tuples() const;
+  void set_tuples(::PROTOBUF_NAMESPACE_ID::int64 value);
+
   // @@protoc_insertion_point(class_scope:gpssfdw.GetPagesResponse)
  private:
   class HasBitSetters;
 
   ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
   ::PROTOBUF_NAMESPACE_ID::int64 pages_;
+  ::PROTOBUF_NAMESPACE_ID::int64 tuples_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_gpss_2eproto;
 };
@@ -404,6 +411,20 @@ inline void GetPagesResponse::set_pages(::PROTOBUF_NAMESPACE_ID::int64 value) {
   
   pages_ = value;
   // @@protoc_insertion_point(field_set:gpssfdw.GetPagesResponse.pages)
+}
+
+// int64 tuples = 2;
+inline void GetPagesResponse::clear_tuples() {
+  tuples_ = PROTOBUF_LONGLONG(0);
+}
+inline ::PROTOBUF_NAMESPACE_ID::int64 GetPagesResponse::tuples() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.GetPagesResponse.tuples)
+  return tuples_;
+}
+inline void GetPagesResponse::set_tuples(::PROTOBUF_NAMESPACE_ID::int64 value) {
+  
+  tuples_ = value;
+  // @@protoc_insertion_point(field_set:gpssfdw.GetPagesResponse.tuples)
 }
 
 #ifdef __GNUC__

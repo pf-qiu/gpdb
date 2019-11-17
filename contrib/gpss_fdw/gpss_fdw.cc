@@ -36,6 +36,13 @@
 #include "utils/rel.h"
 #include "utils/sampling.h"
 
+#include <grpcpp/grpcpp.h>
+#include "gpss.grpc.pb.h"
+
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::Status;
+
 PG_MODULE_MAGIC;
 
 /*
@@ -62,13 +69,7 @@ static const struct GpssFdwOption valid_options[] = {
 
 	/* Format options */
 	/* oids option is not supported */
-	{"format", ForeignTableRelationId},
-	{"header", ForeignTableRelationId},
-	{"delimiter", ForeignTableRelationId},
-	{"quote", ForeignTableRelationId},
-	{"escape", ForeignTableRelationId},
-	{"null", ForeignTableRelationId},
-	{"encoding", ForeignTableRelationId},
+	{"formatter", ForeignTableRelationId},
 	{"force_not_null", AttributeRelationId},
 	{"force_null", AttributeRelationId},
 
@@ -522,13 +523,6 @@ gpssGetForeignPaths(PlannerInfo *root,
 	List	   *columns;
 	List	   *coptions = NIL;
 
-	/* Decide whether to selectively perform binary conversion */
-	if (check_selective_binary_conversion(baserel,
-										  foreigntableid,
-										  &columns))
-		coptions = list_make1(makeDefElem("convert_selectively",
-										  (Node *) columns));
-
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private,
 				   &startup_cost, &total_cost);
@@ -547,7 +541,7 @@ gpssGetForeignPaths(PlannerInfo *root,
 									 NIL,		/* no pathkeys */
 									 NULL,		/* no outer rel either */
 									 NULL,		/* no extra plan */
-									 coptions));
+									 NIL));
 
 	/*
 	 * If data file was sorted, and we knew it somehow, we could insert
@@ -796,7 +790,7 @@ static bool
 gpssIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
 							  RangeTblEntry *rte)
 {
-	return true;
+	return false;
 }
 
 /*
@@ -1175,4 +1169,11 @@ file_acquire_sample_rows(Relation onerel, int elevel,
 					*totalrows, numrows)));
 
 	return numrows;
+}
+
+static void getGpssHandle(const char* address)
+{
+	auto ch = grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
+	auto stub = gpssfdw::GpssFdw::NewStub(ch);
+
 }

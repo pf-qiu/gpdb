@@ -27,8 +27,5 @@ include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
 endif
 
-gpss.pb.cc: gpss.proto
-	protoc --cpp_out=. gpss.proto
-
-gpss.grpc.pb.cc: gpss.proto
-	protoc --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` gpss.proto
+proto:
+	protoc --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` gpss.proto
