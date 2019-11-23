@@ -21,6 +21,7 @@ extern "C"
 #include "access/reloptions.h"
 #include "access/sysattr.h"
 #include "catalog/pg_foreign_table.h"
+#include "catalog/pg_foreign_server.h"
 #include "commands/copy.h"
 #include "commands/defrem.h"
 #include "commands/explain.h"
@@ -44,14 +45,13 @@ extern "C"
 
 #include "cdb/cdbvars.h"
 
-PG_MODULE_MAGIC;
+	PG_MODULE_MAGIC;
 
-/*
+	/*
  * SQL functions
  */
-PG_FUNCTION_INFO_V1(gpss_fdw_handler);
-PG_FUNCTION_INFO_V1(gpss_fdw_validator);
-
+	PG_FUNCTION_INFO_V1(gpss_fdw_handler);
+	PG_FUNCTION_INFO_V1(gpss_fdw_validator);
 }
 #include "gpss_rpc.h"
 
@@ -75,7 +75,7 @@ struct GpssFdwOption
  */
 static const struct GpssFdwOption valid_options[] = {
 	/* File options */
-	{"address", ForeignTableRelationId},
+	{"address", ForeignServerRelationId},
 
 	/* Format options */
 	/* oids option is not supported */
@@ -184,6 +184,7 @@ Datum gpss_fdw_validator(PG_FUNCTION_ARGS)
 	List *options_list = untransformRelOptions(PG_GETARG_DATUM(0));
 	Oid catalog = PG_GETARG_OID(1);
 	char *address = NULL;
+	char *formatter = NULL;
 	List *other_options = NIL;
 	ListCell *cell;
 
@@ -234,6 +235,14 @@ Datum gpss_fdw_validator(PG_FUNCTION_ARGS)
 						 errmsg("conflicting or redundant options")));
 			address = defGetString(def);
 		}
+		else if (strcmp(def->defname, "formatter") == 0)
+		{
+			if (formatter)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("conflicting or redundant options")));
+			formatter = defGetString(def);
+		}
 		else
 			other_options = lappend(other_options, def);
 	}
@@ -241,10 +250,15 @@ Datum gpss_fdw_validator(PG_FUNCTION_ARGS)
 	/*
 	 * Address option is required for gpss_fdw foreign tables.
 	 */
-	if (catalog == ForeignTableRelationId && address == NULL)
+	if (catalog == ForeignServerRelationId && address == NULL)
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_DYNAMIC_PARAMETER_VALUE_NEEDED),
-				 errmsg("address is required for gpss_fdw foreign tables")));
+				 errmsg("address is required for gpss_fdw foreign server")));
+
+	if (catalog == ForeignTableRelationId && formatter == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_DYNAMIC_PARAMETER_VALUE_NEEDED),
+				 errmsg("formatter is required for gpss_fdw foreign table")));
 
 	PG_RETURN_VOID();
 }
@@ -280,8 +294,7 @@ gpssGetOptions(Oid foreigntableid,
 	ForeignServer *server;
 	ForeignDataWrapper *wrapper;
 	List *options;
-	ListCell *lc,
-		*prev;
+	ListCell *lc, *prev;
 
 	/*
 	 * Extract options from FDW objects.  We ignore user mappings because
@@ -311,7 +324,6 @@ gpssGetOptions(Oid foreigntableid,
 		{
 			*address = defGetString(def);
 			options = list_delete_cell(options, lc, prev);
-			break;
 		}
 		if (strcmp(def->defname, "formatter") == 0)
 		{
@@ -336,7 +348,7 @@ gpssGetOptions(Oid foreigntableid,
 		 * pass the on_segment option to COPY, which will replace the required
 		 * placeholder "<SEGID>" in address
 		 */
-		options = list_append_unique(options, makeDefElem((char*)"on_segment", (Node *)makeInteger(TRUE)));
+		options = list_append_unique(options, makeDefElem((char *)"on_segment", (Node *)makeInteger(TRUE)));
 	}
 	else if (table->exec_location == FTEXECLOCATION_ANY)
 	{
@@ -358,6 +370,7 @@ gpssGetForeignRelSize(PlannerInfo *root,
 					  Oid foreigntableid)
 {
 	GpssFdwPlanState *fdw_private;
+	char *formatter;
 
 	/*
 	 * Fetch options.  We only need address at this point, but we might as
@@ -365,7 +378,7 @@ gpssGetForeignRelSize(PlannerInfo *root,
 	 */
 	fdw_private = (GpssFdwPlanState *)palloc(sizeof(GpssFdwPlanState));
 	gpssGetOptions(foreigntableid,
-				   &fdw_private->address, NULL, &fdw_private->options);
+				   &fdw_private->address, &formatter, &fdw_private->options);
 	baserel->fdw_private = (void *)fdw_private;
 
 	/* Estimate relation size */
@@ -459,11 +472,12 @@ static void
 gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 {
 	char *address;
+	char *formatter;
 	List *options;
 
 	/* Fetch options --- we only need address at this point */
 	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
-				   &address, NULL, &options);
+				   &address, &formatter, &options);
 
 	ExplainPropertyText("Gpss Server", address, es);
 }
@@ -569,7 +583,6 @@ gpssIterateForeignScan(ForeignScanState *node)
 static void
 gpssReScanForeignScan(ForeignScanState *node)
 {
-	
 }
 
 /*
@@ -734,31 +747,30 @@ estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 	*total_cost = *startup_cost + run_cost;
 }
 
-
 static Oid
 lookupCustomTransform(char *formatter_name)
 {
-        List       *funcname = NIL;
-        Oid                     procOid = InvalidOid;
-        Oid                     argList[1];
+	List *funcname = NIL;
+	Oid procOid = InvalidOid;
+	Oid argList[1];
 
-        funcname = lappend(funcname, makeString(formatter_name));
+	funcname = lappend(funcname, makeString(formatter_name));
 
-        argList[0] = JSONOID; //json, see pg_type.h
-        procOid = LookupFuncName(funcname, 1, argList, true);
+	argList[0] = JSONOID; //json, see pg_type.h
+	procOid = LookupFuncName(funcname, 1, argList, true);
 
-        if (!OidIsValid(procOid))
-                ereport(ERROR,
-                                (errcode(ERRCODE_UNDEFINED_FUNCTION),
-                                 errmsg("function \"%s\" was not found", formatter_name),
-                                 errhint("Create it with CREATE FUNCTION.")));
+	if (!OidIsValid(procOid))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_FUNCTION),
+				 errmsg("function \"%s\" was not found", formatter_name),
+				 errhint("Create it with CREATE FUNCTION.")));
 
-        /* check allowed volatility */
-        if (func_volatile(procOid) != PROVOLATILE_IMMUTABLE)
-                ereport(ERROR,
-                                (errcode(ERRCODE_INVALID_FUNCTION_DEFINITION),
-                                 errmsg("formatter function %s is not declared IMUUTABLE",
-                                                formatter_name)));
+	/* check allowed volatility */
+	if (func_volatile(procOid) != PROVOLATILE_IMMUTABLE)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_FUNCTION_DEFINITION),
+				 errmsg("formatter function %s is not declared IMUUTABLE",
+						formatter_name)));
 
-        return procOid;
+	return procOid;
 }

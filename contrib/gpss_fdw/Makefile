@@ -12,7 +12,7 @@ REGRESS = gpss_fdw gp_gpss_fdw
 
 EXTRA_CLEAN = sql/gpss_fdw.sql expected/gpss_fdw.out sql/gp_gpss_fdw.sql expected/gp_gpss_fdw.out
 
-SHLIB_LINK += -lstdc++ $(shell pkg-config --libs grpc++)
+SHLIB_LINK += -lstdc++ $(shell pkg-config --libs grpc++) $(shell pkg-config --libs protobuf)
 PG_CPPFLAGS = -std=c++11 -fPIC $(shell pkg-config --cflags grpc++)
 
 
