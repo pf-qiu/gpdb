@@ -53,13 +53,15 @@ int64 gpssfdw_estimate_size(void *p, const char *id)
     }
 }
 
-bool gpssfdw_stream_data(void *p, const char *id, StringInfo str)
+bool gpssfdw_stream_data(void *p, const char *id, int segid, StringInfo str)
 {
     GpssRpc *rpc = (GpssRpc *)p;
     if (!rpc->stream)
     {
         StreamDataRequest req;
         req.set_id(id);
+        req.set_segid(segid);
+        
         rpc->ctx.reset(new grpc::ClientContext());
         rpc->stream = rpc->stub->StreamData(rpc->ctx.get(), req);
     }

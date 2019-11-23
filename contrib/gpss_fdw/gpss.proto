@@ -12,6 +12,7 @@ message EstimateSizeResponse {
 
 message StreamDataRequest {
     string id = 1;
+    int32 segid = 2;
 }
 
 message StreamDataResponse {

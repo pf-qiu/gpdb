@@ -457,12 +457,19 @@ class StreamDataRequest :
   std::string* release_id();
   void set_allocated_id(std::string* id);
 
+  // int32 segid = 2;
+  void clear_segid();
+  static const int kSegidFieldNumber = 2;
+  ::PROTOBUF_NAMESPACE_ID::int32 segid() const;
+  void set_segid(::PROTOBUF_NAMESPACE_ID::int32 value);
+
   // @@protoc_insertion_point(class_scope:gpssfdw.StreamDataRequest)
  private:
   class HasBitSetters;
 
   ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr id_;
+  ::PROTOBUF_NAMESPACE_ID::int32 segid_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_gpss_2eproto;
 };
@@ -731,6 +738,20 @@ inline void StreamDataRequest::set_allocated_id(std::string* id) {
   }
   id_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), id);
   // @@protoc_insertion_point(field_set_allocated:gpssfdw.StreamDataRequest.id)
+}
+
+// int32 segid = 2;
+inline void StreamDataRequest::clear_segid() {
+  segid_ = 0;
+}
+inline ::PROTOBUF_NAMESPACE_ID::int32 StreamDataRequest::segid() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StreamDataRequest.segid)
+  return segid_;
+}
+inline void StreamDataRequest::set_segid(::PROTOBUF_NAMESPACE_ID::int32 value) {
+  
+  segid_ = value;
+  // @@protoc_insertion_point(field_set:gpssfdw.StreamDataRequest.segid)
 }
 
 // -------------------------------------------------------------------

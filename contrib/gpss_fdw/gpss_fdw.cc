@@ -109,6 +109,7 @@ typedef struct GpssFdwExecutionState
 	List *options;
 	void *gpssrpc;
 	FmgrInfo fi;
+	StringInfo buffer;
 } GpssFdwExecutionState;
 
 /*
@@ -510,8 +511,10 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 	 */
 	festate = (GpssFdwExecutionState *)palloc(sizeof(GpssFdwExecutionState));
 	festate->address = address;
+	festate->formatter = formatter;
 	festate->options = options;
 	festate->gpssrpc = create_gpss_stub(address);
+	festate->buffer = NULL;
 
 	Oid func = lookupCustomTransform(formatter);
 	fmgr_info(func, &festate->fi);
@@ -545,11 +548,16 @@ gpssIterateForeignScan(ForeignScanState *node)
 	 * foreign tables.
 	 */
 	ExecClearTuple(slot);
-	StringInfoData str;
-	initStringInfoOfSize(&str, 4096);
-	if (gpssfdw_stream_data(festate->gpssrpc, "", &str))
+	
+	if (festate->buffer == NULL)
 	{
-		text *data = cstring_to_text_with_len(str.data, str.len);
+		festate->buffer = makeStringInfo();
+	}
+	StringInfo str = festate->buffer;
+
+	if (gpssfdw_stream_data(festate->gpssrpc, "", GpIdentity.segindex, str))
+	{
+		text *data = cstring_to_text_with_len(str->data, str->len);
 		Datum v = PointerGetDatum(data);
 		Datum *values = slot_get_values(slot);
 		bool *isnull = slot_get_isnull(slot);

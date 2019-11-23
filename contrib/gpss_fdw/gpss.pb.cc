@@ -112,6 +112,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_gpss_2eproto::offsets[] PROTOB
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataRequest, id_),
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataRequest, segid_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataResponse, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -123,7 +124,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 0, -1, sizeof(::gpssfdw::EstimateSizeRequest)},
   { 6, -1, sizeof(::gpssfdw::EstimateSizeResponse)},
   { 12, -1, sizeof(::gpssfdw::StreamDataRequest)},
-  { 18, -1, sizeof(::gpssfdw::StreamDataResponse)},
+  { 19, -1, sizeof(::gpssfdw::StreamDataResponse)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -136,13 +137,13 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
 const char descriptor_table_protodef_gpss_2eproto[] =
   "\n\ngpss.proto\022\007gpssfdw\"!\n\023EstimateSizeReq"
   "uest\022\n\n\002id\030\001 \001(\t\"-\n\024EstimateSizeResponse"
-  "\022\025\n\restimate_size\030\001 \001(\003\"\037\n\021StreamDataReq"
-  "uest\022\n\n\002id\030\001 \001(\t\"!\n\022StreamDataResponse\022\013"
-  "\n\003msg\030\001 \001(\0142\237\001\n\007GpssFdw\022K\n\014EstimateSize\022"
-  "\034.gpssfdw.EstimateSizeRequest\032\035.gpssfdw."
-  "EstimateSizeResponse\022G\n\nStreamData\022\032.gps"
-  "sfdw.StreamDataRequest\032\033.gpssfdw.StreamD"
-  "ataResponse0\001b\006proto3"
+  "\022\025\n\restimate_size\030\001 \001(\003\".\n\021StreamDataReq"
+  "uest\022\n\n\002id\030\001 \001(\t\022\r\n\005segid\030\002 \001(\005\"!\n\022Strea"
+  "mDataResponse\022\013\n\003msg\030\001 \001(\0142\237\001\n\007GpssFdw\022K"
+  "\n\014EstimateSize\022\034.gpssfdw.EstimateSizeReq"
+  "uest\032\035.gpssfdw.EstimateSizeResponse\022G\n\nS"
+  "treamData\022\032.gpssfdw.StreamDataRequest\032\033."
+  "gpssfdw.StreamDataResponse0\001b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_gpss_2eproto_deps[1] = {
 };
@@ -155,7 +156,7 @@ static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_gps
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_gpss_2eproto_once;
 static bool descriptor_table_gpss_2eproto_initialized = false;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_gpss_2eproto = {
-  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 341,
+  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 356,
   &descriptor_table_gpss_2eproto_once, descriptor_table_gpss_2eproto_sccs, descriptor_table_gpss_2eproto_deps, 4, 0,
   schemas, file_default_instances, TableStruct_gpss_2eproto::offsets,
   file_level_metadata_gpss_2eproto, 4, file_level_enum_descriptors_gpss_2eproto, file_level_service_descriptors_gpss_2eproto,
@@ -709,6 +710,7 @@ class StreamDataRequest::HasBitSetters {
 
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int StreamDataRequest::kIdFieldNumber;
+const int StreamDataRequest::kSegidFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
 
 StreamDataRequest::StreamDataRequest()
@@ -724,12 +726,14 @@ StreamDataRequest::StreamDataRequest(const StreamDataRequest& from)
   if (from.id().size() > 0) {
     id_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.id_);
   }
+  segid_ = from.segid_;
   // @@protoc_insertion_point(copy_constructor:gpssfdw.StreamDataRequest)
 }
 
 void StreamDataRequest::SharedCtor() {
   ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_StreamDataRequest_gpss_2eproto.base);
   id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  segid_ = 0;
 }
 
 StreamDataRequest::~StreamDataRequest() {
@@ -757,6 +761,7 @@ void StreamDataRequest::Clear() {
   (void) cached_has_bits;
 
   id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  segid_ = 0;
   _internal_metadata_.Clear();
 }
 
@@ -772,6 +777,13 @@ const char* StreamDataRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESP
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
           ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParserUTF8(mutable_id(), ptr, ctx, "gpssfdw.StreamDataRequest.id");
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // int32 segid = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16)) {
+          segid_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint(&ptr);
           CHK_(ptr);
         } else goto handle_unusual;
         continue;
@@ -820,6 +832,19 @@ bool StreamDataRequest::MergePartialFromCodedStream(
         break;
       }
 
+      // int32 segid = 2;
+      case 2: {
+        if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (16 & 0xFF)) {
+
+          DO_((::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadPrimitive<
+                   ::PROTOBUF_NAMESPACE_ID::int32, ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_INT32>(
+                 input, &segid_)));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
       default: {
       handle_unusual:
         if (tag == 0) {
@@ -857,6 +882,11 @@ void StreamDataRequest::SerializeWithCachedSizes(
       1, this->id(), output);
   }
 
+  // int32 segid = 2;
+  if (this->segid() != 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt32(2, this->segid(), output);
+  }
+
   if (_internal_metadata_.have_unknown_fields()) {
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFields(
         _internal_metadata_.unknown_fields(), output);
@@ -879,6 +909,11 @@ void StreamDataRequest::SerializeWithCachedSizes(
     target =
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringToArray(
         1, this->id(), target);
+  }
+
+  // int32 segid = 2;
+  if (this->segid() != 0) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteInt32ToArray(2, this->segid(), target);
   }
 
   if (_internal_metadata_.have_unknown_fields()) {
@@ -907,6 +942,13 @@ size_t StreamDataRequest::ByteSizeLong() const {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
         this->id());
+  }
+
+  // int32 segid = 2;
+  if (this->segid() != 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
+        this->segid());
   }
 
   int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
@@ -940,6 +982,9 @@ void StreamDataRequest::MergeFrom(const StreamDataRequest& from) {
 
     id_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.id_);
   }
+  if (from.segid() != 0) {
+    set_segid(from.segid());
+  }
 }
 
 void StreamDataRequest::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
@@ -969,6 +1014,7 @@ void StreamDataRequest::InternalSwap(StreamDataRequest* other) {
   _internal_metadata_.Swap(&other->_internal_metadata_);
   id_.Swap(&other->id_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
     GetArenaNoVirtual());
+  swap(segid_, other->segid_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata StreamDataRequest::GetMetadata() const {
