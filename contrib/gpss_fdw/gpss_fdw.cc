@@ -342,21 +342,6 @@ gpssGetOptions(Oid foreigntableid,
 	if (*formatter == NULL)
 		elog(ERROR, "formatter is required for gpss_fdw foreign tables");
 
-	if (table->exec_location == FTEXECLOCATION_ALL_SEGMENTS)
-	{
-		/*
-		 * pass the on_segment option to COPY, which will replace the required
-		 * placeholder "<SEGID>" in address
-		 */
-		options = list_append_unique(options, makeDefElem((char *)"on_segment", (Node *)makeInteger(TRUE)));
-	}
-	else if (table->exec_location == FTEXECLOCATION_ANY)
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("gpss_fdw does not support mpp_execute option 'any'")));
-	}
-
 	*other_options = options;
 }
 
@@ -371,7 +356,7 @@ gpssGetForeignRelSize(PlannerInfo *root,
 {
 	GpssFdwPlanState *fdw_private;
 	char *formatter;
-
+	elog(INFO, "gpssGetForeignRelSize: %d", GpIdentity.segindex);
 	/*
 	 * Fetch options.  We only need address at this point, but we might as
 	 * well get everything and not need to re-fetch it later in planning.
@@ -398,6 +383,7 @@ gpssGetForeignPaths(PlannerInfo *root,
 					RelOptInfo *baserel,
 					Oid foreigntableid)
 {
+	elog(INFO, "gpssGetForeignPaths: %d", GpIdentity.segindex);
 	GpssFdwPlanState *fdw_private = (GpssFdwPlanState *)baserel->fdw_private;
 	Cost startup_cost;
 	Cost total_cost;
@@ -442,6 +428,7 @@ gpssGetForeignPlan(PlannerInfo *root,
 				   List *scan_clauses,
 				   Plan *outer_plan)
 {
+	elog(INFO, "gpssGetForeignPlan: %d", GpIdentity.segindex);
 	Index scan_relid = baserel->relid;
 
 	/*
@@ -471,6 +458,8 @@ gpssGetForeignPlan(PlannerInfo *root,
 static void
 gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 {
+	elog(INFO, "gpssExplainForeignScan: %d", GpIdentity.segindex);
+
 	char *address;
 	char *formatter;
 	List *options;
@@ -489,10 +478,13 @@ gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 gpssBeginForeignScan(ForeignScanState *node, int eflags)
 {
-	if (GpIdentity.segindex != 0)
+	elog(INFO, "gpssBeginForeignScan: %d", GpIdentity.segindex);
+
+	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		return;
 	}
+
 	ForeignScan *plan = (ForeignScan *)node->ss.ps.plan;
 	char *address;
 	char *formatter;
@@ -535,12 +527,11 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 gpssIterateForeignScan(ForeignScanState *node)
 {
+	elog(INFO, "gpssIterateForeignScan: %d", GpIdentity.segindex);
+
 	GpssFdwExecutionState *festate = (GpssFdwExecutionState *)node->fdw_state;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-	if (GpIdentity.segindex != 0)
-	{
-		return slot;
-	}
+
 	/*
 	 * The protocol for loading a virtual tuple into a slot is first
 	 * ExecClearTuple, then fill the values/isnull arrays, then
@@ -583,6 +574,7 @@ gpssIterateForeignScan(ForeignScanState *node)
 static void
 gpssReScanForeignScan(ForeignScanState *node)
 {
+	elog(INFO, "gpssReScanForeignScan: %d", GpIdentity.segindex);
 }
 
 /*
@@ -592,14 +584,12 @@ gpssReScanForeignScan(ForeignScanState *node)
 static void
 gpssEndForeignScan(ForeignScanState *node)
 {
-	if (GpIdentity.segindex != 0)
-	{
-		return;
-	}
+	elog(INFO, "gpssEndForeignScan: %d", GpIdentity.segindex);
+
 	GpssFdwExecutionState *festate = (GpssFdwExecutionState *)node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
-	if (festate)
+	if (festate && festate->gpssrpc)
 	{
 		delete_gpss_stub(festate->gpssrpc);
 	}
@@ -614,6 +604,7 @@ gpssAnalyzeForeignTable(Relation relation,
 						AcquireSampleRowsFunc *func,
 						BlockNumber *totalpages)
 {
+	elog(INFO, "gpssAnalyzeForeignTable: %d", GpIdentity.segindex);
 	return false;
 }
 
@@ -626,6 +617,7 @@ static bool
 gpssIsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
 							  RangeTblEntry *rte)
 {
+	elog(INFO, "gpssIsForeignScanParallelSafe: %d", GpIdentity.segindex);
 	return false;
 }
 

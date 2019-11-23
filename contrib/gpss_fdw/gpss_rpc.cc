@@ -12,6 +12,7 @@ struct GpssRpc
 {
     std::unique_ptr<GpssFdw::Stub> stub;
     std::unique_ptr<grpc::ClientReader<StreamDataResponse>> stream;
+    std::unique_ptr<grpc::ClientContext> ctx;
 };
 
 void *create_gpss_stub(const char *address)
@@ -57,11 +58,10 @@ bool gpssfdw_stream_data(void *p, const char *id, StringInfo str)
     GpssRpc *rpc = (GpssRpc *)p;
     if (!rpc->stream)
     {
-        grpc::ClientContext ctx;
         StreamDataRequest req;
         req.set_id(id);
-
-        rpc->stream = rpc->stub->StreamData(&ctx, req);
+        rpc->ctx.reset(new grpc::ClientContext());
+        rpc->stream = rpc->stub->StreamData(rpc->ctx.get(), req);
     }
 
     StreamDataResponse res;
@@ -73,6 +73,8 @@ bool gpssfdw_stream_data(void *p, const char *id, StringInfo str)
     else
     {
         rpc->stream->Finish();
+        rpc->stream.release();
+        rpc->ctx.release();
         return false;
     }
 }
