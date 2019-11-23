@@ -41,6 +41,8 @@ extern "C"
 #include "catalog/pg_proc.h"
 #include "utils/lsyscache.h"
 #include "parser/parse_func.h"
+
+#include "cdb/cdbvars.h"
 }
 #include "gpss_rpc.h"
 
@@ -96,6 +98,7 @@ typedef struct GpssFdwPlanState
 typedef struct GpssFdwExecutionState
 {
 	char *address;
+	char *formatter;
 	List *options;
 	void *gpssrpc;
 	FmgrInfo fi;
@@ -270,7 +273,7 @@ is_valid_option(const char *option, Oid context)
  */
 static void
 gpssGetOptions(Oid foreigntableid,
-			   char **address, char **funcname, List **other_options)
+			   char **address, char **formatter, List **other_options)
 {
 	ForeignTable *table;
 	ForeignServer *server;
@@ -296,10 +299,8 @@ gpssGetOptions(Oid foreigntableid,
 	options = list_concat(options, server->options);
 	options = list_concat(options, table->options);
 
-	/*
-	 * Separate out the address.
-	 */
 	*address = NULL;
+	*formatter = NULL;
 	prev = NULL;
 	foreach (lc, options)
 	{
@@ -311,6 +312,11 @@ gpssGetOptions(Oid foreigntableid,
 			options = list_delete_cell(options, lc, prev);
 			break;
 		}
+		if (strcmp(def->defname, "formatter") == 0)
+		{
+			*formatter = defGetString(def);
+			options = list_delete_cell(options, lc, prev);
+		}
 		prev = lc;
 	}
 
@@ -320,6 +326,8 @@ gpssGetOptions(Oid foreigntableid,
 	 */
 	if (*address == NULL)
 		elog(ERROR, "address is required for gpss_fdw foreign tables");
+	if (*formatter == NULL)
+		elog(ERROR, "formatter is required for gpss_fdw foreign tables");
 
 	if (table->exec_location == FTEXECLOCATION_ALL_SEGMENTS)
 	{
@@ -456,17 +464,7 @@ gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
 				   &address, NULL, &options);
 
-	ExplainPropertyText("Foreign File", address, es);
-
-	/* Suppress file size if we're not showing cost details */
-	if (es->costs)
-	{
-		struct stat stat_buf;
-
-		if (stat(address, &stat_buf) == 0)
-			ExplainPropertyLong("Foreign File Size", (long)stat_buf.st_size,
-								es);
-	}
+	ExplainPropertyText("Gpss Server", address, es);
 }
 
 /*
@@ -476,9 +474,13 @@ gpssExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 gpssBeginForeignScan(ForeignScanState *node, int eflags)
 {
+	if (GpIdentity.segindex != 0)
+	{
+		return;
+	}
 	ForeignScan *plan = (ForeignScan *)node->ss.ps.plan;
 	char *address;
-	char *name;
+	char *formatter;
 	List *options;
 	GpssFdwExecutionState *festate;
 
@@ -490,7 +492,7 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 
 	/* Fetch options of foreign table */
 	gpssGetOptions(RelationGetRelid(node->ss.ss_currentRelation),
-				   &address, &name, &options);
+				   &address, &formatter, &options);
 
 	/* Add any options from the plan (currently only convert_selectively) */
 	options = list_concat(options, plan->fdw_private);
@@ -504,7 +506,7 @@ gpssBeginForeignScan(ForeignScanState *node, int eflags)
 	festate->options = options;
 	festate->gpssrpc = create_gpss_stub(address);
 
-	Oid func = lookupCustomTransform(name);
+	Oid func = lookupCustomTransform(formatter);
 	fmgr_info(func, &festate->fi);
 
 	node->fdw_state = (void *)festate;
@@ -520,7 +522,10 @@ gpssIterateForeignScan(ForeignScanState *node)
 {
 	GpssFdwExecutionState *festate = (GpssFdwExecutionState *)node->fdw_state;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-	
+	if (GpIdentity.segindex != 0)
+	{
+		return slot;
+	}
 	/*
 	 * The protocol for loading a virtual tuple into a slot is first
 	 * ExecClearTuple, then fill the values/isnull arrays, then
@@ -573,6 +578,10 @@ gpssReScanForeignScan(ForeignScanState *node)
 static void
 gpssEndForeignScan(ForeignScanState *node)
 {
+	if (GpIdentity.segindex != 0)
+	{
+		return;
+	}
 	GpssFdwExecutionState *festate = (GpssFdwExecutionState *)node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */

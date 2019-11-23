@@ -28,8 +28,11 @@ void *create_gpss_stub(const char *address)
 
 void delete_gpss_stub(void *p)
 {
-    GpssRpc *rpc = (GpssRpc *)p;
-    delete rpc;
+    if (p)
+    {
+        GpssRpc *rpc = (GpssRpc *)p;
+        delete rpc;
+    }
 }
 
 int64 gpssfdw_estimate_size(void *p, const char *id)
@@ -57,7 +60,7 @@ bool gpssfdw_stream_data(void *p, const char *id, StringInfo str)
         grpc::ClientContext ctx;
         StreamDataRequest req;
         req.set_id(id);
-        
+
         rpc->stream = rpc->stub->StreamData(&ctx, req);
     }
 
