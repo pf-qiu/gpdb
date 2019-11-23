@@ -43,10 +43,17 @@ extern "C"
 #include "parser/parse_func.h"
 
 #include "cdb/cdbvars.h"
-}
-#include "gpss_rpc.h"
 
 PG_MODULE_MAGIC;
+
+/*
+ * SQL functions
+ */
+PG_FUNCTION_INFO_V1(gpss_fdw_handler);
+PG_FUNCTION_INFO_V1(gpss_fdw_validator);
+
+}
+#include "gpss_rpc.h"
 
 /*
  * Describes the valid options for objects that use this wrapper.
@@ -103,12 +110,6 @@ typedef struct GpssFdwExecutionState
 	void *gpssrpc;
 	FmgrInfo fi;
 } GpssFdwExecutionState;
-
-/*
- * SQL functions
- */
-PG_FUNCTION_INFO_V1(gpss_fdw_handler);
-PG_FUNCTION_INFO_V1(gpss_fdw_validator);
 
 /*
  * FDW callback routines
