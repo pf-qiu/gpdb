@@ -2,37 +2,18 @@
 
 #include <random>
 #include <memory.h>
-bool GenerateID(unsigned char *buffer, int size)
-{
-    std::random_device rd;
-    std::mt19937 e(rd());
-
-    int w = std::mt19937::word_size / 8;
-
-    int n = size / w;
-
-    auto buf1 = reinterpret_cast<std::mt19937::result_type *>(buffer);
-    for (int i = 0; i < n; i++)
-    {
-        buf1[i] = e();
-    }
-
-    buffer += n * w;
-    int remain = size % w;
-    std::mt19937::result_type r = e();
-    for (int i = 0; i < remain; i++)
-    {
-        buffer[i] = r & 0xFF;
-        r >>= 8;
-    }
-    return true;
-}
 
 const char hextable[] = "0123456789abcdef";
 
 RandomID::RandomID()
 {
-    GenerateID(data, sizeof(data));
+    std::random_device rd;
+    std::mt19937 e(rd());
+
+    data[0] = e();
+    data[1] = e();
+    data[2] = e();
+    data[3] = e();
 }
 RandomID::RandomID(const RandomID &id)
 {
@@ -41,11 +22,15 @@ RandomID::RandomID(const RandomID &id)
 std::string RandomID::String()
 {
     std::string id;
-    id.reserve(sizeof(data) * 2 + 1);
-    for (unsigned char c : data)
+    int s = sizeof(data);
+    unsigned char *str = (unsigned char *)data;
+    id.reserve(s * 2 + 1);
+    for (int i = 0; i < s; i++)
     {
+        unsigned char c = str[i];
         id.push_back(hextable[c >> 4]);
         id.push_back(hextable[c & 0xF]);
     }
+
     return id;
 }

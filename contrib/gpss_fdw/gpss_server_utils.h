@@ -10,5 +10,5 @@ public:
     std::string String();
 
 private:
-    unsigned char data[16];
+    unsigned int data[4];
 };

@@ -71,7 +71,8 @@ int KafkaConsumer::Consume(ConsumeCallback cb, void *p)
     cp.p = p;
     rd_kafka_topic_t* rkt = (rd_kafka_topic_t*)(this->rkt);
 
-    return rd_kafka_consume_callback(rkt, n, 1000, [](rd_kafka_message_t *msg, void *op) {
+    return rd_kafka_consume_callback(rkt, n, 1000, [](rd_kafka_message_t *msg, void *op)
+    {
         ConsumeParameter *cp = (ConsumeParameter *)op;
         KafkaMessage km;
         km.err = msg->err;
@@ -91,8 +92,7 @@ int KafkaConsumer::Consume(ConsumeCallback cb, void *p)
         }
 
         cp->cb(km, cp->p);
-    },
-                                     &cp);
+    }, &cp);
 }
 
 KafkaConsumer::KafkaConsumerHandle KafkaConsumer::NewConsumer(std::string brokers, std::string topic, std::string& errmsg)
