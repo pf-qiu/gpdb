@@ -1,2 +1,14 @@
 #pragma once
-extern bool GenerateID(unsigned char* buffer, int size);
+
+#include <string>
+
+class RandomID
+{
+public:
+    RandomID();
+    RandomID(const RandomID &id);
+    std::string String();
+
+private:
+    unsigned char data[16];
+};

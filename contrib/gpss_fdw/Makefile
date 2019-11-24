@@ -32,7 +32,7 @@ endif
 proto:
 	protoc --cpp_out=. --grpc_out=. --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` gpss.proto
 
-SERVER_OBJS = gpss_server.o gpss_server_utils.o
+SERVER_OBJS = gpss_server.o gpss_server_utils.o gpss_server_kafka.o
 
 server: $(SERVER_OBJS) $(GRPC_OBJS)
 	$(CC) $(SERVER_OBJS) $(GRPC_OBJS) $(GRPC_LIBS) $(KAFKA_LIBS) -lstdc++ -o $@$(X)
