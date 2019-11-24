@@ -19,7 +19,26 @@ message StreamDataResponse {
     bytes msg = 1;
 }
 
+message StartKafkaStreamRequest {
+    string topic = 1;
+    string brokers = 2;
+}
+
+message StartKafkaStreamResponse {
+    string id = 1;
+}
+
+message StopKafkaStreamRequest {
+    string id = 1;
+}
+
+message StopKafkaStreamResponse {
+    
+}
+
 service GpssFdw {
     rpc EstimateSize(EstimateSizeRequest) returns (EstimateSizeResponse);
+    rpc StartKafkaStream(StartKafkaStreamRequest) returns (StartKafkaStreamResponse);
+    rpc StopKafkaStream(StopKafkaStreamRequest) returns (StopKafkaStreamResponse);
     rpc StreamData(StreamDataRequest) returns (stream StreamDataResponse);
 }

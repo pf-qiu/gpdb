@@ -20,6 +20,8 @@ namespace gpssfdw {
 
 static const char* GpssFdw_method_names[] = {
   "/gpssfdw.GpssFdw/EstimateSize",
+  "/gpssfdw.GpssFdw/StartKafkaStream",
+  "/gpssfdw.GpssFdw/StopKafkaStream",
   "/gpssfdw.GpssFdw/StreamData",
 };
 
@@ -31,7 +33,9 @@ std::unique_ptr< GpssFdw::Stub> GpssFdw::NewStub(const std::shared_ptr< ::grpc::
 
 GpssFdw::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel)
   : channel_(channel), rpcmethod_EstimateSize_(GpssFdw_method_names[0], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_StreamData_(GpssFdw_method_names[1], ::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
+  , rpcmethod_StartKafkaStream_(GpssFdw_method_names[1], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_StopKafkaStream_(GpssFdw_method_names[2], ::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_StreamData_(GpssFdw_method_names[3], ::grpc::internal::RpcMethod::SERVER_STREAMING, channel)
   {}
 
 ::grpc::Status GpssFdw::Stub::EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::gpssfdw::EstimateSizeResponse* response) {
@@ -62,6 +66,62 @@ void GpssFdw::Stub::experimental_async::EstimateSize(::grpc::ClientContext* cont
   return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::EstimateSizeResponse>::Create(channel_.get(), cq, rpcmethod_EstimateSize_, context, request, false);
 }
 
+::grpc::Status GpssFdw::Stub::StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::gpssfdw::StartKafkaStreamResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_StartKafkaStream_, context, request, response);
+}
+
+void GpssFdw::Stub::experimental_async::StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_StartKafkaStream_, context, request, response, std::move(f));
+}
+
+void GpssFdw::Stub::experimental_async::StartKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StartKafkaStreamResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_StartKafkaStream_, context, request, response, std::move(f));
+}
+
+void GpssFdw::Stub::experimental_async::StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
+  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_StartKafkaStream_, context, request, response, reactor);
+}
+
+void GpssFdw::Stub::experimental_async::StartKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
+  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_StartKafkaStream_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>* GpssFdw::Stub::AsyncStartKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::StartKafkaStreamResponse>::Create(channel_.get(), cq, rpcmethod_StartKafkaStream_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>* GpssFdw::Stub::PrepareAsyncStartKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::StartKafkaStreamResponse>::Create(channel_.get(), cq, rpcmethod_StartKafkaStream_, context, request, false);
+}
+
+::grpc::Status GpssFdw::Stub::StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::gpssfdw::StopKafkaStreamResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall(channel_.get(), rpcmethod_StopKafkaStream_, context, request, response);
+}
+
+void GpssFdw::Stub::experimental_async::StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_StopKafkaStream_, context, request, response, std::move(f));
+}
+
+void GpssFdw::Stub::experimental_async::StopKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StopKafkaStreamResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc_impl::internal::CallbackUnaryCall(stub_->channel_.get(), stub_->rpcmethod_StopKafkaStream_, context, request, response, std::move(f));
+}
+
+void GpssFdw::Stub::experimental_async::StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
+  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_StopKafkaStream_, context, request, response, reactor);
+}
+
+void GpssFdw::Stub::experimental_async::StopKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) {
+  ::grpc_impl::internal::ClientCallbackUnaryFactory::Create(stub_->channel_.get(), stub_->rpcmethod_StopKafkaStream_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>* GpssFdw::Stub::AsyncStopKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::StopKafkaStreamResponse>::Create(channel_.get(), cq, rpcmethod_StopKafkaStream_, context, request, true);
+}
+
+::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>* GpssFdw::Stub::PrepareAsyncStopKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc_impl::internal::ClientAsyncResponseReaderFactory< ::gpssfdw::StopKafkaStreamResponse>::Create(channel_.get(), cq, rpcmethod_StopKafkaStream_, context, request, false);
+}
+
 ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>* GpssFdw::Stub::StreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) {
   return ::grpc_impl::internal::ClientReaderFactory< ::gpssfdw::StreamDataResponse>::Create(channel_.get(), rpcmethod_StreamData_, context, request);
 }
@@ -86,6 +146,16 @@ GpssFdw::Service::Service() {
           std::mem_fn(&GpssFdw::Service::EstimateSize), this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       GpssFdw_method_names[1],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GpssFdw::Service, ::gpssfdw::StartKafkaStreamRequest, ::gpssfdw::StartKafkaStreamResponse>(
+          std::mem_fn(&GpssFdw::Service::StartKafkaStream), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GpssFdw_method_names[2],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GpssFdw::Service, ::gpssfdw::StopKafkaStreamRequest, ::gpssfdw::StopKafkaStreamResponse>(
+          std::mem_fn(&GpssFdw::Service::StopKafkaStream), this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GpssFdw_method_names[3],
       ::grpc::internal::RpcMethod::SERVER_STREAMING,
       new ::grpc::internal::ServerStreamingHandler< GpssFdw::Service, ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>(
           std::mem_fn(&GpssFdw::Service::StreamData), this)));
@@ -95,6 +165,20 @@ GpssFdw::Service::~Service() {
 }
 
 ::grpc::Status GpssFdw::Service::EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GpssFdw::Service::StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GpssFdw::Service::StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) {
   (void) context;
   (void) request;
   (void) response;

@@ -32,6 +32,22 @@ class StreamDataResponseDefaultTypeInternal {
  public:
   ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<StreamDataResponse> _instance;
 } _StreamDataResponse_default_instance_;
+class StartKafkaStreamRequestDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<StartKafkaStreamRequest> _instance;
+} _StartKafkaStreamRequest_default_instance_;
+class StartKafkaStreamResponseDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<StartKafkaStreamResponse> _instance;
+} _StartKafkaStreamResponse_default_instance_;
+class StopKafkaStreamRequestDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<StopKafkaStreamRequest> _instance;
+} _StopKafkaStreamRequest_default_instance_;
+class StopKafkaStreamResponseDefaultTypeInternal {
+ public:
+  ::PROTOBUF_NAMESPACE_ID::internal::ExplicitlyConstructed<StopKafkaStreamResponse> _instance;
+} _StopKafkaStreamResponse_default_instance_;
 }  // namespace gpssfdw
 static void InitDefaultsscc_info_EstimateSizeRequest_gpss_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -61,6 +77,62 @@ static void InitDefaultsscc_info_EstimateSizeResponse_gpss_2eproto() {
 ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_EstimateSizeResponse_gpss_2eproto =
     {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, InitDefaultsscc_info_EstimateSizeResponse_gpss_2eproto}, {}};
 
+static void InitDefaultsscc_info_StartKafkaStreamRequest_gpss_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::gpssfdw::_StartKafkaStreamRequest_default_instance_;
+    new (ptr) ::gpssfdw::StartKafkaStreamRequest();
+    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
+  }
+  ::gpssfdw::StartKafkaStreamRequest::InitAsDefaultInstance();
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_StartKafkaStreamRequest_gpss_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, InitDefaultsscc_info_StartKafkaStreamRequest_gpss_2eproto}, {}};
+
+static void InitDefaultsscc_info_StartKafkaStreamResponse_gpss_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::gpssfdw::_StartKafkaStreamResponse_default_instance_;
+    new (ptr) ::gpssfdw::StartKafkaStreamResponse();
+    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
+  }
+  ::gpssfdw::StartKafkaStreamResponse::InitAsDefaultInstance();
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_StartKafkaStreamResponse_gpss_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, InitDefaultsscc_info_StartKafkaStreamResponse_gpss_2eproto}, {}};
+
+static void InitDefaultsscc_info_StopKafkaStreamRequest_gpss_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::gpssfdw::_StopKafkaStreamRequest_default_instance_;
+    new (ptr) ::gpssfdw::StopKafkaStreamRequest();
+    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
+  }
+  ::gpssfdw::StopKafkaStreamRequest::InitAsDefaultInstance();
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_StopKafkaStreamRequest_gpss_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, InitDefaultsscc_info_StopKafkaStreamRequest_gpss_2eproto}, {}};
+
+static void InitDefaultsscc_info_StopKafkaStreamResponse_gpss_2eproto() {
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  {
+    void* ptr = &::gpssfdw::_StopKafkaStreamResponse_default_instance_;
+    new (ptr) ::gpssfdw::StopKafkaStreamResponse();
+    ::PROTOBUF_NAMESPACE_ID::internal::OnShutdownDestroyMessage(ptr);
+  }
+  ::gpssfdw::StopKafkaStreamResponse::InitAsDefaultInstance();
+}
+
+::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_StopKafkaStreamResponse_gpss_2eproto =
+    {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, InitDefaultsscc_info_StopKafkaStreamResponse_gpss_2eproto}, {}};
+
 static void InitDefaultsscc_info_StreamDataRequest_gpss_2eproto() {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -89,7 +161,7 @@ static void InitDefaultsscc_info_StreamDataResponse_gpss_2eproto() {
 ::PROTOBUF_NAMESPACE_ID::internal::SCCInfo<0> scc_info_StreamDataResponse_gpss_2eproto =
     {{ATOMIC_VAR_INIT(::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase::kUninitialized), 0, InitDefaultsscc_info_StreamDataResponse_gpss_2eproto}, {}};
 
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_gpss_2eproto[4];
+static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_gpss_2eproto[8];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_gpss_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_gpss_2eproto = nullptr;
 
@@ -119,12 +191,40 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_gpss_2eproto::offsets[] PROTOB
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   PROTOBUF_FIELD_OFFSET(::gpssfdw::StreamDataResponse, msg_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StartKafkaStreamRequest, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StartKafkaStreamRequest, topic_),
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StartKafkaStreamRequest, brokers_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StartKafkaStreamResponse, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StartKafkaStreamResponse, id_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StopKafkaStreamRequest, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StopKafkaStreamRequest, id_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::gpssfdw::StopKafkaStreamResponse, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::gpssfdw::EstimateSizeRequest)},
   { 6, -1, sizeof(::gpssfdw::EstimateSizeResponse)},
   { 12, -1, sizeof(::gpssfdw::StreamDataRequest)},
   { 19, -1, sizeof(::gpssfdw::StreamDataResponse)},
+  { 25, -1, sizeof(::gpssfdw::StartKafkaStreamRequest)},
+  { 32, -1, sizeof(::gpssfdw::StartKafkaStreamResponse)},
+  { 38, -1, sizeof(::gpssfdw::StopKafkaStreamRequest)},
+  { 44, -1, sizeof(::gpssfdw::StopKafkaStreamResponse)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -132,6 +232,10 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_EstimateSizeResponse_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_StreamDataRequest_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_StreamDataResponse_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_StartKafkaStreamRequest_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_StartKafkaStreamResponse_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_StopKafkaStreamRequest_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::gpssfdw::_StopKafkaStreamResponse_default_instance_),
 };
 
 const char descriptor_table_protodef_gpss_2eproto[] =
@@ -139,27 +243,40 @@ const char descriptor_table_protodef_gpss_2eproto[] =
   "uest\022\n\n\002id\030\001 \001(\t\"-\n\024EstimateSizeResponse"
   "\022\025\n\restimate_size\030\001 \001(\003\".\n\021StreamDataReq"
   "uest\022\n\n\002id\030\001 \001(\t\022\r\n\005segid\030\002 \001(\005\"!\n\022Strea"
-  "mDataResponse\022\013\n\003msg\030\001 \001(\0142\237\001\n\007GpssFdw\022K"
-  "\n\014EstimateSize\022\034.gpssfdw.EstimateSizeReq"
-  "uest\032\035.gpssfdw.EstimateSizeResponse\022G\n\nS"
-  "treamData\022\032.gpssfdw.StreamDataRequest\032\033."
-  "gpssfdw.StreamDataResponse0\001b\006proto3"
+  "mDataResponse\022\013\n\003msg\030\001 \001(\014\"9\n\027StartKafka"
+  "StreamRequest\022\r\n\005topic\030\001 \001(\t\022\017\n\007brokers\030"
+  "\002 \001(\t\"&\n\030StartKafkaStreamResponse\022\n\n\002id\030"
+  "\001 \001(\t\"$\n\026StopKafkaStreamRequest\022\n\n\002id\030\001 "
+  "\001(\t\"\031\n\027StopKafkaStreamResponse2\316\002\n\007GpssF"
+  "dw\022K\n\014EstimateSize\022\034.gpssfdw.EstimateSiz"
+  "eRequest\032\035.gpssfdw.EstimateSizeResponse\022"
+  "W\n\020StartKafkaStream\022 .gpssfdw.StartKafka"
+  "StreamRequest\032!.gpssfdw.StartKafkaStream"
+  "Response\022T\n\017StopKafkaStream\022\037.gpssfdw.St"
+  "opKafkaStreamRequest\032 .gpssfdw.StopKafka"
+  "StreamResponse\022G\n\nStreamData\022\032.gpssfdw.S"
+  "treamDataRequest\032\033.gpssfdw.StreamDataRes"
+  "ponse0\001b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_gpss_2eproto_deps[1] = {
 };
-static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_gpss_2eproto_sccs[4] = {
+static ::PROTOBUF_NAMESPACE_ID::internal::SCCInfoBase*const descriptor_table_gpss_2eproto_sccs[8] = {
   &scc_info_EstimateSizeRequest_gpss_2eproto.base,
   &scc_info_EstimateSizeResponse_gpss_2eproto.base,
+  &scc_info_StartKafkaStreamRequest_gpss_2eproto.base,
+  &scc_info_StartKafkaStreamResponse_gpss_2eproto.base,
+  &scc_info_StopKafkaStreamRequest_gpss_2eproto.base,
+  &scc_info_StopKafkaStreamResponse_gpss_2eproto.base,
   &scc_info_StreamDataRequest_gpss_2eproto.base,
   &scc_info_StreamDataResponse_gpss_2eproto.base,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_gpss_2eproto_once;
 static bool descriptor_table_gpss_2eproto_initialized = false;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_gpss_2eproto = {
-  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 356,
-  &descriptor_table_gpss_2eproto_once, descriptor_table_gpss_2eproto_sccs, descriptor_table_gpss_2eproto_deps, 4, 0,
+  &descriptor_table_gpss_2eproto_initialized, descriptor_table_protodef_gpss_2eproto, "gpss.proto", 695,
+  &descriptor_table_gpss_2eproto_once, descriptor_table_gpss_2eproto_sccs, descriptor_table_gpss_2eproto_deps, 8, 0,
   schemas, file_default_instances, TableStruct_gpss_2eproto::offsets,
-  file_level_metadata_gpss_2eproto, 4, file_level_enum_descriptors_gpss_2eproto, file_level_service_descriptors_gpss_2eproto,
+  file_level_metadata_gpss_2eproto, 8, file_level_enum_descriptors_gpss_2eproto, file_level_service_descriptors_gpss_2eproto,
 };
 
 // Force running AddDescriptors() at dynamic initialization time.
@@ -1287,6 +1404,1107 @@ void StreamDataResponse::InternalSwap(StreamDataResponse* other) {
 }
 
 
+// ===================================================================
+
+void StartKafkaStreamRequest::InitAsDefaultInstance() {
+}
+class StartKafkaStreamRequest::HasBitSetters {
+ public:
+};
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int StartKafkaStreamRequest::kTopicFieldNumber;
+const int StartKafkaStreamRequest::kBrokersFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+StartKafkaStreamRequest::StartKafkaStreamRequest()
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _internal_metadata_(nullptr) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:gpssfdw.StartKafkaStreamRequest)
+}
+StartKafkaStreamRequest::StartKafkaStreamRequest(const StartKafkaStreamRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(),
+      _internal_metadata_(nullptr) {
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  topic_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (from.topic().size() > 0) {
+    topic_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.topic_);
+  }
+  brokers_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (from.brokers().size() > 0) {
+    brokers_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.brokers_);
+  }
+  // @@protoc_insertion_point(copy_constructor:gpssfdw.StartKafkaStreamRequest)
+}
+
+void StartKafkaStreamRequest::SharedCtor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_StartKafkaStreamRequest_gpss_2eproto.base);
+  topic_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  brokers_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+StartKafkaStreamRequest::~StartKafkaStreamRequest() {
+  // @@protoc_insertion_point(destructor:gpssfdw.StartKafkaStreamRequest)
+  SharedDtor();
+}
+
+void StartKafkaStreamRequest::SharedDtor() {
+  topic_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  brokers_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+void StartKafkaStreamRequest::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+const StartKafkaStreamRequest& StartKafkaStreamRequest::default_instance() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_StartKafkaStreamRequest_gpss_2eproto.base);
+  return *internal_default_instance();
+}
+
+
+void StartKafkaStreamRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:gpssfdw.StartKafkaStreamRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  topic_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  brokers_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _internal_metadata_.Clear();
+}
+
+#if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+const char* StartKafkaStreamRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    CHK_(ptr);
+    switch (tag >> 3) {
+      // string topic = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParserUTF8(mutable_topic(), ptr, ctx, "gpssfdw.StartKafkaStreamRequest.topic");
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      // string brokers = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParserUTF8(mutable_brokers(), ptr, ctx, "gpssfdw.StartKafkaStreamRequest.brokers");
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      default: {
+      handle_unusual:
+        if ((tag & 7) == 4 || tag == 0) {
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag, &_internal_metadata_, ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
+    }  // switch
+  }  // while
+success:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto success;
+#undef CHK_
+}
+#else  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+bool StartKafkaStreamRequest::MergePartialFromCodedStream(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!PROTOBUF_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+  // @@protoc_insertion_point(parse_start:gpssfdw.StartKafkaStreamRequest)
+  for (;;) {
+    ::std::pair<::PROTOBUF_NAMESPACE_ID::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // string topic = 1;
+      case 1: {
+        if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (10 & 0xFF)) {
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadString(
+                input, this->mutable_topic()));
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+            this->topic().data(), static_cast<int>(this->topic().length()),
+            ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE,
+            "gpssfdw.StartKafkaStreamRequest.topic"));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // string brokers = 2;
+      case 2: {
+        if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (18 & 0xFF)) {
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadString(
+                input, this->mutable_brokers()));
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+            this->brokers().data(), static_cast<int>(this->brokers().length()),
+            ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE,
+            "gpssfdw.StartKafkaStreamRequest.brokers"));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0) {
+          goto success;
+        }
+        DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SkipField(
+              input, tag, _internal_metadata_.mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:gpssfdw.StartKafkaStreamRequest)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:gpssfdw.StartKafkaStreamRequest)
+  return false;
+#undef DO_
+}
+#endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+
+void StartKafkaStreamRequest::SerializeWithCachedSizes(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:gpssfdw.StartKafkaStreamRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string topic = 1;
+  if (this->topic().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->topic().data(), static_cast<int>(this->topic().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StartKafkaStreamRequest.topic");
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringMaybeAliased(
+      1, this->topic(), output);
+  }
+
+  // string brokers = 2;
+  if (this->brokers().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->brokers().data(), static_cast<int>(this->brokers().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StartKafkaStreamRequest.brokers");
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringMaybeAliased(
+      2, this->brokers(), output);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFields(
+        _internal_metadata_.unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:gpssfdw.StartKafkaStreamRequest)
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* StartKafkaStreamRequest::InternalSerializeWithCachedSizesToArray(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:gpssfdw.StartKafkaStreamRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string topic = 1;
+  if (this->topic().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->topic().data(), static_cast<int>(this->topic().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StartKafkaStreamRequest.topic");
+    target =
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringToArray(
+        1, this->topic(), target);
+  }
+
+  // string brokers = 2;
+  if (this->brokers().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->brokers().data(), static_cast<int>(this->brokers().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StartKafkaStreamRequest.brokers");
+    target =
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringToArray(
+        2, this->brokers(), target);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:gpssfdw.StartKafkaStreamRequest)
+  return target;
+}
+
+size_t StartKafkaStreamRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:gpssfdw.StartKafkaStreamRequest)
+  size_t total_size = 0;
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::ComputeUnknownFieldsSize(
+        _internal_metadata_.unknown_fields());
+  }
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string topic = 1;
+  if (this->topic().size() > 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->topic());
+  }
+
+  // string brokers = 2;
+  if (this->brokers().size() > 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->brokers());
+  }
+
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void StartKafkaStreamRequest::MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:gpssfdw.StartKafkaStreamRequest)
+  GOOGLE_DCHECK_NE(&from, this);
+  const StartKafkaStreamRequest* source =
+      ::PROTOBUF_NAMESPACE_ID::DynamicCastToGenerated<StartKafkaStreamRequest>(
+          &from);
+  if (source == nullptr) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:gpssfdw.StartKafkaStreamRequest)
+    ::PROTOBUF_NAMESPACE_ID::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:gpssfdw.StartKafkaStreamRequest)
+    MergeFrom(*source);
+  }
+}
+
+void StartKafkaStreamRequest::MergeFrom(const StartKafkaStreamRequest& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:gpssfdw.StartKafkaStreamRequest)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from.topic().size() > 0) {
+
+    topic_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.topic_);
+  }
+  if (from.brokers().size() > 0) {
+
+    brokers_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.brokers_);
+  }
+}
+
+void StartKafkaStreamRequest::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:gpssfdw.StartKafkaStreamRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void StartKafkaStreamRequest::CopyFrom(const StartKafkaStreamRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:gpssfdw.StartKafkaStreamRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool StartKafkaStreamRequest::IsInitialized() const {
+  return true;
+}
+
+void StartKafkaStreamRequest::Swap(StartKafkaStreamRequest* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void StartKafkaStreamRequest::InternalSwap(StartKafkaStreamRequest* other) {
+  using std::swap;
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  topic_.Swap(&other->topic_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+    GetArenaNoVirtual());
+  brokers_.Swap(&other->brokers_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+    GetArenaNoVirtual());
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata StartKafkaStreamRequest::GetMetadata() const {
+  return GetMetadataStatic();
+}
+
+
+// ===================================================================
+
+void StartKafkaStreamResponse::InitAsDefaultInstance() {
+}
+class StartKafkaStreamResponse::HasBitSetters {
+ public:
+};
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int StartKafkaStreamResponse::kIdFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+StartKafkaStreamResponse::StartKafkaStreamResponse()
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _internal_metadata_(nullptr) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:gpssfdw.StartKafkaStreamResponse)
+}
+StartKafkaStreamResponse::StartKafkaStreamResponse(const StartKafkaStreamResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(),
+      _internal_metadata_(nullptr) {
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (from.id().size() > 0) {
+    id_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.id_);
+  }
+  // @@protoc_insertion_point(copy_constructor:gpssfdw.StartKafkaStreamResponse)
+}
+
+void StartKafkaStreamResponse::SharedCtor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_StartKafkaStreamResponse_gpss_2eproto.base);
+  id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+StartKafkaStreamResponse::~StartKafkaStreamResponse() {
+  // @@protoc_insertion_point(destructor:gpssfdw.StartKafkaStreamResponse)
+  SharedDtor();
+}
+
+void StartKafkaStreamResponse::SharedDtor() {
+  id_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+void StartKafkaStreamResponse::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+const StartKafkaStreamResponse& StartKafkaStreamResponse::default_instance() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_StartKafkaStreamResponse_gpss_2eproto.base);
+  return *internal_default_instance();
+}
+
+
+void StartKafkaStreamResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:gpssfdw.StartKafkaStreamResponse)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _internal_metadata_.Clear();
+}
+
+#if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+const char* StartKafkaStreamResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    CHK_(ptr);
+    switch (tag >> 3) {
+      // string id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParserUTF8(mutable_id(), ptr, ctx, "gpssfdw.StartKafkaStreamResponse.id");
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      default: {
+      handle_unusual:
+        if ((tag & 7) == 4 || tag == 0) {
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag, &_internal_metadata_, ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
+    }  // switch
+  }  // while
+success:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto success;
+#undef CHK_
+}
+#else  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+bool StartKafkaStreamResponse::MergePartialFromCodedStream(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!PROTOBUF_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+  // @@protoc_insertion_point(parse_start:gpssfdw.StartKafkaStreamResponse)
+  for (;;) {
+    ::std::pair<::PROTOBUF_NAMESPACE_ID::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // string id = 1;
+      case 1: {
+        if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (10 & 0xFF)) {
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadString(
+                input, this->mutable_id()));
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+            this->id().data(), static_cast<int>(this->id().length()),
+            ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE,
+            "gpssfdw.StartKafkaStreamResponse.id"));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0) {
+          goto success;
+        }
+        DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SkipField(
+              input, tag, _internal_metadata_.mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:gpssfdw.StartKafkaStreamResponse)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:gpssfdw.StartKafkaStreamResponse)
+  return false;
+#undef DO_
+}
+#endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+
+void StartKafkaStreamResponse::SerializeWithCachedSizes(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:gpssfdw.StartKafkaStreamResponse)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string id = 1;
+  if (this->id().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->id().data(), static_cast<int>(this->id().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StartKafkaStreamResponse.id");
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringMaybeAliased(
+      1, this->id(), output);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFields(
+        _internal_metadata_.unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:gpssfdw.StartKafkaStreamResponse)
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* StartKafkaStreamResponse::InternalSerializeWithCachedSizesToArray(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:gpssfdw.StartKafkaStreamResponse)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string id = 1;
+  if (this->id().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->id().data(), static_cast<int>(this->id().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StartKafkaStreamResponse.id");
+    target =
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringToArray(
+        1, this->id(), target);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:gpssfdw.StartKafkaStreamResponse)
+  return target;
+}
+
+size_t StartKafkaStreamResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:gpssfdw.StartKafkaStreamResponse)
+  size_t total_size = 0;
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::ComputeUnknownFieldsSize(
+        _internal_metadata_.unknown_fields());
+  }
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string id = 1;
+  if (this->id().size() > 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->id());
+  }
+
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void StartKafkaStreamResponse::MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:gpssfdw.StartKafkaStreamResponse)
+  GOOGLE_DCHECK_NE(&from, this);
+  const StartKafkaStreamResponse* source =
+      ::PROTOBUF_NAMESPACE_ID::DynamicCastToGenerated<StartKafkaStreamResponse>(
+          &from);
+  if (source == nullptr) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:gpssfdw.StartKafkaStreamResponse)
+    ::PROTOBUF_NAMESPACE_ID::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:gpssfdw.StartKafkaStreamResponse)
+    MergeFrom(*source);
+  }
+}
+
+void StartKafkaStreamResponse::MergeFrom(const StartKafkaStreamResponse& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:gpssfdw.StartKafkaStreamResponse)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from.id().size() > 0) {
+
+    id_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.id_);
+  }
+}
+
+void StartKafkaStreamResponse::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:gpssfdw.StartKafkaStreamResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void StartKafkaStreamResponse::CopyFrom(const StartKafkaStreamResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:gpssfdw.StartKafkaStreamResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool StartKafkaStreamResponse::IsInitialized() const {
+  return true;
+}
+
+void StartKafkaStreamResponse::Swap(StartKafkaStreamResponse* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void StartKafkaStreamResponse::InternalSwap(StartKafkaStreamResponse* other) {
+  using std::swap;
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  id_.Swap(&other->id_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+    GetArenaNoVirtual());
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata StartKafkaStreamResponse::GetMetadata() const {
+  return GetMetadataStatic();
+}
+
+
+// ===================================================================
+
+void StopKafkaStreamRequest::InitAsDefaultInstance() {
+}
+class StopKafkaStreamRequest::HasBitSetters {
+ public:
+};
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+const int StopKafkaStreamRequest::kIdFieldNumber;
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+StopKafkaStreamRequest::StopKafkaStreamRequest()
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _internal_metadata_(nullptr) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:gpssfdw.StopKafkaStreamRequest)
+}
+StopKafkaStreamRequest::StopKafkaStreamRequest(const StopKafkaStreamRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(),
+      _internal_metadata_(nullptr) {
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (from.id().size() > 0) {
+    id_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.id_);
+  }
+  // @@protoc_insertion_point(copy_constructor:gpssfdw.StopKafkaStreamRequest)
+}
+
+void StopKafkaStreamRequest::SharedCtor() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&scc_info_StopKafkaStreamRequest_gpss_2eproto.base);
+  id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+StopKafkaStreamRequest::~StopKafkaStreamRequest() {
+  // @@protoc_insertion_point(destructor:gpssfdw.StopKafkaStreamRequest)
+  SharedDtor();
+}
+
+void StopKafkaStreamRequest::SharedDtor() {
+  id_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+void StopKafkaStreamRequest::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+const StopKafkaStreamRequest& StopKafkaStreamRequest::default_instance() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_StopKafkaStreamRequest_gpss_2eproto.base);
+  return *internal_default_instance();
+}
+
+
+void StopKafkaStreamRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:gpssfdw.StopKafkaStreamRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  _internal_metadata_.Clear();
+}
+
+#if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+const char* StopKafkaStreamRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    CHK_(ptr);
+    switch (tag >> 3) {
+      // string id = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParserUTF8(mutable_id(), ptr, ctx, "gpssfdw.StopKafkaStreamRequest.id");
+          CHK_(ptr);
+        } else goto handle_unusual;
+        continue;
+      default: {
+      handle_unusual:
+        if ((tag & 7) == 4 || tag == 0) {
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag, &_internal_metadata_, ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
+    }  // switch
+  }  // while
+success:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto success;
+#undef CHK_
+}
+#else  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+bool StopKafkaStreamRequest::MergePartialFromCodedStream(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!PROTOBUF_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+  // @@protoc_insertion_point(parse_start:gpssfdw.StopKafkaStreamRequest)
+  for (;;) {
+    ::std::pair<::PROTOBUF_NAMESPACE_ID::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+    switch (::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::GetTagFieldNumber(tag)) {
+      // string id = 1;
+      case 1: {
+        if (static_cast< ::PROTOBUF_NAMESPACE_ID::uint8>(tag) == (10 & 0xFF)) {
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::ReadString(
+                input, this->mutable_id()));
+          DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+            this->id().data(), static_cast<int>(this->id().length()),
+            ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE,
+            "gpssfdw.StopKafkaStreamRequest.id"));
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      default: {
+      handle_unusual:
+        if (tag == 0) {
+          goto success;
+        }
+        DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SkipField(
+              input, tag, _internal_metadata_.mutable_unknown_fields()));
+        break;
+      }
+    }
+  }
+success:
+  // @@protoc_insertion_point(parse_success:gpssfdw.StopKafkaStreamRequest)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:gpssfdw.StopKafkaStreamRequest)
+  return false;
+#undef DO_
+}
+#endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+
+void StopKafkaStreamRequest::SerializeWithCachedSizes(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:gpssfdw.StopKafkaStreamRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string id = 1;
+  if (this->id().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->id().data(), static_cast<int>(this->id().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StopKafkaStreamRequest.id");
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringMaybeAliased(
+      1, this->id(), output);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFields(
+        _internal_metadata_.unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:gpssfdw.StopKafkaStreamRequest)
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* StopKafkaStreamRequest::InternalSerializeWithCachedSizesToArray(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:gpssfdw.StopKafkaStreamRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string id = 1;
+  if (this->id().size() > 0) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->id().data(), static_cast<int>(this->id().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "gpssfdw.StopKafkaStreamRequest.id");
+    target =
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteStringToArray(
+        1, this->id(), target);
+  }
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:gpssfdw.StopKafkaStreamRequest)
+  return target;
+}
+
+size_t StopKafkaStreamRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:gpssfdw.StopKafkaStreamRequest)
+  size_t total_size = 0;
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::ComputeUnknownFieldsSize(
+        _internal_metadata_.unknown_fields());
+  }
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string id = 1;
+  if (this->id().size() > 0) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->id());
+  }
+
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void StopKafkaStreamRequest::MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:gpssfdw.StopKafkaStreamRequest)
+  GOOGLE_DCHECK_NE(&from, this);
+  const StopKafkaStreamRequest* source =
+      ::PROTOBUF_NAMESPACE_ID::DynamicCastToGenerated<StopKafkaStreamRequest>(
+          &from);
+  if (source == nullptr) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:gpssfdw.StopKafkaStreamRequest)
+    ::PROTOBUF_NAMESPACE_ID::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:gpssfdw.StopKafkaStreamRequest)
+    MergeFrom(*source);
+  }
+}
+
+void StopKafkaStreamRequest::MergeFrom(const StopKafkaStreamRequest& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:gpssfdw.StopKafkaStreamRequest)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from.id().size() > 0) {
+
+    id_.AssignWithDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), from.id_);
+  }
+}
+
+void StopKafkaStreamRequest::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:gpssfdw.StopKafkaStreamRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void StopKafkaStreamRequest::CopyFrom(const StopKafkaStreamRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:gpssfdw.StopKafkaStreamRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool StopKafkaStreamRequest::IsInitialized() const {
+  return true;
+}
+
+void StopKafkaStreamRequest::Swap(StopKafkaStreamRequest* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void StopKafkaStreamRequest::InternalSwap(StopKafkaStreamRequest* other) {
+  using std::swap;
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+  id_.Swap(&other->id_, &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+    GetArenaNoVirtual());
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata StopKafkaStreamRequest::GetMetadata() const {
+  return GetMetadataStatic();
+}
+
+
+// ===================================================================
+
+void StopKafkaStreamResponse::InitAsDefaultInstance() {
+}
+class StopKafkaStreamResponse::HasBitSetters {
+ public:
+};
+
+#if !defined(_MSC_VER) || _MSC_VER >= 1900
+#endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
+
+StopKafkaStreamResponse::StopKafkaStreamResponse()
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _internal_metadata_(nullptr) {
+  SharedCtor();
+  // @@protoc_insertion_point(constructor:gpssfdw.StopKafkaStreamResponse)
+}
+StopKafkaStreamResponse::StopKafkaStreamResponse(const StopKafkaStreamResponse& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(),
+      _internal_metadata_(nullptr) {
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:gpssfdw.StopKafkaStreamResponse)
+}
+
+void StopKafkaStreamResponse::SharedCtor() {
+}
+
+StopKafkaStreamResponse::~StopKafkaStreamResponse() {
+  // @@protoc_insertion_point(destructor:gpssfdw.StopKafkaStreamResponse)
+  SharedDtor();
+}
+
+void StopKafkaStreamResponse::SharedDtor() {
+}
+
+void StopKafkaStreamResponse::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+const StopKafkaStreamResponse& StopKafkaStreamResponse::default_instance() {
+  ::PROTOBUF_NAMESPACE_ID::internal::InitSCC(&::scc_info_StopKafkaStreamResponse_gpss_2eproto.base);
+  return *internal_default_instance();
+}
+
+
+void StopKafkaStreamResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:gpssfdw.StopKafkaStreamResponse)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_metadata_.Clear();
+}
+
+#if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+const char* StopKafkaStreamResponse::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    CHK_(ptr);
+    switch (tag >> 3) {
+      default: {
+        if ((tag & 7) == 4 || tag == 0) {
+          ctx->SetLastTag(tag);
+          goto success;
+        }
+        ptr = UnknownFieldParse(tag, &_internal_metadata_, ptr, ctx);
+        CHK_(ptr != nullptr);
+        continue;
+      }
+    }  // switch
+  }  // while
+success:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto success;
+#undef CHK_
+}
+#else  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+bool StopKafkaStreamResponse::MergePartialFromCodedStream(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) {
+#define DO_(EXPRESSION) if (!PROTOBUF_PREDICT_TRUE(EXPRESSION)) goto failure
+  ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+  // @@protoc_insertion_point(parse_start:gpssfdw.StopKafkaStreamResponse)
+  for (;;) {
+    ::std::pair<::PROTOBUF_NAMESPACE_ID::uint32, bool> p = input->ReadTagWithCutoffNoLastTag(127u);
+    tag = p.first;
+    if (!p.second) goto handle_unusual;
+  handle_unusual:
+    if (tag == 0) {
+      goto success;
+    }
+    DO_(::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SkipField(
+          input, tag, _internal_metadata_.mutable_unknown_fields()));
+  }
+success:
+  // @@protoc_insertion_point(parse_success:gpssfdw.StopKafkaStreamResponse)
+  return true;
+failure:
+  // @@protoc_insertion_point(parse_failure:gpssfdw.StopKafkaStreamResponse)
+  return false;
+#undef DO_
+}
+#endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+
+void StopKafkaStreamResponse::SerializeWithCachedSizes(
+    ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const {
+  // @@protoc_insertion_point(serialize_start:gpssfdw.StopKafkaStreamResponse)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFields(
+        _internal_metadata_.unknown_fields(), output);
+  }
+  // @@protoc_insertion_point(serialize_end:gpssfdw.StopKafkaStreamResponse)
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* StopKafkaStreamResponse::InternalSerializeWithCachedSizesToArray(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target) const {
+  // @@protoc_insertion_point(serialize_to_array_start:gpssfdw.StopKafkaStreamResponse)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::SerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields(), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:gpssfdw.StopKafkaStreamResponse)
+  return target;
+}
+
+size_t StopKafkaStreamResponse::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:gpssfdw.StopKafkaStreamResponse)
+  size_t total_size = 0;
+
+  if (_internal_metadata_.have_unknown_fields()) {
+    total_size +=
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::ComputeUnknownFieldsSize(
+        _internal_metadata_.unknown_fields());
+  }
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void StopKafkaStreamResponse::MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_merge_from_start:gpssfdw.StopKafkaStreamResponse)
+  GOOGLE_DCHECK_NE(&from, this);
+  const StopKafkaStreamResponse* source =
+      ::PROTOBUF_NAMESPACE_ID::DynamicCastToGenerated<StopKafkaStreamResponse>(
+          &from);
+  if (source == nullptr) {
+  // @@protoc_insertion_point(generalized_merge_from_cast_fail:gpssfdw.StopKafkaStreamResponse)
+    ::PROTOBUF_NAMESPACE_ID::internal::ReflectionOps::Merge(from, this);
+  } else {
+  // @@protoc_insertion_point(generalized_merge_from_cast_success:gpssfdw.StopKafkaStreamResponse)
+    MergeFrom(*source);
+  }
+}
+
+void StopKafkaStreamResponse::MergeFrom(const StopKafkaStreamResponse& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:gpssfdw.StopKafkaStreamResponse)
+  GOOGLE_DCHECK_NE(&from, this);
+  _internal_metadata_.MergeFrom(from._internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+}
+
+void StopKafkaStreamResponse::CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+// @@protoc_insertion_point(generalized_copy_from_start:gpssfdw.StopKafkaStreamResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+void StopKafkaStreamResponse::CopyFrom(const StopKafkaStreamResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:gpssfdw.StopKafkaStreamResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool StopKafkaStreamResponse::IsInitialized() const {
+  return true;
+}
+
+void StopKafkaStreamResponse::Swap(StopKafkaStreamResponse* other) {
+  if (other == this) return;
+  InternalSwap(other);
+}
+void StopKafkaStreamResponse::InternalSwap(StopKafkaStreamResponse* other) {
+  using std::swap;
+  _internal_metadata_.Swap(&other->_internal_metadata_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata StopKafkaStreamResponse::GetMetadata() const {
+  return GetMetadataStatic();
+}
+
+
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace gpssfdw
 PROTOBUF_NAMESPACE_OPEN
@@ -1301,6 +2519,18 @@ template<> PROTOBUF_NOINLINE ::gpssfdw::StreamDataRequest* Arena::CreateMaybeMes
 }
 template<> PROTOBUF_NOINLINE ::gpssfdw::StreamDataResponse* Arena::CreateMaybeMessage< ::gpssfdw::StreamDataResponse >(Arena* arena) {
   return Arena::CreateInternal< ::gpssfdw::StreamDataResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::gpssfdw::StartKafkaStreamRequest* Arena::CreateMaybeMessage< ::gpssfdw::StartKafkaStreamRequest >(Arena* arena) {
+  return Arena::CreateInternal< ::gpssfdw::StartKafkaStreamRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::gpssfdw::StartKafkaStreamResponse* Arena::CreateMaybeMessage< ::gpssfdw::StartKafkaStreamResponse >(Arena* arena) {
+  return Arena::CreateInternal< ::gpssfdw::StartKafkaStreamResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::gpssfdw::StopKafkaStreamRequest* Arena::CreateMaybeMessage< ::gpssfdw::StopKafkaStreamRequest >(Arena* arena) {
+  return Arena::CreateInternal< ::gpssfdw::StopKafkaStreamRequest >(arena);
+}
+template<> PROTOBUF_NOINLINE ::gpssfdw::StopKafkaStreamResponse* Arena::CreateMaybeMessage< ::gpssfdw::StopKafkaStreamResponse >(Arena* arena) {
+  return Arena::CreateInternal< ::gpssfdw::StopKafkaStreamResponse >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

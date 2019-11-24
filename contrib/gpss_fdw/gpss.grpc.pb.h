@@ -53,6 +53,20 @@ class GpssFdw final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>> PrepareAsyncEstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>>(PrepareAsyncEstimateSizeRaw(context, request, cq));
     }
+    virtual ::grpc::Status StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::gpssfdw::StartKafkaStreamResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StartKafkaStreamResponse>> AsyncStartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StartKafkaStreamResponse>>(AsyncStartKafkaStreamRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StartKafkaStreamResponse>> PrepareAsyncStartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StartKafkaStreamResponse>>(PrepareAsyncStartKafkaStreamRaw(context, request, cq));
+    }
+    virtual ::grpc::Status StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::gpssfdw::StopKafkaStreamResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StopKafkaStreamResponse>> AsyncStopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StopKafkaStreamResponse>>(AsyncStopKafkaStreamRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StopKafkaStreamResponse>> PrepareAsyncStopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StopKafkaStreamResponse>>(PrepareAsyncStopKafkaStreamRaw(context, request, cq));
+    }
     std::unique_ptr< ::grpc::ClientReaderInterface< ::gpssfdw::StreamDataResponse>> StreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) {
       return std::unique_ptr< ::grpc::ClientReaderInterface< ::gpssfdw::StreamDataResponse>>(StreamDataRaw(context, request));
     }
@@ -69,12 +83,24 @@ class GpssFdw final {
       virtual void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
       virtual void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void StartKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StartKafkaStreamResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void StartKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void StopKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StopKafkaStreamResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
+      virtual void StopKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) = 0;
       virtual void StreamData(::grpc::ClientContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::experimental::ClientReadReactor< ::gpssfdw::StreamDataResponse>* reactor) = 0;
     };
     virtual class experimental_async_interface* experimental_async() { return nullptr; }
   private:
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>* AsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::EstimateSizeResponse>* PrepareAsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StartKafkaStreamResponse>* AsyncStartKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StartKafkaStreamResponse>* PrepareAsyncStartKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StopKafkaStreamResponse>* AsyncStopKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::gpssfdw::StopKafkaStreamResponse>* PrepareAsyncStopKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientReaderInterface< ::gpssfdw::StreamDataResponse>* StreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) = 0;
     virtual ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>* AsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) = 0;
     virtual ::grpc::ClientAsyncReaderInterface< ::gpssfdw::StreamDataResponse>* PrepareAsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) = 0;
@@ -88,6 +114,20 @@ class GpssFdw final {
     }
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>> PrepareAsyncEstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>>(PrepareAsyncEstimateSizeRaw(context, request, cq));
+    }
+    ::grpc::Status StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::gpssfdw::StartKafkaStreamResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>> AsyncStartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>>(AsyncStartKafkaStreamRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>> PrepareAsyncStartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>>(PrepareAsyncStartKafkaStreamRaw(context, request, cq));
+    }
+    ::grpc::Status StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::gpssfdw::StopKafkaStreamResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>> AsyncStopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>>(AsyncStopKafkaStreamRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>> PrepareAsyncStopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>>(PrepareAsyncStopKafkaStreamRaw(context, request, cq));
     }
     std::unique_ptr< ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>> StreamData(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) {
       return std::unique_ptr< ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>>(StreamDataRaw(context, request));
@@ -105,6 +145,14 @@ class GpssFdw final {
       void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, std::function<void(::grpc::Status)>) override;
       void EstimateSize(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
       void EstimateSize(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, std::function<void(::grpc::Status)>) override;
+      void StartKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StartKafkaStreamResponse* response, std::function<void(::grpc::Status)>) override;
+      void StartKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void StartKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, std::function<void(::grpc::Status)>) override;
+      void StopKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StopKafkaStreamResponse* response, std::function<void(::grpc::Status)>) override;
+      void StopKafkaStream(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
+      void StopKafkaStream(::grpc::ClientContext* context, const ::grpc::ByteBuffer* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ClientUnaryReactor* reactor) override;
       void StreamData(::grpc::ClientContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::experimental::ClientReadReactor< ::gpssfdw::StreamDataResponse>* reactor) override;
      private:
       friend class Stub;
@@ -119,10 +167,16 @@ class GpssFdw final {
     class experimental_async async_stub_{this};
     ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>* AsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::gpssfdw::EstimateSizeResponse>* PrepareAsyncEstimateSizeRaw(::grpc::ClientContext* context, const ::gpssfdw::EstimateSizeRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>* AsyncStartKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::gpssfdw::StartKafkaStreamResponse>* PrepareAsyncStartKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StartKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>* AsyncStopKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::gpssfdw::StopKafkaStreamResponse>* PrepareAsyncStopKafkaStreamRaw(::grpc::ClientContext* context, const ::gpssfdw::StopKafkaStreamRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientReader< ::gpssfdw::StreamDataResponse>* StreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request) override;
     ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>* AsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq, void* tag) override;
     ::grpc::ClientAsyncReader< ::gpssfdw::StreamDataResponse>* PrepareAsyncStreamDataRaw(::grpc::ClientContext* context, const ::gpssfdw::StreamDataRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_EstimateSize_;
+    const ::grpc::internal::RpcMethod rpcmethod_StartKafkaStream_;
+    const ::grpc::internal::RpcMethod rpcmethod_StopKafkaStream_;
     const ::grpc::internal::RpcMethod rpcmethod_StreamData_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
@@ -132,6 +186,8 @@ class GpssFdw final {
     Service();
     virtual ~Service();
     virtual ::grpc::Status EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response);
+    virtual ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response);
+    virtual ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response);
     virtual ::grpc::Status StreamData(::grpc::ServerContext* context, const ::gpssfdw::StreamDataRequest* request, ::grpc::ServerWriter< ::gpssfdw::StreamDataResponse>* writer);
   };
   template <class BaseClass>
@@ -155,12 +211,52 @@ class GpssFdw final {
     }
   };
   template <class BaseClass>
+  class WithAsyncMethod_StartKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithAsyncMethod_StartKafkaStream() {
+      ::grpc::Service::MarkMethodAsync(1);
+    }
+    ~WithAsyncMethod_StartKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestStartKafkaStream(::grpc::ServerContext* context, ::gpssfdw::StartKafkaStreamRequest* request, ::grpc::ServerAsyncResponseWriter< ::gpssfdw::StartKafkaStreamResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_StopKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithAsyncMethod_StopKafkaStream() {
+      ::grpc::Service::MarkMethodAsync(2);
+    }
+    ~WithAsyncMethod_StopKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestStopKafkaStream(::grpc::ServerContext* context, ::gpssfdw::StopKafkaStreamRequest* request, ::grpc::ServerAsyncResponseWriter< ::gpssfdw::StopKafkaStreamResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
   class WithAsyncMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
     WithAsyncMethod_StreamData() {
-      ::grpc::Service::MarkMethodAsync(1);
+      ::grpc::Service::MarkMethodAsync(3);
     }
     ~WithAsyncMethod_StreamData() override {
       BaseClassMustBeDerivedFromService(this);
@@ -171,10 +267,10 @@ class GpssFdw final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestStreamData(::grpc::ServerContext* context, ::gpssfdw::StreamDataRequest* request, ::grpc::ServerAsyncWriter< ::gpssfdw::StreamDataResponse>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncServerStreaming(1, context, request, writer, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncServerStreaming(3, context, request, writer, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_EstimateSize<WithAsyncMethod_StreamData<Service > > AsyncService;
+  typedef WithAsyncMethod_EstimateSize<WithAsyncMethod_StartKafkaStream<WithAsyncMethod_StopKafkaStream<WithAsyncMethod_StreamData<Service > > > > AsyncService;
   template <class BaseClass>
   class ExperimentalWithCallbackMethod_EstimateSize : public BaseClass {
    private:
@@ -207,12 +303,74 @@ class GpssFdw final {
     virtual void EstimateSize(::grpc::ServerContext* context, const ::gpssfdw::EstimateSizeRequest* request, ::gpssfdw::EstimateSizeResponse* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
   };
   template <class BaseClass>
+  class ExperimentalWithCallbackMethod_StartKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    ExperimentalWithCallbackMethod_StartKafkaStream() {
+      ::grpc::Service::experimental().MarkMethodCallback(1,
+        new ::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::StartKafkaStreamRequest, ::gpssfdw::StartKafkaStreamResponse>(
+          [this](::grpc::ServerContext* context,
+                 const ::gpssfdw::StartKafkaStreamRequest* request,
+                 ::gpssfdw::StartKafkaStreamResponse* response,
+                 ::grpc::experimental::ServerCallbackRpcController* controller) {
+                   return this->StartKafkaStream(context, request, response, controller);
+                 }));
+    }
+    void SetMessageAllocatorFor_StartKafkaStream(
+        ::grpc::experimental::MessageAllocator< ::gpssfdw::StartKafkaStreamRequest, ::gpssfdw::StartKafkaStreamResponse>* allocator) {
+      static_cast<::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::StartKafkaStreamRequest, ::gpssfdw::StartKafkaStreamResponse>*>(
+          ::grpc::Service::experimental().GetHandler(1))
+              ->SetMessageAllocator(allocator);
+    }
+    ~ExperimentalWithCallbackMethod_StartKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual void StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
+  };
+  template <class BaseClass>
+  class ExperimentalWithCallbackMethod_StopKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    ExperimentalWithCallbackMethod_StopKafkaStream() {
+      ::grpc::Service::experimental().MarkMethodCallback(2,
+        new ::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::StopKafkaStreamRequest, ::gpssfdw::StopKafkaStreamResponse>(
+          [this](::grpc::ServerContext* context,
+                 const ::gpssfdw::StopKafkaStreamRequest* request,
+                 ::gpssfdw::StopKafkaStreamResponse* response,
+                 ::grpc::experimental::ServerCallbackRpcController* controller) {
+                   return this->StopKafkaStream(context, request, response, controller);
+                 }));
+    }
+    void SetMessageAllocatorFor_StopKafkaStream(
+        ::grpc::experimental::MessageAllocator< ::gpssfdw::StopKafkaStreamRequest, ::gpssfdw::StopKafkaStreamResponse>* allocator) {
+      static_cast<::grpc_impl::internal::CallbackUnaryHandler< ::gpssfdw::StopKafkaStreamRequest, ::gpssfdw::StopKafkaStreamResponse>*>(
+          ::grpc::Service::experimental().GetHandler(2))
+              ->SetMessageAllocator(allocator);
+    }
+    ~ExperimentalWithCallbackMethod_StopKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual void StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
+  };
+  template <class BaseClass>
   class ExperimentalWithCallbackMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
     ExperimentalWithCallbackMethod_StreamData() {
-      ::grpc::Service::experimental().MarkMethodCallback(1,
+      ::grpc::Service::experimental().MarkMethodCallback(3,
         new ::grpc_impl::internal::CallbackServerStreamingHandler< ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>(
           [this] { return this->StreamData(); }));
     }
@@ -228,7 +386,7 @@ class GpssFdw final {
       return new ::grpc_impl::internal::UnimplementedWriteReactor<
         ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>;}
   };
-  typedef ExperimentalWithCallbackMethod_EstimateSize<ExperimentalWithCallbackMethod_StreamData<Service > > ExperimentalCallbackService;
+  typedef ExperimentalWithCallbackMethod_EstimateSize<ExperimentalWithCallbackMethod_StartKafkaStream<ExperimentalWithCallbackMethod_StopKafkaStream<ExperimentalWithCallbackMethod_StreamData<Service > > > > ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_EstimateSize : public BaseClass {
    private:
@@ -247,12 +405,46 @@ class GpssFdw final {
     }
   };
   template <class BaseClass>
+  class WithGenericMethod_StartKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithGenericMethod_StartKafkaStream() {
+      ::grpc::Service::MarkMethodGeneric(1);
+    }
+    ~WithGenericMethod_StartKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_StopKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithGenericMethod_StopKafkaStream() {
+      ::grpc::Service::MarkMethodGeneric(2);
+    }
+    ~WithGenericMethod_StopKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
   class WithGenericMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
     WithGenericMethod_StreamData() {
-      ::grpc::Service::MarkMethodGeneric(1);
+      ::grpc::Service::MarkMethodGeneric(3);
     }
     ~WithGenericMethod_StreamData() override {
       BaseClassMustBeDerivedFromService(this);
@@ -284,12 +476,52 @@ class GpssFdw final {
     }
   };
   template <class BaseClass>
+  class WithRawMethod_StartKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithRawMethod_StartKafkaStream() {
+      ::grpc::Service::MarkMethodRaw(1);
+    }
+    ~WithRawMethod_StartKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestStartKafkaStream(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_StopKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithRawMethod_StopKafkaStream() {
+      ::grpc::Service::MarkMethodRaw(2);
+    }
+    ~WithRawMethod_StopKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestStopKafkaStream(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
   class WithRawMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
     WithRawMethod_StreamData() {
-      ::grpc::Service::MarkMethodRaw(1);
+      ::grpc::Service::MarkMethodRaw(3);
     }
     ~WithRawMethod_StreamData() override {
       BaseClassMustBeDerivedFromService(this);
@@ -300,7 +532,7 @@ class GpssFdw final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     void RequestStreamData(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncWriter< ::grpc::ByteBuffer>* writer, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
-      ::grpc::Service::RequestAsyncServerStreaming(1, context, request, writer, new_call_cq, notification_cq, tag);
+      ::grpc::Service::RequestAsyncServerStreaming(3, context, request, writer, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -329,12 +561,62 @@ class GpssFdw final {
     virtual void EstimateSize(::grpc::ServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
   };
   template <class BaseClass>
+  class ExperimentalWithRawCallbackMethod_StartKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    ExperimentalWithRawCallbackMethod_StartKafkaStream() {
+      ::grpc::Service::experimental().MarkMethodRawCallback(1,
+        new ::grpc_impl::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+          [this](::grpc::ServerContext* context,
+                 const ::grpc::ByteBuffer* request,
+                 ::grpc::ByteBuffer* response,
+                 ::grpc::experimental::ServerCallbackRpcController* controller) {
+                   this->StartKafkaStream(context, request, response, controller);
+                 }));
+    }
+    ~ExperimentalWithRawCallbackMethod_StartKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual void StartKafkaStream(::grpc::ServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
+  };
+  template <class BaseClass>
+  class ExperimentalWithRawCallbackMethod_StopKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    ExperimentalWithRawCallbackMethod_StopKafkaStream() {
+      ::grpc::Service::experimental().MarkMethodRawCallback(2,
+        new ::grpc_impl::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+          [this](::grpc::ServerContext* context,
+                 const ::grpc::ByteBuffer* request,
+                 ::grpc::ByteBuffer* response,
+                 ::grpc::experimental::ServerCallbackRpcController* controller) {
+                   this->StopKafkaStream(context, request, response, controller);
+                 }));
+    }
+    ~ExperimentalWithRawCallbackMethod_StopKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual void StopKafkaStream(::grpc::ServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response, ::grpc::experimental::ServerCallbackRpcController* controller) { controller->Finish(::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "")); }
+  };
+  template <class BaseClass>
   class ExperimentalWithRawCallbackMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
     ExperimentalWithRawCallbackMethod_StreamData() {
-      ::grpc::Service::experimental().MarkMethodRawCallback(1,
+      ::grpc::Service::experimental().MarkMethodRawCallback(3,
         new ::grpc_impl::internal::CallbackServerStreamingHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
           [this] { return this->StreamData(); }));
     }
@@ -370,14 +652,54 @@ class GpssFdw final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedEstimateSize(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::gpssfdw::EstimateSizeRequest,::gpssfdw::EstimateSizeResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_EstimateSize<Service > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_StartKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithStreamedUnaryMethod_StartKafkaStream() {
+      ::grpc::Service::MarkMethodStreamed(1,
+        new ::grpc::internal::StreamedUnaryHandler< ::gpssfdw::StartKafkaStreamRequest, ::gpssfdw::StartKafkaStreamResponse>(std::bind(&WithStreamedUnaryMethod_StartKafkaStream<BaseClass>::StreamedStartKafkaStream, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_StartKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status StartKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StartKafkaStreamRequest* request, ::gpssfdw::StartKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedStartKafkaStream(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::gpssfdw::StartKafkaStreamRequest,::gpssfdw::StartKafkaStreamResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_StopKafkaStream : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service *service) {}
+   public:
+    WithStreamedUnaryMethod_StopKafkaStream() {
+      ::grpc::Service::MarkMethodStreamed(2,
+        new ::grpc::internal::StreamedUnaryHandler< ::gpssfdw::StopKafkaStreamRequest, ::gpssfdw::StopKafkaStreamResponse>(std::bind(&WithStreamedUnaryMethod_StopKafkaStream<BaseClass>::StreamedStopKafkaStream, this, std::placeholders::_1, std::placeholders::_2)));
+    }
+    ~WithStreamedUnaryMethod_StopKafkaStream() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status StopKafkaStream(::grpc::ServerContext* context, const ::gpssfdw::StopKafkaStreamRequest* request, ::gpssfdw::StopKafkaStreamResponse* response) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedStopKafkaStream(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::gpssfdw::StopKafkaStreamRequest,::gpssfdw::StopKafkaStreamResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_EstimateSize<WithStreamedUnaryMethod_StartKafkaStream<WithStreamedUnaryMethod_StopKafkaStream<Service > > > StreamedUnaryService;
   template <class BaseClass>
   class WithSplitStreamingMethod_StreamData : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service *service) {}
    public:
     WithSplitStreamingMethod_StreamData() {
-      ::grpc::Service::MarkMethodStreamed(1,
+      ::grpc::Service::MarkMethodStreamed(3,
         new ::grpc::internal::SplitServerStreamingHandler< ::gpssfdw::StreamDataRequest, ::gpssfdw::StreamDataResponse>(std::bind(&WithSplitStreamingMethod_StreamData<BaseClass>::StreamedStreamData, this, std::placeholders::_1, std::placeholders::_2)));
     }
     ~WithSplitStreamingMethod_StreamData() override {
@@ -392,7 +714,7 @@ class GpssFdw final {
     virtual ::grpc::Status StreamedStreamData(::grpc::ServerContext* context, ::grpc::ServerSplitStreamer< ::gpssfdw::StreamDataRequest,::gpssfdw::StreamDataResponse>* server_split_streamer) = 0;
   };
   typedef WithSplitStreamingMethod_StreamData<Service > SplitStreamedService;
-  typedef WithStreamedUnaryMethod_EstimateSize<WithSplitStreamingMethod_StreamData<Service > > StreamedService;
+  typedef WithStreamedUnaryMethod_EstimateSize<WithStreamedUnaryMethod_StartKafkaStream<WithStreamedUnaryMethod_StopKafkaStream<WithSplitStreamingMethod_StreamData<Service > > > > StreamedService;
 };
 
 }  // namespace gpssfdw

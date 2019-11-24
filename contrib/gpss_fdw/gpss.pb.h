@@ -47,7 +47,7 @@ struct TableStruct_gpss_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxillaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[4]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[8]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -61,6 +61,18 @@ extern EstimateSizeRequestDefaultTypeInternal _EstimateSizeRequest_default_insta
 class EstimateSizeResponse;
 class EstimateSizeResponseDefaultTypeInternal;
 extern EstimateSizeResponseDefaultTypeInternal _EstimateSizeResponse_default_instance_;
+class StartKafkaStreamRequest;
+class StartKafkaStreamRequestDefaultTypeInternal;
+extern StartKafkaStreamRequestDefaultTypeInternal _StartKafkaStreamRequest_default_instance_;
+class StartKafkaStreamResponse;
+class StartKafkaStreamResponseDefaultTypeInternal;
+extern StartKafkaStreamResponseDefaultTypeInternal _StartKafkaStreamResponse_default_instance_;
+class StopKafkaStreamRequest;
+class StopKafkaStreamRequestDefaultTypeInternal;
+extern StopKafkaStreamRequestDefaultTypeInternal _StopKafkaStreamRequest_default_instance_;
+class StopKafkaStreamResponse;
+class StopKafkaStreamResponseDefaultTypeInternal;
+extern StopKafkaStreamResponseDefaultTypeInternal _StopKafkaStreamResponse_default_instance_;
 class StreamDataRequest;
 class StreamDataRequestDefaultTypeInternal;
 extern StreamDataRequestDefaultTypeInternal _StreamDataRequest_default_instance_;
@@ -71,6 +83,10 @@ extern StreamDataResponseDefaultTypeInternal _StreamDataResponse_default_instanc
 PROTOBUF_NAMESPACE_OPEN
 template<> ::gpssfdw::EstimateSizeRequest* Arena::CreateMaybeMessage<::gpssfdw::EstimateSizeRequest>(Arena*);
 template<> ::gpssfdw::EstimateSizeResponse* Arena::CreateMaybeMessage<::gpssfdw::EstimateSizeResponse>(Arena*);
+template<> ::gpssfdw::StartKafkaStreamRequest* Arena::CreateMaybeMessage<::gpssfdw::StartKafkaStreamRequest>(Arena*);
+template<> ::gpssfdw::StartKafkaStreamResponse* Arena::CreateMaybeMessage<::gpssfdw::StartKafkaStreamResponse>(Arena*);
+template<> ::gpssfdw::StopKafkaStreamRequest* Arena::CreateMaybeMessage<::gpssfdw::StopKafkaStreamRequest>(Arena*);
+template<> ::gpssfdw::StopKafkaStreamResponse* Arena::CreateMaybeMessage<::gpssfdw::StopKafkaStreamResponse>(Arena*);
 template<> ::gpssfdw::StreamDataRequest* Arena::CreateMaybeMessage<::gpssfdw::StreamDataRequest>(Arena*);
 template<> ::gpssfdw::StreamDataResponse* Arena::CreateMaybeMessage<::gpssfdw::StreamDataResponse>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
@@ -605,6 +621,534 @@ class StreamDataResponse :
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_gpss_2eproto;
 };
+// -------------------------------------------------------------------
+
+class StartKafkaStreamRequest :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.StartKafkaStreamRequest) */ {
+ public:
+  StartKafkaStreamRequest();
+  virtual ~StartKafkaStreamRequest();
+
+  StartKafkaStreamRequest(const StartKafkaStreamRequest& from);
+  StartKafkaStreamRequest(StartKafkaStreamRequest&& from) noexcept
+    : StartKafkaStreamRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline StartKafkaStreamRequest& operator=(const StartKafkaStreamRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StartKafkaStreamRequest& operator=(StartKafkaStreamRequest&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return GetMetadataStatic().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return GetMetadataStatic().reflection;
+  }
+  static const StartKafkaStreamRequest& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const StartKafkaStreamRequest* internal_default_instance() {
+    return reinterpret_cast<const StartKafkaStreamRequest*>(
+               &_StartKafkaStreamRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    4;
+
+  void Swap(StartKafkaStreamRequest* other);
+  friend void swap(StartKafkaStreamRequest& a, StartKafkaStreamRequest& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline StartKafkaStreamRequest* New() const final {
+    return CreateMaybeMessage<StartKafkaStreamRequest>(nullptr);
+  }
+
+  StartKafkaStreamRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<StartKafkaStreamRequest>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const StartKafkaStreamRequest& from);
+  void MergeFrom(const StartKafkaStreamRequest& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  #if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  #else
+  bool MergePartialFromCodedStream(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) final;
+  #endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  void SerializeWithCachedSizes(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* InternalSerializeWithCachedSizesToArray(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  inline void SharedCtor();
+  inline void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StartKafkaStreamRequest* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "gpssfdw.StartKafkaStreamRequest";
+  }
+  private:
+  inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
+    return nullptr;
+  }
+  inline void* MaybeArenaPtr() const {
+    return nullptr;
+  }
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  private:
+  static ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadataStatic() {
+    ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&::descriptor_table_gpss_2eproto);
+    return ::descriptor_table_gpss_2eproto.file_level_metadata[kIndexInFileMessages];
+  }
+
+  public:
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // string topic = 1;
+  void clear_topic();
+  static const int kTopicFieldNumber = 1;
+  const std::string& topic() const;
+  void set_topic(const std::string& value);
+  void set_topic(std::string&& value);
+  void set_topic(const char* value);
+  void set_topic(const char* value, size_t size);
+  std::string* mutable_topic();
+  std::string* release_topic();
+  void set_allocated_topic(std::string* topic);
+
+  // string brokers = 2;
+  void clear_brokers();
+  static const int kBrokersFieldNumber = 2;
+  const std::string& brokers() const;
+  void set_brokers(const std::string& value);
+  void set_brokers(std::string&& value);
+  void set_brokers(const char* value);
+  void set_brokers(const char* value, size_t size);
+  std::string* mutable_brokers();
+  std::string* release_brokers();
+  void set_allocated_brokers(std::string* brokers);
+
+  // @@protoc_insertion_point(class_scope:gpssfdw.StartKafkaStreamRequest)
+ private:
+  class HasBitSetters;
+
+  ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr topic_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr brokers_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_gpss_2eproto;
+};
+// -------------------------------------------------------------------
+
+class StartKafkaStreamResponse :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.StartKafkaStreamResponse) */ {
+ public:
+  StartKafkaStreamResponse();
+  virtual ~StartKafkaStreamResponse();
+
+  StartKafkaStreamResponse(const StartKafkaStreamResponse& from);
+  StartKafkaStreamResponse(StartKafkaStreamResponse&& from) noexcept
+    : StartKafkaStreamResponse() {
+    *this = ::std::move(from);
+  }
+
+  inline StartKafkaStreamResponse& operator=(const StartKafkaStreamResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StartKafkaStreamResponse& operator=(StartKafkaStreamResponse&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return GetMetadataStatic().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return GetMetadataStatic().reflection;
+  }
+  static const StartKafkaStreamResponse& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const StartKafkaStreamResponse* internal_default_instance() {
+    return reinterpret_cast<const StartKafkaStreamResponse*>(
+               &_StartKafkaStreamResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    5;
+
+  void Swap(StartKafkaStreamResponse* other);
+  friend void swap(StartKafkaStreamResponse& a, StartKafkaStreamResponse& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline StartKafkaStreamResponse* New() const final {
+    return CreateMaybeMessage<StartKafkaStreamResponse>(nullptr);
+  }
+
+  StartKafkaStreamResponse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<StartKafkaStreamResponse>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const StartKafkaStreamResponse& from);
+  void MergeFrom(const StartKafkaStreamResponse& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  #if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  #else
+  bool MergePartialFromCodedStream(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) final;
+  #endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  void SerializeWithCachedSizes(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* InternalSerializeWithCachedSizesToArray(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  inline void SharedCtor();
+  inline void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StartKafkaStreamResponse* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "gpssfdw.StartKafkaStreamResponse";
+  }
+  private:
+  inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
+    return nullptr;
+  }
+  inline void* MaybeArenaPtr() const {
+    return nullptr;
+  }
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  private:
+  static ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadataStatic() {
+    ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&::descriptor_table_gpss_2eproto);
+    return ::descriptor_table_gpss_2eproto.file_level_metadata[kIndexInFileMessages];
+  }
+
+  public:
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // string id = 1;
+  void clear_id();
+  static const int kIdFieldNumber = 1;
+  const std::string& id() const;
+  void set_id(const std::string& value);
+  void set_id(std::string&& value);
+  void set_id(const char* value);
+  void set_id(const char* value, size_t size);
+  std::string* mutable_id();
+  std::string* release_id();
+  void set_allocated_id(std::string* id);
+
+  // @@protoc_insertion_point(class_scope:gpssfdw.StartKafkaStreamResponse)
+ private:
+  class HasBitSetters;
+
+  ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr id_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_gpss_2eproto;
+};
+// -------------------------------------------------------------------
+
+class StopKafkaStreamRequest :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.StopKafkaStreamRequest) */ {
+ public:
+  StopKafkaStreamRequest();
+  virtual ~StopKafkaStreamRequest();
+
+  StopKafkaStreamRequest(const StopKafkaStreamRequest& from);
+  StopKafkaStreamRequest(StopKafkaStreamRequest&& from) noexcept
+    : StopKafkaStreamRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline StopKafkaStreamRequest& operator=(const StopKafkaStreamRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StopKafkaStreamRequest& operator=(StopKafkaStreamRequest&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return GetMetadataStatic().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return GetMetadataStatic().reflection;
+  }
+  static const StopKafkaStreamRequest& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const StopKafkaStreamRequest* internal_default_instance() {
+    return reinterpret_cast<const StopKafkaStreamRequest*>(
+               &_StopKafkaStreamRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    6;
+
+  void Swap(StopKafkaStreamRequest* other);
+  friend void swap(StopKafkaStreamRequest& a, StopKafkaStreamRequest& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline StopKafkaStreamRequest* New() const final {
+    return CreateMaybeMessage<StopKafkaStreamRequest>(nullptr);
+  }
+
+  StopKafkaStreamRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<StopKafkaStreamRequest>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const StopKafkaStreamRequest& from);
+  void MergeFrom(const StopKafkaStreamRequest& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  #if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  #else
+  bool MergePartialFromCodedStream(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) final;
+  #endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  void SerializeWithCachedSizes(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* InternalSerializeWithCachedSizesToArray(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  inline void SharedCtor();
+  inline void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StopKafkaStreamRequest* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "gpssfdw.StopKafkaStreamRequest";
+  }
+  private:
+  inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
+    return nullptr;
+  }
+  inline void* MaybeArenaPtr() const {
+    return nullptr;
+  }
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  private:
+  static ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadataStatic() {
+    ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&::descriptor_table_gpss_2eproto);
+    return ::descriptor_table_gpss_2eproto.file_level_metadata[kIndexInFileMessages];
+  }
+
+  public:
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // string id = 1;
+  void clear_id();
+  static const int kIdFieldNumber = 1;
+  const std::string& id() const;
+  void set_id(const std::string& value);
+  void set_id(std::string&& value);
+  void set_id(const char* value);
+  void set_id(const char* value, size_t size);
+  std::string* mutable_id();
+  std::string* release_id();
+  void set_allocated_id(std::string* id);
+
+  // @@protoc_insertion_point(class_scope:gpssfdw.StopKafkaStreamRequest)
+ private:
+  class HasBitSetters;
+
+  ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr id_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_gpss_2eproto;
+};
+// -------------------------------------------------------------------
+
+class StopKafkaStreamResponse :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:gpssfdw.StopKafkaStreamResponse) */ {
+ public:
+  StopKafkaStreamResponse();
+  virtual ~StopKafkaStreamResponse();
+
+  StopKafkaStreamResponse(const StopKafkaStreamResponse& from);
+  StopKafkaStreamResponse(StopKafkaStreamResponse&& from) noexcept
+    : StopKafkaStreamResponse() {
+    *this = ::std::move(from);
+  }
+
+  inline StopKafkaStreamResponse& operator=(const StopKafkaStreamResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline StopKafkaStreamResponse& operator=(StopKafkaStreamResponse&& from) noexcept {
+    if (GetArenaNoVirtual() == from.GetArenaNoVirtual()) {
+      if (this != &from) InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return GetMetadataStatic().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return GetMetadataStatic().reflection;
+  }
+  static const StopKafkaStreamResponse& default_instance();
+
+  static void InitAsDefaultInstance();  // FOR INTERNAL USE ONLY
+  static inline const StopKafkaStreamResponse* internal_default_instance() {
+    return reinterpret_cast<const StopKafkaStreamResponse*>(
+               &_StopKafkaStreamResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    7;
+
+  void Swap(StopKafkaStreamResponse* other);
+  friend void swap(StopKafkaStreamResponse& a, StopKafkaStreamResponse& b) {
+    a.Swap(&b);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline StopKafkaStreamResponse* New() const final {
+    return CreateMaybeMessage<StopKafkaStreamResponse>(nullptr);
+  }
+
+  StopKafkaStreamResponse* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<StopKafkaStreamResponse>(arena);
+  }
+  void CopyFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void MergeFrom(const ::PROTOBUF_NAMESPACE_ID::Message& from) final;
+  void CopyFrom(const StopKafkaStreamResponse& from);
+  void MergeFrom(const StopKafkaStreamResponse& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  #if GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  #else
+  bool MergePartialFromCodedStream(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedInputStream* input) final;
+  #endif  // GOOGLE_PROTOBUF_ENABLE_EXPERIMENTAL_PARSER
+  void SerializeWithCachedSizes(
+      ::PROTOBUF_NAMESPACE_ID::io::CodedOutputStream* output) const final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* InternalSerializeWithCachedSizesToArray(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  inline void SharedCtor();
+  inline void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(StopKafkaStreamResponse* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "gpssfdw.StopKafkaStreamResponse";
+  }
+  private:
+  inline ::PROTOBUF_NAMESPACE_ID::Arena* GetArenaNoVirtual() const {
+    return nullptr;
+  }
+  inline void* MaybeArenaPtr() const {
+    return nullptr;
+  }
+  public:
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  private:
+  static ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadataStatic() {
+    ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&::descriptor_table_gpss_2eproto);
+    return ::descriptor_table_gpss_2eproto.file_level_metadata[kIndexInFileMessages];
+  }
+
+  public:
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:gpssfdw.StopKafkaStreamResponse)
+ private:
+  class HasBitSetters;
+
+  ::PROTOBUF_NAMESPACE_ID::internal::InternalMetadataWithArena _internal_metadata_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_gpss_2eproto;
+};
 // ===================================================================
 
 
@@ -809,9 +1353,237 @@ inline void StreamDataResponse::set_allocated_msg(std::string* msg) {
   // @@protoc_insertion_point(field_set_allocated:gpssfdw.StreamDataResponse.msg)
 }
 
+// -------------------------------------------------------------------
+
+// StartKafkaStreamRequest
+
+// string topic = 1;
+inline void StartKafkaStreamRequest::clear_topic() {
+  topic_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline const std::string& StartKafkaStreamRequest::topic() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StartKafkaStreamRequest.topic)
+  return topic_.GetNoArena();
+}
+inline void StartKafkaStreamRequest::set_topic(const std::string& value) {
+  
+  topic_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:gpssfdw.StartKafkaStreamRequest.topic)
+}
+inline void StartKafkaStreamRequest::set_topic(std::string&& value) {
+  
+  topic_.SetNoArena(
+    &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.StartKafkaStreamRequest.topic)
+}
+inline void StartKafkaStreamRequest::set_topic(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  
+  topic_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:gpssfdw.StartKafkaStreamRequest.topic)
+}
+inline void StartKafkaStreamRequest::set_topic(const char* value, size_t size) {
+  
+  topic_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.StartKafkaStreamRequest.topic)
+}
+inline std::string* StartKafkaStreamRequest::mutable_topic() {
+  
+  // @@protoc_insertion_point(field_mutable:gpssfdw.StartKafkaStreamRequest.topic)
+  return topic_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline std::string* StartKafkaStreamRequest::release_topic() {
+  // @@protoc_insertion_point(field_release:gpssfdw.StartKafkaStreamRequest.topic)
+  
+  return topic_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline void StartKafkaStreamRequest::set_allocated_topic(std::string* topic) {
+  if (topic != nullptr) {
+    
+  } else {
+    
+  }
+  topic_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), topic);
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.StartKafkaStreamRequest.topic)
+}
+
+// string brokers = 2;
+inline void StartKafkaStreamRequest::clear_brokers() {
+  brokers_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline const std::string& StartKafkaStreamRequest::brokers() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StartKafkaStreamRequest.brokers)
+  return brokers_.GetNoArena();
+}
+inline void StartKafkaStreamRequest::set_brokers(const std::string& value) {
+  
+  brokers_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:gpssfdw.StartKafkaStreamRequest.brokers)
+}
+inline void StartKafkaStreamRequest::set_brokers(std::string&& value) {
+  
+  brokers_.SetNoArena(
+    &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.StartKafkaStreamRequest.brokers)
+}
+inline void StartKafkaStreamRequest::set_brokers(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  
+  brokers_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:gpssfdw.StartKafkaStreamRequest.brokers)
+}
+inline void StartKafkaStreamRequest::set_brokers(const char* value, size_t size) {
+  
+  brokers_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.StartKafkaStreamRequest.brokers)
+}
+inline std::string* StartKafkaStreamRequest::mutable_brokers() {
+  
+  // @@protoc_insertion_point(field_mutable:gpssfdw.StartKafkaStreamRequest.brokers)
+  return brokers_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline std::string* StartKafkaStreamRequest::release_brokers() {
+  // @@protoc_insertion_point(field_release:gpssfdw.StartKafkaStreamRequest.brokers)
+  
+  return brokers_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline void StartKafkaStreamRequest::set_allocated_brokers(std::string* brokers) {
+  if (brokers != nullptr) {
+    
+  } else {
+    
+  }
+  brokers_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), brokers);
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.StartKafkaStreamRequest.brokers)
+}
+
+// -------------------------------------------------------------------
+
+// StartKafkaStreamResponse
+
+// string id = 1;
+inline void StartKafkaStreamResponse::clear_id() {
+  id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline const std::string& StartKafkaStreamResponse::id() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StartKafkaStreamResponse.id)
+  return id_.GetNoArena();
+}
+inline void StartKafkaStreamResponse::set_id(const std::string& value) {
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:gpssfdw.StartKafkaStreamResponse.id)
+}
+inline void StartKafkaStreamResponse::set_id(std::string&& value) {
+  
+  id_.SetNoArena(
+    &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.StartKafkaStreamResponse.id)
+}
+inline void StartKafkaStreamResponse::set_id(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:gpssfdw.StartKafkaStreamResponse.id)
+}
+inline void StartKafkaStreamResponse::set_id(const char* value, size_t size) {
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.StartKafkaStreamResponse.id)
+}
+inline std::string* StartKafkaStreamResponse::mutable_id() {
+  
+  // @@protoc_insertion_point(field_mutable:gpssfdw.StartKafkaStreamResponse.id)
+  return id_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline std::string* StartKafkaStreamResponse::release_id() {
+  // @@protoc_insertion_point(field_release:gpssfdw.StartKafkaStreamResponse.id)
+  
+  return id_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline void StartKafkaStreamResponse::set_allocated_id(std::string* id) {
+  if (id != nullptr) {
+    
+  } else {
+    
+  }
+  id_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), id);
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.StartKafkaStreamResponse.id)
+}
+
+// -------------------------------------------------------------------
+
+// StopKafkaStreamRequest
+
+// string id = 1;
+inline void StopKafkaStreamRequest::clear_id() {
+  id_.ClearToEmptyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline const std::string& StopKafkaStreamRequest::id() const {
+  // @@protoc_insertion_point(field_get:gpssfdw.StopKafkaStreamRequest.id)
+  return id_.GetNoArena();
+}
+inline void StopKafkaStreamRequest::set_id(const std::string& value) {
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), value);
+  // @@protoc_insertion_point(field_set:gpssfdw.StopKafkaStreamRequest.id)
+}
+inline void StopKafkaStreamRequest::set_id(std::string&& value) {
+  
+  id_.SetNoArena(
+    &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::move(value));
+  // @@protoc_insertion_point(field_set_rvalue:gpssfdw.StopKafkaStreamRequest.id)
+}
+inline void StopKafkaStreamRequest::set_id(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), ::std::string(value));
+  // @@protoc_insertion_point(field_set_char:gpssfdw.StopKafkaStreamRequest.id)
+}
+inline void StopKafkaStreamRequest::set_id(const char* value, size_t size) {
+  
+  id_.SetNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      ::std::string(reinterpret_cast<const char*>(value), size));
+  // @@protoc_insertion_point(field_set_pointer:gpssfdw.StopKafkaStreamRequest.id)
+}
+inline std::string* StopKafkaStreamRequest::mutable_id() {
+  
+  // @@protoc_insertion_point(field_mutable:gpssfdw.StopKafkaStreamRequest.id)
+  return id_.MutableNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline std::string* StopKafkaStreamRequest::release_id() {
+  // @@protoc_insertion_point(field_release:gpssfdw.StopKafkaStreamRequest.id)
+  
+  return id_.ReleaseNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+inline void StopKafkaStreamRequest::set_allocated_id(std::string* id) {
+  if (id != nullptr) {
+    
+  } else {
+    
+  }
+  id_.SetAllocatedNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), id);
+  // @@protoc_insertion_point(field_set_allocated:gpssfdw.StopKafkaStreamRequest.id)
+}
+
+// -------------------------------------------------------------------
+
+// StopKafkaStreamResponse
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------
