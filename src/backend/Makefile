@@ -60,7 +60,7 @@ LIBS := $(LIBS) -lpthread
 
 ##########################################################################
 
-all: submake-libpgport postgres $(POSTGRES_IMP)
+all: submake-libpgport postgres authserver $(POSTGRES_IMP)
 
 ifneq ($(PORTNAME), cygwin)
 ifneq ($(PORTNAME), win32)
@@ -68,6 +68,9 @@ ifneq ($(PORTNAME), aix)
 
 postgres: $(OBJS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(export_dynamic) $(call expand_subsys,$^) $(LIBS) -o $@
+
+authserver: $(OBJS) authserver.o
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(filter-out main/SUBSYS.o,$(call expand_subsys,$^)) $(LIBS) -o $@
 
 endif
 endif
@@ -206,6 +209,7 @@ endif
 
 install-bin: postgres $(POSTGRES_IMP) installdirs
 	$(INSTALL_PROGRAM) postgres$(X) '$(DESTDIR)$(bindir)/postgres$(X)'
+	$(INSTALL_PROGRAM) authserver$(X) '$(DESTDIR)$(bindir)/authserver$(X)'
 ifneq ($(PORTNAME), win32)
 	@rm -f $(DESTDIR)$(bindir)/postmaster$(X)
 	ln -s postgres$(X) $(DESTDIR)$(bindir)/postmaster$(X)
