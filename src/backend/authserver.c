@@ -58,5 +58,6 @@ int main(int argc, char **argv)
     StreamConnection(ListenSocket[0], port);
     BackendInitialize(port);
     ClientAuthentication(port);
+    ReadyForQuery(DestRemote);
     return 0;
 }
