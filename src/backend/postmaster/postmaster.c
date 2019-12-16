@@ -6484,7 +6484,7 @@ report_fork_failure_to_client(Port *port, int errnum)
  * In the EXEC_BACKEND case, we are physically attached to shared memory
  * but have not yet set up most of our local pointers to shmem structures.
  */
-static void
+void
 BackendInitialize(Port *port)
 {
 	int			status;

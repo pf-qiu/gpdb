@@ -12,6 +12,7 @@
 #define MAXLISTEN 64
 static int ListenSocket[MAXLISTEN];
 const char *progname;
+void BackendInitialize(Port *port);
 
 int main(int argc, char **argv)
 {
@@ -27,8 +28,8 @@ int main(int argc, char **argv)
         exit(1);
     }
     progname = get_progname(argv[0]);
-    int port;
-    if (1 != sscanf(argv[1], "%d", &port))
+    int portnum;
+    if (1 != sscanf(argv[1], "%d", &portnum))
     {
         printf("Invalid port: %s\n", argv[1]);
         exit(1);
@@ -42,14 +43,20 @@ int main(int argc, char **argv)
         printf("could not load pg_hba.conf\n");
         exit(1);        
     }
-    int status = StreamServerPort(AF_UNSPEC, NULL, port, "/tmp", ListenSocket, MAXLISTEN);
+    for (int i = 0; i < MAXLISTEN; i++)
+        ListenSocket[i] = -1;
+
+    int status = StreamServerPort(AF_UNSPEC, NULL, portnum, "/tmp", ListenSocket, MAXLISTEN);
     if (status != STATUS_OK)
     {
         printf("could not create listen socket\n");
         exit(1);
     }
-    Port p;
-    StreamConnection(ListenSocket[0], &p);
-    ClientAuthentication(&p);
+    Port *port = calloc(1, sizeof(Port));
+    MyProcPid = getpid();
+    MyStartTime = time(NULL);
+    StreamConnection(ListenSocket[0], port);
+    BackendInitialize(port);
+    ClientAuthentication(port);
     return 0;
 }
