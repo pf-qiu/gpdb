@@ -8,11 +8,18 @@
 #include "libpq/libpq-be.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
+#include "tcop/tcopprot.h"
 
 #define MAXLISTEN 64
 static int ListenSocket[MAXLISTEN];
 const char *progname;
 void BackendInitialize(Port *port);
+
+static void InitSocket()
+{
+    for (int i = 0; i < MAXLISTEN; i++)
+        ListenSocket[i] = -1;
+}
 
 int main(int argc, char **argv)
 {
@@ -43,9 +50,8 @@ int main(int argc, char **argv)
         printf("could not load pg_hba.conf\n");
         exit(1);        
     }
-    for (int i = 0; i < MAXLISTEN; i++)
-        ListenSocket[i] = -1;
-
+    load_role();
+    InitSocket();
     int status = StreamServerPort(AF_UNSPEC, NULL, portnum, "/tmp", ListenSocket, MAXLISTEN);
     if (status != STATUS_OK)
     {
@@ -53,11 +59,13 @@ int main(int argc, char **argv)
         exit(1);
     }
     Port *port = calloc(1, sizeof(Port));
+    port->gss = (pg_gssinfo *) calloc(1, sizeof(pg_gssinfo));
     MyProcPid = getpid();
     MyStartTime = time(NULL);
     StreamConnection(ListenSocket[0], port);
     BackendInitialize(port);
     ClientAuthentication(port);
+    BeginReportingGUCOptions();
     ReadyForQuery(DestRemote);
     return 0;
 }

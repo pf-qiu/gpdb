@@ -6531,7 +6531,7 @@ BackendInitialize(Port *port)
 	 */
 #ifdef HAVE_SETSID
 	if (setsid() < 0)
-		elog(FATAL, "setsid() failed: %m");
+		elog(INFO, "setsid() failed: %m");
 #endif
 
 	/*
