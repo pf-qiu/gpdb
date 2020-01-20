@@ -30,6 +30,8 @@
 /* somewhat unix-specific */
 #include <sys/time.h>
 #include <unistd.h>
+#include <sys/errno.h>
+#include <stdlib.h>
 
 /* curl stuff */
 #include <curl/curl.h>
@@ -60,16 +62,17 @@ char extssl_key_full[MAXPGPATH] = {0};
 char extssl_cer_full[MAXPGPATH] = {0};
 char extssl_cas_full[MAXPGPATH] = {0};
 static char curl_Error_Buffer[CURL_ERROR_SIZE];
-char* DataDir;
+char *DataDir;
 
-#define CURL_EASY_SETOPT(h, opt, val) \
-	do { \
-		int			e; \
-\
-		if ((e = curl_easy_setopt(h, opt, val)) != CURLE_OK) \
+#define CURL_EASY_SETOPT(h, opt, val)                                  \
+	do                                                                 \
+	{                                                                  \
+		int e;                                                         \
+                                                                       \
+		if ((e = curl_easy_setopt(h, opt, val)) != CURLE_OK)           \
 			printf("internal error: curl_easy_setopt error (%d - %s)", \
-				e, curl_easy_strerror(e)); \
-	} while(0)
+				   e, curl_easy_strerror(e));                          \
+	} while (0)
 
 /*
  * Simply download a HTTP file.
@@ -78,6 +81,7 @@ int main(int argc, char **argv)
 {
 	CURL *http_handle;
 	CURLM *multi_handle;
+	int e;
 
 	int still_running = 0; /* keep number of running handles */
 	int repeats = 0;
@@ -86,7 +90,8 @@ int main(int argc, char **argv)
 
 	http_handle = curl_easy_init();
 
-	const char *url = argv[1];
+	DataDir = argv[1];
+	const char *url = argv[2];
 	/* set the options (I left out a few, you'll get the point anyway) */
 	curl_easy_setopt(http_handle, CURLOPT_URL, url);
 
@@ -146,40 +151,81 @@ int main(int argc, char **argv)
 	/* add the individual transfers */
 	curl_multi_add_handle(multi_handle, http_handle);
 
-	/* we start some action by calling perform right away */
-	curl_multi_perform(multi_handle, &still_running);
+	while (CURLM_CALL_MULTI_PERFORM ==
+		   (e = curl_multi_perform(multi_handle, &still_running)))
+		;
+
+	fd_set fdread;
+	fd_set fdwrite;
+	fd_set fdexcep;
+	int maxfd = 0;
+	struct timeval timeout;
+	int nfds = 0;
+	int timeout_count = 0;
 
 	while (still_running)
 	{
-		CURLMcode mc; /* curl_multi_wait() return code */
-		int numfds;
+		FD_ZERO(&fdread);
+		FD_ZERO(&fdwrite);
+		FD_ZERO(&fdexcep);
 
-		/* wait for activity, timeout or "nothing" */
-		mc = curl_multi_wait(multi_handle, NULL, 0, 1000, &numfds);
+		/* set a suitable timeout to fail on */
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 0;
 
-		if (mc != CURLM_OK)
+		/* get file descriptors from the transfers */
+		if (0 != (e = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd)))
 		{
-			fprintf(stderr, "curl_multi_wait() failed, code %d.\n", mc);
+			printf("internal error: curl_multi_fdset failed (%d - %s)",
+				   e, curl_easy_strerror(e));
+			exit(1);
+		}
+		if (maxfd <= 0)
+		{
+			printf("curl_multi_fdset set maxfd = %d", maxfd);
+			still_running = 0;
 			break;
 		}
+		nfds = select(maxfd + 1, &fdread, &fdwrite, &fdexcep, &timeout);
 
-		/* 'numfds' being zero means either a timeout or no file descriptors to
-       wait for. Try timeout on first occurrence, then assume no file
-       descriptors and no file descriptors to wait for means wait for 100
-       milliseconds. */
-
-		if (!numfds)
+		if (nfds == -1)
 		{
-			repeats++; /* count number of repeated zero numfds */
-			if (repeats > 1)
+			if (errno == EINTR || errno == EAGAIN)
 			{
-				WAITMS(100); /* sleep 100 milliseconds */
+				printf("select failed on curl_multi_fdset (maxfd %d) (%d - %s)", maxfd, errno, strerror(errno));
+				continue;
+			}
+			printf("internal error: select failed on curl_multi_fdset (maxfd %d) (%d - %s)",
+				 maxfd, errno, strerror(errno));
+			exit(1);
+		}
+		else if (nfds == 0)
+		{
+			// timeout
+			timeout_count++;
+		}
+		else if (nfds > 0)
+		{
+			/* timeout or readable/writable sockets */
+			/* note we *could* be more efficient and not wait for
+			 * CURLM_CALL_MULTI_PERFORM to clear here and check it on re-entry
+			 * but that gets messy */
+			while (CURLM_CALL_MULTI_PERFORM ==
+				   (e = curl_multi_perform(multi_handle, &still_running)))
+				;
+
+			if (e != 0)
+			{
+				printf("internal error: curl_multi_perform failed (%d - %s)",
+					 e, curl_easy_strerror(e));
+				exit(1);
 			}
 		}
 		else
-			repeats = 0;
-
-		curl_multi_perform(multi_handle, &still_running);
+		{
+			printf("select return unexpected result");
+			exit(1);
+		}
 	}
 
 	curl_multi_remove_handle(multi_handle, http_handle);
