@@ -1,4 +1,9 @@
 #include <curl/curl.h>
+#include <string.h>
+#include <stdlib.h>
+
+
+
 static char curl_Error_Buffer[CURL_ERROR_SIZE];
 static CURLM *multi_handle = 0;
 static int in_multi_handle = 0;
@@ -31,6 +36,20 @@ static
 void elog(int c, const char* f, ...)
 {
     exit(1);
+}
+
+#define CURL_EASY_SETOPT(h, opt, val) \
+	do { \
+		int			e; \
+\
+		if ((e = curl_easy_setopt(h, opt, val)) != CURLE_OK) \
+			elog(ERROR, "internal error: curl_easy_setopt error (%d - %s)", \
+				e, curl_easy_strerror(e)); \
+	} while(0)
+
+char* pstrdup(char* str)
+{
+    return strdup(str);
 }
 
 static size_t
@@ -70,8 +89,6 @@ fill_buffer(void* x, int want)
 		FD_ZERO(&fdread);
 		FD_ZERO(&fdwrite);
 		FD_ZERO(&fdexcep);
-
-		CHECK_FOR_INTERRUPTS();
 
 		/* set a suitable timeout to fail on */
 		timeout.tv_sec = 5;
@@ -157,7 +174,6 @@ url_curl_fopen(char *url)
 
 	/* Reset curl_Error_Buffer */
 	curl_Error_Buffer[0] = '\0';
-    handle = create_curlhandle();
 
 	/* initialize a curl session and get a libcurl handle for it */
 	if (! (handle = curl_easy_init()))
@@ -200,13 +216,6 @@ url_curl_fopen(char *url)
 		{
 			memset(extssl_cer_full, 0, MAXPGPATH);
 			snprintf(extssl_cer_full, MAXPGPATH, "%s/%s", DataDir, extssl_cert);
-
-			if (!is_file_exists(extssl_cer_full))
-				ereport(ERROR,
-						(errcode(errcode_for_file_access()),
-						 errmsg("could not open certificate file \"%s\": %m",
-								extssl_cer_full)));
-
 			CURL_EASY_SETOPT(handle, CURLOPT_SSLCERT, extssl_cer_full);
 		}
 
@@ -221,13 +230,6 @@ url_curl_fopen(char *url)
 		{
 			memset(extssl_key_full, 0, MAXPGPATH);
 			snprintf(extssl_key_full, MAXPGPATH, "%s/%s", DataDir, extssl_key);
-
-			if (!is_file_exists(extssl_key_full))
-				ereport(ERROR,
-						(errcode(errcode_for_file_access()),
-						 errmsg("could not open private key file \"%s\": %m",
-								extssl_key_full)));
-
 			CURL_EASY_SETOPT(handle, CURLOPT_SSLKEY, extssl_key_full);
 		}
 
@@ -236,12 +238,6 @@ url_curl_fopen(char *url)
 		{
 			memset(extssl_cas_full, 0, MAXPGPATH);
 			snprintf(extssl_cas_full, MAXPGPATH, "%s/%s", DataDir, extssl_ca);
-
-			if (!is_file_exists(extssl_cas_full))
-				ereport(ERROR,
-						(errcode(errcode_for_file_access()),
-						 errmsg("could not open private key file \"%s\": %m",
-								extssl_cas_full)));
 
 			CURL_EASY_SETOPT(handle, CURLOPT_CAINFO, extssl_cas_full);
 		}
@@ -303,4 +299,10 @@ url_curl_fopen(char *url)
         {
             printf("%d, %s\n", response_code, response_string);
         }
+}
+
+int main(int argc, char** argv)
+{
+	url_curl_fopen(argv[1]);
+	return 0;
 }
