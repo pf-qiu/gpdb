@@ -163,6 +163,42 @@ check_response(CURL *curl, int *rc, char **response_string)
 	return 0;
 }
 
+static int
+debug_callback(CURL *handle, curl_infotype type, char *data, size_t size, void *userptr)
+{
+	const char *text;
+	(void)handle; /* prevent compiler warning */
+	(void)userptr;
+
+	switch (type)
+	{
+	case CURLINFO_TEXT:
+		fprintf(stderr, "== Info: %s", data);
+	default: /* in case a new one is introduced to shock us */
+		return 0;
+
+	case CURLINFO_HEADER_OUT:
+		text = "=> Send header";
+		break;
+	case CURLINFO_DATA_OUT:
+		text = "=> Send data";
+		break;
+	case CURLINFO_SSL_DATA_OUT:
+		text = "=> Send SSL data";
+		break;
+	case CURLINFO_HEADER_IN:
+		text = "<= Recv header";
+		break;
+	case CURLINFO_DATA_IN:
+		text = "<= Recv data";
+		break;
+	case CURLINFO_SSL_DATA_IN:
+		text = "<= Recv SSL data";
+		break;
+	}
+	return 0;
+}
+
 static void
 url_curl_fopen(char *url)
 {
@@ -181,7 +217,9 @@ url_curl_fopen(char *url)
 
 	CURL_EASY_SETOPT(handle, CURLOPT_URL, url);
 
-	CURL_EASY_SETOPT(handle, CURLOPT_VERBOSE, 0L /* FALSE */);
+	CURL_EASY_SETOPT(handle, CURLOPT_VERBOSE, 1L /* FALSE */);
+
+	CURL_EASY_SETOPT(handle, CURLOPT_DEBUGFUNCTION, debug_callback);
 
 	/* set callback for each header received from server */
 	CURL_EASY_SETOPT(handle, CURLOPT_HEADERFUNCTION, header_callback);
