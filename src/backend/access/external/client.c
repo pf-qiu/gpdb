@@ -155,6 +155,34 @@ int main(int argc, char **argv)
 		   (e = curl_multi_perform(multi_handle, &still_running)))
 		;
 
+	while (still_running)
+	{
+		CURLMcode mc; /* curl_multi_wait() return code */
+		int numfds;
+
+		/* wait for activity, timeout or "nothing" */
+		mc = curl_multi_wait(multi_handle, NULL, 0, 1000, &numfds);
+
+		if (mc != CURLM_OK)
+		{
+			fprintf(stderr, "curl_multi_wait() failed, code %d.\n", mc);
+			break;
+		}
+
+		if (!numfds)
+		{
+			repeats++; /* count number of repeated zero numfds */
+			if (repeats > 1)
+			{
+				WAITMS(100); /* sleep 100 milliseconds */
+			}
+		}
+		else
+			repeats = 0;
+
+		curl_multi_perform(multi_handle, &still_running);
+	}
+
 	fd_set fdread;
 	fd_set fdwrite;
 	fd_set fdexcep;
@@ -165,6 +193,7 @@ int main(int argc, char **argv)
 
 	while (still_running)
 	{
+
 		FD_ZERO(&fdread);
 		FD_ZERO(&fdwrite);
 		FD_ZERO(&fdexcep);
@@ -196,7 +225,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			printf("internal error: select failed on curl_multi_fdset (maxfd %d) (%d - %s)",
-				 maxfd, errno, strerror(errno));
+				   maxfd, errno, strerror(errno));
 			exit(1);
 		}
 		else if (nfds == 0)
@@ -217,7 +246,7 @@ int main(int argc, char **argv)
 			if (e != 0)
 			{
 				printf("internal error: curl_multi_perform failed (%d - %s)",
-					 e, curl_easy_strerror(e));
+					   e, curl_easy_strerror(e));
 				exit(1);
 			}
 		}
