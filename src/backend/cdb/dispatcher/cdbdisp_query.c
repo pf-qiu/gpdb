@@ -58,7 +58,7 @@ typedef struct
 {
 	int			sliceIndex;
 	int			children;
-	Slice	   *slice;
+	ExecSlice  *slice;
 } SliceVec;
 
 /*
@@ -575,14 +575,6 @@ cdbdisp_buildPlanQueryParms(struct QueryDesc *queryDesc,
 
 	rootIdx = RootSliceIndex(queryDesc->estate);
 
-#ifdef USE_ASSERT_CHECKING
-	SliceTable *sliceTbl = queryDesc->estate->es_sliceTable;
-
-	Assert(rootIdx == 0 ||
-		   (rootIdx > sliceTbl->nMotions
-			&& rootIdx <= sliceTbl->nMotions + sliceTbl->nInitPlans));
-#endif
-
 	DispatchCommandQueryParms *pQueryParms = (DispatchCommandQueryParms *) palloc0(sizeof(*pQueryParms));
 
 	/*
@@ -769,7 +761,7 @@ markbit_dep_children(SliceTable *sliceTable, int sliceIdx,
 					 SliceVec *sliceVec, int bitmasklen, char *bits)
 {
 	ListCell   *sublist;
-	Slice	   *slice = (Slice *) list_nth(sliceTable->slices, sliceIdx);
+	ExecSlice  *slice = &sliceTable->slices[sliceIdx];
 
 	foreach(sublist, slice->children)
 	{
@@ -1064,10 +1056,6 @@ cdbdisp_dispatchX(QueryDesc* queryDesc,
 	Assert(sliceTbl != NULL);
 
 	rootIdx = RootSliceIndex(estate);
-	Assert(rootIdx == 0 ||
-		   (rootIdx > sliceTbl->nMotions &&
-			rootIdx <= sliceTbl->nMotions + sliceTbl->nInitPlans));
-
 
 	ds = cdbdisp_makeDispatcherState(queryDesc->extended_query);
 
@@ -1086,7 +1074,7 @@ cdbdisp_dispatchX(QueryDesc* queryDesc,
 	 * Traverse the slice tree in sliceTbl rooted at rootIdx and build a
 	 * vector of slice indexes specifying the order of [potential] dispatch.
 	 */
-	nTotalSlices = list_length(sliceTbl->slices);
+	nTotalSlices = sliceTbl->numSlices;
 	sliceVector = palloc0(nTotalSlices * sizeof(SliceVec));
 	nSlices = fillSliceVector(sliceTbl, rootIdx, sliceVector, nTotalSlices);
 
@@ -1122,7 +1110,7 @@ cdbdisp_dispatchX(QueryDesc* queryDesc,
 	for (iSlice = 0; iSlice < nSlices; iSlice++)
 	{
 		Gang	   *primaryGang = NULL;
-		Slice	   *slice = NULL;
+		ExecSlice  *slice;
 		int			si = -1;
 
 		Assert(sliceVector != NULL);
@@ -1153,8 +1141,7 @@ cdbdisp_dispatchX(QueryDesc* queryDesc,
 
 		if (Test_print_direct_dispatch_info)
 			elog(INFO, "(slice %d) Dispatch command to %s", slice->sliceIndex,
-				 		segmentsToContentStr(slice->directDispatch.isDirectDispatch ?
-											slice->directDispatch.contentIds : slice->segments));
+						segmentsToContentStr(slice->segments));
 
 		/*
 		 * Bail out if already got an error or cancellation request.

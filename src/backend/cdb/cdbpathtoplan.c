@@ -18,21 +18,22 @@
 #include "cdb/cdbpathlocus.h"
 #include "cdb/cdbllize.h"		/* makeFlow() */
 #include "cdb/cdbpathtoplan.h"	/* me */
+#include "cdb/cdbutil.h"
+#include "cdb/cdbvars.h"
 
 /*
  * cdbpathtoplan_create_flow
  */
 Flow *
 cdbpathtoplan_create_flow(PlannerInfo *root,
-						  CdbPathLocus locus,
-						  Plan *plan)
+						  CdbPathLocus locus)
 {
 	Flow	   *flow = NULL;
 
 	/* Distribution */
 	if (CdbPathLocus_IsEntry(locus))
 	{
-		flow = makeFlow(FLOW_SINGLETON, locus.numsegments);
+		flow = makeFlow(FLOW_SINGLETON, 1);
 		flow->segindex = -1;
 	}
 	else if (CdbPathLocus_IsSingleQE(locus))
@@ -42,7 +43,10 @@ cdbpathtoplan_create_flow(PlannerInfo *root,
 	}
 	else if (CdbPathLocus_IsGeneral(locus))
 	{
-		flow = makeFlow(FLOW_SINGLETON, locus.numsegments);
+		if (Gp_role == GP_ROLE_DISPATCH)
+			flow = makeFlow(FLOW_SINGLETON, getgpsegmentCount());
+		else
+			flow = makeFlow(FLOW_SINGLETON, 1); /* dummy flow */
 		flow->segindex = 0;
 	}
 	else if (CdbPathLocus_IsSegmentGeneral(locus))
@@ -68,7 +72,15 @@ cdbpathtoplan_create_flow(PlannerInfo *root,
 	else if (CdbPathLocus_IsStrewn(locus))
 		flow = makeFlow(FLOW_PARTITIONED, locus.numsegments);
 	else if (CdbPathLocus_IsOuterQuery(locus))
-		flow = makeFlow(FLOW_SINGLETON, locus.numsegments);
+	{
+		/*
+		 * A plan that's attached to the outer query later on will run on
+		 * the same segments as the outer query. We don't know what the
+		 * locus of the outer query is yet, so just mark the plan with a
+		 * dummy Flow. It's good enough for the rest of the planner.
+		 */
+		flow = makeFlow(FLOW_SINGLETON, 1);
+	}
 	else
 		Insist(0);
 

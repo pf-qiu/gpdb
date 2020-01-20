@@ -320,12 +320,27 @@ _outPlannedStmt(StringInfo str, const PlannedStmt *node)
 	WRITE_NODE_FIELD(resultRelations);
 	WRITE_NODE_FIELD(utilityStmt);
 	WRITE_NODE_FIELD(subplans);
-	WRITE_BITMAPSET_FIELD(rewindPlanIDs);
 #ifdef COMPILING_BINARY_FUNCS
-	WRITE_INT_ARRAY(subplan_sliceIds, list_length(node->subplans) + 1, int);
-	WRITE_INT_ARRAY(subplan_initPlanParallel, list_length(node->subplans) + 1, bool);
+	WRITE_INT_ARRAY(subplan_sliceIds, list_length(node->subplans), int);
+#else
+	appendStringInfoString(str, " :subplan_sliceIds");
+	for (int i = 0; i < list_length(node->subplans); i++)
+		appendStringInfo(str, " %u", node->subplan_sliceIds[i]);
 #endif /* COMPILING_BINARY_FUNCS */
 
+	WRITE_INT_FIELD(numSlices);
+	for (int i = 0; i < node->numSlices; i++)
+	{
+		WRITE_INT_FIELD(slices[i].sliceIndex);
+		WRITE_INT_FIELD(slices[i].parentIndex);
+		WRITE_INT_FIELD(slices[i].gangType);
+		WRITE_INT_FIELD(slices[i].numsegments);
+		WRITE_INT_FIELD(slices[i].segindex);
+		WRITE_BOOL_FIELD(slices[i].directDispatch.isDirectDispatch);
+		WRITE_NODE_FIELD(slices[i].directDispatch.contentIds);
+	}
+
+	WRITE_BITMAPSET_FIELD(rewindPlanIDs);
 	WRITE_NODE_FIELD(result_partitions);
 	WRITE_NODE_FIELD(result_aosegnos);
 	WRITE_NODE_FIELD(queryPartOids);
@@ -342,9 +357,6 @@ _outPlannedStmt(StringInfo str, const PlannedStmt *node)
 	WRITE_NODE_FIELD(invalItems);
 #endif /* COMPILING_BINARY_FUNCS */
 	WRITE_INT_FIELD(nParamExec);
-
-	WRITE_INT_FIELD(nMotionNodes);
-	WRITE_INT_FIELD(nInitPlans);
 
 	WRITE_NODE_FIELD(intoPolicy);
 
@@ -402,10 +414,10 @@ _outPlanInfo(StringInfo str, const Plan *node)
 	WRITE_BITMAPSET_FIELD(extParam);
 	WRITE_BITMAPSET_FIELD(allParam);
 
+	/* 'flow' is only needed during planning. */
+#ifndef COMPILING_BINARY_FUNCS
 	WRITE_NODE_FIELD(flow);
-	WRITE_ENUM_FIELD(dispatch, DispatchMethod);
-	WRITE_BOOL_FIELD(directDispatch.isDirectDispatch);
-	WRITE_NODE_FIELD(directDispatch.contentIds);
+#endif /* COMPILING_BINARY_FUNCS */
 
 	WRITE_UINT64_FIELD(operatorMemKB);
 }
@@ -1257,6 +1269,8 @@ _outMotion(StringInfo str, const Motion *node)
 
 	WRITE_INT_FIELD(segidColIdx);
 
+	/* senderSliceInfo is intentionally omitted. It's only used during planning */
+
 	_outPlanInfo(str, (Plan *) node);
 }
 #endif /* COMPILING_BINARY_FUNCS */
@@ -2045,6 +2059,8 @@ _outOnConflictExpr(StringInfo str, const OnConflictExpr *node)
 	WRITE_NODE_FIELD(exclRelTlist);
 }
 
+/* 'flow' is only needed during planning. */
+#ifndef COMPILING_BINARY_FUNCS
 static void
 _outFlow(StringInfo str, const Flow *node)
 {
@@ -2055,6 +2071,7 @@ _outFlow(StringInfo str, const Flow *node)
 	WRITE_INT_FIELD(segindex);
 	WRITE_INT_FIELD(numsegments);
 }
+#endif /* COMPILING_BINARY_FUNCS */
 
 /*****************************************************************************
  *
@@ -2567,8 +2584,6 @@ _outPlannerGlobal(StringInfo str, const PlannerGlobal *node)
 	WRITE_BOOL_FIELD(oneoffPlan);
 	WRITE_NODE_FIELD(share.motStack);
 	WRITE_NODE_FIELD(share.qdShares);
-	WRITE_NODE_FIELD(share.qdSlices);
-	WRITE_INT_FIELD(share.nextPlanId);
 	WRITE_BOOL_FIELD(dependsOnRole);
 	WRITE_BOOL_FIELD(parallelModeOK);
 	WRITE_BOOL_FIELD(parallelModeNeeded);
@@ -4952,32 +4967,26 @@ _outCdbProcess(StringInfo str, const CdbProcess *node)
 }
 
 static void
-_outSlice(StringInfo str, const Slice *node)
-{
-	WRITE_NODE_TYPE("SLICE");
-	WRITE_INT_FIELD(sliceIndex);
-	WRITE_INT_FIELD(rootIndex);
-	WRITE_INT_FIELD(parentIndex);
-	WRITE_NODE_FIELD(children); /* List of int index */
-	WRITE_ENUM_FIELD(gangType,GangType);
-	WRITE_INT_FIELD(gangSize);
-	WRITE_BOOL_FIELD(directDispatch.isDirectDispatch);
-	WRITE_NODE_FIELD(directDispatch.contentIds); /* List of int */
-	WRITE_DUMMY_FIELD(primaryGang);
-	WRITE_NODE_FIELD(primaryProcesses); /* List of (CDBProcess *) */
-	WRITE_BITMAPSET_FIELD(processesMap);
-}
-
-static void
 _outSliceTable(StringInfo str, const SliceTable *node)
 {
 	WRITE_NODE_TYPE("SLICETABLE");
 
-	WRITE_BITMAPSET_FIELD(used_subplans);
-	WRITE_INT_FIELD(nMotions);
-	WRITE_INT_FIELD(nInitPlans);
 	WRITE_INT_FIELD(localSlice);
-	WRITE_NODE_FIELD(slices); /* List of int */
+	WRITE_INT_FIELD(numSlices);
+	for (int i = 0; i < node->numSlices; i++)
+	{
+		WRITE_INT_FIELD(slices[i].sliceIndex);
+		WRITE_INT_FIELD(slices[i].rootIndex);
+		WRITE_INT_FIELD(slices[i].parentIndex);
+		WRITE_INT_FIELD(slices[i].planNumSegments);
+		WRITE_NODE_FIELD(slices[i].children); /* List of int index */
+		WRITE_ENUM_FIELD(slices[i].gangType, GangType);
+		WRITE_NODE_FIELD(slices[i].segments); /* List of int */
+		WRITE_DUMMY_FIELD(slices[i].primaryGang);
+		WRITE_NODE_FIELD(slices[i].primaryProcesses); /* List of (CDBProcess *) */
+		WRITE_BITMAPSET_FIELD(slices[i].processesMap);
+	}
+	WRITE_BOOL_FIELD(hasMotions);
 	WRITE_INT_FIELD(instrument_options);
 	WRITE_INT_FIELD(ic_instance_id);
 }
@@ -6085,9 +6094,6 @@ outNode(StringInfo str, const void *obj)
 				break;
 			case T_CdbProcess:
 				_outCdbProcess(str, obj);
-				break;
-			case T_Slice:
-				_outSlice(str, obj);
 				break;
 			case T_SliceTable:
 				_outSliceTable(str, obj);

@@ -33,6 +33,7 @@ typedef struct ExplainState
 	bool		costs;			/* print estimated costs */
 	bool		buffers;		/* print buffer usage */
 	bool		dxl;			/* CDB: print DXL */
+	bool		slicetable;		/* CDB: print slice table */
 	bool		timing;			/* print detailed node timing */
 	bool		summary;		/* print total planning and execution timing */
 	ExplainFormat format;		/* output format */
@@ -48,7 +49,7 @@ typedef struct ExplainState
 
     /* CDB */
     struct CdbExplain_ShowStatCtx  *showstatctx;    /* EXPLAIN ANALYZE info */
-	Slice	   *currentSlice;	/* slice whose nodes we are visiting */
+	ExecSlice  *currentSlice;	/* slice whose nodes we are visiting */
 	bool		subplanDispatchedSeparately;
 
 	PlanState  *parentPlanState;
@@ -85,6 +86,8 @@ extern void ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into,
 extern void ExplainPrintPlan(ExplainState *es, QueryDesc *queryDesc);
 extern void ExplainPrintTriggers(ExplainState *es, QueryDesc *queryDesc);
 extern void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc);
+extern void ExplainPrintSliceTable(ExplainState *es, QueryDesc *queryDesc);
+
 extern void ExplainQueryText(ExplainState *es, QueryDesc *queryDesc);
 
 extern void ExplainBeginOutput(ExplainState *es);

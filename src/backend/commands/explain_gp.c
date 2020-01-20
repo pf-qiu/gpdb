@@ -194,7 +194,7 @@ typedef struct CdbExplain_NodeSummary
 /* One slice's statistics for all the workers of its segworker group */
 typedef struct CdbExplain_SliceSummary
 {
-	Slice	   *slice;
+	ExecSlice  *slice;
 
 	/* worker array */
 	int			nworker;		/* num of SliceWorker slots in worker array */
@@ -1475,7 +1475,7 @@ cdbexplain_showExecStatsBegin(struct QueryDesc *queryDesc,
 	ctx->querystarttime = querystarttime;
 
 	/* Determine number of slices.  (SliceTable hasn't been built yet.) */
-	nslice = 1 + queryDesc->plannedstmt->nMotionNodes + queryDesc->plannedstmt->nInitPlans;
+	nslice = queryDesc->plannedstmt->numSlices;
 
 	/* Allocate and zero the SliceSummary array. */
 	ctx->nslice = nslice;
@@ -1960,7 +1960,7 @@ gpexplain_formatSlicesOutput(struct CdbExplain_ShowStatCtx *showstatctx,
                              struct EState *estate,
                              ExplainState *es)
 {
-	Slice	   *slice;
+	ExecSlice  *slice;
 	int			sliceIndex;
 	int			flag;
 	double		total_memory_across_slices = 0;
@@ -1996,16 +1996,18 @@ gpexplain_formatSlicesOutput(struct CdbExplain_ShowStatCtx *showstatctx,
         /* Worker counts */
         slice = getCurrentSlice(estate, sliceIndex);
         if (slice &&
-            slice->gangSize > 0 &&
-            slice->gangSize != ss->dispatchSummary.nOk)
+			list_length(slice->segments) > 0 &&
+			list_length(slice->segments) != ss->dispatchSummary.nOk)
         {
-            int nNotDispatched = slice->gangSize - ds->nResult + ds->nNotDispatched;
+			int			nNotDispatched;
+			StringInfoData workersInformationText;
 
-            es->str->data[flag] = (ss->dispatchSummary.nError > 0) ? 'X' : '_';
-            StringInfoData workersInformationText;
-            initStringInfo(&workersInformationText);
+			nNotDispatched = list_length(slice->segments) - ds->nResult + ds->nNotDispatched;
 
-            appendStringInfo(&workersInformationText, "Workers:");
+			es->str->data[flag] = (ss->dispatchSummary.nError > 0) ? 'X' : '_';
+
+			initStringInfo(&workersInformationText);
+			appendStringInfo(&workersInformationText, "Workers:");
 
             if (es->format == EXPLAIN_FORMAT_TEXT)
             {
@@ -2108,8 +2110,7 @@ gpexplain_formatSlicesOutput(struct CdbExplain_ShowStatCtx *showstatctx,
                 {
                     cdbexplain_formatSeg(segbuf, sizeof(segbuf), ss->peakmemused.imax, 999);
                 }
-                else if (slice &&
-                         slice->gangSize > 0)
+                else if (slice && list_length(slice->segments) > 0)
                 {
                     seg = " (entry db)";
                 }
@@ -2169,8 +2170,7 @@ gpexplain_formatSlicesOutput(struct CdbExplain_ShowStatCtx *showstatctx,
                     {
                         cdbexplain_formatSeg(segbuf, sizeof(segbuf), ss->memory_accounting_global_peak.imax, 999);
                     }
-                    else if (slice &&
-                             slice->gangSize > 0)
+                    else if (slice && list_length(slice->segments) > 0)
                     {
                         seg = " (entry db)";
                     }
@@ -2229,8 +2229,7 @@ gpexplain_formatSlicesOutput(struct CdbExplain_ShowStatCtx *showstatctx,
                     {
                         cdbexplain_formatSeg(segbuf, sizeof(segbuf), ss->vmem_reserved.imax, 999);
                     }
-                    else if (slice &&
-                             slice->gangSize > 0)
+                    else if (slice && list_length(slice->segments) > 0)
                     {
                         seg = " (entry db)";
                     }
@@ -2425,12 +2424,14 @@ explain_partition_selector(PartitionSelector *ps, PlanState *parentstate,
  */
 void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc)
 {
-	Plan *planTree;
+	PlannedStmt *plan;
 	int	cursorOptions = 0;
 
-	planTree = queryDesc->plannedstmt->planTree;
+	plan = queryDesc->plannedstmt;
 	if (queryDesc->utilitystmt && IsA(queryDesc->utilitystmt, DeclareCursorStmt))
 		cursorOptions |= ((DeclareCursorStmt *) queryDesc->utilitystmt)->options;
+
+	SliceTable *sliceTable = queryDesc->estate->es_sliceTable;
 
 	if (cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE)
 	{
@@ -2440,7 +2441,7 @@ void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc)
 		initStringInfo(&endpointInfoStr);
 
 		endPointExecPosition =
-			GetParallelCursorEndpointPosition(planTree);
+			GetParallelCursorEndpointPosition(plan);
 		ExplainOpenGroup("Cursor", "Cursor", true, es);
 		switch(endPointExecPosition)
 		{
@@ -2453,7 +2454,7 @@ void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc)
 			{
 				appendStringInfo(
 					&endpointInfoStr, "\"on segment: contentid [%d]\"",
-					gp_session_id % planTree->flow->numsegments);
+					gp_session_id % plan->planTree->flow->numsegments);
 				break;
 			}
 			case ENDPOINT_ON_SOME_QE:
@@ -2461,9 +2462,10 @@ void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc)
 				ListCell * cell;
 				bool isFirst = true;
 				appendStringInfo(&endpointInfoStr, "on segments: contentid [");
-				foreach(cell, planTree->directDispatch.contentIds)
+				ExecSlice *slice = &sliceTable->slices[0];
+				foreach(cell, slice->segments)
 				{
-					int			contentid = lfirst_int(cell);
+					int contentid = lfirst_int(cell);
 					appendStringInfo(&endpointInfoStr, (isFirst)?"%d":", %d", contentid);
 					isFirst = false;
 				}

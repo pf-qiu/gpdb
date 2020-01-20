@@ -249,10 +249,6 @@ execMotionSender(MotionState *node)
 	PlanState  *outerNode;
 	Motion	   *motion = (Motion *) node->ps.plan;
 	bool		done = false;
-	int			numsegments = 0;
-
-	if (motion->motionType == MOTIONTYPE_GATHER_SINGLE)
-		numsegments = motion->plan.flow->numsegments;
 
 #ifdef MEASURE_MOTION_TIME
 	struct timeval time1;
@@ -299,7 +295,7 @@ execMotionSender(MotionState *node)
 			done = true;
 		}
 		else if (motion->motionType == MOTIONTYPE_GATHER_SINGLE &&
-				 GpIdentity.segindex != (gp_session_id % numsegments))
+				 GpIdentity.segindex != (gp_session_id % node->numHashSegments))
 		{
 			/*
 			 * For explicit gather motion, receiver gets data from one
@@ -605,7 +601,7 @@ execMotionSortedReceiverFirstTime(MotionState *node)
 	ListCell   *lcProcess;
 	CdbMergeComparatorContext *comparatorContext = node->tupleheap_cxt;
 	AttrNumber	key1_attno = motion->sortColIdx[0];
-	Slice	   *sendSlice = (Slice *) list_nth(node->ps.state->es_sliceTable->slices, motion->motionID);
+	ExecSlice  *sendSlice = &node->ps.state->es_sliceTable->slices[motion->motionID];
 
 	Assert(sendSlice->sliceIndex == motion->motionID);
 
@@ -692,10 +688,11 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 {
 	MotionState *motionstate = NULL;
 	TupleDesc	tupDesc;
-	Slice	   *sendSlice = NULL;
-	Slice	   *recvSlice = NULL;
+	ExecSlice  *sendSlice;
+	ExecSlice  *recvSlice;
 	SliceTable *sliceTable = estate->es_sliceTable;
 	PlanState  *outerPlan;
+	int			parentIndex;
 
 #ifdef CDB_MOTION_DEBUG
 	int			i;
@@ -714,9 +711,10 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 				 errmsg("EvalPlanQual can not handle subPlan with Motion node")));
 
 	Assert(node->motionID > 0);
-	Assert(node->motionID <= sliceTable->nMotions);
+	Assert(node->motionID < sliceTable->numSlices);
 
-	estate->currentSliceIdInPlan = node->motionID;
+	parentIndex = estate->currentSliceId;
+	estate->currentSliceId = node->motionID;
 
 	/*
 	 * create state structure
@@ -729,18 +727,16 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 	motionstate->hashExprs = NIL;
 	motionstate->cdbhash = NULL;
 
-	/* Look up the sending gang's slice table entry. */
-	sendSlice = (Slice *) list_nth(sliceTable->slices, node->motionID);
-	Assert(IsA(sendSlice, Slice));
+	/* Look up the sending and receiving gang's slice table entries. */
+	sendSlice = &sliceTable->slices[node->motionID];
 	Assert(sendSlice->sliceIndex == node->motionID);
+	recvSlice = &sliceTable->slices[parentIndex];
+	Assert(parentIndex == sendSlice->parentIndex);
 
 	/* QD must fill in the global slice table. */
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		MemoryContext oldcxt = MemoryContextSwitchTo(estate->es_query_cxt);
-
-		/* Look up the receiving (parent) gang's slice table entry. */
-		recvSlice = (Slice *) list_nth(sliceTable->slices, sendSlice->parentIndex);
 
 		if (node->motionType == MOTIONTYPE_GATHER ||
 			node->motionType == MOTIONTYPE_GATHER_SINGLE)
@@ -759,8 +755,8 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 			else
 			{
 				/* sanity checks */
-				if (recvSlice->gangSize != 1)
-					elog(WARNING, "unexpected gang size: %d", recvSlice->gangSize);
+				if (list_length(recvSlice->segments) != 1)
+					elog(ERROR, "unexpected gang size: %d", list_length(recvSlice->segments));
 			}
 		}
 
@@ -771,8 +767,6 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 	else
 	{
 		Insist(Gp_role == GP_ROLE_EXECUTE);
-
-		recvSlice = (Slice *) list_nth(sliceTable->slices, sendSlice->parentIndex);
 
 		if (LocallyExecutingSliceIndex(estate) == recvSlice->sliceIndex)
 		{
@@ -801,7 +795,7 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 	motionstate->numTuplesToParent = 0;
 
 	motionstate->stopRequested = false;
-	motionstate->numInputSegs = sendSlice->gangSize;
+	motionstate->numInputSegs = list_length(sendSlice->segments);
 
 	/*
 	 * Miscellaneous initialization
@@ -861,10 +855,10 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 	motionstate->ps.ps_ProjInfo = NULL;
 
 	/* Set up motion send data structures */
+	motionstate->numHashSegments = recvSlice->planNumSegments;
 	if (motionstate->mstype == MOTIONSTATE_SEND && node->motionType == MOTIONTYPE_HASH)
 	{
 		int			nkeys;
-		int			numsegments;
 
 		nkeys = list_length(node->hashExprs);
 
@@ -875,27 +869,9 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 		/*
 		 * Create hash API reference
 		 */
-		if (estate->es_plannedstmt->planGen == PLANGEN_PLANNER)
-		{
-			Assert(node->plan.flow);
-			Assert(node->plan.flow->numsegments > 0);
-
-			/*
-			 * For planner generated plan the size of receiver slice can be
-			 * determined from flow.
-			 */
-			numsegments = node->plan.flow->numsegments;
-		}
-		else
-		{
-			/*
-			 * For ORCA generated plan we could distribute to ALL as partially
-			 * distributed tables are not supported by ORCA yet.
-			 */
-			numsegments = getgpsegmentCount();
-		}
-
-		motionstate->cdbhash = makeCdbHash(numsegments, nkeys, node->hashFuncs);
+		motionstate->cdbhash = makeCdbHash(motionstate->numHashSegments,
+										   nkeys,
+										   node->hashFuncs);
 	}
 
 	/* Merge Receive: Set up the key comparator and priority queue. */
@@ -940,6 +916,8 @@ ExecInitMotion(Motion *node, EState *estate, int eflags)
 	}
 #endif
 
+	estate->currentSliceId = parentIndex;
+
 	return motionstate;
 }
 
@@ -968,7 +946,7 @@ ExecEndMotion(MotionState *node)
 	 * Set the slice no for the nodes under this motion.
 	 */
 	Assert(node->ps.state != NULL);
-	node->ps.state->currentSliceIdInPlan = motNodeID;
+	node->ps.state->currentSliceId = motNodeID;
 
 	/*
 	 * shut down the subplan
@@ -1307,16 +1285,8 @@ doSendTuple(Motion *motion, MotionState *node, TupleTableSlot *outerTupleSlot)
 		hval = evalHashKey(econtext, node->hashExprs, node->cdbhash);
 
 #ifdef USE_ASSERT_CHECKING
-		if (node->ps.state->es_plannedstmt->planGen == PLANGEN_PLANNER)
-		{
-			Assert(hval < node->ps.plan->flow->numsegments &&
-				   "redistribute destination outside segment array");
-		}
-		else
-		{
-			Assert(hval < getgpsegmentCount() &&
-				   "redistribute destination outside segment array");
-		}
+		Assert(hval < node->numHashSegments &&
+			   "redistribute destination outside segment array");
 #endif							/* USE_ASSERT_CHECKING */
 
 		/*

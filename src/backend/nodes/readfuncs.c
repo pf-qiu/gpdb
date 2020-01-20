@@ -2318,11 +2318,22 @@ _readPlannedStmt(void)
 	READ_NODE_FIELD(resultRelations);
 	READ_NODE_FIELD(utilityStmt);
 	READ_NODE_FIELD(subplans);
+	READ_INT_ARRAY(subplan_sliceIds, list_length(local_node->subplans));
+
+	READ_INT_FIELD(numSlices);
+	local_node->slices = palloc(local_node->numSlices * sizeof(PlanSlice));
+	for (int i = 0; i < local_node->numSlices; i++)
+	{
+		READ_INT_FIELD(slices[i].sliceIndex);
+		READ_INT_FIELD(slices[i].parentIndex);
+		READ_INT_FIELD(slices[i].gangType);
+		READ_INT_FIELD(slices[i].numsegments);
+		READ_INT_FIELD(slices[i].segindex);
+		READ_BOOL_FIELD(slices[i].directDispatch.isDirectDispatch);
+		READ_NODE_FIELD(slices[i].directDispatch.contentIds);
+	}
+
 	READ_BITMAPSET_FIELD(rewindPlanIDs);
-#ifdef COMPILING_BINARY_FUNCS
-	READ_INT_ARRAY(subplan_sliceIds, list_length(local_node->subplans) + 1);
-	READ_BOOL_ARRAY(subplan_initPlanParallel, list_length(local_node->subplans) + 1);
-#endif /* COMPILING_BINARY_FUNCS */
 	READ_NODE_FIELD(result_partitions);
 	READ_NODE_FIELD(result_aosegnos);
 	READ_NODE_FIELD(queryPartOids);
@@ -2336,9 +2347,6 @@ _readPlannedStmt(void)
 	READ_NODE_FIELD(invalItems);
 #endif /* COMPILING_BINARY_FUNCS */
 	READ_INT_FIELD(nParamExec);
-
-	READ_INT_FIELD(nMotionNodes);
-	READ_INT_FIELD(nInitPlans);
 
 	READ_NODE_FIELD(intoPolicy);
 
@@ -2375,10 +2383,9 @@ ReadCommonPlan(Plan *local_node)
 	READ_BITMAPSET_FIELD(extParam);
 	READ_BITMAPSET_FIELD(allParam);
 
+#ifndef COMPILING_BINARY_FUNCS
 	READ_NODE_FIELD(flow);
-	READ_ENUM_FIELD(dispatch, DispatchMethod);
-	READ_BOOL_FIELD(directDispatch.isDirectDispatch);
-	READ_NODE_FIELD(directDispatch.contentIds);
+#endif /* COMPILING_BINARY_FUNCS */
 
 	READ_UINT64_FIELD(operatorMemKB);
 }
@@ -3908,38 +3915,29 @@ _readCdbProcess(void)
 	READ_DONE();
 }
 
-#ifndef COMPILING_BINARY_FUNCS
-static Slice *
-_readSlice(void)
-{
-	READ_LOCALS(Slice);
-
-	READ_INT_FIELD(sliceIndex);
-	READ_INT_FIELD(rootIndex);
-	READ_INT_FIELD(parentIndex);
-	READ_NODE_FIELD(children); /* List of int index */
-	READ_ENUM_FIELD(gangType, GangType);
-	READ_INT_FIELD(gangSize);
-	READ_BOOL_FIELD(directDispatch.isDirectDispatch);
-	READ_NODE_FIELD(directDispatch.contentIds); /* List of int index */
-	READ_DUMMY_FIELD(primaryGang, NULL);
-	READ_NODE_FIELD(primaryProcesses); /* List of (CDBProcess *) */
-	READ_BITMAPSET_FIELD(processesMap);
-
-	READ_DONE();
-}
-#endif /* COMPILING_BINARY_FUNCS */
-
 static SliceTable *
 _readSliceTable(void)
 {
 	READ_LOCALS(SliceTable);
 
-	READ_BITMAPSET_FIELD(used_subplans);
-	READ_INT_FIELD(nMotions);
-	READ_INT_FIELD(nInitPlans);
 	READ_INT_FIELD(localSlice);
-	READ_NODE_FIELD(slices); /* List of Slice* */
+	READ_INT_FIELD(numSlices);
+	local_node->slices = palloc0(local_node->numSlices * sizeof(ExecSlice));
+	for (int i = 0; i < local_node->numSlices; i++)
+	{
+		READ_INT_FIELD(slices[i].sliceIndex);
+		READ_INT_FIELD(slices[i].rootIndex);
+		READ_INT_FIELD(slices[i].parentIndex);
+		READ_INT_FIELD(slices[i].planNumSegments);
+		READ_NODE_FIELD(slices[i].children); /* List of int index */
+		READ_ENUM_FIELD(slices[i].gangType, GangType);
+		READ_NODE_FIELD(slices[i].segments); /* List of int index */
+		READ_DUMMY_FIELD(slices[i].primaryGang, NULL);
+		READ_NODE_FIELD(slices[i].primaryProcesses); /* List of (CDBProcess *) */
+		READ_BITMAPSET_FIELD(slices[i].processesMap);
+	}
+	READ_BOOL_FIELD(hasMotions);
+
 	READ_INT_FIELD(instrument_options);
 	READ_INT_FIELD(ic_instance_id);
 
@@ -4391,8 +4389,6 @@ parseNodeString(void)
 		return_value = _readSetDistributionCmd();
 	else if (MATCHX("SINGLEROWERRORDESC"))
 		return_value = _readSingleRowErrorDesc();
-	else if (MATCHX("SLICE"))
-		return_value = _readSlice();
 	else if (MATCHX("SLICETABLE"))
 		return_value = _readSliceTable();
 	else if (MATCHX("SORTBY"))

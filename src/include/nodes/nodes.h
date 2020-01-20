@@ -40,7 +40,6 @@ typedef enum NodeTag
 	T_EState,
 	T_TupleTableSlot,
 	T_CdbProcess,
-	T_Slice,
 	T_SliceTable,
 	T_CursorPosInfo,
 	T_ShareNodeEntry,
@@ -866,20 +865,6 @@ typedef enum JoinType
 	   (1 << JOIN_RIGHT) | \
 	   (1 << JOIN_ANTI) | \
 	   (1 << JOIN_LASJ_NOTIN))) != 0)
-
-/*
- * DispatchMethod - MPP dispatch method.
- *
- * There are currently three possibilties, an initial value of undetermined,
- * and a value for each of the ways the dispatch code implements.
- */
-typedef enum DispatchMethod
-{
-	DISPATCH_UNDETERMINED = 0,	/* Used prior to determination. */
-	DISPATCH_SEQUENTIAL,		/* Dispatch on entry postgres process only. */
-	DISPATCH_PARALLEL			/* Dispatch on query executor and entry processes. */
-
-} DispatchMethod;
 
 /*
  * AggStrategy -

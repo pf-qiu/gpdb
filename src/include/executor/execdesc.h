@@ -24,18 +24,6 @@
 struct CdbExplain_ShowStatCtx;  /* private, in "cdb/cdbexplain.c" */
 
 
-/* GangType enumeration is used in several structures related to CDB
- * slice plan support.
- */
-typedef enum GangType
-{
-	GANGTYPE_UNALLOCATED,       /* a root slice executed by the qDisp */
-	GANGTYPE_ENTRYDB_READER,    /* a 1-gang with read access to the entry db */
-	GANGTYPE_SINGLETON_READER,	/* a 1-gang to read the segment dbs */
-	GANGTYPE_PRIMARY_READER,    /* a 1-gang or N-gang to read the segment dbs */
-	GANGTYPE_PRIMARY_WRITER		/* the N-gang that can update the segment dbs */
-} GangType;
-
 /*
  * MPP Plan Slice information
  *
@@ -44,10 +32,8 @@ typedef enum GangType
  * a gang of processes. Some gangs have a worker process on each of several
  * databases, others have a single worker.
  */
-typedef struct Slice
+typedef struct ExecSlice
 {
-	NodeTag		type;
-
 	/*
 	 * The index in the global slice table of this slice. The root slice of
 	 * the main plan is always 0. Slices that have senders at their local
@@ -69,6 +55,12 @@ typedef struct Slice
 	int			parentIndex;
 
 	/*
+	 * nominal # of segments, for hash calculations. Can be different from
+	 * gangSize, if direct dispatch.
+	 */
+	int			planNumSegments;
+
+	/*
 	 * An integer list of indices in the global slice table (origin  0)
 	 * of the child slices of this slice, or -1 if this is a leaf slice.
 	 * A child slice corresponds to a receiving motion in this slice.
@@ -79,18 +71,12 @@ typedef struct Slice
 	GangType	gangType;
 
 	/*
-	 * How many gang members needed?
+	 * A list of segment ids who will execute this slice.
 	 *
 	 * It is set before the process lists below and used to decide how
 	 * to initialize them.
 	 */
-	int			gangSize;
-
-	/*
-	 * directDispatch->isDirectDispatch should ONLY be set for a slice
-	 * when it requires an n-gang.
-	 */
-	DirectDispatchInfo directDispatch;
+	List		*segments;
 
 	struct Gang *primaryGang;
 
@@ -104,32 +90,27 @@ typedef struct Slice
 	List		*primaryProcesses;
 	/* A bitmap to identify which QE should execute this slice */
 	Bitmapset	*processesMap;
-	/* A list of segment ids who will execute this slice */
-	List		*segments;
-} Slice;
+} ExecSlice;
 
 /*
  * The SliceTable is a list of Slice structures organized into root slices
  * and motion slices as follows:
  *
  * Slice 0 is the root slice of plan as a whole.
- * Slices 1 through nMotion are motion slices with a sending motion at
- *  the root of the slice.
- * Slices nMotion+1 and on are root slices of initPlans.
  *
- * There may be unused slices in case the plan contains subplans that
- * are  not initPlans.  (This won't happen unless MPP decides to support
- * subplans similarly to PostgreSQL, which isn't the current plan.)
+ * The rest root slices of initPlans, or sub-slices of the root slice or one
+ * of the initPlan roots.
  */
 typedef struct SliceTable
 {
 	NodeTag		type;
 
-	Bitmapset  *used_subplans;
-	int			nMotions;		/* The number Motion nodes in the entire plan */
-	int			nInitPlans;		/* The number of initplan slices allocated */
 	int			localSlice;		/* Index of the slice to execute. */
-	List	   *slices;			/* List of slices */
+	int			numSlices;
+	ExecSlice  *slices;			/* Array of slices, indexed by SliceIndex */
+
+	bool		hasMotions;		/* Are there any Motion nodes anywhere in the plan? */
+
 	int			instrument_options;	/* OR of InstrumentOption flags */
 	uint32		ic_instance_id;
 } SliceTable;

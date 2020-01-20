@@ -237,26 +237,26 @@ init_shared_endpoints(Endpoint endpoints)
  * we assume the endpoint should be existed on QD. Else, on QEs.
  */
 enum EndPointExecPosition
-GetParallelCursorEndpointPosition(const struct Plan *planTree)
+GetParallelCursorEndpointPosition(PlannedStmt *plan)
 {
-	if (planTree->flow->flotype == FLOW_SINGLETON &&
-		planTree->flow->locustype != CdbLocusType_SegmentGeneral)
+	if (plan->planTree->flow->flotype == FLOW_SINGLETON &&
+			plan->planTree->flow->locustype != CdbLocusType_SegmentGeneral)
 	{
 		return ENDPOINT_ON_ENTRY_DB;
 	}
 	else
 	{
-		if (planTree->flow->flotype == FLOW_SINGLETON)
+		if (plan->planTree->flow->flotype == FLOW_SINGLETON)
 		{
 			/*
 			 * In this case, the plan is for replicated table. locustype must
 			 * be CdbLocusType_SegmentGeneral.
 			 */
-			Assert(planTree->flow->locustype == CdbLocusType_SegmentGeneral);
+			Assert(plan->planTree->flow->locustype == CdbLocusType_SegmentGeneral);
 			return ENDPOINT_ON_SINGLE_QE;
 		}
-		else if (planTree->directDispatch.isDirectDispatch &&
-				 planTree->directDispatch.contentIds != NULL)
+		else if (plan->slices[0].directDispatch.isDirectDispatch &&
+				plan->slices[0].directDispatch.contentIds != NULL)
 		{
 			/*
 			 * Direct dispatch to some segments, so end-points only exist on

@@ -77,8 +77,7 @@ extern void EndpointCTXShmemInit(void);
 /*
  * Below functions should run on dispatcher.
  */
-extern enum EndPointExecPosition GetParallelCursorEndpointPosition(
-								  const struct Plan *planTree);
+extern enum EndPointExecPosition GetParallelCursorEndpointPosition(PlannedStmt *plan);
 extern void WaitEndpointReady(EState *estate);
 
 /*

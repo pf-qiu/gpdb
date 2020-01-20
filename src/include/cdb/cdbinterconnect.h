@@ -28,7 +28,7 @@
 #include "cdb/tupleremap.h"
 
 struct CdbProcess;                          /* #include "nodes/execnodes.h" */
-struct Slice;                               /* #include "nodes/execnodes.h" */
+struct ExecSlice;                           /* #include "nodes/execnodes.h" */
 struct SliceTable;                          /* #include "nodes/execnodes.h" */
 struct EState;                              /* #include "nodes/execnodes.h" */
 
@@ -331,9 +331,9 @@ typedef struct ChunkTransportStateEntry
 
     int         scanStart;
 
-    /* slice table entries */
-    struct Slice   *sendSlice;
-    struct Slice   *recvSlice;
+	/* slice table entries */
+	struct ExecSlice *sendSlice;
+	struct ExecSlice *recvSlice;
 
 	/* setup info */
 	int			txfd;

@@ -207,6 +207,8 @@ ExplainQuery(ExplainStmt *stmt, const char *queryString,
 		}
 		else if (strcmp(opt->defname, "dxl") == 0)
 			es->dxl = defGetBoolean(opt);
+		else if (strcmp(opt->defname, "slicetable") == 0)
+			es->slicetable = defGetBoolean(opt);
 		else
 			ereport(ERROR,
 					(errcode(ERRCODE_SYNTAX_ERROR),
@@ -642,6 +644,10 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 			ExplainPropertyFloat("Planning Time", 1000.0 * plantime, 3, es);
 	}
 
+	/* Print slice table */
+	if (es->slicetable)
+		ExplainPrintSliceTable(es, queryDesc);
+
 	/* Print info about runtime of triggers */
 	if (es->analyze)
 		ExplainPrintTriggers(es, queryDesc);
@@ -771,6 +777,72 @@ ExplainPrintPlan(ExplainState *es, QueryDesc *queryDesc)
 	if (IsA(ps, GatherState) &&((Gather *) ps->plan)->invisible)
 		ps = outerPlanState(ps);
 	ExplainNode(ps, NIL, NULL, NULL, es);
+}
+
+
+/*
+ * ExplainPrintSliceTable -
+ *	  convert the MPP slice table text and append it to es->str
+ */
+void
+ExplainPrintSliceTable(ExplainState *es, QueryDesc *queryDesc)
+{
+	SliceTable *sliceTable = queryDesc->estate->es_sliceTable;
+	int			numSlices = (sliceTable ? sliceTable->numSlices : 0);
+
+	ExplainOpenGroup("Slice Table", "Slice Table", false, es);
+
+	for (int i = 0; i < numSlices; i++)
+	{
+		ExecSlice *slice = &sliceTable->slices[i];
+		const char *gangType = "???";
+
+		switch (slice->gangType)
+		{
+			case GANGTYPE_UNALLOCATED:
+				gangType = "Dispatcher";
+				break;
+			case GANGTYPE_ENTRYDB_READER:
+				gangType = "Entry DB Reader";
+				break;
+			case GANGTYPE_SINGLETON_READER:
+				gangType = "Singleton Reader";
+				break;
+			case GANGTYPE_PRIMARY_READER:
+				gangType = "Reader";
+				break;
+			case GANGTYPE_PRIMARY_WRITER:
+				gangType = "Primary Writer";
+				break;
+		}
+
+		if (es->format == EXPLAIN_FORMAT_TEXT)
+		{
+			appendStringInfo(es->str, "Slice %d: %s; root %d; parent %d; gang size %d",
+							 i,
+							 gangType,
+							 slice->rootIndex,
+							 slice->parentIndex,
+							 list_length(slice->segments));
+			if (slice->gangType == GANGTYPE_SINGLETON_READER)
+				appendStringInfo(es->str, "; segment %d", linitial_int(slice->segments));
+			appendStringInfoString(es->str, "\n");
+		}
+		else
+		{
+			ExplainOpenGroup("Slice", NULL, true, es);
+			ExplainPropertyInteger("Slice ID", i, es);
+			ExplainPropertyText("Gang Type", gangType, es);
+			ExplainPropertyInteger("Root", slice->rootIndex, es);
+			ExplainPropertyInteger("Parent", slice->parentIndex, es);
+			ExplainPropertyInteger("Gang Size", list_length(slice->segments), es);
+			if (slice->gangType == GANGTYPE_SINGLETON_READER)
+				ExplainPropertyInteger("Segment", linitial_int(slice->segments), es);
+			ExplainCloseGroup("Slice", NULL, true, es);
+		}
+	}
+
+	ExplainCloseGroup("Slice Table", "Slice Table", false, es);
 }
 
 /*
@@ -916,7 +988,7 @@ elapsed_time(instr_time *starttime)
 }
 
 static void
-show_dispatch_info(Slice *slice, ExplainState *es, Plan *plan)
+show_dispatch_info(ExecSlice *slice, ExplainState *es, Plan *plan)
 {
 	int			segments;
 
@@ -937,44 +1009,7 @@ show_dispatch_info(Slice *slice, ExplainState *es, Plan *plan)
 		case GANGTYPE_PRIMARY_READER:
 		case GANGTYPE_SINGLETON_READER:
 		{
-			if (slice->directDispatch.isDirectDispatch)
-			{
-				segments = list_length(slice->directDispatch.contentIds);
-			}
-			else if (es->pstmt->planGen == PLANGEN_PLANNER)
-			{
-				/*
-				 * - for motion nodes we want to display the sender segments
-				 *   count, it can be fetched from lefttree;
-				 * - for non-motion nodes the segments count can be fetched
-				 *   from either lefttree or plan itself, they should be the
-				 *   same;
-				 * - there is also nodes like Hash that might have NULL
-				 *   plan->flow but non-NULL lefttree->flow, so we can use
-				 *   whichever that's available.
-				 */
-				if (plan->lefttree && plan->lefttree->flow)
-				{
-					if (plan->lefttree->flow->flotype == FLOW_SINGLETON)
-						segments = 1;
-					else
-						segments = plan->lefttree->flow->numsegments;
-				}
-				else
-				{
-					Assert(!IsA(plan, Motion));
-					Assert(plan->flow);
-
-					if (plan->flow->flotype == FLOW_SINGLETON)
-						segments = 1;
-					else
-						segments = plan->flow->numsegments;
-				}
-			}
-			else
-			{
-				segments = slice->gangSize;
-			}
+			segments = list_length(slice->segments);
 			break;
 		}
 
@@ -1101,7 +1136,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 {
 	Plan	   *plan = planstate->plan;
 	PlanState  *parentplanstate;
-    Slice      *save_currentSlice = es->currentSlice;    /* save */
+	ExecSlice  *save_currentSlice = es->currentSlice;    /* save */
 	const char *pname;			/* node type name for text output */
 	const char *sname;			/* node type name for non-text output */
 	const char *strategy = NULL;
@@ -1116,7 +1151,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 	int			motion_snd;
 	float		scaleFactor = 1.0; /* we will divide planner estimates by this factor to produce
 									  per-segment estimates */
-	Slice		*parentSlice = NULL;
+	ExecSlice  *parentSlice = NULL;
 
 	/* Remember who called us. */
 	parentplanstate = es->parentPlanState;
@@ -1128,39 +1163,10 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		 * Estimates will have to be scaled down to be per-segment (except in a
 		 * few cases).
 		 */
-		if ((plan->directDispatch).isDirectDispatch)
+		if (es->currentSlice)
 		{
-			scaleFactor = 1.0;
-		}
-		else if (plan->flow != NULL && CdbPathLocus_IsBottleneck(*(plan->flow)))
-		{
-			/*
-			 * Data is unified in one place (singleQE or QD), or executed on a
-			 * single segment.  We scale up estimates to make it global.  We
-			 * will later amend this for Motion nodes.
-			 */
-			scaleFactor = 1.0;
-		}
-		else if (plan->flow != NULL && CdbPathLocus_IsSegmentGeneral(*(plan->flow)))
-		{
-			/* Replicated table has full data on every segment */
-			scaleFactor = 1.0;
-		}
-		else if (plan->flow != NULL && es->pstmt->planGen == PLANGEN_PLANNER)
-		{
-			/*
-			 * The plan node is executed on multiple nodes, so scale down the
-			 * number of rows seen by each segment
-			 */
-			scaleFactor = CdbPathLocus_NumSegments(*(plan->flow));
-		}
-		else
-		{
-			/*
-			 * The plan node is executed on multiple nodes, so scale down the
-			 * number of rows seen by each segment
-			 */
-			scaleFactor = getgpsegmentCount();
+			if (es->currentSlice->gangType != GANGTYPE_UNALLOCATED)
+				scaleFactor = list_length(es->currentSlice->segments);
 		}
 	}
 
@@ -1174,11 +1180,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 
 		if (sliceTable)
 		{
-			es->currentSlice = (Slice *) list_nth(sliceTable->slices,
-												  pMotion->motionID);
+			es->currentSlice = &sliceTable->slices[pMotion->motionID];
 			parentSlice = es->currentSlice->parentIndex == -1 ? NULL :
-						  (Slice *) list_nth(sliceTable->slices,
-											 es->currentSlice->parentIndex);
+						  &sliceTable->slices[es->currentSlice->parentIndex];
 		}
 	}
 
@@ -1426,10 +1430,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 				Motion		*pMotion = (Motion *) plan;
 
 				Assert(plan->lefttree);
-				Assert(plan->lefttree->flow);
 
-				motion_snd = es->currentSlice->gangSize;
-				motion_recv = (parentSlice == NULL ? 1 : parentSlice->gangSize);
+				motion_snd = list_length(es->currentSlice->segments);
+				motion_recv = (parentSlice == NULL ? 1 : list_length(parentSlice->segments));
 
 				/* scale the number of rows by the number of segments sending data */
 				scaleFactor = motion_snd;
@@ -1454,44 +1457,10 @@ ExplainNode(PlanState *planstate, List *ancestors,
 						break;
 					case MOTIONTYPE_EXPLICIT:
 						sname = "Explicit Redistribute Motion";
-						motion_recv = getgpsegmentCount();
 						break;
 					default:
 						sname = "???";
 						break;
-				}
-
-				if (es->pstmt->planGen == PLANGEN_PLANNER)
-				{
-					Slice	   *slice = es->currentSlice;
-
-					if (slice->directDispatch.isDirectDispatch)
-					{
-						/* Special handling on direct dispatch */
-						motion_snd = list_length(slice->directDispatch.contentIds);
-					}
-					else if (plan->lefttree->flow->flotype == FLOW_SINGLETON)
-					{
-						/* For SINGLETON we always display sender size as 1 */
-						motion_snd = 1;
-					}
-					else
-					{
-						/* Otherwise find out sender size from outer plan */
-						motion_snd = plan->lefttree->flow->numsegments;
-					}
-
-					if (pMotion->motionType == MOTIONTYPE_GATHER ||
-						pMotion->motionType == MOTIONTYPE_GATHER_SINGLE)
-					{
-						/* In Gather Motion always display receiver size as 1 */
-						motion_recv = 1;
-					}
-					else
-					{
-						/* Otherwise find out receiver size from plan */
-						motion_recv = plan->flow->numsegments;
-					}
 				}
 
 				pname = psprintf("%s %d:%d", sname, motion_snd, motion_recv);
@@ -3613,13 +3582,18 @@ ExplainSubPlans(List *plans, List *ancestors,
 				SliceTable *sliceTable)
 {
 	ListCell   *lst;
-	Slice      *saved_slice = es->currentSlice;
+	ExecSlice  *saved_slice = es->currentSlice;
 
 	foreach(lst, plans)
 	{
 		SubPlanState *sps = (SubPlanState *) lfirst(lst);
 		SubPlan    *sp = (SubPlan *) sps->xprstate.expr;
-		int			qDispSliceId = es->pstmt->subplan_sliceIds ? es->pstmt->subplan_sliceIds[sp->plan_id] : 0;
+		int			qDispSliceId;
+
+		if (es->pstmt->subplan_sliceIds)
+			qDispSliceId = es->pstmt->subplan_sliceIds[sp->plan_id - 1];
+		else
+			qDispSliceId = -1;
 
 		/*
 		 * There can be multiple SubPlan nodes referencing the same physical
@@ -3639,13 +3613,20 @@ ExplainSubPlans(List *plans, List *ancestors,
 		/* Subplan might have its own root slice */
 		if (sliceTable && qDispSliceId > 0)
 		{
-			es->currentSlice = (Slice *)list_nth(sliceTable->slices,
-												 qDispSliceId);
+			es->currentSlice = &sliceTable->slices[qDispSliceId];
 			es->subplanDispatchedSeparately = true;
 		}
 		else
 			es->subplanDispatchedSeparately = false;
 
+		if (sps->planstate == NULL)
+		{
+			appendStringInfoSpaces(es->str, es->indent * 2);
+			appendStringInfo(es->str, "  ->  ");
+			appendStringInfo(es->str, "UNUSED %s", sp->plan_name);
+			appendStringInfo(es->str, "\n");
+		}
+		else
 		ExplainNode(sps->planstate, ancestors,
 					relationship, sp->plan_name, es);
 	}

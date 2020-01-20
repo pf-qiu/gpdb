@@ -20,7 +20,6 @@
 #include "nodes/relation.h"
 #include "optimizer/walkers.h"
 
-extern Plan *apply_motion(struct PlannerInfo *root, Plan *plan, bool isParalleCursor);
 
 extern Motion *make_union_motion(Plan *lefttree, int numsegments);
 extern Motion *make_sorted_union_motion(PlannerInfo *root, Plan *lefttree, int numSortCols, AttrNumber *sortColIdx, Oid *sortOperators,
@@ -44,7 +43,7 @@ cdbmutate_warn_ctid_without_segid(struct PlannerInfo *root, struct RelOptInfo *r
 extern Plan *apply_shareinput_dag_to_tree(PlannerInfo *root, Plan *plan);
 extern void collect_shareinput_producers(PlannerInfo *root, Plan *plan);
 extern Plan *replace_shareinput_targetlists(PlannerInfo *root, Plan *plan);
-extern Plan *apply_shareinput_xslice(Plan *plan, PlannerInfo *root);
+extern Plan *apply_shareinput_xslice(Plan *plan, PlannerInfo *root, PlanSlice *sliceTable);
 
 extern List *getExprListFromTargetList(List *tlist, int numCols, AttrNumber *colIdx);
 extern void remove_unused_initplans(Plan *plan, PlannerInfo *root);
