@@ -1323,6 +1323,12 @@ url_curl_fopen(char *url, bool forwrite, extvar_t *ev, CopyState pstate)
 	 */
 	if (!forwrite)
 	{
+		CURLcode res = curl_easy_perform(curl);
+		if(res != CURLE_OK)
+			elog(ERROR, "curl_easy_perform() failed: %s\n",
+              curl_easy_strerror(res));
+ 
+
 		int			response_code;
 		char	   *response_string;
 
