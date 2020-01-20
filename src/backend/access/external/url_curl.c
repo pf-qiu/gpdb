@@ -1323,7 +1323,7 @@ url_curl_fopen(char *url, bool forwrite, extvar_t *ev, CopyState pstate)
 	 */
 	if (!forwrite)
 	{
-		CURLcode res = curl_easy_perform(curl);
+		CURLcode res = curl_easy_perform(file->curl->handle);
 		if(res != CURLE_OK)
 			elog(ERROR, "curl_easy_perform() failed: %s\n",
               curl_easy_strerror(res));
