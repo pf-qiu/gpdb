@@ -64,6 +64,7 @@ static Node *pre_dispatch_function_evaluation_mutator(Node *node,
 										 pre_dispatch_function_evaluation_context *context);
 static bool replace_shareinput_targetlists_walker(Node *node, PlannerInfo *root, bool fPop);
 
+
 Motion *
 make_union_motion(Plan *lefttree, int numsegments)
 {

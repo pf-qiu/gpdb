@@ -555,7 +555,7 @@ cdbllize_adjust_top_path(PlannerInfo *root, Path *best_path,
 													   false,
 													   entryLocus);
 				topslice->numsegments = 1;
-				topslice->segindex = 1;
+				topslice->segindex = 0;
 				topslice->gangType = GANGTYPE_UNALLOCATED;
 			}
 			else
@@ -746,6 +746,9 @@ cdbllize_decorate_subplans_with_motions(PlannerInfo *root, Plan *plan)
 	return result;
 }
 
+/*
+ * Workhorse for cdbllize_fix_outer_query_motions().
+ */
 static Node *
 fix_outer_query_motions_mutator(Node *node, decorate_subplans_with_motions_context *context)
 {
