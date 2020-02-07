@@ -140,3 +140,13 @@ string S3Url::extractField(const struct http_parser_url *urlParser, http_parser_
 
     return this->sourceUrl.substr(urlParser->field_data[i].off, urlParser->field_data[i].len);
 }
+
+string S3Url::getExtension() const {
+    const string& path = this->prefix;
+    for (size_t i = path.size() - 1; i >= 0 && path[i] != '/'; i--) {
+		if (path[i] == '.') {
+			return path.substr(i);
+		}
+	}
+    return "";
+}
