@@ -1296,6 +1296,11 @@ url_curl_fopen(char *url, bool forwrite, extvar_t *ev, CopyState pstate)
 					 e, curl_easy_strerror(e));
 		}
 		file->curl->in_multi_handle = true;
+		if (IS_GPFDISTS_URI(url))
+		{
+			curl_multi_perform(multi_handle, &file->still_running);
+			pg_usleep(100000);
+		}
 
 		while (CURLM_CALL_MULTI_PERFORM ==
 			   (e = curl_multi_perform(multi_handle, &file->still_running)));
