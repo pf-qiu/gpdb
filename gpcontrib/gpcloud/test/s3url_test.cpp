@@ -95,12 +95,27 @@ TEST(S3UrlTest, Region_apnortheast2) {
 }
 
 TEST(S3UrlTest, Extension) {
-    S3Url s3Url1("http://s3-us-west-2.amazonaws.com/s3test.pivotal.io/dataset1/normal/test.deflate");
-    EXPECT_EQ(".deflate", s3Url1.getExtension());
-
-    S3Url s3Url2("http://s3-us-west-2.amazonaws.com/s3test.pivotal.io/dataset1/normal/.deflate");
-    EXPECT_EQ(".deflate", s3Url2.getExtension());
-
-    S3Url s3Url3("http://s3-us-west-2.amazonaws.com/s3test.pivotal.io/dataset1/normal/test.");
-    EXPECT_EQ(".", s3Url3.getExtension());
+    S3Url s3Url("http://s3-us-west-2.amazonaws.com/bucket/");
+    EXPECT_EQ("", s3Url.getPrefix());
+    EXPECT_EQ("", s3Url.getExtension());
+    s3Url.setPrefix("abc");
+    EXPECT_EQ("", s3Url.getExtension());
+    s3Url.setPrefix("a.b.c");
+    EXPECT_EQ(".c", s3Url.getExtension());
+    s3Url.setPrefix("/");
+    EXPECT_EQ("", s3Url.getExtension());
+    s3Url.setPrefix("//");
+    EXPECT_EQ("", s3Url.getExtension());
+    s3Url.setPrefix("./");
+    EXPECT_EQ("", s3Url.getExtension());
+    s3Url.setPrefix("/a.b/");
+    EXPECT_EQ("", s3Url.getExtension());
+    s3Url.setPrefix("/.");
+    EXPECT_EQ(".", s3Url.getExtension());
+    s3Url.setPrefix("a.b");
+    EXPECT_EQ(".b", s3Url.getExtension());
+    s3Url.setPrefix("/a.b");
+    EXPECT_EQ(".b", s3Url.getExtension());
+    s3Url.setPrefix("ab/a.b");
+    EXPECT_EQ(".b", s3Url.getExtension());
 }

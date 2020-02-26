@@ -143,10 +143,12 @@ string S3Url::extractField(const struct http_parser_url *urlParser, http_parser_
 
 string S3Url::getExtension() const {
     const string& path = this->prefix;
-    for (size_t i = path.size() - 1; i >= 0 && path[i] != '/'; i--) {
-		if (path[i] == '.') {
-			return path.substr(i);
-		}
-	}
-    return "";
+    std::string::size_type pos = path.find_last_of('/');
+    string filename = (pos == path.npos) ? path : path.substr(pos + 1);
+
+    pos = filename.find_last_of('.');
+    if (pos == filename.npos) {
+        return "";
+    }
+    return filename.substr(pos);
 }
