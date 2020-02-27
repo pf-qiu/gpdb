@@ -1152,7 +1152,7 @@ processResults(CdbDispatchResult *dispatchResult)
 		 * retrieve acknowledge NOTIFY message form libpq. And put it to
 		 * dispatchResult->ackPGNotifies queue.
 		 */
-		if (strcmp(qnotifies->relname, CDB_QE_ACKNOLEDGE_NOTIFY_CHANNEL) == 0)
+		if (strcmp(qnotifies->relname, CDB_QE_ACKNOWLEDGE_NOTIFY_CHANNEL) == 0)
 		{
 			qnotifies->next = (struct pgNotify *) dispatchResult->ackPGNotifies;
 			dispatchResult->ackPGNotifies = (struct PGnotify *) qnotifies;

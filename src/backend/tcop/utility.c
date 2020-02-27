@@ -2105,7 +2105,8 @@ UtilityTupleDescriptor(Node *parsetree)
 				RetrieveStmt *n = (RetrieveStmt *) parsetree;
 
 				if (Gp_role != GP_ROLE_RETRIEVE)
-					elog(ERROR, "RETRIEVE command can only run in retrieve mode");
+					ereport(ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
+						errmsg("RETRIEVE command can only run in retrieve mode")));
 
                 SetParallelRtrvCursorExecRole(PARALLEL_RETRIEVE_RECEIVER);
 

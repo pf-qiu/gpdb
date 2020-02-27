@@ -425,7 +425,7 @@ cdbdisp_sendAckMessageToQD(const char *message)
 
 	pq_beginmessage(&buf, 'A');
 	pq_sendint(&buf, MyProcPid, sizeof(int32));
-	pq_sendstring(&buf, CDB_QE_ACKNOLEDGE_NOTIFY_CHANNEL); /* channel */
+	pq_sendstring(&buf, CDB_QE_ACKNOWLEDGE_NOTIFY_CHANNEL); /* channel */
 	pq_sendstring(&buf, message);
 	pq_endmessage(&buf);
 	pq_flush();

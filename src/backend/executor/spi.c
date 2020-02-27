@@ -24,7 +24,6 @@
 #include "executor/executor.h"
 #include "executor/spi_priv.h"
 #include "miscadmin.h"
-#include "nodes/parsenodes.h"  /* For CURSOR_OPT_PARALLEL_RETRIEVE */
 #include "tcop/pquery.h"
 #include "tcop/utility.h"
 #include "utils/builtins.h"

@@ -84,7 +84,7 @@ struct EndpointControl EndpointCtl = {
  * the given token pointer.
  */
 void
-parse_token(int8 *token /* out */ , const char *tokenStr)
+endpoint_parse_token(int8 *token /* out */ , const char *tokenStr)
 {
 	const char *msg = "Retrieve auth token is invalid";
 
@@ -105,7 +105,7 @@ parse_token(int8 *token /* out */ , const char *tokenStr)
  * Note: need to pfree() the result
  */
 char *
-print_token(const int8 *token)
+endpoint_print_token(const int8 *token)
 {
 	const size_t len =
 	ENDPOINT_TOKEN_STR_LEN + 1; /* 2('tk') + HEX string length + 1('\0') */
@@ -184,7 +184,7 @@ endpoint_role_to_string(enum ParallelRtrvCursorExecRole role)
  * Returns true if the two given endpoint tokens are equal.
  */
 bool
-token_equals(const int8 *token1, const int8 *token2)
+endpoint_token_equals(const int8 *token1, const int8 *token2)
 {
 	Assert(token1);
 	Assert(token2);
@@ -331,7 +331,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 {
 	if (Gp_role != GP_ROLE_DISPATCH)
 		ereport(
-			ERROR, (errcode(ERRCODE_SYNTAX_ERROR),
+			ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
 			errmsg(
 				 "gp_endpoints_info() only can be called on query dispatcher")));
 
@@ -417,7 +417,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 				{
 					StrNCpy(mystatus->status[idx].name, PQgetvalue(result, j, 0), NAMEDATALEN);
 					StrNCpy(mystatus->status[idx].cursorName, PQgetvalue(result, j, 1), NAMEDATALEN);
-					parse_token(mystatus->status[idx].token, PQgetvalue(result, j, 2));
+					endpoint_parse_token(mystatus->status[idx].token, PQgetvalue(result, j, 2));
 					mystatus->status[idx].dbid = atoi(PQgetvalue(result, j, 3));
 					mystatus->status[idx].attachStatus = status_string_to_enum(PQgetvalue(result, j, 4));
 					mystatus->status[idx].senderPid = atoi(PQgetvalue(result, j, 5));
@@ -512,7 +512,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 		memset(values, 0, sizeof(values));
 		memset(nulls, 0, sizeof(nulls));
 
-		char	   *token = print_token(qe_status->token);
+		char	   *token = endpoint_print_token(qe_status->token);
 
 		values[0] = CStringGetTextDatum(token);
 		pfree(token);
@@ -628,7 +628,7 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 			int8		token[ENDPOINT_TOKEN_LEN];
 
 			get_token_by_session_id(entry->sessionID, entry->userID, token);
-			char	   *tokenStr = print_token(token);
+			char	   *tokenStr = endpoint_print_token(token);
 
 			values[0] = CStringGetTextDatum(tokenStr);
 			nulls[0] = false;

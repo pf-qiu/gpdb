@@ -30,15 +30,8 @@
 #ifndef CDBENDPOINT_H
 #define CDBENDPOINT_H
 
-#include <inttypes.h>
-
 #include "executor/tqueue.h"
-#include "executor/execdesc.h"
-#include "storage/dsm.h"
 #include "storage/shm_toc.h"
-#include "nodes/parsenodes.h"
-#include "tcop/dest.h"
-#include "storage/lwlock.h"
 #include "nodes/execnodes.h"
 
 /*

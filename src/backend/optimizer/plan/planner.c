@@ -262,7 +262,7 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	instr_time		starttime;
 	instr_time		endtime;
 	MemoryAccountIdType curMemoryAccountId;
-	bool		isParalleCursor = false;
+	bool		isParallelCursor = false;
 
 	/*
 	 * Use ORCA only if it is enabled and we are in a master QD process.
@@ -451,12 +451,12 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	best_path = get_cheapest_fractional_path(final_rel, tuple_fraction);
 
 	if ((cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) != 0)
-		isParalleCursor = true;
+		isParallelCursor = true;
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		Assert(root->curSlice == NULL);
-		best_path = cdbllize_adjust_top_path(root, best_path, top_slice, isParalleCursor);
+		best_path = cdbllize_adjust_top_path(root, best_path, top_slice, isParallelCursor);
 	}
 
 	top_plan = create_plan(root, best_path, top_slice);

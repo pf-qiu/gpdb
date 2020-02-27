@@ -37,7 +37,7 @@
 #endif
 
 
-#define CDB_QE_ACKNOLEDGE_NOTIFY_CHANNEL "**ACK_NOTIFY**"
+#define CDB_QE_ACKNOWLEDGE_NOTIFY_CHANNEL "**ACK_NOTIFY**"
 
 /*
  * Parameters gp_session_role and gp_role

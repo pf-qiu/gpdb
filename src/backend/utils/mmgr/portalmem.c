@@ -1250,7 +1250,7 @@ pg_cursor(PG_FUNCTION_ARGS)
 					   BOOLOID, -1, 0);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 6, "is_parallel",
 					   BOOLOID, -1, 0);
-	TupleDescInitEntry(tupdesc, (AttrNumber) 7, "creation_time",
+	TupleDescInitEntry(tupdesc, (AttrNumber) 6 + 1, "creation_time",
 					   TIMESTAMPTZOID, -1, 0);
 
 	/*

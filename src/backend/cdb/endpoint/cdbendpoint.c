@@ -920,7 +920,7 @@ get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ )
 	if (infoEntry == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg("token for user id: %d, session: %d doesn't exist",
+						errmsg("token for user id: %u, session: %d doesn't exist",
 							   tag.userID, sessionId)));
 	}
 	memcpy(token, infoEntry->token, ENDPOINT_TOKEN_LEN);
@@ -941,7 +941,7 @@ get_session_id_for_auth(Oid userID, const int8 *token)
 	hash_seq_init(&status, sharedSessionInfoHash);
 	while ((infoEntry = (SessionInfoEntry *) hash_seq_search(&status)) != NULL)
 	{
-		if (token_equals(infoEntry->token, token) &&
+		if (endpoint_token_equals(infoEntry->token, token) &&
 			userID == infoEntry->tag.userID)
 		{
 			sessionId = infoEntry->tag.sessionID;
