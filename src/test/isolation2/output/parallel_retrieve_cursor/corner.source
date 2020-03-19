@@ -2081,3 +2081,40 @@ DECLARE
 ERROR:  cursor "x12345678901234567890123456789012345678901234567890123456789012" already exists
 1: ROLLBACK;
 ROLLBACK
+
+-- Test26: Retrieve one endpoint and quit the session, then connect the segment again and retrieve twice. No crash should happen.
+1: BEGIN;
+BEGIN
+1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t5;
+DECLARE
+1: @out_sh 'parse_endpoint 26 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+ endpoint_id26_1 | token_id | host_id | port_id | READY
+ endpoint_id26_2 | token_id | host_id | port_id | READY
+ endpoint_id26_3 | token_id | host_id | port_id | READY
+(3 rows)
+
+2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
+ b  
+----
+ 5  
+ 6  
+ 9  
+ 10 
+(4 rows)
+2Rq: ... <quitting>
+
+-- connect again and retrieve twice
+2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
+ERROR:  endpoint endpoint_id26_3 is already attached by receiver(pid: PID)
+DETAIL:  An endpoint can only be attached by one retrieving session.
+2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
+ERROR:  endpoint endpoint_id26_3 is already attached by receiver(pid: PID)
+DETAIL:  An endpoint can only be attached by one retrieving session.
+2Rq: ... <quitting>
+
+-- check no endpoint info
+1: CLOSE C2;
+CLOSE
+1: COMMIT;
+COMMIT
+1q: ... <quitting>

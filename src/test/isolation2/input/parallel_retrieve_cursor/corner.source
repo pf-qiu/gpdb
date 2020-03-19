@@ -417,3 +417,21 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: DECLARE "x123456789012345678901234567890123456789012345678901234567890123456789x" PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM t1;
 1: DECLARE "x123456789012345678901234567890123456789012345678901234567890123456789y" PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM t1;
 1: ROLLBACK;
+
+-- Test26: Retrieve one endpoint and quit the session, then connect the segment again and retrieve twice. No crash should happen.
+1: BEGIN;
+1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t5;
+1: @out_sh 'parse_endpoint 26 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+
+2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
+2Rq:
+
+-- connect again and retrieve twice
+2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
+2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
+2Rq:
+
+-- check no endpoint info
+1: CLOSE C2;
+1: COMMIT;
+1q:

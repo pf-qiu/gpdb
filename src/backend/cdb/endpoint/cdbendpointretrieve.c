@@ -160,7 +160,7 @@ void
 ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
 {
 	TupleTableSlot *result = NULL;
-	int64		retrieveCount;
+	int64 retrieveCount = 0;
 
 	if (EndpointCtl.receiver.currentMQEntry == NULL)
 	{
@@ -222,9 +222,11 @@ init_msg_queue_status_entry(MsgQueueStatusEntry *entry)
 static Endpoint
 get_endpoint_from_mq_status_entry(MsgQueueStatusEntry *entry)
 {
-	if (entry->endpoint) {
+	if (entry->endpoint)
+	{
 		if (endpoint_name_equals(entry->endpoint->name, entry->endpointName) &&
-			EndpointCtl.sessionID == entry->endpoint->sessionID) {
+			EndpointCtl.sessionID == entry->endpoint->sessionID)
+		{
 			return entry->endpoint;
 		}
 		elog(DEBUG3, "CDB_ENDPOINTS: exists endpoint slot in MsgQueueStatusEntry is reused by other");
@@ -245,8 +247,8 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry *entry)
  * When call RETRIEVE statement in PQprepare() & PQexecPrepared(), this func will
  * be called 2 times.
  */
-static MsgQueueStatusEntry *
-start_retrieve(const char * endpointName)
+static MsgQueueStatusEntry*
+start_retrieve(const char* endpointName)
 {
 	bool		isFound;
 	Endpoint	endpointDesc;
@@ -255,7 +257,10 @@ start_retrieve(const char * endpointName)
 	Assert(endpointName);
 	Assert(endpointName[0]);
 
-	// Init hashtable
+	/*
+	 * Initialize a hashtable,
+	 * its key is the endpoint's name, its value is MsgQueueStatusEntry
+	 */
 	if (mqStatusHTB == NULL)
 	{
 		HASHCTL		ctl;
@@ -267,18 +272,16 @@ start_retrieve(const char * endpointName)
 								  (HASH_ELEM | HASH_FUNCTION));
 	}
 
-	entry = hash_search(mqStatusHTB, endpointName, HASH_ENTER, &isFound);
-	if (!isFound)
-	{
-		init_msg_queue_status_entry(entry);
-	}
+	entry = hash_search(mqStatusHTB, endpointName, HASH_FIND, &isFound);
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
-	if (entry->endpoint)
+	if (isFound)
+	{
+		Assert(entry != NULL );
 		endpointDesc = get_endpoint_from_mq_status_entry(entry);
+	}
 	else
 	{
 		endpointDesc = find_endpoint(endpointName, EndpointCtl.sessionID);
-		entry->endpoint = endpointDesc;
 	}
 	if (!endpointDesc)
 	{
@@ -288,19 +291,25 @@ start_retrieve(const char * endpointName)
 	}
 	if (!isFound)
 	{
-		// If endpoint not retrieved before, validate endpoint info
+		/* if endpoint was not retrieved before, validate endpoint info */
 		validate_retrieve_endpoint(endpointDesc, endpointName);
 		endpointDesc->receiverPid = MyProcPid;
 		handle = endpointDesc->mqDsmHandle;
+		/* insert it into hashtable */
+		entry = hash_search(mqStatusHTB, endpointName, HASH_ENTER, &isFound);
+		init_msg_queue_status_entry(entry);
 	}
-	// Begins to retrieve tuples from endpoint if still have data to retrieve.
+
+	/* begins to retrieve tuples from endpoint if still have data to retrieve. */
 	if (endpointDesc->attachStatus == Status_Ready ||
 		   endpointDesc->attachStatus == Status_Attached)
 	{
 		endpointDesc->attachStatus = Status_Retrieving;
 	}
 	LWLockRelease(ParallelCursorEndpointLock);
-	if (!isFound) {
+	entry->endpoint = endpointDesc;
+	if (!isFound)
+	{
 		attach_receiver_mq(entry, handle);
 	}
 	return entry;
