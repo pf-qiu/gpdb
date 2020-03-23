@@ -79,7 +79,6 @@
 #include "storage/procsignal.h"
 #include "utils/backend_cancel.h"
 #include "utils/builtins.h"
-#include "utils/elog.h"
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
@@ -800,7 +799,7 @@ wait_parallel_retrieve_close(void)
 		if (QueryFinishPending)
 			break;
 
-		elog(DEBUG5, "CDB_ENDPOINT: wait for parallel retrieve cursor close");
+		elog(DEBUG3, "CDB_ENDPOINT: wait for parallel retrieve cursor close");
 		wr = WaitLatch(&MyProc->procLatch,
 					   WL_LATCH_SET | WL_ERROR_ON_LIBPQ_DEATH | WL_POSTMASTER_DEATH | WL_TIMEOUT,
 					   WAIT_NORMAL_TIMEOUT);
@@ -814,10 +813,17 @@ wait_parallel_retrieve_close(void)
 			proc_exit(0);
 		}
 
-		Assert(wr & WL_LATCH_SET);
-		elog(DEBUG3, "CDB_ENDPOINT: parallel retrieve cursor close, get latch");
+		/*
+		 * procLatch may be set by a timeout, e.g. AuthenticationTimeout,
+		 * to handle this case, we check QueryFinishPending and QueryCancelPending
+		 * to make sure we can continue waiting.
+		 */
 		ResetLatch(&MyProc->procLatch);
-		break;
+		if ((wr & WL_ERROR_ON_LIBPQ_DEATH) || QueryFinishPending || QueryCancelPending)
+		{
+			elog(DEBUG3, "CDB_ENDPOINT: reset procLatch and quit waiting");
+			break;
+		}
 	}
 }
 
