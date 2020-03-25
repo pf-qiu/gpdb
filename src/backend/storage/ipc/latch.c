@@ -322,7 +322,7 @@ WaitLatchOrSocket(volatile Latch *latch, int wakeEvents, pgsocket sock,
 	int			ret = 0;
 	int			rc;
 	WaitEvent	event;
-	WaitEventSet *set = CreateWaitEventSet(CurrentMemoryContext, 4);
+	WaitEventSet *set = CreateWaitEventSet(CurrentMemoryContext, 3);
 
 	if (wakeEvents & WL_TIMEOUT)
 		Assert(timeout >= 0);
@@ -345,12 +345,6 @@ WaitLatchOrSocket(volatile Latch *latch, int wakeEvents, pgsocket sock,
 		AddWaitEventToSet(set, ev, sock, NULL, NULL);
 	}
 
-	if (wakeEvents & WL_ERROR_ON_LIBPQ_DEATH)
-	{
-		AddWaitEventToSet(set, WL_ERROR_ON_LIBPQ_DEATH, PGINVALID_SOCKET,
-						  NULL, NULL);
-	}
-
 	rc = WaitEventSetWait(set, timeout, &event, 1);
 
 	if (rc == 0)
@@ -360,8 +354,7 @@ WaitLatchOrSocket(volatile Latch *latch, int wakeEvents, pgsocket sock,
 		ret |= event.events & (WL_LATCH_SET |
 							   WL_POSTMASTER_DEATH |
 							   WL_SOCKET_READABLE |
-							   WL_SOCKET_WRITEABLE |
-							   WL_ERROR_ON_LIBPQ_DEATH);
+							   WL_SOCKET_WRITEABLE);
 	}
 
 	FreeWaitEventSet(set);
@@ -663,12 +656,6 @@ AddWaitEventToSet(WaitEventSet *set, uint32 events, pgsocket fd, Latch *latch,
 		event->fd = postmaster_alive_fds[POSTMASTER_FD_WATCH];
 #endif
 	}
-	else if (events == WL_ERROR_ON_LIBPQ_DEATH)
-	{
-#ifndef WIN32
-		event->fd = MyProcPort->sock;
-#endif
-	}
 
 	/* perform wait primitive specific initialization, if needed */
 #if defined(WAIT_USE_EPOLL)
@@ -761,7 +748,7 @@ WaitEventAdjustEpoll(WaitEventSet *set, WaitEvent *event, int action)
 		Assert(set->latch != NULL);
 		epoll_ev.events |= EPOLLIN;
 	}
-	else if (event->events == WL_POSTMASTER_DEATH || event->events == WL_ERROR_ON_LIBPQ_DEATH)
+	else if (event->events == WL_POSTMASTER_DEATH)
 	{
 		epoll_ev.events |= EPOLLIN;
 	}
@@ -805,7 +792,7 @@ WaitEventAdjustPoll(WaitEventSet *set, WaitEvent *event)
 		Assert(set->latch != NULL);
 		pollfd->events = POLLIN;
 	}
-	else if (event->events == WL_POSTMASTER_DEATH || event->events == WL_ERROR_ON_LIBPQ_DEATH)
+	else if (event->events == WL_POSTMASTER_DEATH)
 	{
 		pollfd->events = POLLIN;
 	}
@@ -1096,18 +1083,6 @@ WaitEventSetWaitBlock(WaitEventSet *set, int cur_timeout,
 				returned_events++;
 			}
 		}
-		else if ((cur_event->events & WL_ERROR_ON_LIBPQ_DEATH) &&
- 				(cur_epoll_event->events & (POLLHUP | POLLIN | POLLERR | POLLNVAL)))
- 		{
- 			/* Error if the libpq connect is lost*/
- 			pq_startmsgread();
- 			if (pq_peekbyte() == EOF) {
- 				ereport(ERROR,
- 						(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
- 								errmsg("Unexpected EOF on libpq connection: maybe the libpq connection is lost. ")));
- 			}
- 			pq_endmsgread();
- 		}
 	}
 
 	return returned_events;
@@ -1226,18 +1201,6 @@ WaitEventSetWaitBlock(WaitEventSet *set, int cur_timeout,
 				returned_events++;
 			}
 		}
-		else if ((cur_event->events & WL_ERROR_ON_LIBPQ_DEATH) &&
- 				(cur_pollfd->revents & (POLLHUP | POLLIN | POLLERR | POLLNVAL)))
- 		{
- 				/* Error if the libpq connect is lost*/
- 			pq_startmsgread();
- 			if (pq_peekbyte() == EOF) {
- 				ereport(ERROR,
- 					       (errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
- 						    errmsg("Unexpected EOF on libpq connection: maybe the libpq connection is lost. ")));
- 			}
- 			pq_endmsgread();
- 		}
 	}
 	return returned_events;
 }

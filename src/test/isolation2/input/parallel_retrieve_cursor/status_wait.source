@@ -206,7 +206,7 @@ insert into t1 select generate_series(1,100);
 2U: SELECT senderpid<>-1, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c7';
 -- run 'kill -s QUIT QDPid' to cancel the endpoint execution backend, retrieve session still can work
 -- here need to sleep sometime to wait for endpoint QE backend to detect QD connection lost.
-0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 2 && echo "${RAW_STR}" ': SELECT 1;
+0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 5 && echo "${RAW_STR}" ': SELECT 1;
 -- check it can cancel the "gp_wait_parallel_retrieve_cursor"
 1<:
 -- quit all sessions on the master, because connect lost

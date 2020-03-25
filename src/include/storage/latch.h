@@ -126,7 +126,6 @@ typedef struct Latch
 #define WL_SOCKET_WRITEABLE  (1 << 2)
 #define WL_TIMEOUT			 (1 << 3)	/* not for WaitEventSetWait() */
 #define WL_POSTMASTER_DEATH  (1 << 4)
-#define WL_ERROR_ON_LIBPQ_DEATH	 (1 << 5)
 
 typedef struct WaitEvent
 {

@@ -1096,7 +1096,7 @@ shm_mq_wait_internal(volatile shm_mq *mq, PGPROC *volatile * ptr,
 		}
 
 		/* Wait to be signalled. */
-		WaitLatch(MyLatch, WL_LATCH_SET | WL_ERROR_ON_LIBPQ_DEATH, 0);
+		WaitLatch(MyLatch, WL_LATCH_SET, 0);
 
 		/* Reset the latch so we don't spin. */
 		ResetLatch(MyLatch);

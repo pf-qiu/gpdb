@@ -85,6 +85,9 @@
 
 /* The timeout before returns failure for endpoints initialization. */
 #define WAIT_NORMAL_TIMEOUT				100
+/* How many above timeout occurs, before check QD connection alive */
+#define CHECK_QD_CONNECTION_ALIVE 		50
+
 /* This value is copy from PG's PARALLEL_TUPLE_QUEUE_SIZE */
 #define ENDPOINT_TUPLE_QUEUE_SIZE		65536
 
@@ -644,6 +647,44 @@ init_session_info_entry(void)
 }
 
 /*
+ * check if QD connection still alive.
+ */
+static bool
+checkQDConnectionAlive()
+{
+	ssize_t		ret;
+	char		buf;
+
+	Assert(MyProcPort != NULL);
+
+	if (MyProcPort->sock < 0)
+		return false;
+
+#ifndef WIN32
+	ret = recv(MyProcPort->sock, &buf, 1, MSG_PEEK | MSG_DONTWAIT);
+#else
+	ret = recv(MyProcPort->sock, &buf, 1, MSG_PEEK | MSG_PARTIAL);
+#endif
+
+	if (ret == 0)				/* socket has been closed. EOF */
+		return false;
+
+	if (ret > 0)				/* data waiting on socket, it must be OK. */
+		return true;
+
+	if (ret == -1)				/* error, or would be block. */
+	{
+		if (errno == EAGAIN || errno == EINPROGRESS)
+			return true;		/* connection intact, no data available */
+		else
+			return false;
+	}
+
+	/* not reached */
+	return true;
+}
+
+/*
  * wait_receiver - wait receiver to retrieve at least once from the
  * shared memory message queue.
  *
@@ -654,10 +695,11 @@ init_session_info_entry(void)
 static void
 wait_receiver(struct ParallelRtrvCursorSenderState *state)
 {
+	int cnt = 0;
 	elog(DEBUG3, "CDB_ENDPOINTS: wait receiver.");
 	while (true)
 	{
-		int			wr;
+		int	wr = 0;
 
 		CHECK_FOR_INTERRUPTS();
 
@@ -666,16 +708,31 @@ wait_receiver(struct ParallelRtrvCursorSenderState *state)
 
 		elog(DEBUG5, "CDB_ENDPOINT: sender wait latch in wait_receiver()");
 		wr = WaitLatch(&state->endpoint->ackDone,
-					   WL_LATCH_SET | WL_ERROR_ON_LIBPQ_DEATH | WL_POSTMASTER_DEATH | WL_TIMEOUT,
+					   WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT,
 					   WAIT_NORMAL_TIMEOUT);
 		if (wr & WL_TIMEOUT)
+		{
+			/*
+			 * For every 50 WaitLatch timeouts, check if QD connection still alive.
+			 */
+			cnt++;
+			if (cnt == CHECK_QD_CONNECTION_ALIVE)
+			{
+				if (!checkQDConnectionAlive())
+				{
+					abort_endpoint(state);
+					elog(LOG, "CDB_ENDPOINT: QD connection lost while waiting receiver, close shared memory message queue.");
+					proc_exit(0);
+				}
+				cnt = 0;
+			}
 			continue;
+		}
 
 		if (wr & WL_POSTMASTER_DEATH)
 		{
 			abort_endpoint(state);
-			elog(DEBUG3, "CDB_ENDPOINT: postmaster exit, close shared memory "
-				 "message queue.");
+			elog(LOG, "CDB_ENDPOINT: postmaster exit, close shared memory message queue.");
 			proc_exit(0);
 		}
 
@@ -789,10 +846,11 @@ abort_endpoint(struct ParallelRtrvCursorSenderState *state)
 static void
 wait_parallel_retrieve_close(void)
 {
+	int cnt = 0;
 	ResetLatch(&MyProc->procLatch);
 	while (true)
 	{
-		int			wr;
+		int	wr;
 
 		CHECK_FOR_INTERRUPTS();
 
@@ -801,15 +859,29 @@ wait_parallel_retrieve_close(void)
 
 		elog(DEBUG3, "CDB_ENDPOINT: wait for parallel retrieve cursor close");
 		wr = WaitLatch(&MyProc->procLatch,
-					   WL_LATCH_SET | WL_ERROR_ON_LIBPQ_DEATH | WL_POSTMASTER_DEATH | WL_TIMEOUT,
+					   WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT,
 					   WAIT_NORMAL_TIMEOUT);
 		if (wr & WL_TIMEOUT)
+		{
+			/*
+			 * For every 50 WaitLatch timeouts, check if QD connection still alive.
+			 */
+			cnt++;
+			if (cnt == CHECK_QD_CONNECTION_ALIVE)
+			{
+				if (!checkQDConnectionAlive())
+				{
+					elog(LOG, "CDB_ENDPOINT: wait parallel retrieve close, close shared memory message queue.");
+					proc_exit(0);
+				}
+				cnt = 0;
+			}
 			continue;
+		}
 
 		if (wr & WL_POSTMASTER_DEATH)
 		{
-			elog(DEBUG3, "CDB_ENDPOINT: postmaster exit, close shared memory "
-				 "message queue.");
+			elog(LOG, "CDB_ENDPOINT: postmaster exit, close shared memory message queue.");
 			proc_exit(0);
 		}
 
@@ -819,7 +891,7 @@ wait_parallel_retrieve_close(void)
 		 * to make sure we can continue waiting.
 		 */
 		ResetLatch(&MyProc->procLatch);
-		if ((wr & WL_ERROR_ON_LIBPQ_DEATH) || QueryFinishPending || QueryCancelPending)
+		if (QueryFinishPending || QueryCancelPending)
 		{
 			elog(DEBUG3, "CDB_ENDPOINT: reset procLatch and quit waiting");
 			break;

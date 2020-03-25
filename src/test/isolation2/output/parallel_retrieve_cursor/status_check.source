@@ -1292,7 +1292,7 @@ DECLARE
 -- run 'kill -s QUIT QDPid' to cancel the endpoint execution backend, retrieve session still can work
 -- here need to sleep sometime to wait for endpoint QE backend to detect QD connection lost.
 1&: SELECT * FROM gp_check_parallel_retrieve_cursor('c7');  <waiting ...>
-0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 2 && echo "${RAW_STR}" ': SELECT 1;
+0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 5 && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        

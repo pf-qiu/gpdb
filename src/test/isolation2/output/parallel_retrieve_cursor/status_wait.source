@@ -1202,7 +1202,7 @@ DECLARE
 (1 row)
 -- run 'kill -s QUIT QDPid' to cancel the endpoint execution backend, retrieve session still can work
 -- here need to sleep sometime to wait for endpoint QE backend to detect QD connection lost.
-0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 2 && echo "${RAW_STR}" ': SELECT 1;
+0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 5 && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
