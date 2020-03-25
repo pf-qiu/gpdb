@@ -61,7 +61,6 @@
 #include "storage/latch.h"
 #include "storage/pmsignal.h"
 #include "storage/shmem.h"
-#include "libpq/libpq.h"
 
 /*
  * Select the fd readiness primitive to use. Normally the "most modern"
