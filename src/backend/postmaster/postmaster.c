@@ -2323,20 +2323,7 @@ retry1:
 			else if (strcmp(nameptr, "user") == 0)
 				port->user_name = pstrdup(valptr);
 			else if (strcmp(nameptr, "options") == 0)
-			{
 				port->cmdline_options = pstrdup(valptr);
-
-				/*
-				 * Set gp_session_role to retrieve if it is, authentication
-				 * while initializing needs it. It's safe to check
-				 * "gp_session_role=retrieve" since ParseLongOption() does the
-				 * same thing.
-				 */
-				if (port->cmdline_options != NULL
-					&& strcasestr(port->cmdline_options,"gp_session_role=retrieve") != 0)
-					SetConfigOption("gp_session_role", pstrdup("retrieve"), PGC_USERSET, PGC_S_CLIENT);
-			}
-
 			else if (strcmp(nameptr, "gpqeid") == 0)
 				gpqeid = valptr;
 			else if (strcmp(nameptr, "replication") == 0)

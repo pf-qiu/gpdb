@@ -343,6 +343,106 @@ auth_failed(Port *port, int status, char *logdetail)
 }
 
 /*
+ * Return true if command line contains gp_session_role=RETRIEVE
+ */
+static bool
+use_retrieve_mode(char* cmd_options)
+{
+	char	  **av;
+	int			maxac;
+	int			ac;
+	int			flag;
+	bool		ret = false;
+
+	if (!cmd_options)
+		return false;
+
+	maxac = 2 + (strlen(cmd_options) + 1) / 2;
+
+	av = (char **) palloc(maxac * sizeof(char *));
+	ac = 0;
+
+	av[ac++] = "psql";
+
+	pg_split_opts(av, &ac, cmd_options);
+
+	av[ac] = NULL;
+
+#ifdef HAVE_INT_OPTERR
+	/*
+	 * Turn this off because it's either printed to stderr and not the log
+	 * where we'd want it, or argv[0] is now "--single", which would make for
+	 * a weird error message.  We print our own error message below.
+	 */
+	opterr = 0;
+#endif
+
+	/*
+	 *  ignore other arguments, just care about gp_session_role
+	 */
+	while ((flag = getopt(ac, av, "B:bc:C:D:d:EeFf:h:ijk:lMm:N:nOo:Pp:r:S:sTt:v:W:-:")) != -1)
+	{
+		switch (flag)
+		{
+			case 'c':
+			case '-':
+				{
+					char *name, *value;
+					ParseLongOption(optarg, &name, &value);
+					if (!value)
+					{
+						if (flag == '-')
+							ereport(ERROR,
+									(errcode(ERRCODE_SYNTAX_ERROR),
+									 errmsg("--%s requires a value",
+											optarg)));
+						else
+							ereport(ERROR,
+									(errcode(ERRCODE_SYNTAX_ERROR),
+									 errmsg("-c %s requires a value",
+											optarg)));
+					}
+
+					/*
+					 * only check if gp_session_role is set to retrieve
+					 */
+					if (guc_name_compare(name, "gp_session_role") == 0)
+					{
+						if (guc_name_compare(value, "retrieve") == 0)
+						{
+							ret = true;
+						}
+						free(name);
+						if (value)
+							free(value);
+						goto finish;
+					}
+
+					free(name);
+					if (value)
+						free(value);
+					break;
+				}
+
+			default:
+				break;
+		}
+	}
+
+finish:
+	/*
+	 * Reset getopt(3) library so that it will work correctly in subprocesses
+	 * or when this function is called a second time with another array.
+	 */
+	optind = 1;
+#ifdef HAVE_INT_OPTRESET
+	optreset = 1;	/* some systems need this too */
+#endif
+
+	return ret;
+}
+
+/*
  * Retrieve role directly uses the token of PARALLEL RETRIEVE CURSOR as password to authenticate.
  */
 static void
@@ -484,10 +584,13 @@ ClientAuthentication(Port *port)
 	int			status = STATUS_ERROR;
 	char	   *logdetail = NULL;
 
-	elog(LOG, "libpq connection authenticate in Gp_role: %s, Gp_session_role: "
-		 "%s", role_to_string(Gp_role), role_to_string(Gp_session_role));
-
-	if (Gp_role == GP_ROLE_RETRIEVE) {
+	/*
+	 * For parallel retrieve cursor,
+	 * if gp_session_role is set to RETRIEVE mode,
+	 * retrieve token authentication is performed.
+	 */
+	if (use_retrieve_mode(port->cmdline_options))
+	{
 		retrieve_role_authentication(port);
 		return;
 	}
