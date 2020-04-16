@@ -261,6 +261,24 @@ transformTopLevelStmt(ParseState *pstate, Node *parseTree)
 {
 	Query *q;
 
+	/*
+	 * For parallel retrieve cursor, only RETRIEVE statement
+	 * is allowed for RETRIEVE role.
+	 */
+	if (Gp_role == GP_ROLE_RETRIEVE && !IsA(parseTree, RetrieveStmt))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				errmsg("Only allow RETRIEVE statement for retrieve role")));
+	}
+
+	if (Gp_role != GP_ROLE_RETRIEVE && IsA(parseTree, RetrieveStmt))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_GP_COMMAND_ERROR),
+					errmsg("RETRIEVE command can only run in retrieve mode")));
+	}
+
 	if (IsA(parseTree, SelectStmt))
 	{
 		SelectStmt *stmt = (SelectStmt *) parseTree;

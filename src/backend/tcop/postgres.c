@@ -1679,13 +1679,6 @@ exec_simple_query(const char *query_string)
 							Debug_dtm_action, commandTag)));
 		}
 
-		if ((Gp_role == GP_ROLE_RETRIEVE) &&
-			(nodeTag(parsetree) != T_RetrieveStmt))
-		{
-			ereport(ERROR,
-			        (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				        errmsg("Only allow RETRIEVE statement for retrieve role")));
-		}
 		/*
 		 * If are connected in utility mode, disallow PREPARE TRANSACTION
 		 * statements.
