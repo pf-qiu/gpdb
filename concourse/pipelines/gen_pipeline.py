@@ -59,7 +59,6 @@ JOBS_THAT_ARE_GATES = [
     'gate_icw_end',
     'gate_replication_start',
     'gate_resource_groups_start',
-    'gate_gpperfmon_start',
     'gate_cli_start',
     'gate_ud_start',
     'gate_advanced_analytics_start',
@@ -80,6 +79,9 @@ JOBS_THAT_SHOULD_NOT_BLOCK_RELEASE = (
         'MADlib_Test_planner_centos7',
         'MADlib_Test_orca_centos7',
         'Publish Server Builds',
+        'compile_gpdb_sles12',
+        'icw_gporca_sles12',
+        'icw_planner_sles12',
     ] + RELEASE_VALIDATOR_JOB + JOBS_THAT_ARE_GATES
 )
 
@@ -137,7 +139,7 @@ def validate_pipeline_release_jobs(raw_pipeline_yml):
     rc_name = 'gate_release_candidate_start'
     release_candidate_job = [j for j in jobs_raw if j['name'] == rc_name][0]
 
-    release_blocking_jobs = release_candidate_job['plan'][0]['aggregate'][0]['passed']
+    release_blocking_jobs = release_candidate_job['plan'][0]['in_parallel']['steps'][0]['passed']
 
     non_release_blocking_jobs = [j for j in all_job_names if j not in release_blocking_jobs]
 
@@ -298,7 +300,7 @@ def main():
         action='store',
         dest='os_types',
         default=['centos6'],
-        choices=['centos6', 'centos7', 'ubuntu18.04', 'win'],
+        choices=['centos6', 'centos7', 'ubuntu18.04', 'sles12', 'win'],
         nargs='+',
         help='List of OS values to support'
     )
@@ -337,8 +339,7 @@ def main():
             'CLI',
             'UD',
             'AA',
-            'Extensions',
-            'Gpperfmon'
+            'Extensions'
         ],
         default=['ICW'],
         nargs='+',
@@ -375,7 +376,7 @@ def main():
         args.pipeline_configuration = 'prod'
 
     if args.pipeline_configuration == 'prod' or args.pipeline_configuration == 'full':
-        args.os_types = ['centos6', 'centos7', 'ubuntu18.04', 'win']
+        args.os_types = ['centos6', 'centos7', 'ubuntu18.04', 'sles12', 'win']
         args.test_sections = [
             'ICW',
             'Replication',
@@ -383,8 +384,7 @@ def main():
             'Interconnect',
             'CLI',
             'UD',
-            'Extensions',
-            'Gpperfmon'
+            'Extensions'
         ]
 
     # if generating a dev pipeline but didn't specify an output,

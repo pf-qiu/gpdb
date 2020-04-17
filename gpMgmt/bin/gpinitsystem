@@ -950,7 +950,8 @@ CREATE_QE_ARRAY () {
 	LAST_HOST=X
 	SEG_DIR_VECTOR=0
 	MIR_COUNT=-1
-	QD_PRIMARY_ARRAY=${MASTER_HOSTNAME}~${MASTER_PORT}~${MASTER_DIRECTORY}/${SEG_PREFIX}${CONTENT_COUNT}~${DBID_COUNT}~${CONTENT_COUNT}~0
+	MASTER_HOST=`HOST_LOOKUP $MASTER_HOSTNAME`
+	QD_PRIMARY_ARRAY=${MASTER_HOST}~${MASTER_HOSTNAME}~${MASTER_PORT}~${MASTER_DIRECTORY}/${SEG_PREFIX}${CONTENT_COUNT}~${DBID_COUNT}~${CONTENT_COUNT}~0
 	((DBID_COUNT=$DBID_COUNT+1));((CONTENT_COUNT=$CONTENT_COUNT+1))
 	for QE_PAIR in ${M_HOST_ARRAY[@]}
 	do
@@ -966,7 +967,7 @@ CREATE_QE_ARRAY () {
 		((GP_PORT=$PORT_BASE+$PORT_COUNT))
 		
 		GP_DIR=${DATA_DIRECTORY[$SEG_DIR_VECTOR]}
-		QE_PRIMARY_ARRAY=(${QE_PRIMARY_ARRAY[@]} ${QE_NAME}~${GP_PORT}~${GP_DIR}/${SEG_PREFIX}${CONTENT_COUNT}~${DBID_COUNT}~$CONTENT_COUNT)
+		QE_PRIMARY_ARRAY=(${QE_PRIMARY_ARRAY[@]} ${QE_HOST}~${QE_NAME}~${GP_PORT}~${GP_DIR}/${SEG_PREFIX}${CONTENT_COUNT}~${DBID_COUNT}~$CONTENT_COUNT)
 		POSTGRES_PORT_CHK $GP_PORT $QE_NAME
 		((DBID_COUNT=$DBID_COUNT+1))
 		((CONTENT_COUNT=$CONTENT_COUNT+1))
@@ -1165,11 +1166,12 @@ SET_VAR () {
 	    S=":"
             ;;
     esac
-    GP_HOSTADDRESS=`$ECHO $I|$CUT -d$S -f1`
-    GP_PORT=`$ECHO $I|$CUT -d$S -f2`
-    GP_DIR=`$ECHO $I|$CUT -d$S -f3`
-    GP_DBID=`$ECHO $I|$CUT -d$S -f4`
-    GP_CONTENT=`$ECHO $I|$CUT -d$S -f5`
+    GP_HOSTNAME=`$ECHO $I|$CUT -d$S -f1`
+    GP_HOSTADDRESS=`$ECHO $I|$CUT -d$S -f2`
+    GP_PORT=`$ECHO $I|$CUT -d$S -f3`
+    GP_DIR=`$ECHO $I|$CUT -d$S -f4`
+    GP_DBID=`$ECHO $I|$CUT -d$S -f5`
+    GP_CONTENT=`$ECHO $I|$CUT -d$S -f6`
 }
 
 CREATE_QD_DB () {
@@ -1206,7 +1208,7 @@ CREATE_QD_DB () {
 		LC_ALL_SETTINGS=" $LC_COLLATE_SETTING $LC_CTYPE_SETTING $LC_MESSAGES_SETTING $LC_MONETARY_SETTING $LC_NUMERIC_SETTING $LC_TIME_SETTING"
 
 
-		# build initdb command, capturing output in ${GP_DIR}.initdb
+		# build initdb command
 		cmd="$INITDB"
 		cmd="$cmd -E $ENCODING"
 		cmd="$cmd -D $GP_DIR"
@@ -1217,17 +1219,10 @@ CREATE_QD_DB () {
 		if [ x"$HEAP_CHECKSUM" == x"on" ]; then
 			cmd="$cmd --data-checksums"
 		fi
-		cmd="$cmd --backend_output=$GP_DIR.initdb"
-
 		LOG_MSG "[INFO]:-Commencing local $cmd"
 		$cmd >> $LOG_FILE 2>&1
 		RETVAL=$?
 
-		# if there was an error, copy ${GP_DIR}.initdb to the log
-		if [ $RETVAL -ne 0 ]; then
-		    $CAT ${GP_DIR}.initdb >> $LOG_FILE
-		fi    
-		$RM -f ${GP_DIR}.initdb
 		if [ $RETVAL -ne 0 ]; then
 		    ERROR_EXIT "[FATAL]:- Command $cmd failed with error status $RETVAL, see log file $LOG_FILE for more detail"
 		fi
@@ -1272,9 +1267,6 @@ CREATE_QD_DB () {
 		BUILD_MASTER_PG_HBA_FILE $GP_DIR $HBA_HOSTNAMES
 		LOG_MSG "[INFO]:-Creating gpssh configuration file"
 		BUILD_GPSSH_CONF $GP_DIR
-		LOG_MSG "[INFO]:-Creating perfmon directories and configuration file"
-		BUILD_PERFMON $GP_DIR
-		ERROR_CHK $? "create perfmon directories and configuration file" 1
 		LOG_MSG "[INFO]:-Starting the Master in admin mode" 1
 		export PGPORT=$GP_PORT;$PG_CTL -w -l $GP_DIR/pg_log/startup.log -D $GP_DIR -o "-i -p $GP_PORT -c gp_role=utility \
 		-m" start >> /dev/null 2>&1
@@ -1447,7 +1439,7 @@ REGISTER_MIRRORS () {
 		for I in "${QE_MIRROR_ARRAY[@]}"
 		do
 			SET_VAR $I
-			dbid=`env PGOPTIONS="-c gp_session_role=utility" $PSQL -p $MASTER_PORT -d "${DEFAULTDB}" -X -A -t -c "select pg_catalog.gp_add_segment_mirror(${GP_CONTENT}::int2, '${GP_HOSTADDRESS}', '${GP_HOSTADDRESS}', ${GP_PORT}, '${GP_DIR}');" 2>/dev/null` >> $LOG_FILE 2>&1
+			dbid=`env PGOPTIONS="-c gp_session_role=utility" $PSQL -p $MASTER_PORT -d "${DEFAULTDB}" -X -A -t -c "select pg_catalog.gp_add_segment_mirror(${GP_CONTENT}::int2, '${GP_HOSTNAME}', '${GP_HOSTADDRESS}', ${GP_PORT}, '${GP_DIR}');" 2>/dev/null` >> $LOG_FILE 2>&1
 			ERROR_CHK $? "failed to register mirror for contentid=${GP_CONTENT}" 2
 			MIRRORS_UPDATED_DBID=(${MIRRORS_UPDATED_DBID[@]} ${GP_HOSTADDRESS}~${GP_PORT}~${GP_DIR}~${dbid}~${GP_CONTENT})
 		done
@@ -1555,13 +1547,6 @@ START_QD_PRODUCTION () {
 	ERROR_EXIT "[FATAL]:-$GPSTART not located"
     fi
     LOG_MSG "[INFO]:-Completed restart of Greenplum instance in production mode" 1
-    LOG_MSG "[INFO]:-End Function $FUNCNAME"
-}
-
-SET_GP_USER_PW () {
-    LOG_MSG "[INFO]:-Start Function $FUNCNAME"
-    $PSQL -p $MASTER_PORT -d "$DEFAULTDB" -c"alter user $USER_NAME password '$GP_PASSWD';" >> $LOG_FILE 2>&1
-    ERROR_CHK $? "update Greenplum superuser password" 1
     LOG_MSG "[INFO]:-End Function $FUNCNAME"
 }
 

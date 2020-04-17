@@ -40,7 +40,9 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "access/heapam.h"
+#include "utils/tuplestorenew.h"
 #include "cdb/cdbexplain.h"             /* cdbexplain_recvExecStats */
+#include "cdb/cdbsubplan.h"
 #include "cdb/cdbvars.h"
 #include "cdb/cdbdisp.h"
 #include "cdb/cdbdisp_query.h"
@@ -752,6 +754,8 @@ ExecInitSubPlan(SubPlan *subplan, PlanState *parent)
 	sstate->tab_eq_funcs = NULL;
 	sstate->lhs_hash_funcs = NULL;
 	sstate->cur_eq_funcs = NULL;
+	sstate->ts_state = palloc0(sizeof(GenericTupStore));
+	sstate->ts_pos = NULL;
 
 	/*
 	 * If this is an initplan or MULTIEXPR subplan, it has output parameters
@@ -986,14 +990,11 @@ ExecInitSubPlan(SubPlan *subplan, PlanState *parent)
 
 /*
  * Greenplum Database Changes:
- * In the case where this is running on the dispatcher, and it's a parallel dispatch
- * subplan, we need to dispatch the query to the qExecs as well, like in ExecutorRun.
- * except in this case we don't have to worry about insert statements.
- * In order to serialize the parameters (including PARAM_EXEC parameters that
- * are converted into PARAM_EXEC_REMOTE parameters, I had to add a parameter to this
- * function: ParamListInfo p.  This may be NULL in the non-dispatch case.
+ * In the case where this is running on the dispatcher, and it's a parallel
+ * dispatch subplan, we need to dispatch the query to the qExecs as well, like
+ * in ExecutorRun. Except in this case we don't have to worry about insert
+ * statements.
  */
-
 void
 ExecSetParamPlan(SubPlanState *node, ExprContext *econtext, QueryDesc *queryDesc)
 {
@@ -1010,7 +1011,7 @@ ExecSetParamPlan(SubPlanState *node, ExprContext *econtext, QueryDesc *queryDesc
 	ArrayBuildState *astate pg_attribute_unused() = NULL;
 	Size		savepeakspace = MemoryContextGetPeakSpace(planstate->state->es_query_cxt);
 
-	bool		needDtxTwoPhase;
+	bool		needDtx;
 	bool		shouldDispatch = false;
 	volatile bool explainRecvStats = false;
 
@@ -1044,14 +1045,16 @@ PG_TRY();
 {
 	if (shouldDispatch)
 	{			
-		needDtxTwoPhase = isCurrentDtxTwoPhaseActivated();
+		needDtx = isCurrentDtxActivated();
 
 		/*
 		 * This call returns after launching the threads that send the
 		 * command to the appropriate segdbs.  It does not wait for them
 		 * to finish unless an error is detected before all are dispatched.
 		 */
-		CdbDispatchPlan(queryDesc, needDtxTwoPhase, true);
+		CdbDispatchPlan(queryDesc,
+						estate->es_param_exec_vals,
+						needDtx, true);
 
 		/*
 		 * Set up the interconnect for execution of the initplan root slice.
@@ -1108,6 +1111,25 @@ PG_TRY();
 	}
 
 	/*
+	 * Setup the tuplestore writer for functionscan initplan
+	 * 
+	 * Note that the file of tuplestore should not be deleted when
+	 * closing file. This is due to the tuplestore reader is outside
+	 * initplan, and reader will delete the file when it finished.
+	 */
+	if (subLinkType == INITPLAN_FUNC_SUBLINK && !node->ts_state->matstore)
+	{
+		char rwfile_prefix[100];
+
+		function_scan_create_bufname_prefix(rwfile_prefix, sizeof(rwfile_prefix));
+		
+		node->ts_state->matstore = ntuplestore_create_readerwriter(rwfile_prefix, PlanStateOperatorMemKB((PlanState *)(node->planstate)) * 1024, true, false);
+		ntuplestore_set_is_temp_file(node->ts_state->matstore, false);
+		
+		node->ts_pos = (void *)ntuplestore_create_accessor(node->ts_state->matstore, true);
+	}
+
+	/*
 	 * Run the plan.  (If it needs to be rescanned, the first ExecProcNode
 	 * call will take care of that.)
 	 */
@@ -1116,6 +1138,12 @@ PG_TRY();
 		 slot = ExecProcNode(planstate))
 	{
 		int			i = 1;
+
+		if (subLinkType == INITPLAN_FUNC_SUBLINK)
+		{
+			ntuplestore_acc_put_tupleslot((NTupleStoreAccessor *) node->ts_pos, slot);
+			continue;
+		}
 
 		if (subLinkType == EXISTS_SUBLINK || subLinkType == NOT_EXISTS_SUBLINK)
 		{
@@ -1183,6 +1211,23 @@ PG_TRY();
 		}
 	}
 
+	/*
+	 * Flush and cleanup the tuplestore writer
+	 *
+	 * Note that the file of tuplestore will not be deleted at here.
+	 * This is due to the tuplestore reader is outside initplan, and
+	 * reader will delete the file when it finished.
+	 *
+	 */
+	if (subLinkType == INITPLAN_FUNC_SUBLINK && node->ts_state->matstore)
+	{
+		ntuplestore_acc_seek_bof((NTupleStoreAccessor *) node->ts_pos);
+		ntuplestore_flush(node->ts_state->matstore);
+		
+		ntuplestore_destroy_accessor((NTupleStoreAccessor *) node->ts_pos);
+		ntuplestore_destroy(node->ts_state->matstore);
+	}
+
 	if (!found)
 	{
 		if (subLinkType == EXISTS_SUBLINK || subLinkType == NOT_EXISTS_SUBLINK)
@@ -1232,6 +1277,14 @@ PG_TRY();
 		prm->isnull = false;
 	}
 
+	/* Clean up the interconnect. */
+	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
+	{
+		TeardownInterconnect(queryDesc->estate->interconnect_context, false); /* following success on QD */
+		queryDesc->estate->interconnect_context = NULL;
+		queryDesc->estate->es_interconnect_is_setup = false;
+	}
+
 	/*
 	 * If we dispatched to QEs, wait for completion.
 	 */
@@ -1242,15 +1295,7 @@ PG_TRY();
 	{
 		CdbDispatcherState *ds = queryDesc->estate->dispatcherState;
 
-		/*
-		 * We are in a subplan, the eflags always contains EXEC_FLAG_REWIND which
-		 * means we cannot squelch the motion node earlier and some QEs still keep
-		 * sending tuples.
-		 *
-		 * we get all the tuples we needed, DISPATCH_WAIT_FINISH tell QEs stopping
-		 * sending tuples and wait them to complete.
-		 */
-		cdbdisp_checkDispatchResult(ds, DISPATCH_WAIT_FINISH);
+		cdbdisp_checkDispatchResult(ds, DISPATCH_WAIT_NONE);
 
 		/* If EXPLAIN ANALYZE, collect execution stats from qExecs. */
 		if (planstate->instrument && planstate->instrument->need_cdb)
@@ -1265,15 +1310,6 @@ PG_TRY();
 		/* Main plan use same estate, must reset dispatcherState  */
 		queryDesc->estate->dispatcherState = NULL;
 		cdbdisp_destroyDispatcherState(ds);
-	}
-
-	/* Clean up the interconnect. */
-	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
-	{
-		TeardownInterconnect(queryDesc->estate->interconnect_context,
-							 false, false); /* following success on QD */
-		queryDesc->estate->interconnect_context = NULL;
-		queryDesc->estate->es_interconnect_is_setup = false;
 	}
 }
 PG_CATCH();
@@ -1301,6 +1337,17 @@ PG_CATCH();
 	MemoryContextSetPeakSpace(planstate->state->es_query_cxt, savepeakspace);
 
 	/*
+	 * Clean up the interconnect.
+	 * CDB TODO: Is this needed following failure on QD?
+	 */
+	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
+	{
+		TeardownInterconnect(queryDesc->estate->interconnect_context, true);
+		queryDesc->estate->interconnect_context = NULL;
+		queryDesc->estate->es_interconnect_is_setup = false;
+	}
+
+	/*
 	 * Request any commands still executing on qExecs to stop.
 	 * Wait for them to finish and clean up the dispatching structures.
 	 * Replace current error info with QE error info if more interesting.
@@ -1313,17 +1360,6 @@ PG_CATCH();
 		CdbDispatchHandleError(ds);
 	}
 
-	/*
-	 * Clean up the interconnect.
-	 * CDB TODO: Is this needed following failure on QD?
-	 */
-	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
-	{
-		TeardownInterconnect(queryDesc->estate->interconnect_context,
-							 true, false);
-		queryDesc->estate->interconnect_context = NULL;
-		queryDesc->estate->es_interconnect_is_setup = false;
-	}
 	PG_RE_THROW();
 }
 PG_END_TRY();

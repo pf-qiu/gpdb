@@ -32,7 +32,7 @@ subpartition by list (r_name) subpartition template
 select relname from pg_class where relkind = 'r' and relname like 'region%' and relfrozenxid=0;
 select gp_segment_id, relname from gp_dist_random('pg_class') where relkind = 'r' and relname like 'region%' and relfrozenxid=0;
 
-create unique index region_pkey on region(r_regionkey);
+create unique index region_pkey on region(r_regionkey, r_name);
 
 copy region from stdin with delimiter '|';
 0|AFRICA|lar deposits. blithely final packages cajole. regular waters are 
@@ -251,6 +251,7 @@ insert into bar_p values(100);
 alter table foo_p exchange partition for(rank(6)) with table bar_p;
 alter table foo_p exchange partition for(rank(6)) with table bar_p without
 validation;
+analyze foo_p;
 select * from foo_p;
 drop table foo_p, bar_p;
 
@@ -262,6 +263,7 @@ create table bar_p(i int, j int) distributed by (i);
 
 insert into bar_p values(6);
 alter table foo_p exchange partition for(rank(6)) with table bar_p;
+analyze foo_p;
 select * from foo_p;
 select * from bar_p;
 -- test that we got the dependencies right
@@ -295,6 +297,7 @@ create table bar_p(i int, j int) distributed by (i);
 insert into foo_p values(1, 1), (2, 1), (3, 1);
 insert into bar_p values(6, 6);
 alter table foo_p exchange partition for(rank(6)) with table bar_p;
+analyze foo_p;
 select * from foo_p;
 drop table bar_p;
 drop table foo_p;
@@ -308,6 +311,7 @@ create table bar_p(i int, j int) with(appendonly = true) distributed by (i);
 insert into foo_p values(1, 1), (2, 1), (3, 2);
 insert into bar_p values(6, 6);
 alter table foo_p exchange partition for(rank(6)) with table bar_p;
+analyze foo_p;
 select * from foo_p;
 drop table bar_p;
 drop table foo_p;
@@ -321,6 +325,7 @@ create table bar_p(i int, j int) with(appendonly = true) distributed by (i);
 insert into foo_p values(1, 2), (2, 3), (3, 4);
 insert into bar_p values(6, 6);
 alter table foo_p exchange partition for(rank(6)) with table bar_p;
+analyze foo_p;
 select * from foo_p;
 drop table bar_p;
 drop table foo_p;
@@ -333,6 +338,7 @@ create table bar_p(i int, j int) distributed by (i);
 
 insert into bar_p values(6, 6);
 alter table foo_p exchange partition for(rank(6)) with table bar_p;
+analyze foo_p;
 select * from foo_p;
 select * from bar_p;
 
@@ -2108,7 +2114,7 @@ create table ti (i int not null, j int)
 distributed by (i)
 partition by range (j) 
 (start(1) end(3) every(1));
-create unique index ti_pkey on ti(i);
+create unique index ti_pkey on ti(i,j);
 
 select * from pg_indexes where schemaname = 'public' and tablename like 'ti%';
 create index ti_j_idx on ti using bitmap(j);
@@ -2116,14 +2122,14 @@ select * from pg_indexes where schemaname = 'public' and tablename like 'ti%';
 alter table ti add partition p3 start(3) end(10);
 select * from pg_indexes where schemaname = 'public' and tablename like 'ti%';
 -- Should not be able to drop child indexes added implicitly via ADD PARTITION
-drop index ti_1_prt_p3_i_idx;
+drop index ti_1_prt_p3_i_j_idx;
 drop index ti_1_prt_p3_j_idx;
 alter table ti split partition p3 at (7) into (partition pnew1, partition pnew2);
 select * from pg_indexes where schemaname = 'public' and tablename like 'ti%';
 -- Should not be able to drop child indexes added implicitly via SPLIT PARTITION
-drop index ti_1_prt_pnew1_i_idx;
+drop index ti_1_prt_pnew1_i_j_idx;
 drop index ti_1_prt_pnew1_j_idx;
-drop index ti_1_prt_pnew2_i_idx;
+drop index ti_1_prt_pnew2_i_j_idx;
 drop index ti_1_prt_pnew2_j_idx;
 -- Index drop should cascade to all partitions- including those later added via
 -- ADD PARTITION or SPLIT PARTITION
@@ -3611,6 +3617,7 @@ select * from part_tab_1_prt_2;
 
 -- Right part
 insert into part_tab_1_prt_3 values(5,5);
+analyze part_tab;
 select * from part_tab;
 select * from part_tab_1_prt_3;
 
@@ -3627,6 +3634,7 @@ insert into input2 select i, i from (select generate_series(1,10) as i) as t;
 
 -- Multiple range table entries in the plan
 insert into part_tab_1_prt_1 select i1.x, i2.y from input1 as i1 join input2 as i2 on i1.x = i2.x where i2.y = 5;
+analyze part_tab;
 select * from part_tab;
 select * from part_tab_1_prt_1;
 
@@ -3665,6 +3673,7 @@ select * from deep_part;
 
 -- Correct leaf part
 insert into deep_part_1_prt_male_2_prt_1_3_prt_1 values (1, 1, 1, 'M');
+analyze deep_part;
 select * from deep_part;
 select * from deep_part_1_prt_male_2_prt_1_3_prt_1;
 
@@ -3698,6 +3707,7 @@ drop table if exists part_tab;
 create table part_tab ( i int, j int) distributed by (i) partition by range(j) (start(0) end(10) every(2));
 -- Wrong part
 insert into part_tab_1_prt_1 values(5,5);
+analyze part_tab;
 select * from part_tab;
 select * from part_tab_1_prt_1;
 
@@ -3723,6 +3733,7 @@ insert into input2 select i, i from (select generate_series(1,10) as i) as t;
 
 -- Multiple range table entries in the plan
 insert into part_tab_1_prt_1 select i1.x, i2.y from input1 as i1 join input2 as i2 on i1.x = i2.x where i2.y = 5;
+analyze part_tab;
 select * from part_tab;
 select * from part_tab_1_prt_1;
 
@@ -3762,6 +3773,7 @@ select * from deep_part;
 
 -- Correct leaf part
 insert into deep_part_1_prt_male_2_prt_1_3_prt_1 values (1, 1, 1, 'M');
+analyze deep_part;
 select * from deep_part;
 select * from deep_part_1_prt_male_2_prt_1_3_prt_1;
 
@@ -4036,3 +4048,68 @@ select a.typowner=b.typowner from pg_type a join pg_type b on true where a.typna
 select nspname from pg_namespace join pg_type on pg_namespace.oid = pg_type.typnamespace where pg_type.typname = 'xchg_tab1' or pg_type.typname = '_xchg_tab1';
 select typname from pg_type where typelem = 'xchg_tab1'::regtype;
 select typname from pg_type where typarray = '_xchg_tab1'::regtype;
+
+
+-- Test with an incomplete operator class. Create a custom operator class and
+-- only define equality on it. You can't do much with that.
+--
+-- Currently in GPDB, you can use the incomplete opclass in list partitioning,
+-- but inserting to the table will fail. In PostgreSQL v10, the CREATE TABLE
+-- will fail.
+create type employee_type as (empid int, empname text);
+create function emp_equal(employee_type, employee_type) returns boolean
+  as 'select $1.empid = $2.empid;'
+  language sql
+  immutable
+  returns null on null input;
+create operator = (
+        leftarg = employee_type,
+        rightarg = employee_type,
+        procedure = emp_equal
+);
+create operator class employee_incomplete_op_class default for type employee_type
+  using btree as
+  operator 3 =;
+create table employee_table(timest date, user_id numeric(16,0) not null, tag1 char(5), emp employee_type)
+  distributed by (user_id)
+  partition by list(emp)
+  (partition part1 values('(1, ''foo'')'::employee_type), partition part2 values('(2, ''foo'')'::employee_type));
+create index user_id_idx1 on employee_table_1_prt_part1(user_id);
+create index user_id_idx2 on employee_table_1_prt_part2(user_id);
+
+insert into employee_table values('01-03-2012'::date,0,'tag1','(1, ''foo'')'::employee_type);
+select * from employee_table where user_id = 2;
+
+
+-- Test partition table with ACL.
+-- We grant default SELECT permission to a new user, this new user should be
+-- able to SELECT from any partition table we create later.
+-- (https://github.com/greenplum-db/gpdb/issues/9524)
+DROP TABLE IF EXISTS public.t_part_acl;
+DROP ROLE IF EXISTS user_prt_acl;
+
+CREATE ROLE user_prt_acl;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO user_prt_acl;
+
+CREATE TABLE public.t_part_acl (dt date)
+PARTITION BY RANGE (dt)
+(
+    START (date '2019-12-01') INCLUSIVE
+    END (date '2020-02-01') EXCLUSIVE
+    EVERY (INTERVAL '1 month')
+);
+INSERT INTO public.t_part_acl VALUES (date '2019-12-01'), (date '2020-01-31');
+
+-- check if parent and child table have same relacl
+SELECT relname FROM pg_class
+WHERE relname LIKE 't_part_acl%'
+  AND relacl = (SELECT relacl FROM pg_class WHERE relname = 't_part_acl');
+
+-- check if new user can SELECT all data
+SET ROLE user_prt_acl;
+SELECT * FROM public.t_part_acl;
+
+RESET ROLE;
+DROP TABLE public.t_part_acl;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE SELECT ON TABLES FROM user_prt_acl;
+DROP ROLE user_prt_acl;

@@ -946,14 +946,6 @@ typedef struct RangeTblEntry
 	Bitmapset  *insertedCols;	/* columns needing INSERT permission */
 	Bitmapset  *updatedCols;	/* columns needing UPDATE permission */
 	List	   *securityQuals;	/* any security barrier quals to apply */
-
-    List       *pseudocols;     /* CDB: List of CdbRelColumnInfo nodes defining
-                                 *  pseudo columns for targetlist of scan node.
-                                 *  Referenced by Var nodes with varattno =
-                                 *  FirstLowInvalidHeapAttributeNumber minus
-                                 *  the 0-based position in the list.  Used
-                                 *  only in planner & EXPLAIN, not in executor.
-                                 */
 } RangeTblEntry;
 
 /*
@@ -1526,7 +1518,6 @@ typedef enum ObjectType
 	OBJECT_SEQUENCE,
 	OBJECT_TABCONSTRAINT,
 	OBJECT_TABLE,
-	OBJECT_EXTTABLE,
 	OBJECT_EXTPROTOCOL,
 	OBJECT_TABLESPACE,
 	OBJECT_TRANSFORM,
@@ -1865,10 +1856,12 @@ typedef struct GrantRoleStmt
  */
 typedef struct SingleRowErrorDesc
 {
-	NodeTag		type;
-	int			rejectlimit;		/* per segment error reject limit */
-	bool		is_limit_in_rows;	/* true for ROWS false for PERCENT */
-	bool		into_file;			/* log into file not table */
+	NodeTag			type;
+	int				rejectlimit;		/* per segment error reject limit */
+	bool			is_limit_in_rows;	/* true for ROWS false for PERCENT */
+	char			log_error_type;		/* 't' enable log errors.
+										   'p' enable log errors persistently.
+										   'f' disable log errors */
 } SingleRowErrorDesc;
 
 /* ----------------------
@@ -1906,7 +1899,6 @@ typedef struct CopyStmt
 	Node	   *sreh;			/* Single row error handling info */
 	/* Convenient location for dispatch of misc meta data */
 	PartitionNode *partitions;
-	List		*ao_segnos;		/* AO segno map */
 } CopyStmt;
 
 /* ----------------------
@@ -1991,6 +1983,7 @@ typedef struct CreateStmt
 	Oid			ownerid;		/* OID of the role to own this. if InvalidOid, GetUserId() */
 	bool		buildAoBlkdir; /* whether to build the block directory for an AO table */
 	List	   *attr_encodings; /* attribute storage directives */
+	bool		isCtas;			/* CDB: is create table as */
 } CreateStmt;
 
 /* ----------------------
@@ -3335,51 +3328,17 @@ typedef enum VacuumOption
 	VACOPT_DISABLE_PAGE_SKIPPING = 1 << 7,		/* don't skip any pages */
 
 	VACOPT_ROOTONLY = 1 << 8,	/* only ANALYZE root partition tables */
-	VACOPT_FULLSCAN = 1 << 9	/* ANALYZE using full table scan */
+	VACOPT_FULLSCAN = 1 << 9,	/* ANALYZE using full table scan */
+
+	/* AO vacuum phases. Mutually exclusive */
+	VACOPT_AO_PRE_CLEANUP_PHASE = 1 << 10,
+	VACOPT_AO_COMPACT_PHASE = 1 << 11,
+	VACOPT_AO_POST_CLEANUP_PHASE = 1 << 12
 } VacuumOption;
 
-typedef enum AOVacuumPhase
-{
-	AOVAC_NONE = 0,
-	AOVAC_PREPARE,
-	AOVAC_COMPACT,
-	AOVAC_DROP,
-	AOVAC_CLEANUP
-} AOVacuumPhase;
-
-/*
- * AOVacuumPhaseConfig is passed around in VacuumStmt to orchestrate vacuuming
- * an AO table through each AO vacuum phase.
- */
-typedef struct AOVacuumPhaseConfig
-{
-	NodeTag		type;
-
-	/*
-	 * AO segment file num to compact (integer).
-	 */
-	List *appendonly_compaction_segno;
-
-	/*
-	 * AO table meta data from the dispatcher.
-	 * Used during compaction.
-	 *
-	 * Unless appendonly_compaction_vacuum_cleanup is specified, it should
-	 * only contain a single entry. If the entry is
-	 * APPENDONLY_COMPACTION_SEGNO_INVALID, it is a pseudo compaction
-	 * transaction. If the list has no entries, it is a drop transaction.
-	 */
-	List *appendonly_compaction_insert_segno;
-
-	/*
-	 * MPP-24168: If the appendonly table is empty, we should vacuum
-	 * auxiliary tables in prepare phase itself.  Othewise, age of
-	 * auxiliary heap relations never gets updated.
-	 */
-	bool appendonly_relation_empty;
-
-	AOVacuumPhase appendonly_phase;
-} AOVacuumPhaseConfig;
+#define VACUUM_AO_PHASE_MASK (VACOPT_AO_PRE_CLEANUP_PHASE | \
+							  VACOPT_AO_COMPACT_PHASE | \
+							  VACOPT_AO_POST_CLEANUP_PHASE)
 
 typedef struct VacuumStmt
 {
@@ -3387,9 +3346,6 @@ typedef struct VacuumStmt
 	int			options;		/* OR of VacuumOption flags */
 	RangeVar   *relation;		/* single table to process, or NULL */
 	List	   *va_cols;		/* list of column names, or NIL for all */
-
-	bool skip_twophase; /* GPDB */
-	AOVacuumPhaseConfig *ao_vacuum_phase_config; /* GPDB */
 } VacuumStmt;
 
 /* ----------------------

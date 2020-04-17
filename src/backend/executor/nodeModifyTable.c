@@ -307,7 +307,7 @@ ExecInsert(ModifyTableState *mtstate,
 	 */
 	if (estate->es_result_partitions)
 	{
-		resultRelInfo = slot_get_partition(parentslot, estate);
+		resultRelInfo = slot_get_partition(parentslot, estate, true);
 
 		/*
 		 * Check whether the user provided the correct leaf part only if required.
@@ -380,7 +380,7 @@ ExecInsert(ModifyTableState *mtstate,
 	 * what kind of a table this is (or neither for an AOCS table, since
 	 * aocs_insert() works directly off the slot). So we keep the Oid in a
 	 * local variable for now, and only set it in the tuple just before the
-	 * call to heap/appendonly/external_insert().
+	 * call to heap/appendonly_insert().
 	 */
 	if (resultRelationDesc->rd_rel->relhasoids)
 	{
@@ -402,13 +402,13 @@ ExecInsert(ModifyTableState *mtstate,
 
 	slot = reconstructPartitionTupleSlot(parentslot, resultRelInfo);
 
-	if (RelationIsExternal(resultRelationDesc) &&
+	if (resultRelationDesc->rd_rel->relkind == RELKIND_FOREIGN_TABLE &&
 		estate->es_result_partitions &&
 		estate->es_result_partitions->part->parrelid != 0)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("insert into external partitions not supported")));
+				 errmsg("insert into foreign partitions not supported")));
 	}
 
 	Assert(slot != NULL);
@@ -748,7 +748,7 @@ ExecDelete(ItemPointer tupleid,
 #endif
 
 		/* Obtain part for current tuple. */
-		resultRelInfo = slot_get_partition(planSlot, estate);
+		resultRelInfo = slot_get_partition(planSlot, estate, true);
 		estate->es_result_relation_info = resultRelInfo;
 
 #ifdef USE_ASSERT_CHECKING
@@ -763,29 +763,27 @@ ExecDelete(ItemPointer tupleid,
 	}
 	resultRelationDesc = resultRelInfo->ri_RelationDesc;
 
-	if (planGen == PLANGEN_PLANNER)
+	/* BEFORE ROW DELETE Triggers */
+	if (resultRelInfo->ri_TrigDesc &&
+		resultRelInfo->ri_TrigDesc->trig_delete_before_row &&
+		!isUpdate)
 	{
-		/* BEFORE ROW DELETE Triggers */
-		if (resultRelInfo->ri_TrigDesc &&
-			resultRelInfo->ri_TrigDesc->trig_delete_before_row &&
-			!isUpdate)
-		{
-			bool		dodelete;
+		bool		dodelete;
 
-			dodelete = ExecBRDeleteTriggers(estate, epqstate, resultRelInfo,
-											tupleid, oldtuple);
+		dodelete = ExecBRDeleteTriggers(estate, epqstate, resultRelInfo,
+										tupleid, oldtuple);
 
-			if (!dodelete)			/* "do nothing" */
-				return NULL;
-		}
+		if (!dodelete)			/* "do nothing" */
+			return NULL;
 	}
 
-	if (RelationIsExternal(resultRelationDesc) && estate->es_result_partitions &&
+	if (resultRelationDesc->rd_rel->relkind == RELKIND_FOREIGN_TABLE &&
+		estate->es_result_partitions &&
 		estate->es_result_partitions->part->parrelid != 0)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("delete from external partitions not supported")));
+				 errmsg("delete from foreign partitions not supported")));
 	}
 
 	/* INSTEAD OF ROW DELETE Triggers */
@@ -997,14 +995,6 @@ ldelete:;
 	if (canSetTag)
 		(estate->es_processed)++;
 
-	if (!isUpdate)
-	{
-		/*
-		 * To notify master if tuples deleted or not, to update mod_count.
-		 */
-		(resultRelInfo->ri_aoprocessed)++;
-	}
-
 	/*
 	 * Note: Normally one would think that we have to delete index tuples
 	 * associated with the heap tuple now...
@@ -1014,7 +1004,7 @@ ldelete:;
 	 * anyway, since the tuple is still visible to other transactions.
 	 */
 
-	if (!RelationIsAppendOptimized(resultRelationDesc) && planGen == PLANGEN_PLANNER && !isUpdate)
+	if (!RelationIsAppendOptimized(resultRelationDesc) && !isUpdate)
 	{
 		/* AFTER ROW DELETE Triggers */
 		ExecARDeleteTriggers(estate, resultRelInfo, tupleid, oldtuple);
@@ -1289,13 +1279,13 @@ ExecUpdate(ItemPointer tupleid,
 	resultRelInfo = estate->es_result_relation_info;
 	resultRelationDesc = resultRelInfo->ri_RelationDesc;
 
-	if (RelationIsExternal(resultRelationDesc) &&
+	if (resultRelationDesc->rd_rel->relkind == RELKIND_FOREIGN_TABLE &&
 		estate->es_result_partitions &&
 		estate->es_result_partitions->part->parrelid != 0)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("updating external partitions not supported")));
+				 errmsg("updating foreign partitions not supported")));
 	}
 
 	/*
@@ -2710,7 +2700,7 @@ table_insert(ResultRelInfo *resultRelInfo, EState *estate, TupleTableSlot *slot,
 		if (resultRelInfo->ri_aoInsertDesc == NULL)
 		{
 			/* Set the pre-assigned fileseg number to insert into */
-			ResultRelInfoSetSegno(resultRelInfo, estate->es_result_aosegnos);
+			ResultRelInfoChooseSegno(resultRelInfo);
 
 			resultRelInfo->ri_aoInsertDesc =
 				appendonly_insert_init(resultRelationDesc,
@@ -2720,39 +2710,18 @@ table_insert(ResultRelInfo *resultRelInfo, EState *estate, TupleTableSlot *slot,
 
 		mtuple = ExecFetchSlotMemTuple(slot);
 		newId = appendonly_insert(resultRelInfo->ri_aoInsertDesc, mtuple, tuple_oid, (AOTupleId *) lastTid);
-		(resultRelInfo->ri_aoprocessed)++;
 	}
 	else if (RelationIsAoCols(resultRelationDesc))
 	{
 		if (resultRelInfo->ri_aocsInsertDesc == NULL)
 		{
-			ResultRelInfoSetSegno(resultRelInfo, estate->es_result_aosegnos);
+			ResultRelInfoChooseSegno(resultRelInfo);
 			resultRelInfo->ri_aocsInsertDesc = aocs_insert_init(resultRelationDesc,
 																resultRelInfo->ri_aosegno, false);
 		}
 
 		newId = aocs_insert(resultRelInfo->ri_aocsInsertDesc, slot);
 		*lastTid = *slot_get_ctid(slot);
-		(resultRelInfo->ri_aoprocessed)++;
-	}
-	else if (RelationIsExternal(resultRelationDesc))
-	{
-		/* Writable external table */
-		HeapTuple tuple;
-
-		if (resultRelInfo->ri_extInsertDesc == NULL)
-			resultRelInfo->ri_extInsertDesc = external_insert_init(resultRelationDesc);
-
-		/*
-		 * get the heap tuple out of the tuple table slot, making sure we have a
-		 * writable copy. (external_insert() can scribble on the tuple)
-		 */
-		tuple = ExecMaterializeSlot(slot);
-		if (resultRelationDesc->rd_rel->relhasoids)
-			HeapTupleSetOid(tuple, tuple_oid);
-
-		newId = external_insert(resultRelInfo->ri_extInsertDesc, tuple);
-		ItemPointerSetInvalid(lastTid);
 	}
 	else if (RelationIsHeap(resultRelationDesc))
 	{
@@ -2823,7 +2792,7 @@ table_update(ResultRelInfo *resultRelInfo, EState *estate, ItemPointer tupleid, 
 
 		if (resultRelInfo->ri_updateDesc == NULL)
 		{
-			ResultRelInfoSetSegno(resultRelInfo, estate->es_result_aosegnos);
+			ResultRelInfoChooseSegno(resultRelInfo);
 			resultRelInfo->ri_updateDesc = (AppendOnlyUpdateDesc)
 				appendonly_update_init(resultRelationDesc, GetActiveSnapshot(),
 									   resultRelInfo->ri_aosegno);
@@ -2832,7 +2801,6 @@ table_update(ResultRelInfo *resultRelInfo, EState *estate, ItemPointer tupleid, 
 		mtuple = ExecFetchSlotMemTuple(slot);
 		result = appendonly_update(resultRelInfo->ri_updateDesc,
 								   mtuple, (AOTupleId *) tupleid, (AOTupleId *) &lastTid);
-		(resultRelInfo->ri_aoprocessed)++;
 		*tupleid = lastTid;
 		*wasHotUpdate = false;
 	}
@@ -2849,14 +2817,13 @@ table_update(ResultRelInfo *resultRelInfo, EState *estate, ItemPointer tupleid, 
 
 		if (resultRelInfo->ri_updateDesc == NULL)
 		{
-			ResultRelInfoSetSegno(resultRelInfo, estate->es_result_aosegnos);
+			ResultRelInfoChooseSegno(resultRelInfo);
 			resultRelInfo->ri_updateDesc = (AppendOnlyUpdateDesc)
 				aocs_update_init(resultRelationDesc, resultRelInfo->ri_aosegno);
 		}
 
 		result = aocs_update(resultRelInfo->ri_updateDesc,
 							 slot, (AOTupleId *) tupleid, (AOTupleId *) &lastTid);
-		(resultRelInfo->ri_aoprocessed)++;
 		*tupleid = lastTid;
 		*wasHotUpdate = false;
 	}

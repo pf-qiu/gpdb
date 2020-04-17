@@ -116,8 +116,6 @@ typedef struct PlannedStmt
 	 */
 	struct PartitionNode *result_partitions;
 
-	List	   *result_aosegnos; /* AO file 'seg' numbers for resultRels to use */
-
 	/*
 	 * Relation oids and partitioning metadata for all partitions
 	 * that are involved in a query.
@@ -319,11 +317,6 @@ typedef struct Plan
 	 * How much memory (in KB) should be used to execute this plan node?
 	 */
 	uint64 operatorMemKB;
-
-	/*
-	 * The parent motion node of a plan node.
-	 */
-	struct Plan *motionNode;
 } Plan;
 
 /* ----------------
@@ -362,36 +355,6 @@ typedef struct Result
 	AttrNumber *hashFilterColIdx;
 	Oid		   *hashFilterFuncs;
 } Result;
-
-/* ----------------
- * Repeat node -
- *   Repeatly output the results of the subplan.
- *
- * The repetition for each result tuple from the subplan is determined
- * by the value from a specified column.
- * ----------------
- */
-typedef struct Repeat
-{
-	Plan plan;
-
-	/*
-	 * An expression to represent the number of times an input tuple to
-	 * be repeatly outputted by this node.
-	 *
-	 * Currently, this expression should result in an integer.
-	 */
-	Expr *repeatCountExpr;
-
-	/*
-	 * The GROUPING value. This is used for grouping extension
-	 * distinct-qualified queries. The distinct-qualified plan generated
-	 * through cdbgroup.c may have a Join Plan node on the top, which
-	 * can not properly handle GROUPING values. We let the Repeat
-	 * node to handle this case.
-	 */
-	uint64 grouping;
-} Repeat;
 
 /* ----------------
  *	 ModifyTable node -
@@ -810,6 +773,8 @@ typedef struct FunctionScan
 	Scan		scan;
 	List	   *functions;		/* list of RangeTblFunction nodes */
 	bool		funcordinality; /* WITH ORDINALITY */
+	Param      *param;			/* used when funtionscan run as initplan */
+	bool		resultInTupleStore; /* function result stored in tuplestore */
 } FunctionScan;
 
 /* ----------------
@@ -858,31 +823,32 @@ typedef struct WorkTableScan
 } WorkTableScan;
 
 /* ----------------
- * External Scan node
- *
- * Field scan.scanrelid is the index of the external relation for
- * this node.
+ * External Scan parameters
  *
  * Field filenames is a list of N string node pointers (or NULL)
  * where N is number of segments in the array. The pointer in
  * position I is NULL or points to the string node containing the
  * file name for segment I.
+ *
+ * This used to be a separate node type. Now it's just used to carry
+ * the parameters for a Foreign Scan on an external table, for the
+ * shim layer.
  * ----------------
  */
-typedef struct ExternalScan
+typedef struct ExternalScanInfo
 {
-	Scan		scan;
+	NodeTag		type;
 	List		*uriList;       /* data uri or null for each segment  */
 	char	   *fmtOptString;	/* data format options                */
 	char		fmtType;        /* data format type                   */
 	bool		isMasterOnly;   /* true for EXECUTE on master seg only */
 	int			rejLimit;       /* reject limit (-1 for no sreh)      */
 	bool		rejLimitInRows; /* true if ROWS false if PERCENT      */
-	bool		logErrors;      /* true to log errors into file       */
+	char		logErrors;      /* 't', 'p' to log errors into file. 'p' makes persistent error log */
 	int			encoding;		/* encoding of external table data    */
 	uint32      scancounter;	/* counter incr per scan node created */
-
-} ExternalScan;
+	List	   *extOptions;		/* external options */
+} ExternalScanInfo;
 
 /* ----------------
  *		ForeignScan node
@@ -1168,7 +1134,28 @@ typedef struct Agg
 
 	/* Stream entries when out of memory instead of spilling to disk */
 	bool		streaming;
+
+	/* if input tuple has an AggExprId, save the tlist index */
+	Index       agg_expr_id;
 } Agg;
+
+/* ---------------
+ *		tuple split node
+ *
+ * A TupleSplit node implements tuple split in multiple DQAs MPP query.
+ *
+ * ---------------
+ */
+typedef struct TupleSplit
+{
+	Plan		plan;
+
+	int			numCols;		    /* number of grouping columns */
+	AttrNumber *grpColIdx;		    /* their indexes in the target list */
+
+	int         numDisDQAs;         /* the number of different dqa exprs */
+	Bitmapset **dqa_args_id_bms;    /* each DQA's arg indexes bitmapset */
+} TupleSplit;
 
 /* ----------------
  *		window aggregate node
@@ -1400,20 +1387,6 @@ typedef struct AssertOp
 	List 			*errmessage;	/* error message */
 
 } AssertOp;
-
-/*
- * RowTrigger Node
- *
- */
-typedef struct RowTrigger
-{
-	Plan		plan;
-	Oid			relid;				/* OID of target relation */
-	int 		eventFlags;			/* TriggerEvent bit flags (see trigger.h).*/
-	List		*oldValuesColIdx;	/* list of old columns */
-	List		*newValuesColIdx;	/* list of new columns */
-
-} RowTrigger;
 
 /*
  * RowMarkType -

@@ -199,11 +199,6 @@ CTranslatorRelcacheToDXL::RetrieveObjectGPDB
 		return RetrieveFunc(mp, mdid);
 	}
 
-	if (gpdb::TriggerExists(oid))
-	{
-		return RetrieveTrigger(mp, mdid);
-	}
-
 	if (gpdb::CheckConstraintExists(oid))
 	{
 		return RetrieveCheckConstraints(mp, md_accessor, mdid);
@@ -421,48 +416,6 @@ CTranslatorRelcacheToDXL::RetrievePartTableIndexInfo
 
 //---------------------------------------------------------------------------
 //	@function:
-//		CTranslatorRelcacheToDXL::RetrieveRelTriggers
-//
-//	@doc:
-//		Return the triggers defined on the given relation
-//
-//---------------------------------------------------------------------------
-IMdIdArray *
-CTranslatorRelcacheToDXL::RetrieveRelTriggers
-	(
-	CMemoryPool *mp,
-	Relation rel
-	)
-{
-	GPOS_ASSERT(NULL != rel);
-	if (rel->rd_rel->relhastriggers && NULL == rel->trigdesc)
-	{
-		gpdb::BuildRelationTriggers(rel);
-		if (NULL == rel->trigdesc)
-		{
-			rel->rd_rel->relhastriggers = false;
-		}
-	}
-
-	IMdIdArray *mdid_triggers_array = GPOS_NEW(mp) IMdIdArray(mp);
-	if (rel->rd_rel->relhastriggers)
-	{
-		const ULONG ulTriggers = rel->trigdesc->numtriggers;
-
-		for (ULONG ul = 0; ul < ulTriggers; ul++)
-		{
-			Trigger trigger = rel->trigdesc->triggers[ul];
-			OID trigger_oid = trigger.tgoid;
-			CMDIdGPDB *mdid_trigger = GPOS_NEW(mp) CMDIdGPDB(trigger_oid);
-			mdid_triggers_array->Append(mdid_trigger);
-		}
-	}
-
-	return mdid_triggers_array;
-}
-
-//---------------------------------------------------------------------------
-//	@function:
 //		CTranslatorRelcacheToDXL::RetrieveRelCheckConstraints
 //
 //	@doc:
@@ -560,13 +513,6 @@ CTranslatorRelcacheToDXL::RetrieveRel
 		GPOS_RAISE(gpdxl::ExmaMD, gpdxl::ExmiMDCacheEntryNotFound, mdid->GetBuffer());
 	}
 
-	if (RelationIsForeign(rel))
-	{
-		// GPORCA does not support foreign data wrappers
-		gpdb::CloseRelation(rel);
-		GPOS_RAISE(gpdxl::ExmaMD, gpdxl::ExmiMDObjUnsupported, GPOS_WSZ_LIT("Foreign Data"));
-	}
-
 	if (NULL != rel->rd_cdbpolicy &&
 		POLICYTYPE_ENTRY != rel->rd_cdbpolicy->ptype &&
 		gpdb::GetGPSegmentCount() != rel->rd_cdbpolicy->numsegments)
@@ -583,8 +529,8 @@ CTranslatorRelcacheToDXL::RetrieveRel
 	CMDColumnArray *mdcol_array = NULL;
 	IMDRelation::Ereldistrpolicy dist = IMDRelation::EreldistrSentinel;
 	ULongPtrArray *distr_cols = NULL;
+	IMdIdArray *distr_op_families = NULL;
 	CMDIndexInfoArray *md_index_info_array = NULL;
-	IMdIdArray *mdid_triggers_array = NULL;
 	ULongPtrArray *part_keys = NULL;
 	CharPtrArray *part_types = NULL;
 	ULONG num_leaf_partitions = 0;
@@ -596,6 +542,11 @@ CTranslatorRelcacheToDXL::RetrieveRel
 	BOOL is_partitioned = false;
 	IMDRelation *md_rel = NULL;
 
+	/*
+	 * Pretend that there are no triggers, because we don't want ORCA to handle
+	 * them. The executor can run them fine on its own.
+	 */
+	IMdIdArray *mdid_triggers_array = GPOS_NEW(mp) IMdIdArray(mp);
 
 	GPOS_TRY
 	{
@@ -603,7 +554,7 @@ CTranslatorRelcacheToDXL::RetrieveRel
 		mdname = GetRelName(mp, rel);
 
 		// get storage type
-		rel_storage_type = RetrieveRelStorageType(rel->rd_rel->relstorage);
+		rel_storage_type = RetrieveRelStorageType(rel);
 
 		// get relation columns
 		mdcol_array = RetrieveRelColumns(mp, md_accessor, rel, rel_storage_type);
@@ -618,15 +569,13 @@ CTranslatorRelcacheToDXL::RetrieveRel
 		if (IMDRelation::EreldistrHash == dist)
 		{
 			distr_cols = RetrieveRelDistributionCols(mp, gp_policy, mdcol_array, max_cols);
+			distr_op_families = RetrieveRelDistributionOpFamilies(mp, gp_policy);
 		}
 
 		convert_hash_to_random = gpdb::IsChildPartDistributionMismatched(rel);
 
 		// collect relation indexes
 		md_index_info_array = RetrieveRelIndexInfo(mp, rel);
-
-		// collect relation triggers
-		mdid_triggers_array = RetrieveRelTriggers(mp, rel);
 
 		// get partition keys
 		if (IMDRelation::ErelstorageExternal != rel_storage_type)
@@ -678,6 +627,7 @@ CTranslatorRelcacheToDXL::RetrieveRel
 							dist,
 							mdcol_array,
 							distr_cols,
+							distr_op_families,
 							convert_hash_to_random,
 							keyset_array,
 							md_index_info_array,
@@ -710,6 +660,7 @@ CTranslatorRelcacheToDXL::RetrieveRel
 							dist,
 							mdcol_array,
 							distr_cols,
+							distr_op_families,
 							part_keys,
 							part_types,
 							num_leaf_partitions,
@@ -962,6 +913,25 @@ CTranslatorRelcacheToDXL::RetrieveRelDistributionCols
 
 	GPOS_DELETE_ARRAY(attno_mapping);
 	return distr_cols;
+}
+
+IMdIdArray *
+CTranslatorRelcacheToDXL::RetrieveRelDistributionOpFamilies
+	(
+	CMemoryPool *mp,
+	GpPolicy *gp_policy
+	)
+{
+	IMdIdArray *distr_op_classes = GPOS_NEW(mp) IMdIdArray(mp);
+
+	Oid *opclasses = gp_policy->opclasses;
+	for (ULONG ul = 0; ul < (ULONG) gp_policy->nattrs; ul++)
+	{
+		Oid opfamily = gpdb::GetOpclassFamily(opclasses[ul]);
+		distr_op_classes->Append(GPOS_NEW(mp) CMDIdGPDB(opfamily));
+	}
+
+	return distr_op_classes;
 }
 
 //---------------------------------------------------------------------------
@@ -1620,6 +1590,7 @@ CTranslatorRelcacheToDXL::RetrieveType
 	BOOL is_hashable = gpdb::IsOpHashJoinable(ptce->eq_opr, oid_type);
 	BOOL is_merge_joinable = gpdb::IsOpMergeJoinable(ptce->eq_opr, oid_type);
 	BOOL is_composite_type = gpdb::IsCompositeType(oid_type);
+	BOOL is_text_related_type = gpdb::IsTextRelatedType(oid_type);
 
 	// get standard aggregates
 	CMDIdGPDB *mdid_min = GPOS_NEW(mp) CMDIdGPDB(gpdb::GetAggregate("min", oid_type));
@@ -1640,10 +1611,25 @@ CTranslatorRelcacheToDXL::RetrieveType
 	// get array type mdid
 	CMDIdGPDB *mdid_type_array = GPOS_NEW(mp) CMDIdGPDB(gpdb::GetArrayType(oid_type));
 
-	BOOL is_redistributable = gpdb::GetDefaultDistributionOpclassForType(oid_type) != InvalidOid;
+	OID distr_opfamily = gpdb::GetDefaultDistributionOpfamilyForType(oid_type);
+
+	BOOL is_redistributable = false;
+	CMDIdGPDB *mdid_distr_opfamily = NULL;
+	if (distr_opfamily != InvalidOid)
+	{
+		mdid_distr_opfamily = GPOS_NEW(mp) CMDIdGPDB(distr_opfamily);
+		is_redistributable = true;
+	}
+
+	CMDIdGPDB *mdid_legacy_distr_opfamily = NULL;
+	OID legacy_opclass = gpdb::GetLegacyCdbHashOpclassForBaseType(oid_type);
+	if (legacy_opclass != InvalidOid)
+	{
+		OID legacy_opfamily = gpdb::GetOpclassFamily(legacy_opclass);
+		mdid_legacy_distr_opfamily = GPOS_NEW(mp) CMDIdGPDB(legacy_opfamily);
+	}
 
 	mdid->AddRef();
-
 	return GPOS_NEW(mp) CMDTypeGenericGPDB
 						 (
 						 mp,
@@ -1653,6 +1639,8 @@ CTranslatorRelcacheToDXL::RetrieveType
 						 is_fixed_length,
 						 length,
 						 is_passed_by_value,
+						 mdid_distr_opfamily,
+						 mdid_legacy_distr_opfamily,
 						 mdid_op_eq,
 						 mdid_op_neq,
 						 mdid_op_lt,
@@ -1668,6 +1656,7 @@ CTranslatorRelcacheToDXL::RetrieveType
 						 is_hashable,
 						 is_merge_joinable,
 						 is_composite_type,
+						 is_text_related_type,
 						 mdid_type_relid,
 						 mdid_type_array,
 						 ptce->typlen
@@ -1761,6 +1750,20 @@ CTranslatorRelcacheToDXL::RetrieveScOp
 
 	BOOL returns_null_on_null_input = gpdb::IsOpStrict(op_oid);
 
+	CMDIdGPDB *mdid_hash_opfamily = NULL;
+	OID distr_opfamily = gpdb::GetCompatibleHashOpFamily(op_oid);
+	if (InvalidOid != distr_opfamily)
+	{
+		 mdid_hash_opfamily = GPOS_NEW(mp) CMDIdGPDB(distr_opfamily);
+	}
+
+	CMDIdGPDB *mdid_legacy_hash_opfamily = NULL;
+	OID legacy_distr_opfamily = gpdb::GetCompatibleLegacyHashOpFamily(op_oid);
+	if (InvalidOid != legacy_distr_opfamily)
+	{
+		mdid_legacy_hash_opfamily = GPOS_NEW(mp) CMDIdGPDB(legacy_distr_opfamily);
+	}
+
 	mdid->AddRef();
 	CMDScalarOpGPDB *md_scalar_op = GPOS_NEW(mp) CMDScalarOpGPDB
 											(
@@ -1775,7 +1778,9 @@ CTranslatorRelcacheToDXL::RetrieveScOp
 											m_mdid_inverse_opr,
 											cmp_type,
 											returns_null_on_null_input,
-											RetrieveScOpOpFamilies(mp, mdid)
+											RetrieveScOpOpFamilies(mp, mdid),
+											mdid_hash_opfamily,
+											mdid_legacy_hash_opfamily
 											);
 	return md_scalar_op;
 }
@@ -1965,67 +1970,6 @@ CTranslatorRelcacheToDXL::RetrieveAgg
 											is_hash_agg_capable
 											);
 	return pmdagg;
-}
-
-//---------------------------------------------------------------------------
-//	@function:
-//		CTranslatorRelcacheToDXL::RetrieveTrigger
-//
-//	@doc:
-//		Retrieve a trigger from the relcache given its metadata id.
-//
-//---------------------------------------------------------------------------
-CMDTriggerGPDB *
-CTranslatorRelcacheToDXL::RetrieveTrigger
-	(
-	CMemoryPool *mp,
-	IMDId *mdid
-	)
-{
-	OID trigger_oid = CMDIdGPDB::CastMdid(mdid)->Oid();
-
-	GPOS_ASSERT(InvalidOid != trigger_oid);
-
-	// get trigger name
-	CHAR *name = gpdb::GetTriggerName(trigger_oid);
-
-	if (NULL == name)
-	{
-		GPOS_RAISE(gpdxl::ExmaMD, gpdxl::ExmiMDCacheEntryNotFound, mdid->GetBuffer());
-	}
-
-	CWStringDynamic *trigger_name_str = CDXLUtils::CreateDynamicStringFromCharArray(mp, name);
-	CMDName *mdname = GPOS_NEW(mp) CMDName(mp, trigger_name_str);
-	GPOS_DELETE(trigger_name_str);
-
-	// get relation oid
-	OID rel_oid = gpdb::GetTriggerRelid(trigger_oid);
-	GPOS_ASSERT(InvalidOid != rel_oid);
-	CMDIdGPDB *mdid_rel = GPOS_NEW(mp) CMDIdGPDB(rel_oid);
-
-	// get function oid
-	OID func_oid = gpdb::GetTriggerFuncid(trigger_oid);
-	GPOS_ASSERT(InvalidOid != func_oid);
-	CMDIdGPDB *mdid_func = GPOS_NEW(mp) CMDIdGPDB(func_oid);
-
-	// get type
-	INT trigger_type = gpdb::GetTriggerType(trigger_oid);
-
-	// is trigger enabled
-	BOOL is_enabled = gpdb::IsTriggerEnabled(trigger_oid);
-
-	mdid->AddRef();
-	CMDTriggerGPDB *pmdtrigger = GPOS_NEW(mp) CMDTriggerGPDB
-											(
-											mp,
-											mdid,
-											mdname,
-											mdid_rel,
-											mdid_func,
-											trigger_type,
-											is_enabled
-											);
-	return pmdtrigger;
 }
 
 //---------------------------------------------------------------------------
@@ -2276,7 +2220,6 @@ CTranslatorRelcacheToDXL::RetrieveRelStats
 
 	double num_rows = 0.0;
 	CMDName *mdname = NULL;
-	BOOL stats_empty = false;
 
 	GPOS_TRY
 	{
@@ -2287,7 +2230,7 @@ CTranslatorRelcacheToDXL::RetrieveRelStats
 		// CMDName ctor created a copy of the string
 		GPOS_DELETE(relname_str);
 
-		num_rows = gpdb::CdbEstimatePartitionedNumTuples(rel, &stats_empty);
+		num_rows = gpdb::CdbEstimatePartitionedNumTuples(rel);
 
 		m_rel_stats_mdid->AddRef();
 		gpdb::CloseRelation(rel);
@@ -2299,9 +2242,14 @@ CTranslatorRelcacheToDXL::RetrieveRelStats
 	}
 	GPOS_CATCH_END;
 
+	/*
+	 * relation_empty should be set to true only if the total row
+	 * count of the partition table is 0.
+	 */
+	BOOL relation_empty = false;
 	if (num_rows == 0.0)
 	{
-		stats_empty = true;
+		relation_empty = true;
 	}
 
 	CDXLRelStats *dxl_rel_stats = GPOS_NEW(mp) CDXLRelStats
@@ -2310,7 +2258,7 @@ CTranslatorRelcacheToDXL::RetrieveRelStats
 												m_rel_stats_mdid,
 												mdname,
 												CDouble(num_rows),
-												stats_empty
+												relation_empty
 												);
 
 
@@ -2347,9 +2295,8 @@ CTranslatorRelcacheToDXL::RetrieveColStats
 
 	// number of rows from pg_class
 	double num_rows;
-	bool stats_empty;
 
-	num_rows = gpdb::CdbEstimatePartitionedNumTuples(rel, &stats_empty);
+	num_rows = gpdb::CdbEstimatePartitionedNumTuples(rel);
 
 	// extract column name and type
 	CMDName *md_colname = GPOS_NEW(mp) CMDName(mp, md_col->Mdname().GetMDName());
@@ -2773,6 +2720,11 @@ CTranslatorRelcacheToDXL::RetrieveCast
 		case COERCION_PATH_FUNC:
 			return GPOS_NEW(mp) CMDCastGPDB(mp, mdid, mdname, mdid_src, mdid_dest, is_binary_coercible, GPOS_NEW(mp) CMDIdGPDB(cast_fn_oid), IMDCast::EmdtFunc);
 			break;
+		case COERCION_PATH_RELABELTYPE:
+			// binary-compatible cast, no function
+			GPOS_ASSERT(cast_fn_oid == 0);
+			return GPOS_NEW(mp) CMDCastGPDB(mp, mdid, mdname, mdid_src, mdid_dest, true /*is_binary_coercible*/, GPOS_NEW(mp) CMDIdGPDB(cast_fn_oid));
+			break;
 		default:
 			break;
 	}
@@ -3135,12 +3087,12 @@ CTranslatorRelcacheToDXL::TransformHistogramToDXLBucketArray
 IMDRelation::Erelstoragetype
 CTranslatorRelcacheToDXL::RetrieveRelStorageType
 	(
-	CHAR storage_type
+	Relation rel
 	)
 {
 	IMDRelation::Erelstoragetype rel_storage_type = IMDRelation::ErelstorageSentinel;
 
-	switch (storage_type)
+	switch (rel->rd_rel->relstorage)
 	{
 		case RELSTORAGE_HEAP:
 			rel_storage_type = IMDRelation::ErelstorageHeap;
@@ -3154,8 +3106,14 @@ CTranslatorRelcacheToDXL::RetrieveRelStorageType
 		case RELSTORAGE_VIRTUAL:
 			rel_storage_type = IMDRelation::ErelstorageVirtual;
 			break;
-		case RELSTORAGE_EXTERNAL:
-			rel_storage_type = IMDRelation::ErelstorageExternal;
+		case RELSTORAGE_FOREIGN:
+			if (gpdb::RelIsExternalTable(rel->rd_id))
+				rel_storage_type = IMDRelation::ErelstorageExternal;
+			else
+			{
+				// GPORCA does not support foreign data wrappers
+				GPOS_RAISE(gpdxl::ExmaMD, gpdxl::ExmiMDObjUnsupported, GPOS_WSZ_LIT("Foreign Data"));
+			}
 			break;
 		default:
 			GPOS_ASSERT(!"Unsupported relation type");
@@ -3591,8 +3549,8 @@ CTranslatorRelcacheToDXL::RetrievePartConstraintFromNode
 //
 //	@doc:
 //		Does given relation type have system columns.
-//		Currently only regular relations, sequences, toast values relations and
-//		AO segment relations have system columns
+//		Currently regular relations, sequences, toast values relations,
+//		AO segment relations and foreign/external tables have system columns
 //
 //---------------------------------------------------------------------------
 BOOL
@@ -3604,7 +3562,8 @@ CTranslatorRelcacheToDXL::RelHasSystemColumns
 	return RELKIND_RELATION == rel_kind ||
 			RELKIND_SEQUENCE == rel_kind ||
 			RELKIND_AOSEGMENTS == rel_kind ||
-			RELKIND_TOASTVALUE == rel_kind;
+			RELKIND_TOASTVALUE == rel_kind ||
+			RELKIND_FOREIGN_TABLE == rel_kind;
 }
 
 //---------------------------------------------------------------------------

@@ -654,6 +654,53 @@ select a from dml_union_r where a > 95
 union all
 select g from generate_series(1,2) g;
 
+explain (costs off)
+select sum(a) from (
+    select a from dml_union_r where a > 95
+    union all
+    select g from generate_series(1,2) g
+) t;
+
+select sum(a) from (
+   select a from dml_union_r where a > 95
+   union all
+   select g from generate_series(1,2) g
+) t;
+
+--
+-- Continue to test appending General to distributed table.
+-- This time, the General is a dummy path, produced by pushing down condition.
+-- (Only for planner, orca does not create dummy path here)
+--
+create table t_test_append_hash(a int, b int, c int) distributed by (a);
+insert into t_test_append_hash select i, i+1, i+2 from generate_series(1, 5)i;
+
+explain (costs off)
+with t(a, b, s) as (
+    select a, b, sum(c) from t_test_append_hash where a > b group by a, b
+    union all
+    select a, b, sum(c) from t_test_append_hash where a < b group by a, b
+) select * from t where t.a < t.b;
+
+with t(a, b, s) as (
+    select a, b, sum(c) from t_test_append_hash where a > b group by a, b
+    union all
+    select a, b, sum(c) from t_test_append_hash where a < b group by a, b
+) select * from t where t.a < t.b;
+
+-- Test mixing a SegmentGeneral with distributed table.
+create table t_test_append_rep(a int, b int, c int) distributed replicated;
+insert into t_test_append_rep select i, i+1, i+2 from generate_series(5, 10)i;
+
+explain (costs off)
+select * from t_test_append_rep
+union all
+select * from t_test_append_hash;
+
+select * from t_test_append_rep
+union all
+select * from t_test_append_hash;
+
 --
 -- Test for creation of MergeAppend paths.
 --
@@ -691,3 +738,16 @@ explain analyze select a, b, array_dims(array_agg(x)) from mergeappend_test r gr
 union all
 select null, null, array_dims(array_agg(x)) FROM mergeappend_test r
 order by 1,2;
+
+CREATE TABLE t1(c1 int, c2 int, c3 int);
+CREATE TABLE t2(c1 int, c2 int, c3 int);
+INSERT INTO t1 SELECT i, i ,i + 1 FROM generate_series(1,10) i;
+INSERT INTO t2 SELECT i, i ,i + 1 FROM generate_series(1,10) i;
+SET enable_hashagg = off;
+with tcte(c1, c2, c3) as (
+	SELECT c1, sum(c2) as c2, c3 FROM t1 WHERE c3 > 0 GROUP BY c1, c3
+	UNION ALL
+	SELECT c1, sum(c2) as c2, c3 FROM t2 WHERE c3 < 0 GROUP BY c1, c3
+)
+SELECT * FROM tcte WHERE c3 = 1;
+

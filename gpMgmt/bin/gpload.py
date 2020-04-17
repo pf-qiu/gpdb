@@ -18,6 +18,7 @@ Options:
     -l logfile: log output to logfile
     --no_auto_trans: do not wrap gpload in transaction
     --gpfdist_timeout timeout: gpfdist timeout value
+    --max_retries retry_times: max retry times on gpdb connection timed out. 0 means disabled, -1 means forever
     --version: print version number and exit
     -?: help
 '''
@@ -37,14 +38,7 @@ import platform
 try:
     from pygresql import pg
 except Exception, e:
-    from struct import calcsize
-    sysWordSize = calcsize("P") * 8
-    if (platform.system()) in ['Windows', 'Microsoft'] and (sysWordSize == 64):
-        errorMsg = "gpload appears to be running in 64-bit Python under Windows.\n"
-        errorMsg = errorMsg + "Currently only 32-bit Python is supported. Please \n"
-        errorMsg = errorMsg + "reinstall a 32-bit Python interpreter.\n"
-    else:
-        errorMsg = "gpload was unable to import The PyGreSQL Python module (pg.py) - %s\n" % str(e)
+    errorMsg = "gpload was unable to import The PyGreSQL Python module (pg.py) - %s\n" % str(e)
     sys.stderr.write(str(errorMsg))
     sys.exit(2)
 
@@ -1157,6 +1151,7 @@ class gpload:
         self.startTimestamp = time.time()
         self.error_table = False
         self.gpdb_version = ""
+        self.options.max_retries = 0
         seenv = False
         seenq = False
 
@@ -1216,6 +1211,9 @@ class gpload:
                         argv = argv[2:]
                     elif argv[0]=='-f':
                         configFilename = argv[1]
+                        argv = argv[2:]
+                    elif argv[0]=='--max_retries':
+                        self.options.max_retries = int(argv[1])
                         argv = argv[2:]
                     elif argv[0]=='--no_auto_trans':
                         self.options.no_auto_trans = True
@@ -1841,6 +1839,18 @@ class gpload:
                 if recurse > 10:
                     self.log(self.ERROR, "too many login attempt failures")
                 self.setup_connection(recurse)
+            elif errorMessage.find("Connection timed out") != -1 and self.options.max_retries != 0:
+                recurse += 1
+                if self.options.max_retries > 0:
+                    if recurse > self.options.max_retries: # retry failed
+                        self.log(self.ERROR, "could not connect to database after retry %d times, " \
+                            "error message:\n %s" % (recurse-1, errorMessage))
+                    else:
+                        self.log(self.INFO, "retry to connect to database, %d of %d times" % (recurse,
+                            self.options.max_retries))
+                else: # max_retries < 0, retry forever
+                    self.log(self.INFO, "retry to connect to database.")
+                self.setup_connection(recurse)
             else:
                 self.log(self.ERROR, "could not connect to database: %s. Is " \
                     "the Greenplum Database running on port %i?" % (errorMessage,
@@ -1901,7 +1911,7 @@ class gpload:
         if self.schema is None:
             queryString = """SELECT n.nspname
                              FROM pg_catalog.pg_class c
-                             LEFT JOIN pg_catalog.pg_namespace n
+                             INNER JOIN pg_catalog.pg_namespace n
                              ON n.oid = c.relnamespace
                              WHERE c.relname = '%s'
                              AND pg_catalog.pg_table_is_visible(c.oid);""" % quote_unident(self.table)
@@ -2029,7 +2039,7 @@ class gpload:
                             on (pg_class.oid = attrelid)
                             %s
                         where
-                            relstorage = 'x' and
+                            relstorage in ('x', 'f') and
                             relname like 'ext_gpload_reusable_%%' and
                             attnum > 0 and
                             not attisdropped and %s
@@ -2063,9 +2073,9 @@ class gpload:
                 sql += " WHERE pgext.fmterrtbl IS NULL "
         else:
             if log_errors:
-                sql += " WHERE pgext.logerrors "
+                sql += " WHERE pgext.logerrors='t' "
             else:
-                sql += " WHERE NOT pgext.logerrors "
+                sql += " WHERE pgext.logerrors='f' "
 
         for i, l in enumerate(self.locations):
             sql += " and pgext.urilocation[%s] = %s\n" % (i + 1, quote(l))
@@ -2116,7 +2126,7 @@ class gpload:
                     on(pg_class.oid = pgext.reloid)
                     %s
                     where
-                    relstorage = 'x' and
+                    relstorage in ('x', 'f') and
                     relname like 'ext_gpload_reusable_%%' and
 		    %s
                     """
@@ -2145,9 +2155,9 @@ class gpload:
                 sql += " and pgext.fmterrtbl IS NULL "
         else:
             if log_errors:
-                sql += " and pgext.logerrors "
+                sql += " and pgext.logerrors='t' "
             else:
-                sql += " and NOT pgext.logerrors "
+                sql += " and pgext.logerrors='f' "
 
         for i, l in enumerate(self.locations):
             sql += " and pgext.urilocation[%s] = %s\n" % (i + 1, quote(l))
@@ -2361,21 +2371,19 @@ class gpload:
                 if '.' in self.staging_table:
                     self.log(self.ERROR, "Character '.' is not allowed in staging_table parameter. Please use EXTERNAL->SCHEMA to set the schema of external table")
                 self.extTableName = quote_unident(self.staging_table) 
-                if self.extSchemaName is None:
-                    sql = """SELECT n.nspname as Schema,
-                            c.relname as Name
-                        FROM pg_catalog.pg_class c
-                            LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-                        WHERE c.relkind IN ('r','v','S','')
-                            AND c.relstorage IN ('h', 'a', 'c','x','v','')
-                            AND n.nspname <> 'pg_catalog'
-                            AND n.nspname <> 'information_schema'
-                            AND n.nspname !~ '^pg_toast'
-                            AND c.relname = '%s'
-                            AND pg_catalog.pg_table_is_visible(c.oid)
-                        ORDER BY 1,2;""" % self.extTableName
+                sql = """SELECT n.nspname as Schema, c.relname as Name
+                         FROM pg_catalog.pg_class c
+                         INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                         WHERE c.relkind IN ('r','v','S','f','')
+                           AND c.relname = '%s'
+                        """ % self.extTableName
+                if self.extSchemaName is not None:
+                    sql += "AND n.nspname = '%s'" % quote_unident(self.extSchemaName)
                 else:
-                    sql = "select * from pg_catalog.pg_tables where schemaname = '%s' and tablename = '%s'" % (quote_unident(self.extSchemaName),  self.extTableName)
+                    sql += """AND pg_catalog.pg_table_is_visible(c.oid)
+                              AND n.nspname <> 'pg_catalog'
+                              AND n.nspname <> 'information_schema'
+                              AND n.nspname !~ '^pg_toast'"""
                 result = self.db.query(sql.encode('utf-8')).getresult()
                 if len(result) > 0:
                     self.extSchemaTable = self.get_ext_schematable(quote_unident(self.extSchemaName), self.extTableName)

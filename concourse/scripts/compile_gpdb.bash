@@ -1,4 +1,4 @@
-#!/bin/bash -l
+#!/bin/bash
 set -exo pipefail
 
 GREENPLUM_INSTALL_DIR=/usr/local/greenplum-db-devel
@@ -36,14 +36,21 @@ function prep_env() {
       ;;
     esac
     ;;
+  sles)
+    case "${TARGET_OS_VERSION}" in
+    12) export BLD_ARCH=sles12_x86_64 ;;
+    *)
+      echo "TARGET_OS_VERSION not set or recognized for SLES"
+      exit 1
+      ;;
+    esac
+    ;;
   esac
 }
 
-function install_deps_for_centos() {
+function install_deps_for_centos_or_sles() {
   rpm -i libquicklz-installer/libquicklz-*.rpm
   rpm -i libquicklz-devel-installer/libquicklz-*.rpm
-  # install libsigar from tar.gz
-  tar zxf libsigar-installer/sigar-*.targz -C gpdb_src/gpAux/ext
 }
 
 function install_deps_for_ubuntu() {
@@ -52,7 +59,7 @@ function install_deps_for_ubuntu() {
 
 function install_deps() {
   case "${TARGET_OS}" in
-    centos) install_deps_for_centos;;
+    centos | sles) install_deps_for_centos_or_sles;;
     ubuntu) install_deps_for_ubuntu;;
   esac
 }
@@ -115,7 +122,7 @@ function unittest_check_gpdb() {
 function include_zstd() {
   local libdir
   case "${TARGET_OS}" in
-    centos) libdir=/usr/lib64 ;;
+    centos | sles) libdir=/usr/lib64 ;;
     ubuntu) libdir=/usr/lib ;;
     *) return ;;
   esac
@@ -129,7 +136,7 @@ function include_zstd() {
 function include_quicklz() {
   local libdir
   case "${TARGET_OS}" in
-    centos) libdir=/usr/lib64 ;;
+    centos | sles) libdir=/usr/lib64 ;;
     ubuntu) libdir=/usr/local/lib ;;
     *) return ;;
   esac
@@ -194,53 +201,49 @@ function export_gpdb_clients() {
   TARBALL="${GPDB_ARTIFACTS_DIR}/${GPDB_CL_FILENAME}"
   pushd ${GREENPLUM_CL_INSTALL_DIR}
     source ./greenplum_clients_path.sh
+    mkdir -p bin/ext/gppylib
+    cp ${GREENPLUM_INSTALL_DIR}/lib/python/gppylib/__init__.py ./bin/ext/gppylib
+    cp  ${GREENPLUM_INSTALL_DIR}/lib/python/gppylib/gpversion.py ./bin/ext/gppylib
     chmod -R 755 .
     tar -czf "${TARBALL}" ./*
   popd
-}
-
-function fetch_orca_src {
-  local orca_tag="${1}"
-
-  mkdir orca_src
-  wget --quiet --output-document=- "https://github.com/greenplum-db/gporca/archive/${orca_tag}.tar.gz" \
-    | tar xzf - --strip-components=1 --directory=orca_src
 }
 
 function build_xerces()
 {
     OUTPUT_DIR="gpdb_src/gpAux/ext/${BLD_ARCH}"
     mkdir -p xerces_patch/concourse
-    cp -r orca_src/concourse/xerces-c xerces_patch/concourse
-    cp -r orca_src/patches/ xerces_patch
+    cp -r gpdb_src/src/backend/gporca/concourse/xerces-c xerces_patch/concourse
+    cp -r gpdb_src/src/backend/gporca/patches/ xerces_patch
     /usr/bin/python xerces_patch/concourse/xerces-c/build_xerces.py --output_dir=${OUTPUT_DIR}
     rm -rf build
 }
 
-function build_and_test_orca()
+function test_orca()
 {
-    OUTPUT_DIR="gpdb_src/gpAux/ext/${BLD_ARCH}"
-    orca_src/concourse/build_and_test.py --build_type=RelWithDebInfo --output_dir=${OUTPUT_DIR}
+    OUTPUT_DIR="../../../../gpAux/ext/${BLD_ARCH}"
+    pushd ${GPDB_SRC_PATH}/src/backend/gporca
+    concourse/build_and_test.py --build_type=RelWithDebInfo --output_dir=${OUTPUT_DIR}
+    concourse/build_and_test.py --build_type=Debug --output_dir=${OUTPUT_DIR}
+    popd
 }
 
 function _main() {
   mkdir gpdb_src/gpAux/ext
 
   case "${TARGET_OS}" in
-    centos|ubuntu)
+    centos|ubuntu|sles)
       prep_env
-      fetch_orca_src "${ORCA_TAG}"
       build_xerces
-      build_and_test_orca
+      test_orca
       install_deps
       link_python
       ;;
     win32)
         export BLD_ARCH=win32
-        CONFIGURE_FLAGS="${CONFIGURE_FLAGS} --disable-pxf"
         ;;
     *)
-        echo "only centos, ubuntu, and win32 are supported TARGET_OS'es"
+        echo "only centos, ubuntu, sles and win32 are supported TARGET_OS'es"
         false
         ;;
   esac

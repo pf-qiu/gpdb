@@ -164,6 +164,43 @@ SELECT * from update_distr_key;
 
 DROP TABLE update_distr_key;
 
+-- below cases is to test multi-hash-cols
+CREATE TABLE tab3(c1 int, c2 int, c3 int, c4 int, c5 int) DISTRIBUTED BY (c1, c2, c3);
+CREATE TABLE tab5(c1 int, c2 int, c3 int, c4 int, c5 int) DISTRIBUTED BY (c1, c2, c3, c4, c5);
+
+INSERT INTO tab3 SELECT i, i, i, i, i FROM generate_series(1, 10)i;
+INSERT INTO tab5 SELECT i, i, i, i, i FROM generate_series(1, 10)i;
+
+-- test tab3
+SELECT gp_segment_id, * FROM tab3;
+UPDATE tab3 set c1 = 9 where c4 = 1;
+SELECT gp_segment_id, * FROM tab3;
+UPDATE tab3 set (c1,c2) = (5,6) where c4 = 1;
+SELECT gp_segment_id, * FROM tab3;
+UPDATE tab3 set (c1,c2,c3) = (3,2,1) where c4 = 1;
+SELECT gp_segment_id, * FROM tab3;
+UPDATE tab3 set c1 = 11 where c2 = 10 and c2 < 1;
+SELECT gp_segment_id, * FROM tab3;
+
+-- test tab5
+SELECT gp_segment_id, * FROM tab5;
+UPDATE tab5 set c1 = 1000 where c4 = 1;
+SELECT gp_segment_id, * FROM tab5;
+UPDATE tab5 set (c1,c2) = (9,10) where c4 = 1;
+SELECT gp_segment_id, * FROM tab5;
+UPDATE tab5 set (c1,c2,c4) = (5,8,6) where c4 = 1;
+SELECT gp_segment_id, * FROM tab5;
+UPDATE tab5 set (c1,c2,c3,c4,c5) = (1,2,3,0,6) where c5 = 1;
+SELECT gp_segment_id, * FROM tab5;
+UPDATE tab5 set c1 = 11 where c3 = 10 and c3 < 1;
+SELECT gp_segment_id, * FROM tab5;
+
+EXPLAIN (COSTS OFF ) UPDATE tab3 SET C1 = C1 + 1, C5 = C5+1;
+
+-- clean up
+drop table tab3;
+drop table tab5;
+
 -- Update distribution key
 
 -- start_ignore
@@ -281,6 +318,29 @@ SET    b = update_gp_foo.c_part,
 FROM   update_gp_foo1;
 
 SELECT * from update_gp_foo;
+
+-- Test insert on conflict do update
+-- Insert on conflict do update is an insert statement but might
+-- invoke ExecUpdate on segments, but updating distkeys of a table
+-- may lead to wrong data distribution. We will check this before
+-- planning, if a `insert on conflict do update` statement set the
+-- dist keys of the table, it will raise an error.
+-- See github issue: https://github.com/greenplum-db/gpdb/issues/9444
+create table t_insert_on_conflict_update_distkey(a int, b int) distributed by (a);
+create unique index uidx_t_insert_on_conflict_update_distkey on t_insert_on_conflict_update_distkey(a, b);
+
+-- the following statement should error out because the on conflict update want to
+-- modify the tuple's distkey which might lead to wrong data distribution
+insert into t_insert_on_conflict_update_distkey values (1, 1) on conflict(a, b) do update set a = 1;
+
+drop index uidx_t_insert_on_conflict_update_distkey;
+drop table t_insert_on_conflict_update_distkey;
+-- randomly distributed table cannot add unique constrain, so next we test replicated table
+
+create table t_insert_on_conflict_update_distkey(a int, b int) distributed replicated;
+create unique index uidx_t_insert_on_conflict_update_distkey on t_insert_on_conflict_update_distkey(a, b);
+-- the following statement should succeed because replicated table does not contain distkey
+insert into t_insert_on_conflict_update_distkey values (1, 1) on conflict(a, b) do update set a = 1;
 
 -- start_ignore
 drop table r;

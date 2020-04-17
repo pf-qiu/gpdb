@@ -255,7 +255,27 @@ DistributedLog_AdvanceOldestXmin(TransactionId oldestLocalXmin,
 		LWLockRelease(DistributedLogControlLock);
 	}
 
-	pg_atomic_write_u32((pg_atomic_uint32 *)&DistributedLogShared->oldestXmin, oldestXmin);
+	/*
+	 * The shared oldestXmin (DistributedLogShared->oldestXmin) may be updated
+	 * concurrently. It should be set to a higher value, because a higher xmin
+	 * can belong to another distributed log segment, its older segments might
+	 * already be truncated.
+	 */
+	if (!TransactionIdEquals(oldOldestXmin, oldestXmin))
+	{
+		uint32 expected = (uint32)oldOldestXmin;
+
+		while (1)
+		{
+			if (pg_atomic_compare_exchange_u32((pg_atomic_uint32 *)&DistributedLogShared->oldestXmin, 
+											&expected, (uint32)oldestXmin))
+				break;
+
+			if (TransactionIdPrecedesOrEquals(oldestXmin, expected))
+				break;
+		}
+	}
+
 	LWLockRelease(DistributedLogTruncateLock);
 
 	if (TransactionIdToSegment(oldOldestXmin) < TransactionIdToSegment(oldestXmin))
@@ -421,6 +441,30 @@ DistributedLog_SetCommittedTree(TransactionId xid, int nxids, TransactionId *xid
 		DistributedLog_SetCommittedByPages(nxids, xids, distribTimeStamp,
 										   distribXid, isRedo);
 	}
+}
+
+/*
+ * Get the corresponding distributed xid and timestamp of a local xid.
+ */
+void
+DistributedLog_GetDistributedXid(
+	TransactionId 						localXid,
+	DistributedTransactionTimeStamp		*distribTimeStamp,
+	DistributedTransactionId 			*distribXid)
+{
+	int			page = TransactionIdToPage(localXid);
+	int			entryno = TransactionIdToEntry(localXid);
+	int			slotno;
+	DistributedLogEntry *ptr;
+
+	Assert(!IS_QUERY_DISPATCHER());
+
+	slotno = SimpleLruReadPage_ReadOnly(DistributedLogCtl, page, localXid);
+	ptr = (DistributedLogEntry *) DistributedLogCtl->shared->page_buffer[slotno];
+	ptr += entryno;
+	*distribTimeStamp = ptr->distribTimeStamp;
+	*distribXid = ptr->distribXid;
+	LWLockRelease(DistributedLogControlLock);
 }
 
 /*

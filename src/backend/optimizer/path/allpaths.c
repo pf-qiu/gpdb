@@ -143,6 +143,7 @@ static void recurse_push_qual(Node *setOp, Query *topquery,
 static void remove_unused_subquery_outputs(Query *subquery, RelOptInfo *rel);
 
 static void bring_to_outer_query(PlannerInfo *root, RelOptInfo *rel, List *outer_quals);
+static void bring_to_singleQE(PlannerInfo *root, RelOptInfo *rel);
 
 
 /*
@@ -446,7 +447,10 @@ bring_to_outer_query(PlannerInfo *root, RelOptInfo *rel, List *outer_quals)
 		Path	   *path;
 		CdbPathLocus outerquery_locus;
 
-		if (!CdbPathLocus_IsOuterQuery(origpath->locus))
+		if (CdbPathLocus_IsGeneral(origpath->locus) ||
+			CdbPathLocus_IsOuterQuery(origpath->locus))
+			path = origpath;
+		else
 		{
 			/*
 			 * Cannot pass a param through motion, so if this is a parameterized
@@ -454,6 +458,18 @@ bring_to_outer_query(PlannerInfo *root, RelOptInfo *rel, List *outer_quals)
 			 */
 			if (origpath->param_info)
 				continue;
+
+			/*
+			 * param_info cannot cover the case that an index path's orderbyclauses
+			 * See github issue: https://github.com/greenplum-db/gpdb/issues/9733
+			 */
+			if (IsA(origpath, IndexPath))
+			{
+				IndexPath *ipath = (IndexPath *) origpath;
+				if (contains_outer_params((Node *) ipath->indexorderbys,
+										  (void *) root))
+					continue;
+			}
 
 			CdbPathLocus_MakeOuterQuery(&outerquery_locus);
 
@@ -463,14 +479,90 @@ bring_to_outer_query(PlannerInfo *root, RelOptInfo *rel, List *outer_quals)
 											  false,
 											  outerquery_locus);
 		}
-		else
-			path = origpath;
+
 		if (outer_quals)
 			path = (Path *) create_projection_path_with_quals(root,
 															  rel,
 															  path,
 															  path->parent->reltarget,
 															  outer_quals);
+		add_path(rel, path);
+	}
+	set_cheapest(rel);
+}
+
+/*
+ * The following function "steals" ideas and most of the code from the
+ * function bring_to_outer_query.
+ *
+ * Decorate the Paths of 'rel' with Motions to bring the relation's
+ * result to SingleQE locus. The final plan will look something like
+ * this:
+ *
+ *   Result (with quals from 'outer_quals')
+ *           \
+ *            \_Material
+ *                   \
+ *                    \_ Gather
+ *                           \
+ *                            \_SeqScan (with quals from 'baserestrictinfo')
+ */
+static void
+bring_to_singleQE(PlannerInfo *root, RelOptInfo *rel)
+{
+	List	   *origpathlist;
+	ListCell   *lc;
+
+	origpathlist = rel->pathlist;
+	rel->cheapest_startup_path = NULL;
+	rel->cheapest_total_path = NULL;
+	rel->cheapest_unique_path = NULL;
+	rel->cheapest_parameterized_paths = NIL;
+	rel->pathlist = NIL;
+
+	foreach(lc, origpathlist)
+	{
+		Path	     *origpath = (Path *) lfirst(lc);
+		Path	     *path;
+		CdbPathLocus  target_locus;
+
+		if (CdbPathLocus_IsGeneral(origpath->locus) ||
+			CdbPathLocus_IsSingleQE(origpath->locus) ||
+			CdbPathLocus_IsOuterQuery(origpath->locus))
+			path = origpath;
+		else
+		{
+			/*
+			 * Cannot pass a param through motion, so if this is a parameterized
+			 * path, we can't use it.
+			 */
+			if (origpath->param_info)
+				continue;
+
+			/*
+			 * param_info cannot cover the case that an index path's orderbyclauses
+			 * See github issue: https://github.com/greenplum-db/gpdb/issues/9733
+			 */
+			if (IsA(origpath, IndexPath))
+			{
+				IndexPath *ipath = (IndexPath *) origpath;
+				if (contains_outer_params((Node *) ipath->indexorderbys,
+										  (void *) root))
+					continue;
+			}
+
+			CdbPathLocus_MakeSingleQE(&target_locus,
+									  origpath->locus.numsegments);
+
+			path = cdbpath_create_motion_path(root,
+											  origpath,
+											  NIL, // DESTROY pathkeys
+											  false,
+											  target_locus);
+
+			path = (Path *) create_material_path(root, rel, path);
+		}
+
 		add_path(rel, path);
 	}
 	set_cheapest(rel);
@@ -557,6 +649,17 @@ set_rel_pathlist(PlannerInfo *root, RelOptInfo *rel,
 
 	if (rel->upperrestrictinfo)
 		bring_to_outer_query(root, rel, rel->upperrestrictinfo);
+	else if (root->config->force_singleQE)
+	{
+		/*
+		 * CDB: we cannot pass parameters across motion,
+		 * if this is the inner plan of a lateral join and
+		 * it contains limit clause, we will reach here.
+		 * Planner will gather all the data into singleQE
+		 * and materialize it.
+		 */
+		bring_to_singleQE(root, rel);
+	}
 
 	/* Now find the cheapest of the paths for this rel */
 	set_cheapest(rel);
@@ -799,17 +902,6 @@ set_plain_rel_pathlist(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte)
 	/* Consider sequential scan */
 	switch (rel->relstorage)
 	{
-		case RELSTORAGE_EXTERNAL:
-
-			/*
-			 * If the relation is external, create an external path for it and
-			 * select it (only external path is considered for an external
-			 * base rel).
-			 */
-			add_path(rel, (Path *) create_external_path(root, rel, required_outer));
-			set_cheapest(rel);
-			return;
-
 		case RELSTORAGE_AOROWS:
 		case RELSTORAGE_AOCOLS:
 		case RELSTORAGE_HEAP:
@@ -1074,7 +1166,6 @@ set_append_rel_size(PlannerInfo *root, RelOptInfo *rel,
 		Node	   *childqual;
 		ListCell   *parentvars;
 		ListCell   *childvars;
-		ListCell   *targetListVars;
 
 		/* append_rel_list contains all append rels; ignore others */
 		if (appinfo->parent_relid != parentRTindex)
@@ -1154,30 +1245,6 @@ set_append_rel_size(PlannerInfo *root, RelOptInfo *rel,
 			adjust_appendrel_attrs(root,
 								   (Node *) rel->reltarget->exprs,
 								   appinfo);
-
-		/*
-		 * Set a not-null value in childrel's attr_needed.
-		 * cdbpath_dedup_fixup_append() checkes the length of reltargetlist
-		 * and expects the length of append rel equal to the sub rel.
-		 *
-		 * GPDB_92_MERGE_FIXME: is childrel->attr_needed accurate?
-		 */
-		foreach (targetListVars, childrel->reltarget->exprs)
-		{
-			int attno;
-			Var *v = (Var*)lfirst(targetListVars);
-
-			if (!IsA(v, Var))
-				continue;
-
-			attno = v->varattno;
-			if (attno <= FirstLowInvalidHeapAttributeNumber)
-				continue;
-
-			attno -= childrel->min_attr;
-			if (childrel->attr_needed[attno] == NULL)
-				childrel->attr_needed[attno] = bms_make_singleton(childrel->relid);
-		}
 
 		/*
 		 * We have to make child entries in the EquivalenceClass data
@@ -1916,6 +1983,17 @@ set_subquery_pathlist(PlannerInfo *root, RelOptInfo *rel,
 		/* Generate a subroot and Paths for the subquery */
 		config = CopyPlannerConfig(root->config);
 		config->honor_order_by = false;		/* partial order is enough */
+
+		/*
+		 * CDB: if this subquery is the inner plan of a lateral
+		 * join and if it contains a limit, we can only gather
+		 * it to singleQE and materialize the data because we
+		 * cannot pass params across motion.
+		 */
+		config->force_singleQE = false;
+		if ((!bms_is_empty(required_outer)) &&
+			(subquery->limitCount || subquery->limitOffset))
+			config->force_singleQE = true;
 
 		/* plan_params should not be in use in current query level */
 		Assert(root->plan_params == NIL);

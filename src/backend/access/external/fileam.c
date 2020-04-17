@@ -69,7 +69,8 @@ static void InitParseState(CopyState pstate, Relation relation,
 			   bool writable,
 			   char fmtType,
 			   char *uri, int rejectlimit,
-			   bool islimitinrows, bool logerrors);
+			   bool islimitinrows, char logerrors,
+			   List *options);
 
 static void FunctionCallPrepareFormatter(FunctionCallInfoData *fcinfo,
 							 int nArgs,
@@ -124,8 +125,9 @@ elog(DEBUG2, "external_getnext returning tuple")
 */
 FileScanDesc
 external_beginscan(Relation relation, uint32 scancounter,
-			   List *uriList, char *fmtOptString, char fmtType, bool isMasterOnly,
-			  int rejLimit, bool rejLimitInRows, bool logErrors, int encoding)
+				   List *uriList, char *fmtOptString, char fmtType, bool isMasterOnly,
+				   int rejLimit, bool rejLimitInRows, char logErrors, int encoding,
+				   List *extOptions)
 {
 	FileScanDesc scan;
 	TupleDesc	tupDesc = NULL;
@@ -150,7 +152,6 @@ external_beginscan(Relation relation, uint32 scancounter,
 	 */
 	scan = (FileScanDesc) palloc0(sizeof(FileScanDescData));
 
-	scan->fs_inited = false;
 	scan->fs_ctup.t_data = NULL;
 	ItemPointerSetInvalid(&scan->fs_ctup.t_self);
 	scan->fs_rd = relation;
@@ -288,12 +289,11 @@ external_beginscan(Relation relation, uint32 scancounter,
 									external_getdata_callback,
 									(void *) scan,
 									NIL,
-									copyFmtOpts,
-									NIL);
+									copyFmtOpts);
 
 	/* Initialize all the parsing and state variables */
 	InitParseState(scan->fs_pstate, relation, false, fmtType,
-				   scan->fs_uri, rejLimit, rejLimitInRows, logErrors);
+				   scan->fs_uri, rejLimit, rejLimitInRows, logErrors, extOptions);
 
 	if (fmttype_is_custom(fmtType))
 	{
@@ -632,7 +632,8 @@ external_insert_init(Relation rel)
 				   extInsertDesc->ext_uri,
 				   extentry->rejectlimit,
 				   (extentry->rejectlimittype == 'r'),
-				   extentry->logerrors);
+				   extentry->logerrors,
+				   extentry->options);
 
 	if (fmttype_is_custom(extentry->fmtcode))
 	{
@@ -873,7 +874,6 @@ externalgettup_defined(FileScanDesc scan)
 					  &loaded_oid))
 	{
 		MemoryContextSwitchTo(oldcontext);
-		scan->fs_inited = false;
 		return NULL;
 	}
 
@@ -1042,7 +1042,6 @@ externalgettup_custom(FileScanDesc scan)
 	/*
 	 * if we got here we finished reading all the data.
 	 */
-	scan->fs_inited = false;
 
 	return NULL;
 }
@@ -1071,17 +1070,6 @@ externalgettup(FileScanDesc scan,
 	externalscan_error_context.previous = error_context_stack;
 
 	error_context_stack = &externalscan_error_context;
-
-	if (!scan->fs_inited)
-	{
-		/* more init stuff here... */
-		scan->fs_inited = true;
-	}
-	else
-	{
-		/* continue from previously returned tuple */
-		/* (set current state...) */
-	}
 
 	if (!custom)
 		tup = externalgettup_defined(scan); /* text/csv */
@@ -1163,7 +1151,8 @@ InitParseState(CopyState pstate, Relation relation,
 			   bool iswritable,
 			   char fmtType,
 			   char *uri, int rejectlimit,
-			   bool islimitinrows, bool logerrors)
+			   bool islimitinrows, char logerrors,
+			   List *options)
 {
 	/*
 	 * Error handling setup
@@ -1177,7 +1166,7 @@ InitParseState(CopyState pstate, Relation relation,
 	else
 	{
 		/* select the SREH mode */
-		if (logerrors)
+		if (IS_LOG_TO_FILE(logerrors))
 		{
 			/* errors into file */
 			pstate->errMode = SREH_LOG;

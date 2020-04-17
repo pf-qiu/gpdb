@@ -282,13 +282,18 @@ setTargetTable(ParseState *pstate, RangeVar *relation,
 	 * but *not* release the lock.
      *
 	 * CDB: Acquire ExclusiveLock if it is a distributed relation and we are
-	 * doing UPDATE or DELETE activity
+	 * doing UPDATE or DELETE activity or `insert on conflict do update`.
 	 *
 	 * We should use heap_openrv instead of parserOpenTable for inserts because
 	 * parserOpenTable upgrades the lock to Exclusive mode for distributed
 	 * tables.
+	 *
+	 * Greenplum specific behavior:
+	 * Statement `insert on conflict do update` should be considered
+	 * like update when deducting lockmode. See github issue:
+	 * https://github.com/greenplum-db/gpdb/issues/9449
 	 */
-	if (pstate->p_is_insert)
+	if (pstate->p_is_insert && !pstate->p_is_on_conflict_update)
 	{
 		setup_parser_errposition_callback(&pcbstate, pstate, relation->location);
 		pstate->p_target_relation = heap_openrv(relation, RowExclusiveLock);
@@ -296,9 +301,7 @@ setTargetTable(ParseState *pstate, RangeVar *relation,
 	}
 	else
 	{
-
-		pstate->p_target_relation = parserOpenTable(pstate, relation, RowExclusiveLock,
-													false, NULL);
+		pstate->p_target_relation = parserOpenTable(pstate, relation, RowExclusiveLock, NULL);
 	}
 
 	/*
@@ -325,35 +328,6 @@ setTargetTable(ParseState *pstate, RangeVar *relation,
 				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 				 errmsg("permission denied: \"%s\" is a system catalog",
 						 RelationGetRelationName(pstate->p_target_relation))));
-
-	/* special check for DML on external relations */
-	if(RelationIsExternal(pstate->p_target_relation))
-	{
-		if (requiredPerms != ACL_INSERT)
-		{
-			/* UPDATE/DELETE */
-			ereport(ERROR,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					 errmsg("cannot update or delete from external relation \"%s\"",
-							RelationGetRelationName(pstate->p_target_relation))));
-		}
-		else
-		{
-			/* INSERT */
-			Oid reloid = RelationGetRelid(pstate->p_target_relation);
-			ExtTableEntry* 	extentry;
-			
-			extentry = GetExtTableEntry(reloid);
-			
-			if(!extentry->iswritable)
-				ereport(ERROR,
-						(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-						 errmsg("cannot change a readable external table \"%s\"",
-								 RelationGetRelationName(pstate->p_target_relation))));
-
-			pfree(extentry);
-		}
-	}
 	
     /* MPP-21035: Directly modify a part of a partitioned table is disallowed */
     PartStatus targetRelPartStatus = rel_part_status(RelationGetRelid(pstate->p_target_relation));
@@ -2919,19 +2893,10 @@ transformDistinctToGroupBy(ParseState *pstate, List **targetlist,
 		{
 			TargetEntry *tle = (TargetEntry *) lfirst(lc);
 			if (!tle->resjunk)
-			{
-				SortBy sortby;
-
-				sortby.type = T_SortBy;
-				sortby.sortby_dir = SORTBY_DEFAULT;
-				sortby.sortby_nulls = SORTBY_NULLS_DEFAULT;
-				sortby.useOp = NIL;
-				sortby.location = -1;
-				sortby.node = (Node *) tle->expr;
-				group_clause_list = addTargetToSortList(pstate, tle,
-														group_clause_list, *targetlist,
-														&sortby, true);
-			}
+				group_clause_list = addTargetToGroupList(pstate, tle,
+														 group_clause_list, *targetlist,
+														 true,
+														 exprLocation((Node *) tle));
 		}
 	}
 

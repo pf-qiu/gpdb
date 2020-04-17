@@ -39,6 +39,7 @@ struct ListCell;
 struct TargetEntry;
 struct Expr;
 struct ExtTableEntry;
+struct ForeignScan;
 struct Uri;
 struct CdbComponentDatabases;
 struct StringInfoData;
@@ -335,6 +336,12 @@ namespace gpdb {
 	// get the default hash opclass for type
 	Oid GetDefaultDistributionOpclassForType(Oid typid);
 
+	// get the column-definition hash opclass for type
+	Oid GetColumnDefOpclassForType(List *opclassName, Oid typid);
+
+	// get the default hash opfamily for type
+	Oid GetDefaultDistributionOpfamilyForType(Oid typid);
+
 	// get the hash function in an opfamily for given datatype
 	Oid GetHashProcInOpfamily(Oid opfamily, Oid typid);
 
@@ -509,6 +516,9 @@ namespace gpdb {
 	// check whether a relation is inherited
 	bool HasSubclassSlow(Oid rel_oid);
 
+	// check whether table with given oid is an external table
+	bool RelIsExternalTable(Oid relid);
+
     // return the distribution policy of a relation; if the table is partitioned
     // and the parts are distributed differently, return Random distribution
     GpPolicy *GetDistributionPolicy(Relation rel);
@@ -526,7 +536,7 @@ namespace gpdb {
 
 	// estimate the relation size using the real number of blocks and tuple density
 	void CdbEstimateRelationSize (RelOptInfo *relOptInfo, Relation rel, int32 *attr_widths, BlockNumber *pages, double *tuples, double *allvisfrac);
-	double CdbEstimatePartitionedNumTuples (Relation rel, bool *stats_missing);
+	double CdbEstimatePartitionedNumTuples (Relation rel);
 
 	// close the given relation
 	void CloseRelation(Relation rel);
@@ -549,8 +559,8 @@ namespace gpdb {
 	// get external table entry with given oid
 	ExtTableEntry *GetExternalTableEntry(Oid rel_oid);
 
-	// get external table entry with given oid
-	List *GetExternalScanUriList(ExtTableEntry *ext, bool *ismasteronlyp);
+	// get ForeignScan node to scan an external table
+	ForeignScan *CreateForeignScanForExternalTable(Oid rel_oid, Index scanrelid, List *qual, List *targetlist);
 
 	// return the first member of the given targetlist whose expression is
 	// equal to the given expression, or NULL if no such member exists
@@ -568,6 +578,8 @@ namespace gpdb {
 
 	// check whether a type is composite
 	bool IsCompositeType(Oid typid);
+
+	bool IsTextRelatedType(Oid typid);
 
 	// get integer value from an Integer value node
 	int GetIntFromValue(Node *node);
@@ -611,12 +623,21 @@ namespace gpdb {
 
 	// check permissions on range table 
 	void CheckRTPermissions(List *rtable);
-	
+
+	// throw an error if table has update triggers.
+	bool HasUpdateTriggers(Oid relid);
+
 	// get index operator family properties
 	void IndexOpProperties(Oid opno, Oid opfamily, int *strategy, Oid *subtype);
 	
 	// get oids of families this operator belongs to
 	List *GetOpFamiliesForScOp(Oid opno);
+
+	// get the OID of hash equality operator(s) compatible with the given op
+	Oid GetCompatibleHashOpFamily(Oid opno);
+
+	// get the OID of legacy hash equality operator(s) compatible with the given op
+	Oid GetCompatibleLegacyHashOpFamily(Oid opno);
 	
 	// get oids of op classes for the index keys
 	List *GetIndexOpFamilies(Oid index_oid);
@@ -660,9 +681,13 @@ namespace gpdb {
 						   int numsegments);
 
 
+	uint32 HashChar(Datum d);
+
 	uint32 HashBpChar(Datum d);
 
 	uint32 HashText(Datum d);
+
+	uint32 HashName(Datum d);
 
 	uint32 UUIDHash(Datum d);
 

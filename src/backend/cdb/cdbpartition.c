@@ -20,6 +20,7 @@
 #include "access/genam.h"
 #include "access/hash.h"
 #include "access/heapam.h"
+#include "access/nbtree.h"
 #include "access/reloptions.h"
 #include "access/xact.h"
 #include "catalog/catalog.h"
@@ -32,6 +33,7 @@
 #include "catalog/pg_inherits.h"
 #include "catalog/pg_inherits_fn.h"
 #include "catalog/pg_type.h"
+#include "catalog/pg_opclass.h"
 #include "catalog/pg_operator.h"
 #include "catalog/pg_proc.h"
 #include "catalog/pg_partition_encoding.h"
@@ -119,7 +121,7 @@ static int
 
 static void parruleord_open_gap(Oid partid, int16 level, Oid parent,
 					int16 ruleord, int16 stopkey, bool closegap);
-static bool has_external_partition(List *rules);
+static bool has_external_partition(PartitionNode *n);
 
 /*
  * Hash keys are null-terminated C strings assumed to be stably
@@ -170,9 +172,8 @@ static bool compare_partn_opfuncid(PartitionNode *partnode,
 static PartitionNode *selectListPartition(PartitionNode *partnode, Datum *values, bool *isnull,
 					TupleDesc tupdesc, PartitionAccessMethods *accessMethods,
 					Oid *foundOid, PartitionRule **prule, Oid exprTypid);
-static Oid	get_less_than_oper(Oid lhstypid, Oid rhstypid, bool strictlyless);
-static FmgrInfo *get_less_than_comparator(int keyno, PartitionRangeState *rs, Oid ruleTypeOid, Oid exprTypeOid, bool strictlyless, bool is_direct);
-static int range_test(Datum tupval, Oid ruleTypeOid, Oid exprTypeOid, PartitionRangeState *rs, int keyno,
+static void get_cmp_func(Oid opclass, FmgrInfo *fmgrinfo, Oid lhstypid, Oid rhstypid);
+static int range_test(Datum tupval, FmgrInfo *cmpfuncs, int keyno,
 		   PartitionRule *rule);
 static PartitionNode *selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 					 TupleDesc tupdesc, PartitionAccessMethods *accessMethods,
@@ -495,10 +496,10 @@ rel_has_external_partition(Oid relid)
 	PartitionNode *n = get_parts(relid, 0 /* level */ ,
 								 0 /* parent */ , false /* inctemplate */ , true /* includesubparts */ );
 
-	if (n == NULL || n->rules == NULL)
+	if (n == NULL)
 		return false;
 
-	return has_external_partition(n->rules);
+	return has_external_partition(n);
 }
 
 /*
@@ -514,7 +515,7 @@ rel_has_appendonly_partition(Oid relid)
 	PartitionNode *n = get_parts(relid, 0 /* level */ ,
 								 0 /* parent */ , false /* inctemplate */ , true /* includesubparts */ );
 
-	if (n == NULL || n->rules == NULL)
+	if (n == NULL || n->num_rules == 0)
 		return false;
 
 	leaf_oid_list = all_leaf_partition_relids(n);	/* all leaves */
@@ -2463,6 +2464,9 @@ get_parts(Oid relid, int16 level, Oid parent, bool inctemplate,
 	HeapTuple	tuple;
 	Relation	rel;
 	List	   *rules = NIL;
+	ListCell   *lc;
+	int			num_rules;
+	int			ruleno;
 	ScanKeyData scankey[3];
 	SysScanDesc sscan;
 
@@ -2563,7 +2567,18 @@ get_parts(Oid relid, int16 level, Oid parent, bool inctemplate,
 	 * invariant
 	 */
 	/* Assert(inctemplate || list_length(rules) || pnode->default_part); */
-	pnode->rules = rules;
+
+	num_rules = list_length(rules);
+	pnode->rules = palloc(num_rules * sizeof(PartitionRule *));
+	pnode->num_rules = num_rules;
+	ruleno = 0;
+	foreach(lc, rules)
+	{
+		PartitionRule *rule = (PartitionRule *) lfirst(lc);
+
+		pnode->rules[ruleno++] = rule;
+	}
+	list_free(rules);
 
 	systable_endscan(sscan);
 	heap_close(rel, AccessShareLock);
@@ -2671,9 +2686,9 @@ get_partition_attrs(PartitionNode *pn)
 		attrs = lappend_int(attrs, pn->part->paratts[i]);
 
 	/* We don't want duplicates, do just go down a single branch */
-	if (list_length(pn->rules))
+	if (pn->num_rules > 0)
 	{
-		PartitionRule *rule = linitial(pn->rules);
+		PartitionRule *rule = pn->rules[0];
 
 		return list_concat_unique_int(attrs, get_partition_attrs(rule->children));
 	}
@@ -2687,39 +2702,34 @@ partition_policies_equal(GpPolicy *p, PartitionNode *pn)
 	if (!pn)
 		return true;
 
-	if (pn->rules)
+	for (int i = 0; i < pn->num_rules; i++)
 	{
-		ListCell   *lc;
+		PartitionRule *rule = pn->rules[i];
+		Relation	rel = heap_open(rule->parchildrelid, NoLock);
 
-		foreach(lc, pn->rules)
+		if (p->nattrs != rel->rd_cdbpolicy->nattrs)
 		{
-			PartitionRule *rule = lfirst(lc);
-			Relation	rel = heap_open(rule->parchildrelid, NoLock);
-
-			if (p->nattrs != rel->rd_cdbpolicy->nattrs)
-			{
-				heap_close(rel, NoLock);
-				return false;
-			}
-			else
-			{
-				if (p->attrs == 0)
-					/* random policy, skip */
-					;
-				if (memcmp(p->attrs, rel->rd_cdbpolicy->attrs,
-						   (sizeof(AttrNumber) * p->nattrs)))
-				{
-					heap_close(rel, NoLock);
-					return false;
-				}
-			}
-			if (!partition_policies_equal(p, rule->children))
-			{
-				heap_close(rel, NoLock);
-				return false;
-			}
 			heap_close(rel, NoLock);
+			return false;
 		}
+		else
+		{
+			if (p->attrs == 0)
+				/* random policy, skip */
+				;
+			if (memcmp(p->attrs, rel->rd_cdbpolicy->attrs,
+					   (sizeof(AttrNumber) * p->nattrs)))
+			{
+				heap_close(rel, NoLock);
+				return false;
+			}
+		}
+		if (!partition_policies_equal(p, rule->children))
+		{
+			heap_close(rel, NoLock);
+			return false;
+		}
+		heap_close(rel, NoLock);
 	}
 	return true;
 }
@@ -2757,9 +2767,9 @@ num_partition_levels(PartitionNode *pn)
 	while (tmp)
 	{
 		level++;
-		if (tmp->rules)
+		if (tmp->num_rules > 0)
 		{
-			PartitionRule *rule = linitial(tmp->rules);
+			PartitionRule *rule = tmp->rules[0];
 
 			tmp = rule->children;
 		}
@@ -2786,12 +2796,11 @@ all_partition_relids(PartitionNode *pn)
 		return NIL;
 	else
 	{
-		ListCell   *lc;
 		List	   *out = NIL;
 
-		foreach(lc, pn->rules)
+		for (int i = 0; i < pn->num_rules; i++)
 		{
-			PartitionRule *rule = lfirst(lc);
+			PartitionRule *rule = pn->rules[i];
 
 			Assert(OidIsValid(rule->parchildrelid));
 			out = lappend_oid(out, rule->parchildrelid);
@@ -3022,7 +3031,7 @@ rel_partitioning_is_uniform(Oid rootOid)
 		 * compared to.
 		 */
 		PartitionNode *pn_ahead = (PartitionNode *) linitial(queue);
-		int			nChildren = list_length(pn_ahead->rules) + (pn_ahead->default_part ? 1 : 0);
+		int			nChildren = pn_ahead->num_rules + (pn_ahead->default_part ? 1 : 0);
 		HTAB	   *conHash = createConstraintHashTable(nChildren);
 
 		/* get the list of part keys for this level */
@@ -3120,12 +3129,10 @@ all_leaf_partition_relids(PartitionNode *pn)
 		return NIL;
 	}
 
-	ListCell   *lc;
 	List	   *leaf_relids = NIL;
-
-	foreach(lc, pn->rules)
+	for (int i = 0; i < pn->num_rules; i++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = pn->rules[i];
 
 		if (NULL != rule->children)
 		{
@@ -3287,12 +3294,11 @@ all_interior_partition_relids(PartitionNode *pn)
 		return NIL;
 	}
 
-	ListCell   *lc;
 	List	   *interior_relids = NIL;
 
-	foreach(lc, pn->rules)
+	for (int i = 0; i < pn->num_rules; i++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = pn->rules[i];
 
 		if (rule->children)
 		{
@@ -3345,8 +3351,7 @@ countLeafPartTables(Oid rootOid)
 List *
 all_prule_relids(PartitionRule *prule)
 {
-	ListCell   *lcr;
-	PartitionNode *pnode = NULL;
+	PartitionNode *pnode;
 
 	List	   *oids = NIL;		/* of pg_class Oid */
 
@@ -3358,9 +3363,9 @@ all_prule_relids(PartitionRule *prule)
 		if (pnode)
 		{
 			oids = list_concat(oids, all_prule_relids(pnode->default_part));
-			foreach(lcr, pnode->rules)
+			for (int i = 0; i < pnode->num_rules; i++)
 			{
-				PartitionRule *child = (PartitionRule *) lfirst(lcr);
+				PartitionRule *child = pnode->rules[i];
 
 				oids = list_concat(oids, all_prule_relids(child));
 			}
@@ -3547,8 +3552,7 @@ rel_get_part_path(Oid relid)
 	List	   *lrelid = NIL;
 	List	   *lnamerank = NIL;
 	List	   *lnrv = NIL;
-	ListCell   *lc,
-			   *lc2;
+	ListCell   *lc;
 	Oid			masteroid = InvalidOid;
 
 	masteroid = rel_partition_get_master(relid);
@@ -3588,9 +3592,9 @@ rel_get_part_path(Oid relid)
 
 		rulerank = 1;
 
-		foreach(lc2, pNode->rules)
+		for (int i = 0; i < pNode->num_rules; i++)
 		{
-			prule = (PartitionRule *) lfirst(lc2);
+			prule = pNode->rules[i];
 
 			if (parrelid == prule->parchildrelid)
 			{
@@ -3900,12 +3904,11 @@ static Oid
 selectPartitionByRank(PartitionNode *partnode, int rnk)
 {
 	Oid			relid = InvalidOid;
-	List	   *rules = partnode->rules;
 	PartitionRule *rule;
 
 	Assert(partnode->part->parkind == 'r');
 
-	if (rnk > list_length(rules))
+	if (rnk > partnode->num_rules)
 		return relid;
 
 	if (rnk == 0)
@@ -3915,14 +3918,14 @@ selectPartitionByRank(PartitionNode *partnode, int rnk)
 		rnk--;					/* list_nth is zero-based, not one-based */
 	else if (rnk < 0)
 	{
-		rnk = list_length(rules) + rnk; /* if negative go from end */
+		rnk = partnode->num_rules + rnk; /* if negative go from end */
 
 		/* mpp-3265 */
 		if (rnk < 0)			/* oops -- too negative */
 			return relid;
 	}
 
-	rule = (PartitionRule *) list_nth(rules, rnk);
+	rule = partnode->rules[rnk];
 
 	return rule->parchildrelid;
 }								/* end selectPartitionByRank */
@@ -4022,24 +4025,53 @@ selectListPartition(PartitionNode *partnode, Datum *values, bool *isnull,
 					TupleDesc tupdesc, PartitionAccessMethods *accessMethods, Oid *foundOid, PartitionRule **prule,
 					Oid exprTypeOid)
 {
-	ListCell   *lc;
 	Partition  *part = partnode->part;
 	MemoryContext oldcxt = NULL;
-	PartitionListState *ls;
+	FmgrInfo   *cmpfuncs;
 
-	if (accessMethods && accessMethods->amstate[partnode->part->parlevel])
-		ls = (PartitionListState *) accessMethods->amstate[partnode->part->parlevel];
+	if (accessMethods && accessMethods->cmpfuncs[partnode->part->parlevel])
+		cmpfuncs = accessMethods->cmpfuncs[partnode->part->parlevel];
 	else
 	{
 		int			natts = partnode->part->parnatts;
 
-		ls = palloc(sizeof(PartitionListState));
+		cmpfuncs = (FmgrInfo *) palloc0(sizeof(FmgrInfo) * natts);
 
-		ls->eqfuncs = palloc(sizeof(FmgrInfo) * natts);
-		ls->eqinit = palloc0(sizeof(bool) * natts);
+		for (int keyno = 0; keyno < natts; keyno++)
+		{
+			AttrNumber	attno = part->paratts[keyno];
+
+			/*
+			 * Compute the type of the LHS and RHS for the
+			 * equality comparator. The way we call the comparator
+			 * is comp(expr, rule) So lhstypid = type(expr) and
+			 * rhstypeid = type(rule)
+			 */
+
+			/*
+			 * The tupdesc tuple descriptor matches the table
+			 * schema, so it has the rule type
+			 */
+			Oid			rhstypid = tupdesc->attrs[attno - 1]->atttypid;
+
+			/*
+			 * exprTypeOid is passed to us from our caller which
+			 * evaluated the expression. In some cases (e.g legacy
+			 * optimizer doing explicit casting), we don't compute
+			 * specify exprTypeOid. Assume lhstypid = rhstypid in
+			 * those cases
+			 */
+			Oid			lhstypid = exprTypeOid;
+
+			if (!OidIsValid(lhstypid))
+				lhstypid = rhstypid;
+
+			get_cmp_func(partnode->part->parclass[keyno], &cmpfuncs[keyno],
+						 lhstypid, rhstypid);
+		}
 
 		if (accessMethods)
-			accessMethods->amstate[partnode->part->parlevel] = (void *) ls;
+			accessMethods->cmpfuncs[partnode->part->parlevel] = cmpfuncs;
 	}
 
 	if (accessMethods && accessMethods->part_cxt)
@@ -4048,9 +4080,9 @@ selectListPartition(PartitionNode *partnode, Datum *values, bool *isnull,
 	*foundOid = InvalidOid;
 
 	/* With LIST, we have no choice at the moment except to be exhaustive */
-	foreach(lc, partnode->rules)
+	for (int ruleno = 0; ruleno < partnode->num_rules; ruleno++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = partnode->rules[ruleno];
 		List	   *vals = rule->parlistvalues;
 		ListCell   *lc2;
 		bool		matched = false;
@@ -4097,55 +4129,14 @@ selectListPartition(PartitionNode *partnode, Datum *values, bool *isnull,
 				}
 				else
 				{
-					Datum		res;
+					int			res;
 					Datum		d = values[attno - 1];
-					FmgrInfo   *finfo;
+					FmgrInfo   *finfo = &cmpfuncs[i];
 
-					if (!ls->eqinit[i])
+					res = DatumGetInt32(FunctionCall2Coll(finfo, c->constcollid, d, c->constvalue));
+
+					if (res != 0)
 					{
-
-						/*
-						 * Compute the type of the LHS and RHS for the
-						 * equality comparator. The way we call the comparator
-						 * is comp(expr, rule) So lhstypid = type(expr) and
-						 * rhstypeid = type(rule)
-						 */
-
-						/*
-						 * The tupdesc tuple descriptor matches the table
-						 * schema, so it has the rule type
-						 */
-						Oid			rhstypid = tupdesc->attrs[attno - 1]->atttypid;
-
-						/*
-						 * exprTypeOid is passed to us from our caller which
-						 * evaluated the expression. In some cases (e.g legacy
-						 * optimizer doing explicit casting), we don't compute
-						 * specify exprTypeOid. Assume lhstypid = rhstypid in
-						 * those cases
-						 */
-						Oid			lhstypid = exprTypeOid;
-
-						if (!OidIsValid(lhstypid))
-						{
-							lhstypid = rhstypid;
-						}
-
-						List	   *opname = list_make2(makeString("pg_catalog"),
-														makeString("="));
-
-						Oid			opfuncid = get_opfuncid_by_opname(opname, lhstypid, rhstypid);
-
-						fmgr_info(opfuncid, &(ls->eqfuncs[i]));
-						ls->eqinit[i] = true;
-					}
-
-					finfo = &(ls->eqfuncs[i]);
-					res = FunctionCall2Coll(finfo, c->constcollid, d, c->constvalue);
-
-					if (!DatumGetBool(res))
-					{
-						/* found it */
 						matched = false;
 						break;
 					}
@@ -4176,105 +4167,52 @@ selectListPartition(PartitionNode *partnode, Datum *values, bool *isnull,
 }
 
 /*
- * get_less_than_oper()
+ * Look up comparison function between types 'lhstypid' and 'rhstypid'.
  *
- * Retrieves the appropriate comparator that knows how to handle
- * the two types lhsid, rhsid.
- *
- * Input parameters:
- * lhstypid: Type oid of the LHS of the comparator
- * rhstypid: Type oid of the RHS of the comparator
- * strictlyless: If true, requests the 'strictly less than' operator instead of 'less or equal than'
- *
- * Returns: The Oid of the appropriate comparator; throws an ERROR if no such comparator exists
- *
+ * If either type ID is InvalidOid, the operator class's opcintype is used
+ * in its place. If either type is a binary-coercible to opcintype, the
+ * function for opcintype is looked up instaed.
  */
-static Oid
-get_less_than_oper(Oid lhstypid, Oid rhstypid, bool strictlyless)
+static void
+get_cmp_func(Oid opclass, FmgrInfo *fmgrinfo, Oid lhstypid, Oid rhstypid)
 {
-	Value	   *str = strictlyless ? makeString("<") : makeString("<=");
-	Value	   *pub = makeString("pg_catalog");
-	List	   *opname = list_make2(pub, str);
+	HeapTuple	opclasstup;
+	Form_pg_opclass opclassform;
+	Oid			funcid;
 
-	Oid			funcid = get_opfuncid_by_opname(opname, lhstypid, rhstypid);
+	opclasstup = SearchSysCache1(CLAOID,
+								 ObjectIdGetDatum(opclass));
+	if (!HeapTupleIsValid(opclasstup))
+		elog(ERROR, "cache lookup failed for opclass %u", opclass);
 
-	list_free_deep(opname);
+	opclassform = (Form_pg_opclass) GETSTRUCT(opclasstup);
 
-	return funcid;
-}
+	if (lhstypid == InvalidOid)
+		lhstypid = opclassform->opcintype;
+	if (lhstypid != opclassform->opcintype && IsBinaryCoercible(lhstypid, opclassform->opcintype))
+		lhstypid = opclassform->opcintype;
 
-/*
- * get_comparator
- *   Retrieves the comparator function between the expression and the partition rules
- *
- *  Input:
- *   keyno: Index in the key array of the partitioning key considered
- *   rs: the current PartitionRangeState
- *   ruleTypeOid: Oid for the type of the partition rules
- *   exprTypeOid: Oid for the type of the expressions
- *   strictlyless: If true, the operator for strictly less than (LT) is retrieved. Otherwise,
- *     it's less or equal than (LE)
- *   is_direct: If true, then the "direct" comparison (expression OP rule) is retrieved.
- *     Otherwise, it's the "inverse" comparison (rule OP expression)
- *
- */
-static FmgrInfo *
-get_less_than_comparator(int keyno, PartitionRangeState *rs, Oid ruleTypeOid, Oid exprTypeOid, bool strictlyless, bool is_direct)
-{
+	if (rhstypid == InvalidOid)
+		rhstypid = opclassform->opcintype;
+	if (rhstypid != opclassform->opcintype && IsBinaryCoercible(rhstypid, opclassform->opcintype))
+		rhstypid = opclassform->opcintype;
 
-	Assert(NULL != rs);
+	/* Get a support function for the specified opfamily and datatypes */
+	funcid = get_opfamily_proc(opclassform->opcfamily,
+							   lhstypid,
+							   rhstypid,
+							   BTORDER_PROC);
+	if (!OidIsValid(funcid))
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),
+				 errmsg("operator class \"%s\" of access method btree is missing comparison support function between types %s and %s",
+						NameStr(opclassform->opcname),
+						format_type_be(lhstypid),
+						format_type_be(rhstypid))));
 
-	Oid			lhsOid = InvalidOid;
-	Oid			rhsOid = InvalidOid;
-	FmgrInfo   *funcInfo = NULL;
+	fmgr_info(funcid, fmgrinfo);
 
-	if (is_direct && strictlyless)
-	{
-		/* Looking for expr < partRule comparator */
-		funcInfo = &rs->ltfuncs_direct[keyno];
-	}
-	else if (is_direct && !strictlyless)
-	{
-		/* Looking for expr <= partRule comparator */
-		funcInfo = &rs->lefuncs_direct[keyno];
-	}
-	else if (!is_direct && strictlyless)
-	{
-		/* Looking for partRule < expr comparator */
-		funcInfo = &rs->ltfuncs_inverse[keyno];
-	}
-	else if (!is_direct && !strictlyless)
-	{
-		/* Looking for partRule <= expr comparator */
-		funcInfo = &rs->lefuncs_inverse[keyno];
-	}
-
-	Assert(NULL != funcInfo);
-
-	if (!OidIsValid(funcInfo->fn_oid))
-	{
-		/* We haven't looked up this comparator before, let's do it now */
-
-		if (is_direct)
-		{
-			/* Looking for "direct" comparators (expr OP partRule ) */
-			lhsOid = exprTypeOid;
-			rhsOid = ruleTypeOid;
-		}
-		else
-		{
-			/* Looking for "inverse" comparators (partRule OP expr ) */
-			lhsOid = ruleTypeOid;
-			rhsOid = exprTypeOid;
-		}
-
-		Oid			funcid = get_less_than_oper(lhsOid, rhsOid, strictlyless);
-
-		fmgr_info(funcid, funcInfo);
-	}
-
-	Assert(OidIsValid(funcInfo->fn_oid));
-	return funcInfo;
+	ReleaseSysCache(opclasstup);
 }
 
 /*
@@ -4283,21 +4221,18 @@ get_less_than_comparator(int keyno, PartitionRangeState *rs, Oid ruleTypeOid, Oi
  *
  *  Input parameters:
  *    tupval: The value of the expression
- *    ruleTypeOid: The type of the partition rule boundaries
- *    exprTypeOid: The type of the expression (can be different from ruleTypeOid
- *      if types can be directly compared with each other)
- *    rs: The partition range state
+ *    cmpfuncs: Comparison functions
  *    keyno: The index of the partitioning key considered (for composite partitioning keys)
  *    rule: The rule whose boundaries we're testing
  *
  */
 static int
-range_test(Datum tupval, Oid ruleTypeOid, Oid exprTypeOid, PartitionRangeState *rs, int keyno,
+range_test(Datum tupval, FmgrInfo *cmpfuncs, int keyno,
 		   PartitionRule *rule)
 {
-	Const	   *c = NULL;
-	FmgrInfo   *finfo;
-	Datum		res;
+	Const	   *c;
+	FmgrInfo   *finfo  = &cmpfuncs[keyno];
+	int32		res;
 
 	Assert(PointerIsValid(rule->parrangestart) ||
 		   PointerIsValid(rule->parrangeend));
@@ -4313,15 +4248,13 @@ range_test(Datum tupval, Oid ruleTypeOid, Oid exprTypeOid, PartitionRangeState *
 #endif
 
 		/*
-		 * Is the value in the range? If rule->parrangestartincl, we request
-		 * for comparator ruleVal <= exprVal ( ==> strictly_less = false)
-		 * Otherwise, we request comparator ruleVal < exprVal ( ==>
-		 * strictly_less = true)
+		 * Is the value in the range?
 		 */
-		finfo = get_less_than_comparator(keyno, rs, ruleTypeOid, exprTypeOid, !rule->parrangestartincl /* strictly_less */ , false /* is_direct */ );
-		res = FunctionCall2Coll(finfo, c->constcollid, c->constvalue, tupval);
+		res = DatumGetInt32(FunctionCall2Coll(finfo, c->constcollid, tupval, c->constvalue));
 
-		if (!DatumGetBool(res))
+		if (res < 0)
+			return -1;
+		else if (res == 0 && !rule->parrangestartincl)
 			return -1;
 	}
 
@@ -4340,13 +4273,12 @@ range_test(Datum tupval, Oid ruleTypeOid, Oid exprTypeOid, PartitionRangeState *
 		 * Otherwise, we request comparator exprVal < ruleVal ( ==>
 		 * strictly_less = true)
 		 */
-		finfo = get_less_than_comparator(keyno, rs, ruleTypeOid, exprTypeOid, !rule->parrangeendincl /* strictly_less */ , true /* is_direct */ );
-		res = FunctionCall2Coll(finfo, c->constcollid, tupval, c->constvalue);
+		res = DatumGetInt32(FunctionCall2Coll(finfo, c->constcollid, tupval, c->constvalue));
 
-		if (!DatumGetBool(res))
-		{
+		if (res > 0)
 			return 1;
-		}
+		else if (res == 0 && !rule->parrangeendincl)
+			return 1;
 	}
 	return 0;
 }
@@ -4360,15 +4292,16 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 					 TupleDesc tupdesc, PartitionAccessMethods *accessMethods,
 					 Oid *foundOid, int *pSearch, PartitionRule **prule, Oid exprTypeOid)
 {
-	List	   *rules = partnode->rules;
-	int			high = list_length(rules) - 1;
+	PartitionRule **rules = partnode->rules;
+	int			num_rules = partnode->num_rules;
+	int			high = num_rules - 1;
 	int			low = 0;
 	int			searchpoint = 0;
 	int			mid = 0;
 	bool		matched = false;
 	PartitionRule *rule = NULL;
 	PartitionNode *pNode = NULL;
-	PartitionRangeState *rs = NULL;
+	FmgrInfo   *cmpfuncs;
 	MemoryContext oldcxt = NULL;
 
 	Assert(partnode->part->parkind == 'r');
@@ -4379,8 +4312,8 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 	 */
 	AssertImply(partnode->part->parnatts > 1, !OidIsValid(exprTypeOid));
 
-	if (accessMethods && accessMethods->amstate[partnode->part->parlevel])
-		rs = (PartitionRangeState *) accessMethods->amstate[partnode->part->parlevel];
+	if (accessMethods && accessMethods->cmpfuncs[partnode->part->parlevel])
+		cmpfuncs = accessMethods->cmpfuncs[partnode->part->parlevel];
 	else
 	{
 		int			natts = partnode->part->parnatts;
@@ -4389,40 +4322,20 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 		 * We're still in our caller's memory context so the memory will
 		 * persist long enough for us.
 		 */
-		rs = palloc(sizeof(PartitionRangeState));
-		rs->lefuncs_direct = palloc0(sizeof(FmgrInfo) * natts);
-		rs->ltfuncs_direct = palloc0(sizeof(FmgrInfo) * natts);
-		rs->lefuncs_inverse = palloc0(sizeof(FmgrInfo) * natts);
-		rs->ltfuncs_inverse = palloc0(sizeof(FmgrInfo) * natts);
+		cmpfuncs = (FmgrInfo *) palloc0(sizeof(FmgrInfo) * natts);
 
-		/*
-		 * Set the function Oid to InvalidOid to signal that we haven't looked
-		 * up this function yet
-		 */
 		for (int keyno = 0; keyno < natts; keyno++)
 		{
-			rs->lefuncs_direct[keyno].fn_oid = InvalidOid;
-			rs->ltfuncs_direct[keyno].fn_oid = InvalidOid;
-			rs->lefuncs_inverse[keyno].fn_oid = InvalidOid;
-			rs->lefuncs_inverse[keyno].fn_oid = InvalidOid;
+			AttrNumber	attno = partnode->part->paratts[keyno];
+			Oid			rhstypid = tupdesc->attrs[attno - 1]->atttypid;
+			Oid			lhstypid = exprTypeOid;
+
+			if (!OidIsValid(lhstypid))
+				lhstypid = rhstypid;
+
+			get_cmp_func(partnode->part->parclass[keyno], &cmpfuncs[keyno],
+						 lhstypid, rhstypid);
 		}
-
-		/*
-		 * Unrolling the rules into an array currently works for the top level
-		 * partition only
-		 */
-		if (partnode->part->parlevel == 0)
-		{
-			int			i = 0;
-			ListCell   *lc;
-
-			rs->rules = palloc(sizeof(PartitionRule *) * list_length(rules));
-
-			foreach(lc, rules)
-				rs->rules[i++] = (PartitionRule *) lfirst(lc);
-		}
-		else
-			rs->rules = NULL;
 	}
 
 	if (accessMethods && accessMethods->part_cxt)
@@ -4457,10 +4370,7 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 
 		mid = low + (high - low) / 2;
 
-		if (rs->rules)
-			rule = rs->rules[mid];
-		else
-			rule = (PartitionRule *) list_nth(rules, mid);
+		rule = rules[mid];
 
 		if (isnull[attno - 1])
 		{
@@ -4468,11 +4378,9 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 			goto l_fin_range;
 		}
 
-		Oid			ruleTypeOid = tupdesc->attrs[attno - 1]->atttypid;
-
 		if (OidIsValid(exprTypeOid))
 		{
-			ret = range_test(exprValue, ruleTypeOid, exprTypeOid, rs, 0, rule);
+			ret = range_test(exprValue, cmpfuncs, 0, rule);
 		}
 		else
 		{
@@ -4480,7 +4388,7 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 			 * In some cases, we don't have an expression type oid. In those
 			 * cases, the expression and partition rules have the same type.
 			 */
-			ret = range_test(exprValue, ruleTypeOid, ruleTypeOid, rs, 0, rule);
+			ret = range_test(exprValue, cmpfuncs, 0, rule);
 		}
 
 		if (ret > 0)
@@ -4533,7 +4441,7 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 				int			ret;
 
 				if (j != mid)
-					rule = (PartitionRule *) list_nth(rules, j);
+					rule = rules[j];
 
 				if (isnull[attno - 1])
 				{
@@ -4541,15 +4449,12 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 					goto l_fin_range;
 				}
 
-				Oid			ruleTypeOid = tupdesc->attrs[attno - 1]->atttypid;
-
 				/*
 				 * For composite partition keys, we don't support casting
 				 * comparators, so both sides must be of identical types
 				 */
 				Assert(!OidIsValid(exprTypeOid));
-				ret = range_test(d, ruleTypeOid, ruleTypeOid,
-								 rs, i, rule);
+				ret = range_test(d, cmpfuncs, i, rule);
 				if (ret != 0)
 				{
 					matched = false;
@@ -4593,7 +4498,7 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 				Datum		d = values[attno - 1];
 				int			ret;
 
-				rule = (PartitionRule *) list_nth(rules, j);
+				rule = rules[j];
 
 				if (isnull[attno - 1])
 				{
@@ -4601,14 +4506,12 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 					goto l_fin_range;
 				}
 
-				Oid			ruleTypeOid = tupdesc->attrs[attno - 1]->atttypid;
-
 				/*
 				 * For composite partition keys, we don't support casting
 				 * comparators, so both sides must be of identical types
 				 */
 				Assert(!OidIsValid(exprTypeOid));
-				ret = range_test(d, ruleTypeOid, ruleTypeOid, rs, i, rule);
+				ret = range_test(d, cmpfuncs, i, rule);
 				if (ret != 0)
 				{
 					matched = false;
@@ -4636,7 +4539,7 @@ selectRangePartition(PartitionNode *partnode, Datum *values, bool *isnull,
 			}
 
 		}
-		while (++j < list_length(rules));
+		while (++j < num_rules);
 	}							/* end if matched */
 
 	pNode = NULL;
@@ -4649,7 +4552,7 @@ l_fin_range:
 		MemoryContextSwitchTo(oldcxt);
 
 	if (accessMethods)
-		accessMethods->amstate[partnode->part->parlevel] = (void *) rs;
+		accessMethods->cmpfuncs[partnode->part->parlevel] = cmpfuncs;
 
 	return pNode;
 }								/* end selectrangepartition */
@@ -4970,7 +4873,6 @@ get_part_rule1(Relation rel,
 	/* check thru the list of partition rules to match by relid or name */
 	if (pNode)
 	{
-		ListCell   *lc;
 		int			rulerank = 1;
 
 		/* set up the relid for the default partition if necessary */
@@ -4978,9 +4880,9 @@ get_part_rule1(Relation rel,
 			&& pNode->default_part)
 			partrelid = pNode->default_part->parchildrelid;
 
-		foreach(lc, pNode->rules)
+		for (int i = 0; i < pNode->num_rules; i++)
 		{
-			PartitionRule *rule = lfirst(lc);
+			PartitionRule *rule = pNode->rules[i];
 			bool		foundit = false;
 
 			if ((pid->idtype == AT_AP_IDValue)
@@ -5341,7 +5243,7 @@ atpxPart_validate_spec(PartitionBy *pBy,
 								 * to re-order the ALTER statements */
 
 	/* fixup the pnode_tmpl to get the right parlevel */
-	if (pNode && (pNode->rules || pNode->default_part))
+	if (pNode && (pNode->num_rules > 0 || pNode->default_part))
 	{
 		pNode_tmpl = get_parts(pNode->part->parrelid,
 							   pNode->part->parlevel + 1,
@@ -5402,7 +5304,7 @@ atpxPart_validate_spec(PartitionBy *pBy,
 
 			parent_pBy2 = pBy2;
 
-			if (pNode2 && (pNode2->rules || pNode2->default_part))
+			if (pNode2 && (pNode2->num_rules > 0 || pNode2->default_part))
 			{
 				PartitionRule *prule;
 				PartitionElem *el = NULL;	/* for the subpartn template */
@@ -5410,7 +5312,7 @@ atpxPart_validate_spec(PartitionBy *pBy,
 				if (pNode2->default_part)
 					prule = pNode2->default_part;
 				else
-					prule = linitial(pNode2->rules);
+					prule = pNode2->rules[0];
 
 				if (prule && prule->children)
 				{
@@ -5440,14 +5342,13 @@ atpxPart_validate_spec(PartitionBy *pBy,
 					if (pNode_tmpl)
 					{
 						PartitionSpec *spec_tmpl = makeNode(PartitionSpec);
-						ListCell   *lc;
 
 						spec_tmpl->istemplate = true;
 
 						/* add entries for rules at current level */
-						foreach(lc, pNode_tmpl->rules)
+						for (int i = 0; i < pNode_tmpl->num_rules; i++)
 						{
-							PartitionRule *rule_tmpl = lfirst(lc);
+							PartitionRule *rule_tmpl = pNode_tmpl->rules[i];
 
 							el = makeNode(PartitionElem);
 
@@ -5586,7 +5487,7 @@ atpxPart_validate_spec(PartitionBy *pBy,
 					}			/* end if pNode_tmpl */
 
 					/* fixup the pnode_tmpl to get the right parlevel */
-					if (pNode2 && (pNode2->rules || pNode2->default_part))
+					if (pNode2 && (pNode2->num_rules > 0 || pNode2->default_part))
 					{
 						pNode_tmpl = get_parts(pNode2->part->parrelid,
 											   pNode2->part->parlevel + 1,
@@ -6139,12 +6040,11 @@ atpxPartAddList(Relation rel,
 				}				/* end if prule */
 
 				/* check for basic case of START > last partition */
-				if (pNode && pNode->rules && list_length(pNode->rules))
+				if (pNode && pNode->rules && pNode->num_rules > 0)
 				{
 					bool		bstat;
 					PartitionRule *a_rule = /* get last rule */
-					(PartitionRule *) list_nth(pNode->rules,
-											   list_length(pNode->rules) - 1);
+						pNode->rules[pNode->num_rules - 1];
 
 					d_start =
 						magic_expr_to_datum(rel, pNode,
@@ -6226,8 +6126,7 @@ atpxPartAddList(Relation rel,
 						 * partition in the middle of the existing partitions
 						 * or before the first partition.
 						 */
-						a_rule =	/* get first rule */
-							(PartitionRule *) list_nth(pNode->rules, 0);
+						a_rule = pNode->rules[0]; 	/* get first rule */
 
 						if (0 ==
 							list_length((List *) a_rule->parrangestart))
@@ -6376,11 +6275,10 @@ atpxPartAddList(Relation rel,
 				}				/* end if prule */
 
 				/* check for case of END < first partition */
-				if (pNode && pNode->rules && list_length(pNode->rules))
+				if (pNode && pNode->rules && pNode->num_rules > 0)
 				{
 					bool		bstat;
-					PartitionRule *a_rule = /* get first rule */
-					(PartitionRule *) list_nth(pNode->rules, 0);
+					PartitionRule *a_rule = pNode->rules[0];	/* get first rule */
 
 					d_end =
 						magic_expr_to_datum(rel, pNode,
@@ -6509,9 +6407,7 @@ atpxPartAddList(Relation rel,
 						 * partition in the middle of the existing partitions
 						 * or after the last partition.
 						 */
-						a_rule =	/* get last rule */
-							(PartitionRule *) list_nth(pNode->rules,
-													   list_length(pNode->rules) - 1);
+						a_rule = pNode->rules[pNode->num_rules - 1];	/* get last rule */
 						if (0 ==
 							list_length((List *) a_rule->parrangeend))
 						{
@@ -6640,9 +6536,7 @@ atpxPartAddList(Relation rel,
 					while (1)
 					{
 						bool		bstat;
-						PartitionRule *a_rule = /* get the rule */
-						(PartitionRule *) list_nth(pNode->rules,
-												   startSearchpoint);
+						PartitionRule *a_rule = pNode->rules[startSearchpoint];	/* get the rule */
 
 						/* MPP-3621: fix ADD for open intervals */
 
@@ -6663,8 +6557,7 @@ atpxPartAddList(Relation rel,
 						if (bstat)
 						{
 							startSearchpoint++;
-							Assert(startSearchpoint
-								   <= list_length(pNode->rules));
+							Assert(startSearchpoint <= pNode->num_rules);
 							prev_partno = a_rule->parruleord;
 							continue;
 						}
@@ -6841,16 +6734,14 @@ atpxPartAddList(Relation rel,
 			}
 
 			/* give a new maxpartno for the list partition */
-			if (pNode && pNode->rules && list_length(pNode->rules))
+			if (pNode && pNode->rules && pNode->num_rules > 0)
 			{
-				ListCell   *lc;
-				PartitionRule *rule = NULL;
-
 				maxpartno = 1;
 
-				foreach(lc, pNode->rules)
+				for (int i = 0; i < pNode->num_rules; i++)
 				{
-					rule = lfirst(lc);
+					PartitionRule *rule = pNode->rules[i];
+
 					if (rule->parruleord > maxpartno)
 						break;
 					++maxpartno;
@@ -6866,20 +6757,20 @@ atpxPartAddList(Relation rel,
 			errmsg("too many partitions, parruleord overflow")));
 	}
 
-	if (newPos == FIRST && pNode && list_length(pNode->rules) > 0)
+	if (newPos == FIRST && pNode && pNode->num_rules > 0)
 	{
 		/*
 		 * Adding new partition at the beginning.  Find a hole in existing
 		 * parruleord sequence by scanning rules list.	 Open gap only until
 		 * the hole to accommodate the new rule at parruleord = 1.
 		 */
-		ListCell   *lc;
 		PartitionRule *rule = NULL;
 		int			hole = 1;
 
-		foreach(lc, pNode->rules)
+		for (int i = 0; i < pNode->num_rules; i++)
 		{
-			rule = lfirst(lc);
+			rule = pNode->rules[i];
+
 			if (rule->parruleord > hole)
 			{
 				break;
@@ -6900,7 +6791,7 @@ atpxPartAddList(Relation rel,
 								false /* closegap */ );
 		}
 	}
-	else if (newPos == LAST && pNode && list_length(pNode->rules) > 0)
+	else if (newPos == LAST && pNode && pNode->num_rules > 0)
 	{
 		/*
 		 * Adding the new partition at the end.	 Find the hole closest to the
@@ -6908,14 +6799,13 @@ atpxPartAddList(Relation rel,
 		 * this hole.  The new partition then gets the last partition's
 		 * parruleord.
 		 */
-		ListCell   *lc;
-		PartitionRule *rule = NULL;
 		int			hole = 1,
 					stopkey = -1;
 
-		foreach(lc, pNode->rules)
+		for (int i = 0; i < pNode->num_rules; i++)
 		{
-			rule = lfirst(lc);
+			PartitionRule *rule = pNode->rules[i];
+
 			if (rule->parruleord > hole)
 			{
 				hole = stopkey = rule->parruleord;
@@ -6924,7 +6814,7 @@ atpxPartAddList(Relation rel,
 		}
 		if (stopkey != -1)
 		{
-			PartitionRule *last_rule = (PartitionRule *) llast(pNode->rules);
+			PartitionRule *last_rule = pNode->rules[pNode->num_rules - 1];
 
 			parruleord_open_gap(
 								pNode->part->partid, pNode->part->parlevel,
@@ -6941,13 +6831,12 @@ atpxPartAddList(Relation rel,
 		 * hole exists by scanning rule list.  If one exists, either open or
 		 * close gap based on location of the hole relative to maxpartno.
 		 */
-		ListCell   *lc;
 		PartitionRule *rule = NULL;
 		int			hole = 1;
 
-		foreach(lc, pNode->rules)
+		for (int i = 0; i < pNode->num_rules; i++)
 		{
-			rule = lfirst(lc);
+			rule = pNode->rules[i];
 			if (rule->parruleord > hole)
 				break;
 			++hole;
@@ -7187,15 +7076,14 @@ List *
 atpxDropList(Relation rel, PartitionNode *pNode)
 {
 	List	   *l1 = NIL;
-	ListCell   *lc;
 
 	if (!pNode)
 		return l1;
 
 	/* add the child lists first */
-	foreach(lc, pNode->rules)
+	for (int i = 0; i < pNode->num_rules; i++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = pNode->rules[i];
 		List	   *l2 = NIL;
 
 		if (rule->children)
@@ -7233,9 +7121,9 @@ atpxDropList(Relation rel, PartitionNode *pNode)
 	}
 
 	/* add entries for rules at current level */
-	foreach(lc, pNode->rules)
+	for (int i = 0; i < pNode->num_rules; i++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = pNode->rules[i];
 		char	   *prelname;
 		char	   *nspname;
 		Relation	rel;
@@ -7391,15 +7279,13 @@ exchange_permissions(Oid oldrelid, Oid newrelid)
 static void
 atpxSkipper(PartitionNode *pNode, int *skipped)
 {
-	ListCell   *lc;
-
 	if (!pNode)
 		return;
 
 	/* add entries for rules at current level */
-	foreach(lc, pNode->rules)
+	for (int i = 0; i < pNode->num_rules; i++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = pNode->rules[i];
 
 		if (skipped)
 			*skipped += 1;
@@ -7500,15 +7386,14 @@ atpxRenameList(PartitionNode *pNode,
 			   char *old_parentname, const char *new_parentname, int *skipped)
 {
 	List	   *l1 = NIL;
-	ListCell   *lc;
 
 	if (!pNode)
 		return l1;
 
 	/* add entries for rules at current level */
-	foreach(lc, pNode->rules)
+	for (int i = 0; i < pNode->num_rules; i++)
 	{
-		PartitionRule *rule = lfirst(lc);
+		PartitionRule *rule = pNode->rules[i];
 
 		l1 = list_concat(l1,
 						 build_rename_part_recurse(rule,
@@ -7726,11 +7611,20 @@ is_exchangeable(Relation rel, Relation oldrel, Relation newrel, bool throw)
 {
 	TupleConversionMap *map_new = NULL;
 	TupleConversionMap *map_old = NULL;
+	bool		old_is_external;
+	bool		new_is_external;
+	bool		old_is_exchangeable;
+	bool		new_is_exchangeable;
 	bool		congruent = TRUE;
 
 	/* Both parts must be relations. */
-	if (!(oldrel->rd_rel->relkind == RELKIND_RELATION ||
-		  newrel->rd_rel->relkind == RELKIND_RELATION))
+	old_is_external = (oldrel->rd_rel->relkind == RELKIND_FOREIGN_TABLE &&
+					   rel_is_external_table(RelationGetRelid(oldrel)));
+	new_is_external = (newrel->rd_rel->relkind == RELKIND_FOREIGN_TABLE &&
+					   rel_is_external_table(RelationGetRelid(newrel)));
+	old_is_exchangeable = (oldrel->rd_rel->relkind == RELKIND_RELATION || old_is_external);
+	new_is_exchangeable = (newrel->rd_rel->relkind == RELKIND_RELATION || new_is_external);
+	if (!(old_is_exchangeable || new_is_exchangeable))
 	{
 		congruent = FALSE;
 		if (throw)
@@ -7749,7 +7643,7 @@ is_exchangeable(Relation rel, Relation oldrel, Relation newrel, bool throw)
 					errmsg("cannot exchange relations with differing persistence types")));
 	}
 
-	if (RelationIsExternal(newrel))
+	if (new_is_external)
 	{
 		if (rel_is_default_partition(oldrel->rd_id))
 		{
@@ -7861,7 +7755,7 @@ is_exchangeable(Relation rel, Relation oldrel, Relation newrel, bool throw)
 	 * either the oldpart or the newpart is external.
 	 */
 	if (congruent && Gp_role == GP_ROLE_DISPATCH &&
-		!RelationIsExternal(newrel) && !RelationIsExternal(oldrel))
+		!new_is_external && !old_is_external)
 	{
 		GpPolicy   *parpol = rel->rd_cdbpolicy;
 		GpPolicy   *oldpol = oldrel->rd_cdbpolicy;
@@ -8484,11 +8378,9 @@ IsLeafPartitionNode(PartitionNode *p)
 	/**
 	 * If all of the rules have no children, this is a leaf partition.
 	 */
-	ListCell   *lc = NULL;
-
-	foreach(lc, p->rules)
+	for (int i = 0; i < p->num_rules; i++)
 	{
-		PartitionRule *rule = (PartitionRule *) lfirst(lc);
+		PartitionRule *rule = p->rules[i];
 
 		if (rule->children)
 		{
@@ -8523,7 +8415,8 @@ get_partition_rules(PartitionNode *pn)
 		result = lappend(result, pn->default_part);
 	}
 
-	result = list_concat(result, pn->rules);
+	for (int i = 0; i < pn->num_rules; i++)
+		result = lappend(result, pn->rules[i]);
 
 	return result;
 }
@@ -8544,11 +8437,9 @@ PartitionChildren(PartitionNode *p)
 
 	List	   *result = NIL;
 
-	ListCell   *lc = NULL;
-
-	foreach(lc, p->rules)
+	for (int i = 0; i < p->num_rules; i++)
 	{
-		PartitionRule *rule = (PartitionRule *) lfirst(lc);
+		PartitionRule *rule = p->rules[i];
 
 		if (rule->children)
 		{
@@ -8981,11 +8872,10 @@ findPartitionNodeEntry(PartitionNode *partitionNode, Oid partOid)
 	 * intermediate node
 	 */
 	PartitionNode *childNode = NULL;
-	ListCell   *lcChild = NULL;
 
-	foreach(lcChild, partitionNode->rules)
+	for (int i = 0; i < partitionNode->num_rules; i++)
 	{
-		PartitionRule *childRule = (PartitionRule *) lfirst(lcChild);
+		PartitionRule *childRule = partitionNode->rules[i];
 
 		childNode = findPartitionNodeEntry(childRule->children, partOid);
 		if (NULL != childNode)
@@ -9010,30 +8900,20 @@ findPartitionNodeEntry(PartitionNode *partitionNode, Oid partOid)
  * external partition table
  */
 static bool
-has_external_partition(List *rules) {
-	if (rules == NULL)
+has_external_partition(PartitionNode *n)
+{
+	for (int i = 0; i < n->num_rules; i++)
 	{
-		return false;
-	}
+		PartitionRule *rule = n->rules[i];
 
-	ListCell *lc = NULL;
-	foreach(lc, rules)
-	{
-		PartitionRule *rule = lfirst(lc);
-		Relation rel = heap_open(rule->parchildrelid, NoLock);
-
-		if (RelationIsExternal(rel))
+		if (rel_is_external_table(rule->parchildrelid))
 		{
-			heap_close(rel, NoLock);
 			return true;
 		}
 		else
 		{
-			heap_close(rel, NoLock);
-			if (rule->children && has_external_partition(rule->children->rules))
-			{
+			if (rule->children && has_external_partition(rule->children))
 				return true;
-			}
 		}
 	}
 

@@ -30,7 +30,9 @@
 #include "parser/parsetree.h"
 #include "utils/lsyscache.h"
 #include "utils/selfuncs.h"
+#include "optimizer/tlist.h"
 
+#include "catalog/pg_operator.h"
 #include "catalog/pg_proc.h"
 #include "cdb/cdbhash.h"        /* cdb_default_distribution_opfamily_for_type() */
 #include "cdb/cdbmutate.h"
@@ -175,7 +177,6 @@ pathnode_walk_kids(Path            *path,
 	{
 		case T_SeqScan:
 		case T_SampleScan:
-		case T_ExternalScan:
 		case T_ForeignScan:
 		case T_IndexScan:
 		case T_IndexOnlyScan:
@@ -241,6 +242,9 @@ pathnode_walk_kids(Path            *path,
 			break;
 		case T_Agg:
 			v = pathnode_walk_node(((AggPath *)path)->subpath, walker, context);
+			break;
+		case T_TupleSplit:
+			v = pathnode_walk_node(((TupleSplitPath *)path)->subpath, walker, context);
 			break;
 		case T_WindowAgg:
 			v = pathnode_walk_node(((WindowAggPath *)path)->subpath, walker, context);
@@ -864,63 +868,6 @@ add_path(RelOptInfo *parent_rel, Path *new_path)
 	}
 }                               /* add_path */
 
-
-/*
- * Wrapper around add_path(), for join paths.
- *
- * If the join was originally a semi-join, that's been implemented as an
- * inner-join, followed by removing duplicates, adds the UniquePath on
- * top of the join. Otherwise, just passes through the Path to add_path().
- */
-void
-cdb_add_join_path(PlannerInfo *root, RelOptInfo *parent_rel, JoinType orig_jointype,
-				  Relids required_outer, JoinPath *new_path)
-{
-	Path	   *path = (Path *) new_path;
-
-	if (!new_path)
-		return;
-
-	if (orig_jointype == JOIN_DEDUP_SEMI)
-	{
-		Assert(new_path->jointype == JOIN_INNER);
-
-		/*
-		 * Skip rowid unique path if distinct rels are replicated tables
-		 * The reason is ctid + gp_segment_id can not identify a logical
-		 * row of replicated table.
-		 *
-		 * TODO: add a motion on top of segmentGeneral node to support
-		 * rowid unique.
-		 */
-		if (CdbPathLocus_IsPartitioned(path->locus) &&
-		    CdbPathLocus_IsSegmentGeneral(((JoinPath *)path)->outerjoinpath->locus))
-			return;
-
-		path = (Path *) create_unique_rowid_path(root,
-												 parent_rel,
-												 (Path *) new_path,
-												 new_path->outerjoinpath->parent->relids,
-												 required_outer);
-	}
-	else if (orig_jointype == JOIN_DEDUP_SEMI_REVERSE)
-	{
-		Assert(new_path->jointype == JOIN_INNER);
-
-		if (CdbPathLocus_IsPartitioned(path->locus) &&
-		    CdbPathLocus_IsSegmentGeneral(((JoinPath *)path)->innerjoinpath->locus))
-			return;
-
-		path = (Path *) create_unique_rowid_path(root,
-												 parent_rel,
-												 (Path *) new_path,
-												 new_path->innerjoinpath->parent->relids,
-												 required_outer);
-	}
-
-	add_path(parent_rel, path);
-}
-
 /*
  * add_path_precheck
  *	  Check whether a proposed new path could possibly get accepted.
@@ -1256,37 +1203,6 @@ create_seqscan_path(PlannerInfo *root, RelOptInfo *rel,
 	pathnode->sameslice_relids = rel->relids;
 
 	cost_seqscan(pathnode, root, rel, pathnode->param_info);
-
-	return pathnode;
-}
-
-/*
-* Create a path for scanning an external table
- */
-ExternalPath *
-create_external_path(PlannerInfo *root, RelOptInfo *rel, Relids required_outer)
-{
-	ExternalPath   *pathnode = makeNode(ExternalPath);
-
-	pathnode->path.pathtype = T_ExternalScan;
-	pathnode->path.parent = rel;
-	pathnode->path.pathtarget = rel->reltarget;
-	pathnode->path.param_info = get_baserel_parampathinfo(root, rel,
-													 required_outer);
-	pathnode->path.pathkeys = NIL;	/* external scan has unordered result */
-
-	pathnode->path.locus = cdbpathlocus_from_baserel(root, rel);
-	pathnode->path.motionHazard = false;
-
-	/*
-	 * Mark external tables as non-rescannable. While rescan is possible,
-	 * it can lead to surprising results if the external table produces
-	 * different results when invoked twice.
-	 */
-	pathnode->path.rescannable = false;
-	pathnode->path.sameslice_relids = rel->relids;
-
-	cost_externalscan(pathnode, root, rel, pathnode->path.param_info);
 
 	return pathnode;
 }
@@ -1790,15 +1706,16 @@ set_append_path_locus(PlannerInfo *root, Path *pathnode, RelOptInfo *rel,
 		/*
 		 * If everything is partitioned, then the result can be partitioned, too.
 		 * But if it's a mix of partitioned and replicated, then we have to bring
-		 * everything to a single QE. Otherwise, the replicated (or general) children
-		 * will contribute rows on every QE. XXX: it would be nice to force the child
-		 * to be executed on a single QE, but I couldn't figure out how to do that.
-		 * A motion from General to SingleQE is not possible.
+		 * everything to a single QE. Otherwise, the replicated children
+		 * will contribute rows on every QE.
+		 * If it's a mix of partitioned and general, we still consider the
+		 * result as partitioned. But the general part will be restricted to
+		 * only produce rows on a single QE.
 		 */
 		{ CdbLocusType_Strewn, CdbLocusType_Strewn,         CdbLocusType_Strewn },
 		{ CdbLocusType_Strewn, CdbLocusType_Replicated,     CdbLocusType_SingleQE },
-		{ CdbLocusType_Strewn, CdbLocusType_SegmentGeneral, CdbLocusType_SingleQE },
-		{ CdbLocusType_Strewn, CdbLocusType_General,        CdbLocusType_SingleQE },
+		{ CdbLocusType_Strewn, CdbLocusType_SegmentGeneral, CdbLocusType_Strewn },
+		{ CdbLocusType_Strewn, CdbLocusType_General,        CdbLocusType_Strewn },
 
 		{ CdbLocusType_Replicated, CdbLocusType_Replicated, CdbLocusType_Replicated },
 		{ CdbLocusType_Replicated, CdbLocusType_SegmentGeneral, CdbLocusType_Replicated },
@@ -1896,20 +1813,28 @@ set_append_path_locus(PlannerInfo *root, Path *pathnode, RelOptInfo *rel,
 			Path	   *subpath = (Path *) lfirst(l);
 			CdbPathLocus projectedlocus;
 
-			Assert(CdbPathLocus_IsPartitioned(subpath->locus));
-
-			/* Transform subpath locus into the appendrel's space for comparison. */
-			if (subpath->parent == rel ||
-				subpath->parent->reloptkind != RELOPT_OTHER_MEMBER_REL)
-				projectedlocus = subpath->locus;
+			if (CdbPathLocus_IsGeneral(subpath->locus) ||
+				CdbPathLocus_IsSegmentGeneral(subpath->locus))
+			{
+				/* Afterwards, General/SegmentGeneral will be projected as Strewn */
+				CdbPathLocus_MakeStrewn(&projectedlocus, numsegments);
+			}
 			else
-				projectedlocus =
-					cdbpathlocus_pull_above_projection(root,
-													   subpath->locus,
-													   subpath->parent->relids,
-													   subpath->parent->reltarget->exprs,
-													   rel->reltarget->exprs,
-													   rel->relid);
+			{
+				Assert(CdbPathLocus_IsPartitioned(subpath->locus));
+				/* Transform subpath locus into the appendrel's space for comparison. */
+				if (subpath->parent == rel ||
+					subpath->parent->reloptkind != RELOPT_OTHER_MEMBER_REL)
+					projectedlocus = subpath->locus;
+				else
+					projectedlocus =
+						cdbpathlocus_pull_above_projection(root,
+						                                   subpath->locus,
+						                                   subpath->parent->relids,
+						                                   subpath->parent->reltarget->exprs,
+						                                   rel->reltarget->exprs,
+						                                   rel->relid);
+			}
 
 			/*
 			 * CDB: If all the scans are distributed alike, set
@@ -1948,7 +1873,7 @@ set_append_path_locus(PlannerInfo *root, Path *pathnode, RelOptInfo *rel,
 	else
 		elog(ERROR, "unexpected Append target locus type");
 
-	/* Ok, we now know the target locus. Add Motions to any subpaths that need it */
+	/* Ok, we now know the target locus. Add Motions/Projections to any subpaths that need it */
 	new_subpaths = NIL;
 	foreach(l, subpaths)
 	{
@@ -1956,6 +1881,37 @@ set_append_path_locus(PlannerInfo *root, Path *pathnode, RelOptInfo *rel,
 
 		if (CdbPathLocus_IsPartitioned(targetlocus))
 		{
+			if (CdbPathLocus_IsGeneral(subpath->locus) ||
+				CdbPathLocus_IsSegmentGeneral(subpath->locus))
+			{
+				/*
+				 * If a General/SegmentGeneral is mixed with other Strewn's,
+				 * add a projection path with cdb_restrict_clauses, so that only
+				 * a single QE will actually produce rows.
+				 */
+				if (CdbPathLocus_IsGeneral(subpath->locus))
+					numsegments = targetlocus.numsegments;
+				else
+					numsegments = subpath->locus.numsegments;
+				RestrictInfo *restrict_info =
+					             make_restrictinfo((Expr *) makeSegmentFilterExpr(
+						             gp_session_id % numsegments),
+					                               false,
+					                               false,
+					                               true,
+					                               NULL,
+					                               NULL,
+					                               NULL);
+				subpath = (Path *) create_projection_path_with_quals(
+					root,
+					subpath->parent,
+					subpath,
+					subpath->pathtarget,
+					list_make1(restrict_info));
+				CdbPathLocus_MakeStrewn(&(subpath->locus),
+				                        numsegments);
+			}
+
 			/* we already determined that all the loci are compatible */
 			Assert(CdbPathLocus_IsPartitioned(subpath->locus));
 		}
@@ -2366,9 +2322,8 @@ create_unique_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
 /*
  * create_unique_rowid_path (GPDB)
  *
- * Create a UniquePath to deduplicate based on the ctid and gp_segment_id,
- * or some other columns that uniquely identify a row. This is used as part
- * of implementing semi-joins (such as "x IN (SELECT ...)").
+ * Create a UniquePath to deduplicate based on a RowIdExp column. This is
+ * used as part of implementing semi-joins (such as "x IN (SELECT ...)").
  *
  * In PostgreSQL, semi-joins are implemented with JOIN_SEMI join types, or
  * by first eliminating duplicates from the inner side, and then performing
@@ -2380,24 +2335,21 @@ create_unique_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
  * The JOIN_DEDUP_SEMI plan will look something like this:
  *
  * postgres=# explain select * from s where exists (select 1 from r where s.a = r.b);
- *                                                       QUERY PLAN                                                      
- * ----------------------------------------------------------------------------------------------------------------------
- *  Gather Motion 3:1  (slice3; segments: 3)  (cost=189.75..190.75 rows=100 width=18)
- *    ->  HashAggregate  (cost=189.75..190.75 rows=34 width=18)
- *          Group By: s.ctid::bigint, s.gp_segment_id
- *          ->  Result  (cost=11.75..189.25 rows=34 width=18)
- *                ->  Redistribute Motion 3:3  (slice2; segments: 3)  (cost=11.75..189.25 rows=34 width=18)
- *                      Hash Key: s.ctid
- *                      ->  Hash Join  (cost=11.75..187.25 rows=34 width=18)
- *                            Hash Cond: r.b = s.a
- *                            ->  Seq Scan on r  (cost=0.00..112.00 rows=3334 width=4)
- *                            ->  Hash  (cost=8.00..8.00 rows=100 width=18)
- *                                  ->  Broadcast Motion 3:3  (slice1; segments: 3)  (cost=0.00..8.00 rows=100 width=18)
- *                                        ->  Seq Scan on s  (cost=0.00..4.00 rows=34 width=18)
- *  Settings:  optimizer=off
- *  Optimizer status: Postgres query optimizer
- * (14 rows)
- *
+ *                                                   QUERY PLAN                                                   
+ * ---------------------------------------------------------------------------------------------------------------
+ *  Gather Motion 3:1  (slice1; segments: 3)  (cost=153.50..155.83 rows=100 width=8)
+ *    ->  HashAggregate  (cost=153.50..153.83 rows=34 width=8)
+ *          Group Key: (RowIdExpr)
+ *          ->  Redistribute Motion 3:3  (slice2; segments: 3)  (cost=11.75..153.00 rows=34 width=8)
+ *                Hash Key: (RowIdExpr)
+ *                ->  Hash Join  (cost=11.75..151.00 rows=34 width=8)
+ *                      Hash Cond: (r.b = s.a)
+ *                      ->  Seq Scan on r  (cost=0.00..112.00 rows=3334 width=4)
+ *                      ->  Hash  (cost=8.00..8.00 rows=100 width=8)
+ *                            ->  Broadcast Motion 3:3  (slice3; segments: 3)  (cost=0.00..8.00 rows=100 width=8)
+ *                                  ->  Seq Scan on s  (cost=0.00..4.00 rows=34 width=8)
+ *  Optimizer: Postgres query optimizer
+ * (12 rows)
  *
  * In PostgreSQL, this is never better than doing a JOIN_SEMI directly.
  * But it can be a win in GPDB, if the distribution of the outer and inner
@@ -2420,7 +2372,7 @@ create_unique_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
  *
  * The role of this function is to insert the UniquePath to represent
  * the deduplication above the join. Returns a UniquePath node representing
- * a "DISTINCT ON r1,...,rn" operator, where (r1,...,rn) represents a unique
+ * a "DISTINCT ON (RowIdExpr)" operator, where (r1,...,rn) represents a unique
  * identifier for each row of the cross product of the tables specified by
  * the 'distinct_relids' parameter.
  *
@@ -2436,9 +2388,9 @@ create_unique_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
 UniquePath *
 create_unique_rowid_path(PlannerInfo *root,
 						 RelOptInfo *rel,
-                         Path        *subpath,
-                         Relids       distinct_relids,
-						 Relids       required_outer)
+						 Path        *subpath,
+						 Relids       required_outer,
+						 int          rowidexpr_id)
 {
 	UniquePath *pathnode;
 	CdbPathLocus locus;
@@ -2448,19 +2400,56 @@ create_unique_rowid_path(PlannerInfo *root,
 	bool		all_btree;
 	bool		all_hash;
 
-    Assert(!bms_is_empty(distinct_relids));
+	Assert(rowidexpr_id > 0);
 
 	/*
 	 * For easier merging (albeit it's going to manual), keep this function
 	 * similar to create_unique_path(). In this function, we deduplicate based
-	 * on ctid and gp_segment_id, or other unique identifiers that we generate
-	 * on the fly. Sorting and hashing are both possible, but we keep these
-	 * as variables to resemble create_unique_path().
+	 * on RowIdExpr that we generate on the fly. Sorting and hashing are both
+	 * possible, but we keep these as variables to resemble
+	 * create_unique_path().
 	 */
 	all_btree = true;
 	all_hash = true;
 
-	locus = subpath->locus;
+	RowIdExpr *rowidexpr = makeNode(RowIdExpr);
+	rowidexpr->rowidexpr_id = rowidexpr_id;
+
+	subpath->pathtarget = copy_pathtarget(subpath->pathtarget);
+	add_column_to_pathtarget(subpath->pathtarget, (Expr *) rowidexpr, 0);
+
+	/* Repartition first if duplicates might be on different QEs. */
+	if (!CdbPathLocus_IsBottleneck(subpath->locus))
+	{
+		int			numsegments = CdbPathLocus_NumSegments(subpath->locus);
+
+		locus = cdbpathlocus_from_exprs(root,
+										list_make1(rowidexpr),
+										list_make1_oid(cdb_default_distribution_opfamily_for_type(INT8OID)),
+										list_make1_int(0),
+										numsegments);
+		subpath = cdbpath_create_motion_path(root, subpath, NIL, false, locus);
+
+		/*
+		 * The motion path has been created correctly, but there's a little
+		 * problem with the locus. The locus has RowIdExpr as the distribution
+		 * key, but because there are no Vars in it, the EC machinery will
+		 * consider it a pseudo-constant. We don't want that, as it would
+		 * mean that all rows were considered to live on the same segment,
+		 * which is not how this works. Therefore set the locus of the Unique
+		 * path to Strewn, which doesn't have that problem. No node above the
+		 * Unique will care about the row id expresssion, so it's OK to forget
+		 * that the rows are currently hashed by the row id.
+		 */
+		CdbPathLocus_MakeStrewn(&locus, numsegments);
+	}
+	else
+	{
+		/* XXX If the join result is on a single node, a DEDUP plan probably doesn't
+		 * make sense.
+		 */
+		locus = subpath->locus;
+	}
 
 	/*
 	 * Start building the result Path object.
@@ -2471,12 +2460,12 @@ create_unique_rowid_path(PlannerInfo *root,
 	pathnode->path.parent = rel;
 	pathnode->path.pathtarget = rel->reltarget;
 	pathnode->path.locus = locus;
-	pathnode->path.param_info = get_baserel_parampathinfo(root, rel,
-													 required_outer);
+	pathnode->path.param_info = subpath->param_info;
 	pathnode->path.parallel_aware = false;
 	pathnode->path.parallel_safe = rel->consider_parallel &&
 		subpath->parallel_safe;
 	pathnode->path.parallel_workers = subpath->parallel_workers;
+
 	/*
 	 * Treat the output as always unsorted, since we don't necessarily have
 	 * pathkeys to represent it.
@@ -2484,20 +2473,14 @@ create_unique_rowid_path(PlannerInfo *root,
 	pathnode->path.pathkeys = NIL;
 
 	pathnode->subpath = subpath;
-	pathnode->in_operators = NIL;
-	pathnode->uniq_exprs = NIL;
-	pathnode->distinct_on_rowid_relids = distinct_relids;
+	pathnode->in_operators = list_make1_oid(Int8EqualOperator);
+	pathnode->uniq_exprs = list_make1(rowidexpr);
 
 	/*
-	 * For cost estimation purposes, assume we'll deduplicate based on ctid and
-	 * gp_segment_id. If the outer side of the join is a join relation itself,
-	 * we'll need to deduplicate based on gp_segment_id and ctid of all the
-	 * involved base tables, or other identifiers. See cdbpath_dedup_fixup()
-	 * for the details, but here, for cost estimation purposes, just assume
-	 * it's going to be two columns.
+	 * This just removes duplicates generated by broadcasting rows earlier.
 	 */
-	numCols	= 2;
-	((Path*)pathnode)->rows = rel->rows;
+	pathnode->path.rows = rel->rows;
+	numCols = 1;		/* the RowIdExpr */
 
 	if (all_btree)
 	{
@@ -2572,35 +2555,6 @@ create_unique_rowid_path(PlannerInfo *root,
 		pathnode->path.startup_cost = sort_path.startup_cost;
 		pathnode->path.total_cost = sort_path.total_cost;
 	}
-
-    /* Add repartitioning cost if duplicates might be on different QEs. */
-    if (!CdbPathLocus_IsBottleneck(subpath->locus) &&
-        !cdbpathlocus_is_hashed_on_relids(subpath->locus, distinct_relids))
-    {
-        CdbMotionPath   motionpath;     /* dummy for cost estimate */
-        Cost            repartition_cost;
-
-        /* Tell create_unique_plan() to insert Motion operator atop subpath. */
-        pathnode->must_repartition = true;
-
-        /* Set a fake locus.  Repartitioning key won't be built until later. */
-        CdbPathLocus_MakeStrewn(&pathnode->path.locus,
-								CdbPathLocus_NumSegments(subpath->locus));
-		pathnode->path.sameslice_relids = NULL;
-
-        /* Estimate repartitioning cost. */
-        memset(&motionpath, 0, sizeof(motionpath));
-        motionpath.path.type = T_CdbMotionPath;
-        motionpath.path.parent = subpath->parent;
-        motionpath.path.locus = pathnode->path.locus;
-        motionpath.path.rows = subpath->rows;
-        motionpath.subpath = subpath;
-        cdbpath_cost_motion(root, &motionpath);
-
-        /* Add MotionPath cost to UniquePath cost. */
-        repartition_cost = motionpath.path.total_cost - subpath->total_cost;
-        pathnode->path.total_cost += repartition_cost;
-    }
 
 	/* see MPP-1140 */
 	if (pathnode->umethod == UNIQUE_PATH_HASH)
@@ -2729,6 +2683,7 @@ create_subqueryscan_path(PlannerInfo *root, RelOptInfo *rel, Path *subpath,
 	pathnode->path.rescannable = false;
 	pathnode->path.sameslice_relids = NULL;
 
+	pathnode->required_outer = bms_copy(required_outer);
 	cost_subqueryscan(pathnode, root, rel, pathnode->path.param_info);
 
 	return pathnode;
@@ -2746,9 +2701,6 @@ create_functionscan_path(PlannerInfo *root, RelOptInfo *rel,
 {
 	Path	   *pathnode = makeNode(Path);
 	ListCell   *lc;
-	char		exec_location;
-	bool		contain_mutables = false;
-	bool		contain_outer_params = false;
 
 	pathnode->pathtype = T_FunctionScan;
 	pathnode->parent = rel;
@@ -2761,122 +2713,147 @@ create_functionscan_path(PlannerInfo *root, RelOptInfo *rel,
 	pathnode->pathkeys = pathkeys;
 
 	/*
-	 * If the function desires to run on segments, mark randomly-distributed.
-	 * If expression contains mutable functions, evaluate it on entry db.
-	 * Otherwise let it be evaluated in the same slice as its parent operator.
-	 */
-	Assert(rte->rtekind == RTE_FUNCTION);
-
-	foreach (lc, rel->baserestrictinfo)
-	{
-		RestrictInfo *rinfo = (RestrictInfo *) lfirst(lc);
-
-		if (rinfo->contain_outer_query_references)
-		{
-			contain_outer_params = true;
-			break;
-		}
-	}
-
-	/*
 	 * Decide where to execute the FunctionScan.
 	 */
-	contain_mutables = false;
-	exec_location = PROEXECLOCATION_ANY;
-	foreach (lc, rte->functions)
+	if (Gp_role == GP_ROLE_DISPATCH)
 	{
-		RangeTblFunction *rtfunc = (RangeTblFunction *) lfirst(lc);
+		char		exec_location = PROEXECLOCATION_ANY;
+		bool		contain_mutables = false;
+		bool		contain_outer_params = false;
 
-		if (rtfunc->funcexpr && IsA(rtfunc->funcexpr, FuncExpr))
+		/*
+		 * If the function desires to run on segments, mark randomly-distributed.
+		 * If expression contains mutable functions, evaluate it on entry db.
+		 * Otherwise let it be evaluated in the same slice as its parent operator.
+		 */
+		Assert(rte->rtekind == RTE_FUNCTION);
+
+		foreach (lc, rel->baserestrictinfo)
 		{
-			FuncExpr   *funcexpr = (FuncExpr *) rtfunc->funcexpr;
-			char		this_exec_location;
+			RestrictInfo *rinfo = (RestrictInfo *) lfirst(lc);
 
-			this_exec_location = func_exec_location(funcexpr->funcid);
-
-			switch (this_exec_location)
+			if (rinfo->contain_outer_query_references)
 			{
-				case PROEXECLOCATION_ANY:
-					/*
-					 * This can be executed anywhere. Remember if it was
-					 * mutable (or contained any mutable arguments), that
-					 * will affect the decision after this loop on where
-					 * to actually execute it.
-					 */
-					if (!contain_mutables)
-						contain_mutables = contain_mutable_functions((Node *) funcexpr);
-					break;
-				case PROEXECLOCATION_MASTER:
-					/*
-					 * This function forces the execution to master.
-					 */
-					if (exec_location == PROEXECLOCATION_ALL_SEGMENTS)
-					{
-						ereport(ERROR,
-								(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-								 (errmsg("cannot mix EXECUTE ON MASTER and ALL SEGMENTS functions in same function scan"))));
-					}
-					exec_location = PROEXECLOCATION_MASTER;
-					break;
-				case PROEXECLOCATION_ALL_SEGMENTS:
-					/*
-					 * This function forces the execution to segments.
-					 */
-					if (exec_location == PROEXECLOCATION_MASTER)
-					{
-						ereport(ERROR,
-								(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-								 (errmsg("cannot mix EXECUTE ON MASTER and ALL SEGMENTS functions in same function scan"))));
-					}
-					exec_location = PROEXECLOCATION_ALL_SEGMENTS;
-					break;
-				default:
-					elog(ERROR, "unrecognized proexeclocation '%c'", exec_location);
+				contain_outer_params = true;
+				break;
 			}
 		}
-		else
+
+		foreach (lc, rte->functions)
 		{
-			/*
-			 * The expression might've been simplified into a Const. Which can
-			 * be executed anywhere.
-			 */
+			RangeTblFunction *rtfunc = (RangeTblFunction *) lfirst(lc);
+
+			if (rtfunc->funcexpr && IsA(rtfunc->funcexpr, FuncExpr))
+			{
+				FuncExpr   *funcexpr = (FuncExpr *) rtfunc->funcexpr;
+				char		this_exec_location;
+
+				this_exec_location = func_exec_location(funcexpr->funcid);
+
+				switch (this_exec_location)
+				{
+					case PROEXECLOCATION_ANY:
+						/*
+						 * This can be executed anywhere. Remember if it was
+						 * mutable (or contained any mutable arguments), that
+						 * will affect the decision after this loop on where
+						 * to actually execute it.
+						 */
+						if (!contain_mutables)
+							contain_mutables = contain_mutable_functions((Node *) funcexpr);
+						break;
+					case PROEXECLOCATION_MASTER:
+						/*
+						 * This function forces the execution to master.
+						 */
+						if (exec_location == PROEXECLOCATION_ALL_SEGMENTS)
+						{
+							ereport(ERROR,
+									(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+									 (errmsg("cannot mix EXECUTE ON MASTER and ALL SEGMENTS functions in same function scan"))));
+						}
+						exec_location = PROEXECLOCATION_MASTER;
+						break;
+					case PROEXECLOCATION_INITPLAN:
+						/*
+						 * This function forces the execution to master.
+						 */
+						if (exec_location == PROEXECLOCATION_ALL_SEGMENTS)
+						{
+							ereport(ERROR,
+									(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+									 (errmsg("cannot mix EXECUTE ON INITPLAN and ALL SEGMENTS functions in same function scan"))));
+						}
+						exec_location = PROEXECLOCATION_INITPLAN;
+						break;
+					case PROEXECLOCATION_ALL_SEGMENTS:
+						/*
+						 * This function forces the execution to segments.
+						 */
+						if (exec_location == PROEXECLOCATION_MASTER)
+						{
+							ereport(ERROR,
+									(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+									 (errmsg("cannot mix EXECUTE ON MASTER and ALL SEGMENTS functions in same function scan"))));
+						}
+						exec_location = PROEXECLOCATION_ALL_SEGMENTS;
+						break;
+					default:
+						elog(ERROR, "unrecognized proexeclocation '%c'", exec_location);
+				}
+			}
+			else
+			{
+				/*
+				 * The expression might've been simplified into a Const. Which can
+				 * be executed anywhere.
+				 */
+			}
+
+			if (!contain_outer_params &&
+				contains_outer_params(rtfunc->funcexpr, root))
+				contain_outer_params = true;
 		}
 
-		if (!contain_outer_params &&
-			contains_outer_params(rtfunc->funcexpr, root))
-			contain_outer_params = true;
-	}
-	switch (exec_location)
-	{
-		case PROEXECLOCATION_ANY:
-			/*
-			 * If all the functions are ON ANY, we presumably could execute
-			 * the function scan anywhere. However, historically, before the
-			 * EXECUTE ON syntax was introduced, we always executed
-			 * non-IMMUTABLE functions on the master. Keep that behavior
-			 * for backwards compatibility.
-			 */
-			if (contain_outer_params)
-				CdbPathLocus_MakeOuterQuery(&pathnode->locus);
-			else if (contain_mutables)
+		switch (exec_location)
+		{
+			case PROEXECLOCATION_ANY:
+				/*
+				 * If all the functions are ON ANY, we presumably could execute
+				 * the function scan anywhere. However, historically, before the
+				 * EXECUTE ON syntax was introduced, we always executed
+				 * non-IMMUTABLE functions on the master. Keep that behavior
+				 * for backwards compatibility.
+				 */
+				if (contain_outer_params)
+					CdbPathLocus_MakeOuterQuery(&pathnode->locus);
+				else if (contain_mutables)
+					CdbPathLocus_MakeEntry(&pathnode->locus);
+				else
+					CdbPathLocus_MakeGeneral(&pathnode->locus);
+				break;
+			case PROEXECLOCATION_MASTER:
+				if (contain_outer_params)
+					elog(ERROR, "cannot execute EXECUTE ON MASTER function in a subquery with arguments from outer query");
 				CdbPathLocus_MakeEntry(&pathnode->locus);
-			else
-				CdbPathLocus_MakeGeneral(&pathnode->locus);
-			break;
-		case PROEXECLOCATION_MASTER:
-			if (contain_outer_params)
-				elog(ERROR, "cannot execute EXECUTE ON MASTER function in a subquery with arguments from outer query");
-			CdbPathLocus_MakeEntry(&pathnode->locus);
-			break;
-		case PROEXECLOCATION_ALL_SEGMENTS:
-			if (contain_outer_params)
-				elog(ERROR, "cannot execute EXECUTE ON ALL SEGMENTS function in a subquery with arguments from outer query");
-			CdbPathLocus_MakeStrewn(&pathnode->locus,
-									getgpsegmentCount());
-			break;
-		default:
-			elog(ERROR, "unrecognized proexeclocation '%c'", exec_location);
+				break;
+			case PROEXECLOCATION_INITPLAN:
+				if (contain_outer_params)
+					elog(ERROR, "cannot execute EXECUTE ON INITPLAN function in a subquery with arguments from outer query");
+				CdbPathLocus_MakeEntry(&pathnode->locus);
+				break;
+			case PROEXECLOCATION_ALL_SEGMENTS:
+				if (contain_outer_params)
+					elog(ERROR, "cannot execute EXECUTE ON ALL SEGMENTS function in a subquery with arguments from outer query");
+				CdbPathLocus_MakeStrewn(&pathnode->locus,
+										getgpsegmentCount());
+				break;
+			default:
+				elog(ERROR, "unrecognized proexeclocation '%c'", exec_location);
+		}
 	}
+	else
+		CdbPathLocus_MakeEntry(&pathnode->locus);
 
 	pathnode->motionHazard = false;
 
@@ -3141,7 +3118,7 @@ create_foreignscan_path(PlannerInfo *root, RelOptInfo *rel,
 	pathnode->path.total_cost = total_cost;
 	pathnode->path.pathkeys = pathkeys;
 
-	switch (rel->ftEntry->exec_location)
+	switch (rel->exec_location)
 	{
 		case FTEXECLOCATION_ANY:
 			CdbPathLocus_MakeGeneral(&(pathnode->path.locus));
@@ -3153,7 +3130,7 @@ create_foreignscan_path(PlannerInfo *root, RelOptInfo *rel,
 			CdbPathLocus_MakeEntry(&(pathnode->path.locus));
 			break;
 		default:
-			elog(ERROR, "unrecognized exec_location '%c'", rel->ftEntry->exec_location);
+			elog(ERROR, "unrecognized exec_location '%c'", rel->exec_location);
 	}
 
 	pathnode->fdw_outerpath = fdw_outerpath;
@@ -3234,17 +3211,18 @@ calc_non_nestloop_required_outer(Path *outer_path, Path *inner_path)
  *
  * Returns the resulting path node.
  */
-NestPath *
+Path *
 create_nestloop_path(PlannerInfo *root,
 					 RelOptInfo *joinrel,
 					 JoinType jointype,
+					 JoinType orig_jointype,		/* CDB */
 					 JoinCostWorkspace *workspace,
 					 SpecialJoinInfo *sjinfo,
 					 SemiAntiJoinFactors *semifactors,
 					 Path *outer_path,
 					 Path *inner_path,
 					 List *restrict_clauses,
-					 List *redistribution_clauses,    /*CDB*/
+					 List *redistribution_clauses,	/* CDB */
 					 List *pathkeys,
 					 Relids required_outer)
 {
@@ -3254,12 +3232,14 @@ create_nestloop_path(PlannerInfo *root,
 	bool		outer_must_be_local = !bms_is_empty(outer_req_outer);
 	Relids		inner_req_outer = PATH_REQ_OUTER(inner_path);
 	bool		inner_must_be_local = !bms_is_empty(inner_req_outer);
+	int			rowidexpr_id;
 
 	/* Add motion nodes above subpaths and decide where to join. */
 	join_locus = cdbpath_motion_for_join(root,
-										 jointype,
+										 orig_jointype,
 										 &outer_path,       /* INOUT */
 										 &inner_path,       /* INOUT */
+										 &rowidexpr_id,		/* OUT */
 										 redistribution_clauses,
 										 pathkeys,
 										 NIL,
@@ -3384,7 +3364,17 @@ create_nestloop_path(PlannerInfo *root,
 
 	final_cost_nestloop(root, pathnode, workspace, sjinfo, semifactors);
 
-	return pathnode;
+	if (orig_jointype == JOIN_DEDUP_SEMI ||
+		orig_jointype == JOIN_DEDUP_SEMI_REVERSE)
+	{
+		return (Path *) create_unique_rowid_path(root,
+												 joinrel,
+												 (Path *) pathnode,
+												 pathnode->innerjoinpath->parent->relids,
+												 rowidexpr_id);
+	}
+
+	return (Path *) pathnode;
 }
 
 /*
@@ -3414,10 +3404,11 @@ create_nestloop_path(PlannerInfo *root,
  * 'innersortkeys' are the sort varkeys for the inner relation
  *      or NIL to use existing ordering
  */
-MergePath *
+Path *
 create_mergejoin_path(PlannerInfo *root,
 					  RelOptInfo *joinrel,
 					  JoinType jointype,
+					  JoinType orig_jointype,		/* CDB */
 					  JoinCostWorkspace *workspace,
 					  SpecialJoinInfo *sjinfo,
 					  Path *outer_path,
@@ -3426,7 +3417,7 @@ create_mergejoin_path(PlannerInfo *root,
 					  List *pathkeys,
 					  Relids required_outer,
 					  List *mergeclauses,
-					  List *redistribution_clauses,    /*CDB*/
+					  List *redistribution_clauses,	/* CDB */
 					  List *outersortkeys,
 					  List *innersortkeys)
 {
@@ -3436,6 +3427,7 @@ create_mergejoin_path(PlannerInfo *root,
 	List	   *innermotionkeys;
 	bool		preserve_outer_ordering;
 	bool		preserve_inner_ordering;
+	int			rowidexpr_id;
 
 	/*
 	 * GPDB_92_MERGE_FIXME: Should we keep the pathkeys_contained_in calls?
@@ -3477,9 +3469,10 @@ create_mergejoin_path(PlannerInfo *root,
 	preserve_inner_ordering = preserve_inner_ordering || !bms_is_empty(PATH_REQ_OUTER(inner_path));
 
 	join_locus = cdbpath_motion_for_join(root,
-										 jointype,
+										 orig_jointype,
 										 &outer_path,       /* INOUT */
 										 &inner_path,       /* INOUT */
+										 &rowidexpr_id,
 										 redistribution_clauses,
 										 outermotionkeys,
 										 innermotionkeys,
@@ -3543,7 +3536,17 @@ create_mergejoin_path(PlannerInfo *root,
 
 	final_cost_mergejoin(root, pathnode, workspace, sjinfo);
 
-	return pathnode;
+	if (orig_jointype == JOIN_DEDUP_SEMI ||
+		orig_jointype == JOIN_DEDUP_SEMI_REVERSE)
+	{
+		return (Path *) create_unique_rowid_path(root,
+												 joinrel,
+												 (Path *) pathnode,
+												 pathnode->jpath.innerjoinpath->parent->relids,
+												 rowidexpr_id);
+	}
+	else
+		return (Path *) pathnode;
 }
 
 /*
@@ -3562,10 +3565,11 @@ create_mergejoin_path(PlannerInfo *root,
  * 'hashclauses' are the RestrictInfo nodes to use as hash clauses
  *		(this should be a subset of the restrict_clauses list)
  */
-HashPath *
+Path *
 create_hashjoin_path(PlannerInfo *root,
 					 RelOptInfo *joinrel,
 					 JoinType jointype,
+					 JoinType orig_jointype,		/* CDB */
 					 JoinCostWorkspace *workspace,
 					 SpecialJoinInfo *sjinfo,
 					 SemiAntiJoinFactors *semifactors,
@@ -3573,19 +3577,21 @@ create_hashjoin_path(PlannerInfo *root,
 					 Path *inner_path,
 					 List *restrict_clauses,
 					 Relids required_outer,
-					 List *redistribution_clauses,    /*CDB*/
+					 List *redistribution_clauses,	/* CDB */
 					 List *hashclauses)
 {
 	HashPath   *pathnode;
 	CdbPathLocus join_locus;
 	bool		outer_must_be_local = !bms_is_empty(PATH_REQ_OUTER(outer_path));
 	bool		inner_must_be_local = !bms_is_empty(PATH_REQ_OUTER(inner_path));
+	int			rowidexpr_id;
 
 	/* Add motion nodes above subpaths and decide where to join. */
 	join_locus = cdbpath_motion_for_join(root,
-										 jointype,
+										 orig_jointype,
 										 &outer_path,       /* INOUT */
 										 &inner_path,       /* INOUT */
+										 &rowidexpr_id,
 										 redistribution_clauses,
 										 NIL,   /* don't care about ordering */
 										 NIL,
@@ -3602,8 +3608,7 @@ create_hashjoin_path(PlannerInfo *root,
 	 * the right row count, in case Broadcast Motion is inserted above an
 	 * input path.
 	 */
-	if (jointype == JOIN_INNER &&
-		root->config->gp_enable_hashjoin_size_heuristic)
+	if (jointype == JOIN_INNER && gp_enable_hashjoin_size_heuristic)
 	{
 		double		outersize;
 		double		innersize;
@@ -3682,7 +3687,17 @@ create_hashjoin_path(PlannerInfo *root,
 
 	final_cost_hashjoin(root, pathnode, workspace, sjinfo, semifactors);
 
-	return pathnode;
+	if (orig_jointype == JOIN_DEDUP_SEMI ||
+		orig_jointype == JOIN_DEDUP_SEMI_REVERSE)
+	{
+		return (Path *) create_unique_rowid_path(root,
+												 joinrel,
+												 (Path *) pathnode,
+												 pathnode->jpath.innerjoinpath->parent->relids,
+												 rowidexpr_id);
+	}
+	else
+		return (Path *) pathnode;
 }
 
 /*
@@ -4094,6 +4109,60 @@ create_agg_path(PlannerInfo *root,
 }
 
 /*
+ * create_tup_split_path
+ *	  Creates a pathnode that represents performing TupleSplit
+ *
+ * 'rel' is the parent relation associated with the result
+ * 'subpath' is the path representing the source of data
+ * 'target' is the PathTarget to be computed
+ * 'groupClause' is a list of SortGroupClause's representing the grouping
+ * 'numGroups' is the estimated number of groups (1 if not grouping)
+ * 'bitmapset' is the bitmap of DQA expr Index in PathTarget
+ * 'numDisDQAs' is the number of bitmapset size
+ */
+TupleSplitPath *
+create_tup_split_path(PlannerInfo *root,
+					  RelOptInfo *rel,
+					  Path *subpath,
+					  PathTarget *target,
+					  List *groupClause,
+					  Bitmapset **bitmapset,
+					  int numDisDQAs)
+{
+	TupleSplitPath *pathnode = makeNode(TupleSplitPath);
+
+	pathnode->path.pathtype = T_TupleSplit;
+	pathnode->path.parent = rel;
+	pathnode->path.pathtarget = target;
+
+	/* For now, assume we are above any joins, so no parameterization */
+	pathnode->path.param_info = NULL;
+	pathnode->path.parallel_aware = false;
+	pathnode->path.parallel_safe = rel->consider_parallel &&
+		subpath->parallel_safe;
+	pathnode->path.parallel_workers = subpath->parallel_workers;
+	pathnode->path.pathkeys = NIL;
+
+	pathnode->subpath = subpath;
+	pathnode->groupClause = groupClause;
+
+	pathnode->numDisDQAs = numDisDQAs;
+
+	pathnode->agg_args_id_bms = palloc0(sizeof(Bitmapset *) * numDisDQAs);
+	for (int i = 0 ; i < numDisDQAs; i ++)
+		pathnode->agg_args_id_bms[i] = bms_copy(bitmapset[i]);
+
+	cost_tup_split(&pathnode->path, root, numDisDQAs,
+				   subpath->startup_cost, subpath->total_cost,
+				   subpath->rows);
+
+	CdbPathLocus_MakeStrewn(&pathnode->path.locus,
+							subpath->locus.numsegments);
+
+	return pathnode;
+}
+
+/*
  * create_groupingsets_path
  *	  Creates a pathnode that represents performing GROUPING SETS aggregation
  *
@@ -4115,6 +4184,7 @@ create_groupingsets_path(PlannerInfo *root,
 						 RelOptInfo *rel,
 						 Path *subpath,
 						 PathTarget *target,
+						 AggSplit aggsplit,
 						 List *having_qual,
 						 List *rollup_lists,
 						 List *rollup_groupclauses,
@@ -4146,6 +4216,7 @@ create_groupingsets_path(PlannerInfo *root,
 	else
 		pathnode->path.pathkeys = NIL;
 
+	pathnode->aggsplit = aggsplit;
 	pathnode->rollup_groupclauses = rollup_groupclauses;
 	pathnode->rollup_lists = rollup_lists;
 	pathnode->qual = having_qual;

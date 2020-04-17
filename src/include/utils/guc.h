@@ -23,8 +23,9 @@
 #define MAX_PRE_AUTH_DELAY (60)
 /*
  * One connection must be reserved for FTS to always able to probe
- * primary. So, this acts as lower limit on reserved superuser connections.
-*/
+ * primary. So, this acts as lower limit on reserved superuser connections on
+ * primaries.
+ */
 #define RESERVED_FTS_CONNECTIONS (1)
 
 
@@ -266,6 +267,7 @@ extern bool Debug_print_parse;
 extern bool Debug_print_rewritten;
 extern bool Debug_pretty_print;
 
+extern bool dev_opt_unsafe_truncate_in_subtransaction;
 extern bool	Debug_print_full_dtm;
 extern bool	Debug_print_snapshot_dtm;
 extern bool Debug_disable_distributed_snapshot;
@@ -317,7 +319,7 @@ extern bool Debug_resource_group;
 extern bool gp_create_table_random_default_distribution;
 extern bool gp_allow_non_uniform_partitioning_ddl;
 extern bool gp_enable_exchange_default_partition;
-extern int  dtx_phase2_retry_count;
+extern int  dtx_phase2_retry_second;
 
 /* WAL replication debug gucs */
 extern bool debug_walrepl_snd;
@@ -326,9 +328,6 @@ extern bool debug_walrepl_rcv;
 extern bool debug_basebackup;
 
 extern int rep_lag_avoidance_threshold;
-
-/* Latch mechanism debug GUCs */
-extern bool debug_latch;
 
 extern bool gp_maintenance_mode;
 extern bool gp_maintenance_conn;
@@ -385,8 +384,6 @@ extern bool execute_pruned_plan;
 extern bool gp_partitioning_dynamic_selection_log;
 extern int gp_max_partition_level;
 
-extern bool gp_perfmon_print_packet_info;
-
 extern bool gp_enable_relsize_collection;
 
 /* Debug DTM Action */
@@ -429,6 +426,11 @@ extern int	gp_connection_send_timeout;
 
 extern bool create_restartpoint_on_ckpt_record_replay;
 
+/* Macros to define the level of memory accounting to show in EXPLAIN ANALYZE */
+#define EXPLAIN_MEMORY_VERBOSITY_SUPPRESS	0 /* Suppress memory reporting in explain analyze */
+#define EXPLAIN_MEMORY_VERBOSITY_SUMMARY	1 /* Summary of memory usage for each owner in explain analyze */
+#define EXPLAIN_MEMORY_VERBOSITY_DETAIL		2 /* Detail memory accounting tree for each slice in explain analyze */
+
 /* ORCA related definitions */
 #define OPTIMIZER_XFORMS_COUNT 400 /* number of transformation rules */
 
@@ -444,6 +446,8 @@ extern bool create_restartpoint_on_ckpt_record_replay;
 /* optimizer cost model */
 #define OPTIMIZER_GPDB_LEGACY           0       /* GPDB's legacy cost model */
 #define OPTIMIZER_GPDB_CALIBRATED       1       /* GPDB's calibrated cost model */
+#define OPTIMIZER_GPDB_EXPERIMENTAL     2       /* GPDB's experimental cost model */
+
 
 /* Optimizer related gucs */
 extern bool	optimizer;
@@ -498,7 +502,6 @@ extern bool optimizer_enable_outerjoin_to_unionall_rewrite;
 extern bool optimizer_enable_ctas;
 extern bool optimizer_enable_partial_index;
 extern bool optimizer_enable_dml;
-extern bool optimizer_enable_dml_triggers;
 extern bool	optimizer_enable_dml_constraints;
 extern bool optimizer_enable_direct_dispatch;
 extern bool optimizer_enable_master_only_queries;
@@ -560,6 +563,7 @@ extern bool optimizer_array_constraints;
 extern bool optimizer_cte_inlining;
 extern bool optimizer_enable_space_pruning;
 extern bool optimizer_enable_associativity;
+extern bool optimizer_enable_range_predicate_dpe;
 
 /* Analyze related GUCs for Optimizer */
 extern bool optimizer_analyze_root_partition;
@@ -812,8 +816,6 @@ extern const char *gpvars_show_gp_resource_manager_policy(void);
 extern const char *gpvars_assign_gp_resqueue_memory_policy(const char *newval, bool doit, GucSource source);
 extern const char *gpvars_show_gp_resqueue_memory_policy(void);
 extern bool gpvars_check_statement_mem(int *newval, void **extra, GucSource source);
-extern bool gpvars_check_gp_enable_gpperfmon(bool *newval, void **extra, GucSource source);
-extern bool gpvars_check_gp_gpperfmon_send_interval(int *newval, void **extra, GucSource source);
 extern int guc_name_compare(const char *namea, const char *nameb);
 extern void DispatchSyncPGVariable(struct config_generic * gconfig);
 

@@ -990,7 +990,6 @@ pg_plan_queries(List *querytrees, int cursorOptions, ParamListInfo boundParams)
  * query_string -- optional query text (C string).
  * serializedQuerytree[len]  -- Query node or (NULL,0) if plan provided.
  * serializedPlantree[len] -- PlannedStmt node, or (NULL,0) if query provided.
- * serializedParams[len] -- optional parameters
  * serializedQueryDispatchDesc[len] -- QueryDispatchDesc node, or (NULL,0) if query provided.
  *
  * Caller may supply either a Query (representing utility command) or
@@ -1000,7 +999,6 @@ static void
 exec_mpp_query(const char *query_string,
 			   const char * serializedQuerytree, int serializedQuerytreelen,
 			   const char * serializedPlantree, int serializedPlantreelen,
-			   const char * serializedParams, int serializedParamslen,
 			   const char * serializedQueryDispatchDesc, int serializedQueryDispatchDesclen)
 {
 	CommandDest dest = whereToSendOutput;
@@ -1200,10 +1198,11 @@ exec_mpp_query(const char *query_string,
 	}
 
 	/*
-	 * Get (possibly 0) parameters.
+	 * Get (possibly 0) PARAM_EXTERN parameters. (PARAM_EXEC parameter
+	 * will be handled later, in InitPlan()).
 	 */
-	if (serializedParams != NULL && serializedParamslen > 0)
-		paramLI = deserializeParamListInfo(serializedParams, serializedParamslen);
+	if (ddesc && ddesc->paramInfo)
+		paramLI = deserializeExternParams(ddesc->paramInfo);
 	else
 		paramLI = NULL;
 
@@ -4509,8 +4508,6 @@ PostgresMain(int argc, char *argv[],
 	volatile bool send_ready_for_query = true;
 	bool		disable_idle_in_transaction_timeout = false;
 
-	MemoryAccountIdType postgresMainMemoryAccountId = MEMORY_OWNER_TYPE_Undefined;
-
 	/*
 	 * CDB: Catch program error signals.
 	 *
@@ -4525,14 +4522,6 @@ PostgresMain(int argc, char *argv[],
 #ifndef WIN32
 	PostmasterPriority = getpriority(PRIO_PROCESS, 0);
 #endif
-
-	/*
-	 * Do not save the return value in any oldMemoryAccount variable.
-	 * In that case, we risk switching to a stale memoryAccount that is no
-	 * longer valid. This is because we reset the memory accounts frequently.
-	 */
-	postgresMainMemoryAccountId = MemoryAccounting_CreateAccount(0, MEMORY_OWNER_TYPE_MainEntry);
-	MemoryAccounting_SwitchAccount(postgresMainMemoryAccountId);
 
 	set_ps_display("startup", false);
 
@@ -4687,13 +4676,6 @@ PostgresMain(int argc, char *argv[],
 #endif
 
 	/* We need to allow SIGINT, etc during the initial transaction */
-	PG_SETMASK(&UnBlockSig);
-
-	/*
-	 * We need to allow SIGINT, etc during the initial transaction.
-	 * Also, currently if this is the Master with standby support
-	 * we need to allow SIGUSR1 for performing sync replication (used by latch).
-	 */
 	PG_SETMASK(&UnBlockSig);
 
 	/*
@@ -4948,25 +4930,6 @@ PostgresMain(int argc, char *argv[],
 		VmemTracker_ResetMaxVmemReserved();
 		VmemTracker_ResetWaiver();
 
-		/* Reset memory accounting */
-
-		/*
-		 * We finished processing the last query and currently we are not under
-		 * any transaction. So reset memory accounting. Note: any memory
-		 * allocated before resetting will go into the rollover memory account,
-		 * allocated under top memory context.
-		 */
-		MemoryAccounting_Reset();
-
-		postgresMainMemoryAccountId = MemoryAccounting_CreateAccount(0, MEMORY_OWNER_TYPE_MainEntry);
-		/*
-		 * Don't attempt to save previous memory account. This will be invalid by the time we attempt to restore.
-		 * This is why we are not using our START_MEMORY_ACCOUNT and END_MEMORY_ACCOUNT macros
-		 */
-		MemoryAccounting_SwitchAccount(postgresMainMemoryAccountId);
-
-		/* End of memory accounting setup */
-
 		initStringInfo(&input_message);
 
         /* Reset elog globals */
@@ -5167,7 +5130,6 @@ PostgresMain(int argc, char *argv[],
 					const char *serializedDtxContextInfo = NULL;
 					const char *serializedQuerytree = NULL;
 					const char *serializedPlantree = NULL;
-					const char *serializedParams = NULL;
 					const char *serializedQueryDispatchDesc = NULL;
 					const char *resgroupInfoBuf = NULL;
 
@@ -5175,7 +5137,6 @@ PostgresMain(int argc, char *argv[],
 					int serializedDtxContextInfolen = 0;
 					int serializedQuerytreelen = 0;
 					int serializedPlantreelen = 0;
-					int serializedParamslen = 0;
 					int serializedQueryDispatchDesclen = 0;
 					int resgroupInfoLen = 0;
 					TimestampTz statementStart;
@@ -5187,6 +5148,13 @@ PostgresMain(int argc, char *argv[],
 						ereport(ERROR,
 								(errcode(ERRCODE_PROTOCOL_VIOLATION),
 								 errmsg("MPP protocol messages are only supported in QD - QE connections")));
+					/*
+					 * QD performs the function body check, hence QE doesn't
+					 * need to do the check again. Turn off the check in QE
+					 * process as an optimization. Also, helps eliminate the
+					 * need for having this GUC in-sync between QD and QE.
+					 */
+					check_function_bodies=false;
 
 					/* Set statement_timestamp() */
  					SetCurrentStatementStartTimestamp();
@@ -5205,7 +5173,6 @@ PostgresMain(int argc, char *argv[],
 					query_string_len = pq_getmsgint(&input_message, 4);
 					serializedQuerytreelen = pq_getmsgint(&input_message, 4);
 					serializedPlantreelen = pq_getmsgint(&input_message, 4);
-					serializedParamslen = pq_getmsgint(&input_message, 4);
 					serializedQueryDispatchDesclen = pq_getmsgint(&input_message, 4);
 					serializedDtxContextInfolen = pq_getmsgint(&input_message, 4);
 
@@ -5226,9 +5193,6 @@ PostgresMain(int argc, char *argv[],
 
 					if (serializedPlantreelen > 0)
 						serializedPlantree = pq_getmsgbytes(&input_message,serializedPlantreelen);
-
-					if (serializedParamslen > 0)
-						serializedParams = pq_getmsgbytes(&input_message,serializedParamslen);
 
 					if (serializedQueryDispatchDesclen > 0)
 						serializedQueryDispatchDesc = pq_getmsgbytes(&input_message,serializedQueryDispatchDesclen);
@@ -5297,7 +5261,6 @@ PostgresMain(int argc, char *argv[],
 						exec_mpp_query(query_string,
 									   serializedQuerytree, serializedQuerytreelen,
 									   serializedPlantree, serializedPlantreelen,
-									   serializedParams, serializedParamslen,
 									   serializedQueryDispatchDesc, serializedQueryDispatchDesclen);
 
 					SetUserIdAndContext(GetOuterUserId(), false);

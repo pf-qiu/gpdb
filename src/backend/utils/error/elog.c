@@ -91,8 +91,6 @@
 #include "cdb/cdbselect.h"
 #include "pgtime.h"
 
-#include "utils/builtins.h"  /* gp_elog() */
-
 #include "miscadmin.h"
 
 /*
@@ -400,7 +398,6 @@ errstart(int elevel, const char *filename, int lineno,
 				case DTX_STATE_PREPARED:
 				case DTX_STATE_INSERTING_COMMITTED:
 				case DTX_STATE_INSERTED_COMMITTED:
-				case DTX_STATE_FORCED_COMMITTED:
 				case DTX_STATE_NOTIFYING_COMMIT_PREPARED:
 				case DTX_STATE_NOTIFYING_ABORT_SOME_PREPARED:
 				case DTX_STATE_NOTIFYING_ABORT_PREPARED:
@@ -412,7 +409,7 @@ errstart(int elevel, const char *filename, int lineno,
 				case DTX_STATE_NONE:
 				case DTX_STATE_ACTIVE_DISTRIBUTED:
 				case DTX_STATE_ONE_PHASE_COMMIT:
-				case DTX_STATE_PERFORMING_ONE_PHASE_COMMIT:
+				case DTX_STATE_NOTIFYING_ONE_PHASE_COMMIT:
 				case DTX_STATE_INSERTING_FORGET_COMMITTED:
 				case DTX_STATE_INSERTED_FORGET_COMMITTED:
 				case DTX_STATE_NOTIFYING_ABORT_NO_PREPARED:
@@ -1829,13 +1826,13 @@ EmitErrorReport(void)
 	CHECK_STACK_DEPTH();
 	oldcontext = MemoryContextSwitchTo(edata->assoc_context);
 
-	/* CDB: Tidy up the message */
-	/*
-	 * TODO Why do we want to do this?  it seems pointless
-	 * and makes the error messages harder to read.
+	/* 
+	 * CDB: Tidy up the message sent to client
+	 *
+	 * Strip trailing whitespace.
+	 * Append file name and line numebr.
 	 */
-	if (edata->output_to_server ||
-		edata->output_to_client)
+	if (edata->output_to_client)
 		cdb_tidy_message(edata);
 
 	/*
@@ -2721,11 +2718,17 @@ cdb_strip_trailing_whitespace(char **buf)
 	}
 }							   /* cdb_strip_trailing_whitespace */
 
+/*
+ * cdb_tidy_message is a gpdb specific error message postprocessing function.
+ *
+ * It supplies useful error information for debug which upstream is missing:
+ * 1. append the filename and line number for internal error.
+ * 2. truncate the trailing whitespace for edata
+ */
 void
 cdb_tidy_message(ErrorData *edata)
 {
 	char	   *bp;
-	char	   *cp;
 	char	   *ep;
 	char	   *tp;
 	int			m, n;
@@ -2746,49 +2749,6 @@ cdb_tidy_message(ErrorData *edata)
 	}
 	else
 		ep = bp = "";
-
-	/*
-	 * If more than one line, move lines after the first to errdetail.
-	 * Make an exception for LOG messages because statement logging would
-	 * be uglified.  Skip DEBUG messages too, 'cause users don't see 'em.
-	 */
-	if (edata->elevel > LOG &&
-		0 != (cp = strchr(bp, '\n')))
-	{
-		char   *dp = cp;
-
-		/* If just one extra line, strip its leading '\n' and whitespace. */
-		if (!strchr(dp+1, '\n'))
-		{
-			while (*dp <= ' ' &&
-				   *dp > '\0')
-				dp++;
-		}
-
-		/* Insert in front of detail message. */
-		if (!edata->detail)
-			edata->detail = pstrdup(dp);
-		else
-		{
-			m = ep - dp;
-			n = strlen(edata->detail) + 1;
-			tp = palloc(m + 1 + n);
-			memcpy(tp, dp, m);
-			tp[m] = '\n';
-			memcpy(tp + m + 1, edata->detail, n);
-
-			pfree(edata->detail);
-			edata->detail = tp;
-		}
-
-		/* Drop from main message. */
-		ep = cp;
-		while (bp < ep &&
-			   ep[-1] <= ' ' &&
-			   ep[-1] > '\0')
-			ep--;
-		*ep = '\0';
-	}
 
 	/*
 	 * If internal error, append the filename and line number.
@@ -5400,75 +5360,6 @@ elog_debug_linger(ErrorData *edata)
 		seconds_lingered += sleep_seconds;
 	}
 }							   /* elog_debug_linger */
-
-/*
- * gp_elog
- *
- * This externally callable function allows a user or application to insert records into the log.
- * Only superusers are allowed to call this function due to the potential for abuse.
- *
- * The function takes two arguments, the first is the message to insert into the log (type text).
- * The second is optional, type bool, that specifies if we should send an alert after inserting
- * the message into the log.
- *
- *
- */
-Datum
-gp_elog(PG_FUNCTION_ARGS)
-{
-	ErrorData	edata;
-	char	   *errormsg;
-	const char *save_debug_query;
-
-	/* Validate input arguments */
-	if (PG_NARGS() != 1 && PG_NARGS() != 2)
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("gp_elog(): called with %hd arguments",
-						PG_NARGS())));
-	if (PG_ARGISNULL(0))
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("gp_elog(): called with null arguments")));
-
-	if (PG_NARGS() == 2 && PG_ARGISNULL(1))
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("gp_elog(): called with null arguments")));
-
-	/* Must be super user */
-	if (!superuser())
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("permission denied"),
-				 errhint("gp_elog(): requires superuser privileges.")));
-
-	errormsg = text_to_cstring(PG_GETARG_TEXT_PP(0));
-	/* text_to_cstring is guaranteed to not return a NULL, so we don't need to check */
-
-	memset(&edata, 0, sizeof(edata));
-	edata.elevel = LOG;
-	edata.output_to_server = true;
-	edata.output_to_client = false;
-	edata.show_funcname = false;
-	edata.omit_location = true;
-	edata.hide_stmt = true;
-	edata.internalquery = "";
-	edata.message = (char *)errormsg;						/* edata.message really should be const char * */
-	edata.sqlerrcode = MAKE_SQLSTATE('X','X', '1','0','0'); /* use a special SQLSTATE to make it easy to search the log */
-
-	/* We don't need to log the SQL statement as part of this, it's just noise */
-	save_debug_query = debug_query_string;
-	debug_query_string = "";
-
-	send_message_to_server_log(&edata);
-
-	debug_query_string = save_debug_query;
-
-	pfree(errormsg);
-
-	PG_RETURN_VOID();
-}
 
 void
 debug_backtrace(void)

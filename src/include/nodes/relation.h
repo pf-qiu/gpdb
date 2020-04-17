@@ -674,12 +674,10 @@ typedef struct RelOptInfo
 	Oid			serverid;		/* identifies server for the table or join */
 	Oid			userid;			/* identifies user to check access as */
 	bool		useridiscurrent;	/* join is only valid for current user */
+	char		exec_location;  /* execute on MASTER, ANY or ALL SEGMENTS, Greenplum MPP specific */
 	/* use "struct FdwRoutine" to avoid including fdwapi.h here */
 	struct FdwRoutine *fdwroutine;
 	void	   *fdw_private;
-
-	/* used by external scan */
-	struct ExtTableEntry *extEntry;
 
 	/* used by various scans and joins: */
 	List	   *baserestrictinfo;		/* RestrictInfo structures (if base
@@ -697,9 +695,6 @@ typedef struct RelOptInfo
 	 */
 	List	   *upperrestrictinfo;		/* RestrictInfo structures (if base
 										 * rel) */
-
-	/* used by foreign scan */
-	ForeignTable		*ftEntry;
 } RelOptInfo;
 
 /*
@@ -819,30 +814,6 @@ typedef struct ForeignKeyOptInfo
 	List	   *rinfos[INDEX_MAX_KEYS];
 } ForeignKeyOptInfo;
 
-
-/*
- * CdbRelColumnInfo
- *
- * Describes a synthetic column to be added to a baserel's targetlist.
- * The pseudocols field of the RTE points to a List of CdbRelColumnInfo.
- */
-typedef struct CdbRelColumnInfo
-{
-	NodeTag		type;                   /* T_CdbRelColumnInfo */
-
-    AttrNumber  pseudoattno;            /* FirstLowInvalidHeapAttributeNumber
-                                         *  minus the 0-based position of the
-                                         *  CdbRelColumnInfo node in the
-                                         *  rte->pseudocols list
-                                         */
-    AttrNumber  targetresno;            /* 1-based position of the pseudo
-                                         *  column in the rel's targetlist
-                                         */
-    Expr       *defexpr;                /* expr to be evaluated in targetlist */
-	Relids	    where_needed;           /* set of relids whose quals use col */
-	int32	    attr_width;             /* expected #bytes for column value */
-    char        colname[NAMEDATALEN+1]; /* name for EXPLAIN */
-} CdbRelColumnInfo;
 
 /*
  * EquivalenceClasses
@@ -1153,17 +1124,6 @@ typedef struct AOCSPath
 	/* for now it's pretty plain.. */
 } AOCSPath;
 
-
-/*
- * ExternalPath is used for external table scans.
- */
-typedef struct ExternalPath
-{
-	Path		path;
-
-	/* for now it's pretty plain.. */
-} ExternalPath;
-
 /*
  * PartitionSelectorPath is used for injection of partition selectors
  */
@@ -1358,6 +1318,9 @@ typedef struct SubqueryScanPath
 {
 	Path		path;
 	Path	   *subpath;		/* path representing subquery execution */
+
+	/* In gpdb, we need to rebuild a SubqueryScanPath if MotionPath push down*/
+	Relids      required_outer;
 } SubqueryScanPath;
 
 /*
@@ -1516,12 +1479,6 @@ typedef struct UniquePath
 	UniquePathMethod umethod;
 	List	   *in_operators;	/* equality operators of the IN clause */
 	List	   *uniq_exprs;		/* expressions to be made unique */
-    Relids      distinct_on_rowid_relids;
-                                /* CDB: set of relids whose row ids are to be
-                                 * uniqueified.
-                                 */
-    bool        must_repartition;
-                                /* CDB: true => add Motion atop subpath  */
 } UniquePath;
 
 /*
@@ -1712,6 +1669,23 @@ typedef struct AggPath
 } AggPath;
 
 /*
+ * TupleSplitPath represents tuple split by DQAs expr
+ *
+ * In gpdb, we need to split one input tuple to n output tuples for MultiDQA
+ * MPP execution. Each output tuple only contains one DQA expr and all GROUP BY
+ * exprs.
+ */
+typedef struct TupleSplitPath
+{
+	Path		path;
+	Path	   *subpath;		/* path representing input source */
+	List	   *groupClause;	/* a list of SortGroupClause's */
+
+	int         numDisDQAs;     /* the number of different DQAs */
+	Bitmapset **agg_args_id_bms;  /* the bitmapsets which store the dqa arg indexes */
+} TupleSplitPath;
+
+/*
  * GroupingSetsPath represents a GROUPING SETS aggregation
  *
  * Currently we only support this in sorted not hashed form, so the input
@@ -1721,6 +1695,7 @@ typedef struct GroupingSetsPath
 {
 	Path		path;
 	Path	   *subpath;		/* path representing input source */
+	AggSplit	aggsplit;		/* agg-splitting mode, see nodes.h */
 	List	   *rollup_groupclauses;	/* list of lists of SortGroupClause's */
 	List	   *rollup_lists;	/* parallel list of lists of grouping sets */
 	List	   *qual;			/* quals (HAVING quals), if any */
@@ -2401,8 +2376,11 @@ struct PartitionNode
 {
 	NodeTag type;
 	Partition *part;
+
+	/* rules for this level */
 	struct PartitionRule *default_part;
-	List *rules; /* rules for this level */
+	struct PartitionRule **rules;
+	int			num_rules;		/* excluding default rule */
 };
 
 /* Individual partitioning rule */

@@ -31,6 +31,7 @@
 #include "gpopt/gpdbwrappers.h"
 #include "catalog/pg_collation.h"
 extern "C" {
+	#include "access/exttable_fdw_shim.h"
 	#include "utils/memutils.h"
 	#include "parser/parse_agg.h"
 }
@@ -871,96 +872,6 @@ gpdb::GetCommutatorOp
 	return 0;
 }
 
-char *
-gpdb::GetTriggerName
-	(
-	Oid triggerid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		return get_trigger_name(triggerid);
-	}
-	GP_WRAP_END;
-	return NULL;
-}
-
-Oid
-gpdb::GetTriggerRelid
-	(
-	Oid triggerid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		return get_trigger_relid(triggerid);
-	}
-	GP_WRAP_END;
-	return 0;
-}
-
-Oid
-gpdb::GetTriggerFuncid
-	(
-	Oid triggerid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		return get_trigger_funcid(triggerid);
-	}
-	GP_WRAP_END;
-	return 0;
-}
-
-int32
-gpdb::GetTriggerType
-	(
-	Oid triggerid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		return get_trigger_type(triggerid);
-	}
-	GP_WRAP_END;
-	return 0;
-}
-
-bool
-gpdb::IsTriggerEnabled
-	(
-	Oid triggerid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		return trigger_enabled(triggerid);
-	}
-	GP_WRAP_END;
-	return false;
-}
-
-bool
-gpdb::TriggerExists
-	(
-	Oid oid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		return trigger_exists(oid);
-	}
-	GP_WRAP_END;
-	return false;
-}
-
 bool
 gpdb::CheckConstraintExists
 	(
@@ -1483,6 +1394,37 @@ gpdb::GetDefaultDistributionOpclassForType
 	{
 		/* catalog tables: pg_type, pg_opclass */
 		return cdb_default_distribution_opclass_for_type(typid);
+	}
+	GP_WRAP_END;
+	return false;
+}
+
+Oid
+gpdb::GetColumnDefOpclassForType
+	(
+	List *opclassName,
+	Oid typid
+	)
+{
+	GP_WRAP_START;
+	{
+		/* catalog tables: pg_type, pg_opclass */
+		return cdb_get_opclass_for_column_def(opclassName, typid);
+	}
+	GP_WRAP_END;
+	return false;
+}
+
+Oid
+gpdb::GetDefaultDistributionOpfamilyForType
+	(
+	Oid typid
+	)
+{
+	GP_WRAP_START;
+	{
+		/* catalog tables: pg_type, pg_opclass */
+		return cdb_default_distribution_opfamily_for_type(typid);
 	}
 	GP_WRAP_END;
 	return false;
@@ -2371,6 +2313,19 @@ gpdb::HasSubclassSlow
 	return false;
 }
 
+bool
+gpdb::RelIsExternalTable
+	(
+	Oid relid
+	)
+{
+	GP_WRAP_START;
+	{
+		return rel_is_external_table(relid);
+	}
+	GP_WRAP_END;
+	return false;
+}
 
 GpPolicy *
 gpdb::GetDistributionPolicy
@@ -2397,22 +2352,6 @@ gpdb::IsChildPartDistributionMismatched
     {
     	/* catalog tables: pg_class, pg_inherits */
     	return child_distribution_mismatch(rel);
-    }
-    GP_WRAP_END;
-    return false;
-}
-
-gpos::BOOL
-gpdb::ChildPartHasTriggers
-	(
-	Oid oid,
-	int trigger_type
-	)
-{
-    GP_WRAP_START;
-    {
-		/* catalog tables: pg_inherits, pg_trigger */
-    	return child_triggers(oid, trigger_type);
     }
     GP_WRAP_END;
     return false;
@@ -2455,13 +2394,12 @@ gpdb::CdbEstimateRelationSize
 double
 gpdb::CdbEstimatePartitionedNumTuples
 	(
-	Relation rel,
-	bool *stats_missing_p
+	Relation rel
 	)
 {
 	GP_WRAP_START;
 	{
-		return cdb_estimate_partitioned_numtuples(rel, stats_missing_p);
+		return cdb_estimate_partitioned_numtuples(rel);
 	}
 	GP_WRAP_END;
 }
@@ -2526,21 +2464,6 @@ gpdb::GetLogicalIndexInfo
 	return NULL;
 }
 
-void
-gpdb::BuildRelationTriggers
-	(
-	Relation rel
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_trigger */
-		RelationBuildTriggers(rel);
-		return;
-	}
-	GP_WRAP_END;
-}
-
 Relation
 gpdb::GetRelation
 	(
@@ -2571,16 +2494,21 @@ gpdb::GetExternalTableEntry
 	return NULL;
 }
 
-List *
-gpdb::GetExternalScanUriList
+
+ForeignScan *
+gpdb::CreateForeignScanForExternalTable
 	(
-	ExtTableEntry *ext,
-	bool *ismasteronlyp
+	Oid rel_oid,
+	Index scanrelid,
+	List *qual,
+	List *targetlist
 	)
 {
 	GP_WRAP_START;
 	{
-		return create_external_scan_uri_list(ext, ismasteronlyp);
+		/* catalog tables: pg_exttable */
+		return create_foreignscan_for_external_table(rel_oid, scanrelid,
+							     qual, targetlist);
 	}
 	GP_WRAP_END;
 	return NULL;
@@ -2661,6 +2589,26 @@ gpdb::IsCompositeType
 	GP_WRAP_END;
 	return false;
 }
+
+bool
+gpdb::IsTextRelatedType
+	(
+	Oid typid
+	)
+{
+	GP_WRAP_START;
+	{
+		/* catalog tables: pg_type */
+		char typcategory;
+		bool typispreferred;
+		get_type_category_preferred(typid, &typcategory, &typispreferred);
+
+		return typcategory == TYPCATEGORY_STRING;
+	}
+	GP_WRAP_END;
+	return false;
+}
+
 
 int
 gpdb::GetIntFromValue
@@ -2876,6 +2824,22 @@ gpdb::CheckRTPermissions
 	GP_WRAP_END;
 }
 
+
+// check that a table doesn't have UPDATE triggers.
+bool
+gpdb::HasUpdateTriggers
+	(
+	Oid relid
+	)
+{
+	GP_WRAP_START;
+	{
+		return has_update_triggers(relid);
+	}
+	GP_WRAP_END;
+	return false;
+}
+
 // get index op family properties
 void
 gpdb::IndexOpProperties
@@ -2937,6 +2901,30 @@ gpdb::GetOpFamiliesForScOp
 	GP_WRAP_END;
 	
 	return NIL;
+}
+
+// get the OID of hash equality operator(s) compatible with the given op
+Oid
+gpdb::GetCompatibleHashOpFamily(Oid opno)
+{
+	GP_WRAP_START;
+	{
+		return get_compatible_hash_opfamily(opno);
+	}
+	GP_WRAP_END;
+	return InvalidOid;
+}
+
+// get the OID of hash equality operator(s) compatible with the given op
+Oid
+gpdb::GetCompatibleLegacyHashOpFamily(Oid opno)
+{
+	GP_WRAP_START;
+	{
+		return get_compatible_legacy_hash_opfamily(opno);
+	}
+	GP_WRAP_END;
+	return InvalidOid;
 }
 
 List *
@@ -3145,7 +3133,6 @@ register_mdcache_invalidation_callbacks(void)
 		 */
 		/* pg_class */
 		/* pg_index */
-		/* pg_trigger */
 
 		/*
 		 * pg_exttable is only updated when a new external table is dropped/created,
@@ -3238,6 +3225,16 @@ gpdb::MakeGpPolicy
 }
 
 uint32
+gpdb::HashChar(Datum d)
+{
+	GP_WRAP_START;
+	{
+		return DatumGetUInt32(DirectFunctionCall1(hashchar, d));
+	}
+	GP_WRAP_END;
+}
+
+uint32
 gpdb::HashBpChar(Datum d)
 {
 	GP_WRAP_START;
@@ -3253,6 +3250,16 @@ gpdb::HashText(Datum d)
 	GP_WRAP_START;
 	{
 		return DatumGetUInt32(DirectFunctionCall1(hashtext, d));
+	}
+	GP_WRAP_END;
+}
+
+uint32
+gpdb::HashName(Datum d)
+{
+	GP_WRAP_START;
+	{
+		return DatumGetUInt32(DirectFunctionCall1(hashname, d));
 	}
 	GP_WRAP_END;
 }
@@ -3297,11 +3304,18 @@ gpdb::GPDBAllocSetContextCreate()
 {
 	GP_WRAP_START;
 	{
-		return AllocSetContextCreate(OptimizerMemoryContext,
-		"GPORCA memory pool",
-		ALLOCSET_DEFAULT_MINSIZE,
-		ALLOCSET_DEFAULT_INITSIZE,
-		ALLOCSET_DEFAULT_MAXSIZE);
+		MemoryContext cxt;
+
+		cxt = AllocSetContextCreate(OptimizerMemoryContext,
+					    "GPORCA memory pool",
+					    ALLOCSET_DEFAULT_SIZES);
+		/*
+		 * Declare it as accounting root so that we can call
+		 * MemoryContextGetCurrentSpace() on it.
+		 */
+		MemoryContextDeclareAccountingRoot(cxt);
+
+		return cxt;
 	}
 	GP_WRAP_END;
 	return NULL;

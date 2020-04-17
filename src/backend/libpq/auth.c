@@ -24,13 +24,6 @@
 #include <sys/select.h>
 #endif
 
-#include "access/genam.h"
-#include "access/heapam.h"
-#include "catalog/indexing.h"
-#include "catalog/pg_authid.h"
-#include "catalog/pg_auth_time_constraint.h"
-#include "cdb/cdbendpoint.h"
-#include "cdb/cdbvars.h"
 #include "libpq/auth.h"
 #include "libpq/crypt.h"
 #include "libpq/ip.h"
@@ -38,6 +31,15 @@
 #include "libpq/pqformat.h"
 #include "libpq/md5.h"
 #include "miscadmin.h"
+#include "replication/walsender.h"
+#include "storage/ipc.h"
+
+#include "access/genam.h"
+#include "access/heapam.h"
+#include "catalog/indexing.h"
+#include "catalog/pg_authid.h"
+#include "catalog/pg_auth_time_constraint.h"
+#include "cdb/cdbvars.h"
 #include "pgtime.h"
 #include "postmaster/postmaster.h"
 #include "utils/acl.h"
@@ -49,8 +51,7 @@
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
 #include "utils/tqual.h"
-#include "replication/walsender.h"
-#include "storage/ipc.h"
+#include "cdb/cdbendpoint.h"
 
 extern bool gp_reject_internal_tcp_conn;
 
@@ -1033,7 +1034,7 @@ recv_password_packet(Port *port)
 
 
 /*----------------------------------------------------------------
- * hashed password (MD5, SHA-256) authentication
+ * MD5 authentication
  *----------------------------------------------------------------
  */
 
@@ -1053,7 +1054,7 @@ recv_and_check_password_packet(Port *port, char **logdetail)
 	if (passwd == NULL)
 		return STATUS_EOF;		/* client wouldn't send password */
 
-	result = hashed_passwd_verify(port, port->user_name, passwd, logdetail);
+	result = md5_crypt_verify(port, port->user_name, passwd, logdetail);
 
 	pfree(passwd);
 
@@ -1659,8 +1660,6 @@ pg_SSPI_recvauth(Port *port)
 		ereport(ERROR,
 		  (errmsg_internal("could not get token information: error code %lu",
 						   GetLastError())));
-
-	CloseHandle(token);
 
 	CloseHandle(token);
 
@@ -3301,6 +3300,8 @@ check_auth_time_constraints_internal(char *rolname, TimestampTz timestamp)
 	HeapTuple		tuple;
 	authPoint 		now;
 	int				status;
+	bool			isRoleSuperuser;
+	bool			found = false;
 
 	timestamptz_to_point(timestamp, &now);
 
@@ -3315,10 +3316,7 @@ check_auth_time_constraints_internal(char *rolname, TimestampTz timestamp)
 		return STATUS_OK;
 	}
 
-	if (((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper)
-		ereport(WARNING,
-				(errmsg("time constraints added on superuser role")));
-
+	isRoleSuperuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 	roleId = HeapTupleGetOid(roleTup);
 
 	ReleaseSysCache(roleTup);
@@ -3351,6 +3349,9 @@ check_auth_time_constraints_internal(char *rolname, TimestampTz timestamp)
 		bool			isnull;
 		authInterval	given;
 
+		/* Record that we found constraints regardless if they apply now */
+		found = true;
+
 		constraint_tuple = (Form_pg_auth_time_constraint) GETSTRUCT(tuple);
 		Assert(constraint_tuple->authid == roleId);
 
@@ -3380,6 +3381,11 @@ check_auth_time_constraints_internal(char *rolname, TimestampTz timestamp)
 	/* Clean up. */
 	systable_endscan(scan);
 	heap_close(reltimeconstr, AccessShareLock);
+
+	/* Time constraints shouldn't be added to superuser roles */
+	if (found && isRoleSuperuser)
+		ereport(WARNING,
+				(errmsg("time constraints added on superuser role")));
 
 	CHECK_FOR_INTERRUPTS();
 	

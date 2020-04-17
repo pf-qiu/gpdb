@@ -1512,6 +1512,27 @@ Feature: Incrementally analyze the database
         And "public.sales_1_prt_4" should appear in the latest state files
         And "public.sales_1_prt_3" should appear in the latest state files
 
+    @analyzedb_core @analyzedb_partition_tables
+    Scenario: Partition table with root partition passed to config file for AO table
+        Given no state files exist for database "incr_analyze"
+        And the user runs command "printf 'public.sales' > config_file"
+        When the user runs "analyzedb -a -d incr_analyze -f config_file"
+        Then analyzedb should return a return code of 0
+        And output should contain both "-public.sales_1_prt_2" and "-public.sales_1_prt_2"
+        And "public.sales_1_prt_2" should appear in the latest state files
+        And "public.sales_1_prt_3" should appear in the latest state files
+        And "public.sales_1_prt_4" should appear in the latest state files
+
+    @analyzedb_core @analyzedb_partition_tables
+    Scenario: Partition table with root partition passed to config file for heap table
+        Given no state files exist for database "incr_analyze"
+        And the user runs "psql -d incr_analyze -c 'create table foo (a int, b int) partition by range (b) (start (1) end  (4) every (1))'"
+        And the user runs command "printf 'public.foo' > config_file"
+        When the user runs "analyzedb -a -d incr_analyze -f config_file"
+        Then analyzedb should return a return code of 0
+	And output should contain both "-public.foo_1_prt_1" and "-public.foo_1_prt_3"
+        And the user runs "psql -d incr_analyze -c 'drop table foo'"
+
     @analyzedb_core @analyzedb_root_and_partition_tables
     Scenario: Partition tables, (entries for all parts, no change, some parts, root parts)
         Given no state files exist for database "incr_analyze"
@@ -1587,8 +1608,8 @@ Feature: Incrementally analyze the database
         Then "3" analyze directories exist for database "incr_analyze"
 
         # we want any analyzedb run to watch out for concurrent runs and incorporate any new info in its output
-        Then "incr_analyze_schema,analyzedb_test,2" should appear in the latest ao_state file in database "incr_analyze"
-        And "incr_analyze_schema,analyzedb_test_2,1" should appear in the latest ao_state file in database "incr_analyze"
+        Then "incr_analyze_schema,analyzedb_test,6" should appear in the latest ao_state file in database "incr_analyze"
+        And "incr_analyze_schema,analyzedb_test_2,3" should appear in the latest ao_state file in database "incr_analyze"
         # finally, another run should find nothing to do
         When the user runs "analyzedb -a -d incr_analyze -t incr_analyze_schema.analyzedb_test"
         Then analyzedb should return a return code of 0
@@ -1613,7 +1634,7 @@ Feature: Incrementally analyze the database
         When the user runs "psql -d incr_analyze -c 'update foo set i=NULL'"
         And the user runs "analyzedb -a -d incr_analyze --gen_profile_only"
         Then analyzedb should return a return code of 0
-        And the latest state file should have a mod count of 2 for table "foo" in "public" schema for database "incr_analyze"
+        And the latest state file should have a mod count of 3 for table "foo" in "public" schema for database "incr_analyze"
         When execute following sql in db "incr_analyze" and store result in the context
             """
             select stanullfrac from pg_statistic where starelid = (select oid from pg_class where relname='foo');

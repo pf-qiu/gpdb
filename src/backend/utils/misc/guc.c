@@ -406,6 +406,13 @@ static const struct config_enum_entry force_parallel_mode_options[] = {
 	{NULL, 0, false}
 };
 
+static const struct config_enum_entry plan_cache_mode_options[] = {
+	{"auto", PLAN_CACHE_MODE_AUTO, false},
+	{"force_generic_plan", PLAN_CACHE_MODE_FORCE_GENERIC_PLAN, false},
+	{"force_custom_plan", PLAN_CACHE_MODE_FORCE_CUSTOM_PLAN, false},
+	{NULL, 0, false}
+};
+
 /*
  * Options for enum values stored in other modules
  */
@@ -1886,11 +1893,11 @@ static struct config_int ConfigureNamesInt[] =
 	{
 		{"superuser_reserved_connections", PGC_POSTMASTER, CONN_AUTH_SETTINGS,
 			gettext_noop("Sets the number of connection slots reserved for "
-						"superusers (including reserved FTS connections)."),
+						"superusers (including reserved FTS connection for primaries)."),
 			NULL
 		},
 		&ReservedBackends,
-		3, RESERVED_FTS_CONNECTIONS, MAX_BACKENDS,
+		10, RESERVED_FTS_CONNECTIONS, MAX_BACKENDS,
 		NULL, NULL, NULL
 	},
 
@@ -3902,6 +3909,18 @@ static struct config_enum ConfigureNamesEnum[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"plan_cache_mode", PGC_USERSET, QUERY_TUNING_OTHER,
+			gettext_noop("Controls the planner's selection of custom or generic plan."),
+			gettext_noop("Prepared statements can have custom and generic plans, and the planner "
+						 "will attempt to choose which is better.  This can be set to override "
+						 "the default behavior.")
+		},
+		&plan_cache_mode,
+		PLAN_CACHE_MODE_AUTO, plan_cache_mode_options,
+		NULL, NULL, NULL
+	},
+
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, 0, NULL, NULL, NULL, NULL
@@ -5497,12 +5516,14 @@ AtEOXact_GUC(bool isCommit, int nestLevel)
 			if (changed && (gconf->flags & GUC_REPORT))
 				ReportGUCOption(gconf);
 
-			/* if a guc restore in QD, record it and restore QE before next query start */
+			/*
+			 * If a guc's value changed on QD,
+			 * record it and restore QE before next query start
+			 */
 			if (Gp_role == GP_ROLE_DISPATCH
 					&& !IsTransactionBlock()
 					&& changed
-					&& !isCommit
-					&& gp_guc_need_restore
+					&& ((isCommit) || (!isCommit && gp_guc_need_restore))
 					&& (gconf->flags & GUC_GPDB_NEED_SYNC))
 			{
 				MemoryContext oldcontext = MemoryContextSwitchTo(TopMemoryContext);

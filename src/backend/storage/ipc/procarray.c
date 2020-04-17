@@ -452,6 +452,7 @@ ProcArrayEndTransaction(PGPROC *proc, TransactionId latestXid)
 	PGXACT	   *pgxact = &allPgXact[proc->pgprocno];
 	TMGXACT	   *gxact = &allTmGxact[proc->pgprocno];
 
+	SIMPLE_FAULT_INJECTOR("before_xact_end_procarray");
 	if (TransactionIdIsValid(latestXid) || TransactionIdIsValid(gxact->gxid))
 	{
 		/*
@@ -501,7 +502,6 @@ ProcArrayEndTransaction(PGPROC *proc, TransactionId latestXid)
 	pgxact->vacuumFlags &= ~PROC_VACUUM_STATE_MASK;
 	pgxact->delayChkpt = false;		/* be sure this is cleared in abort */
 	proc->recoveryConflictPending = false;
-	proc->serializableIsoLevel = false;
 
 	Assert(pgxact->nxids == 0);
 	Assert(pgxact->overflowed == false);
@@ -527,7 +527,6 @@ ProcArrayEndTransactionInternal(PGPROC *proc, PGXACT *pgxact,
 	pgxact->vacuumFlags &= ~PROC_VACUUM_STATE_MASK;
 	pgxact->delayChkpt = false; /* be sure this is cleared in abort */
 	proc->recoveryConflictPending = false;
-	proc->serializableIsoLevel = false;
 
 	/* Clear the subtransaction-XID cache too while holding the lock */
 	pgxact->nxids = 0;
@@ -696,7 +695,6 @@ ProcArrayClearTransaction(PGPROC *proc)
 	/* redundant, but just in case */
 	pgxact->vacuumFlags &= ~PROC_VACUUM_STATE_MASK;
 	pgxact->delayChkpt = false;
-	proc->serializableIsoLevel = false;
 
 	/* Clear the subtransaction-XID cache too */
 	pgxact->nxids = 0;
@@ -1345,47 +1343,6 @@ TransactionIdIsActive(TransactionId xid)
 }
 
 /*
- * Returns true if there are of serializable backends (except the current
- * one).
- *
- * If allDbs is TRUE then all backends are considered; if allDbs is FALSE
- * then only backends running in my own database are considered.
- */
-bool
-HasSerializableBackends(bool allDbs)
-{
-	ProcArrayStruct *arrayP = procArray;
-	bool result = false; /* Assumes */
-	int			index;
-
-	LWLockAcquire(ProcArrayLock, LW_SHARED);
-
-	for (index = 0; index < arrayP->numProcs; index++)
-	{
-		int			pgprocno = arrayP->pgprocnos[index];
-		volatile PGPROC *proc = &allProcs[pgprocno];
-		volatile PGXACT *pgxact = &allPgXact[pgprocno];
-		if (proc->pid == 0)
-			continue;			/* do not count prepared xacts */
-
-		if (allDbs || proc->databaseId == MyDatabaseId)
-		{
-			if (proc->serializableIsoLevel && proc != MyProc)
-			{
-				ereport((Debug_print_snapshot_dtm ? LOG : DEBUG3),
-						(errmsg("Found serializable transaction: database %d, pid %d, xid %d, xmin %d",
-								proc->databaseId, proc->pid, pgxact->xid, pgxact->xmin)));
-				result = true;
-			}
-		}
-	}
-
-	LWLockRelease(ProcArrayLock);
-
-	return result;
-}
-
-/*
  * GetOldestXmin -- returns oldest transaction that was running
  *					when any current transaction was started.
  *
@@ -1451,7 +1408,7 @@ GetOldestXmin(Relation rel, bool ignoreVacuum)
 	 * In QD node, all distributed transactions have an entry in the proc array,
 	 * so we're done.
 	 *
-	 * During binary upgrade and in in maintenance mode, we don't have
+	 * During binary upgrade and in maintenance mode, we don't have
 	 * distributed transactions, so we're done there too. This ensures correct
 	 * operation of VACUUM FREEZE during pg_upgrade and maintenance mode.
 	 *
@@ -1619,8 +1576,6 @@ updateSharedLocalSnapshot(DtxContextInfo *dtxContextInfo,
 						  Snapshot snapshot,
 						  char *debugCaller)
 {
-	int combocidSize;
-
 	Assert(SharedLocalSnapshotSlot != NULL);
 
 	Assert(snapshot != NULL);
@@ -1650,18 +1605,11 @@ updateSharedLocalSnapshot(DtxContextInfo *dtxContextInfo,
 		memcpy(SharedLocalSnapshotSlot->snapshot.xip, snapshot->xip, snapshot->xcnt * sizeof(TransactionId));
 	}
 	
-	/* combocid stuff */
-	combocidSize = ((usedComboCids < MaxComboCids) ? usedComboCids : MaxComboCids );
-
-	SharedLocalSnapshotSlot->combocidcnt = combocidSize;
-	memcpy((void *)SharedLocalSnapshotSlot->combocids, comboCids,
-		   combocidSize * sizeof(ComboCidKeyData));
-
 	SharedLocalSnapshotSlot->snapshot.curcid = snapshot->curcid;
 
 	ereport((Debug_print_full_dtm ? LOG : DEBUG5),
-			(errmsg("updateSharedLocalSnapshot: combocidsize is now %d max %d segmateSync %d->%d",
-					combocidSize, MaxComboCids, SharedLocalSnapshotSlot->segmateSync, dtxContextInfo->segmateSync)));
+			(errmsg("updateSharedLocalSnapshot: segmateSync %d->%d",
+					SharedLocalSnapshotSlot->segmateSync, dtxContextInfo->segmateSync)));
 
 	SetSharedTransactionId_writer(distributedTransactionContext);
 	
@@ -1730,17 +1678,6 @@ copyLocalSnapshot(Snapshot snapshot)
 
 	snapshot->curcid = SharedLocalSnapshotSlot->snapshot.curcid;
 	snapshot->subxcnt = -1;
-
-	/* combocid */
-	usedComboCids = SharedLocalSnapshotSlot->combocidcnt;
-	Assert(usedComboCids <= MaxComboCids);
-	if (usedComboCids > 0)
-	{
-		if (comboCids == NULL)
-			comboCids = MemoryContextAlloc(TopTransactionContext, MaxComboCids * sizeof(ComboCidKeyData));
-
-		memcpy(comboCids, (char *)SharedLocalSnapshotSlot->combocids, usedComboCids * sizeof(ComboCidKeyData));
-	}
 
 	if (TransactionIdPrecedes(snapshot->xmin, TransactionXmin))
 		TransactionXmin = snapshot->xmin;
@@ -2114,7 +2051,7 @@ CreateDistributedSnapshot(DistributedSnapshot *ds)
 	 * Copy the information we just captured under lock and then sorted into
 	 * the distributed snapshot.
 	 */
-	ds->distribTransactionTimeStamp = getDtxStartTime();
+	ds->distribTransactionTimeStamp = getDtmStartTime();
 	ds->xminAllDistributedSnapshots = globalXminDistributedSnapshots;
 	ds->distribSnapshotId = distribSnapshotId;
 	ds->xmin = xmin;
@@ -2488,14 +2425,6 @@ GetSnapshotData(Snapshot snapshot, DtxContext distributedTransactionContext)
 		/* Not that these values are not set atomically. However,
 		 * each of these assignments is itself assumed to be atomic. */
 		MyPgXact->xmin = TransactionXmin = xmin;
-	}
-	if (IsolationUsesXactSnapshot())
-	{
-		MyProc->serializableIsoLevel = true;
-
-		ereport((Debug_print_snapshot_dtm ? LOG : DEBUG3),
-				(errmsg("Got serializable snapshot: database %d, pid %d, xid %d, xmin %d",
-						MyProc->databaseId, MyProc->pid, MyPgXact->xid, MyPgXact->xmin)));
 	}
 
 	/* GP: QD takes a distributed snapshot */
@@ -3197,8 +3126,6 @@ UpdateSerializableCommandId(CommandId curcid)
 		 SharedLocalSnapshotSlot != NULL &&
 		 FirstSnapshotSet)
 	{
-		int combocidSize;
-
 		LWLockAcquire(SharedLocalSnapshotSlot->slotLock, LW_EXCLUSIVE);
 
 		if (SharedLocalSnapshotSlot->QDxid != QEDtxContextInfo.distributedXid)
@@ -3221,16 +3148,6 @@ UpdateSerializableCommandId(CommandId curcid)
 						SharedLocalSnapshotSlot->snapshot.curcid,
 						getDistributedTransactionId(),
 						DtxContextToString(DistributedTransactionContext))));
-
-		ereport((Debug_print_snapshot_dtm ? LOG : DEBUG5),
-				(errmsg("serializable writer updating combocid: used combocids %d shared %d",
-						usedComboCids, SharedLocalSnapshotSlot->combocidcnt)));
-
-		combocidSize = ((usedComboCids < MaxComboCids) ? usedComboCids : MaxComboCids );
-
-		SharedLocalSnapshotSlot->combocidcnt = combocidSize;	
-		memcpy((void *)SharedLocalSnapshotSlot->combocids, comboCids,
-			   combocidSize * sizeof(ComboCidKeyData));
 
 		SharedLocalSnapshotSlot->snapshot.curcid = curcid;
 		SharedLocalSnapshotSlot->segmateSync = QEDtxContextInfo.segmateSync;
@@ -4894,6 +4811,40 @@ GetPidByGxid(DistributedTransactionId gxid)
 	LWLockRelease(ProcArrayLock);
 
 	return pid;
+}
+
+DistributedTransactionId
+LocalXidGetDistributedXid(TransactionId xid)
+{
+	int index;
+	DistributedTransactionTimeStamp tstamp;
+	DistributedTransactionId gxid = InvalidDistributedTransactionId;
+	ProcArrayStruct *arrayP = procArray;
+
+	SIMPLE_FAULT_INJECTOR("before_get_distributed_xid");
+	LWLockAcquire(ProcArrayLock, LW_SHARED);
+	for (index = 0; index < arrayP->numProcs; index++)
+	{
+		int		 pgprocno = arrayP->pgprocnos[index];
+		volatile PGXACT *pgxact = &allPgXact[pgprocno];
+		volatile TMGXACT *gxact = &allTmGxact[pgprocno];
+		if (xid == pgxact->xid)
+		{
+			gxid = gxact->gxid;
+			break;
+		}
+	}
+	LWLockRelease(ProcArrayLock);
+
+	/* The transaction has already committed on segment */
+	if (gxid == InvalidDistributedTransactionId)
+	{
+		DistributedLog_GetDistributedXid(xid, &tstamp, &gxid);
+		AssertImply(gxid != InvalidDistributedTransactionId,
+					tstamp == MyTmGxact->distribTimeStamp);
+	}
+
+	return gxid;
 }
 
 /*

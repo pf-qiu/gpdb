@@ -23,16 +23,15 @@
 #include "commands/trigger.h"
 #include "nodes/makefuncs.h"	/* makeFuncExpr() */
 #include "nodes/relation.h"		/* PlannerInfo, RelOptInfo */
+#include "optimizer/clauses.h"
 #include "optimizer/cost.h"		/* cpu_tuple_cost */
 #include "optimizer/pathnode.h" /* Path, pathnode_walker() */
 #include "optimizer/paths.h"
 #include "optimizer/planmain.h"
 #include "optimizer/tlist.h"
 #include "parser/parsetree.h"
-
 #include "parser/parse_expr.h"	/* exprType() */
 #include "parser/parse_oper.h"
-
 #include "utils/catcache.h"
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
@@ -415,6 +414,58 @@ cdbpath_create_motion_path(PlannerInfo *root,
 	 * data. other nodes pull. We relieve motion deadlocks by adding
 	 * materialize nodes on top of motion nodes
 	 */
+
+
+    if(IsA(subpath,SubqueryScanPath)
+       && CdbPathLocus_IsBottleneck(locus)
+       && !subpath->pathkeys
+       && ((SubqueryScanPath *)subpath)->subpath->pathkeys)
+    {
+        /*
+         * In gpdb, when there is a Gather Motion on top of a SubqueryScan,
+         * it is hard to keep the sort order information. The subquery's
+         * path key cannot be pulled up, if the parent query doesn't have
+         * an equivalence class corresponding to the subquery's sort order.
+         *
+         * e.g. create a view with an ORDER BY:
+         *
+         * CREATE VIEW v AS SELECT va, vn FROM sourcetable ORDER BY vn;
+         *
+         * and query it:
+         *
+         * SELECT va FROM v_sourcetable;
+         *
+         * So, push down the Gather Motion if the SubqueryScan dose not 
+         * have pathkey but the SubqueryScan's subpath does.
+         *
+         */
+        SubqueryScanPath *subqueryScanPath = (SubqueryScanPath *)subpath;
+        SubqueryScanPath *newSubqueryScanPath = NULL;
+        Path *motionPath = NULL;
+
+        subpath = subqueryScanPath->subpath;
+
+        motionPath = cdbpath_create_motion_path(root,
+                                                subpath,
+                                                subpath->pathkeys,
+                                                true,
+                                                locus);
+
+        newSubqueryScanPath = create_subqueryscan_path(root,
+                                                       subqueryScanPath->path.parent,
+                                                       motionPath,
+                                                       subqueryScanPath->path.pathkeys,
+                                                       locus,
+                                                       subqueryScanPath->required_outer);
+
+	/* apply final path target */
+        newSubqueryScanPath = (SubqueryScanPath *)apply_projection_to_path(root,
+                                                                           subqueryScanPath->path.parent,
+                                                                           (Path *) newSubqueryScanPath,
+                                                                           subqueryScanPath->path.pathtarget);
+
+        return (Path *) newSubqueryScanPath;
+    }
 
 	/* Create CdbMotionPath node. */
 	pathnode = makeNode(CdbMotionPath);
@@ -1069,11 +1120,50 @@ cdbpath_distkeys_from_preds(PlannerInfo *root,
 }								/* cdbpath_distkeys_from_preds */
 
 /*
+ * Add a RowIdExpr to the target list of 'path'. Returns the ID
+ * of the generated rowid expression in *rowidexpr_id.
+ */
+static Path *
+add_rowid_to_path(PlannerInfo *root, Path *path, int *rowidexpr_id)
+{
+	RowIdExpr *rowidexpr;
+	PathTarget *newpathtarget;
+
+	/*
+	 * 'last_rowidexpr_id' is used to generate a unique ID for the RowIdExpr
+	 * node that we generate. It only needs to be unique within this query
+	 * plan, and the simplest way to achieve that is to just have a global
+	 * counter. (Actually, it isn't really needed at the moment because the
+	 * deduplication is always done immediately on top of the join, so two
+	 * different RowIdExprs should never appear in the same part of the plan
+	 * tree. But it might come handy when debugging, if nothing else.
+	 * XXX: If we start to rely on it for something important, consider
+	 * overflow behavior more carefully.)
+	 */
+	static uint32 last_rowidexpr_id = 0;
+
+	rowidexpr = makeNode(RowIdExpr);
+	last_rowidexpr_id++;
+
+	*rowidexpr_id = rowidexpr->rowidexpr_id = (int) last_rowidexpr_id;
+
+	newpathtarget = copy_pathtarget(path->pathtarget);
+	add_column_to_pathtarget(newpathtarget, (Expr *) rowidexpr, 0);
+
+	return (Path *) create_projection_path(root, path->parent, path, newpathtarget);
+}
+
+/*
  * cdbpath_motion_for_join
  *
  * Decides where a join should be done.  Adds Motion operators atop
  * the subpaths if needed to deliver their results to the join locus.
- * Returns the join locus if ok, or a null locus otherwise.
+ * Returns the join locus if ok, or a null locus otherwise. If
+ * jointype is JOIN_SEMI_DEDUP or JOIN_SEMI_DEDUP_REVERSE, this also
+ * tacks a RowIdExpr on one side of the join, and *p_rowidexpr_id is
+ * set to the ID of that. The caller is expected to uniquefy
+ * the result after the join, passing the rowidexpr_id to
+ * create_unique_rowid_path().
  *
  * mergeclause_list is a List of RestrictInfo.  Its members are
  * the equijoin predicates between the outer and inner rel.
@@ -1084,6 +1174,7 @@ cdbpath_motion_for_join(PlannerInfo *root,
 						JoinType jointype,	/* JOIN_INNER/FULL/LEFT/RIGHT/IN */
 						Path **p_outer_path,	/* INOUT */
 						Path **p_inner_path,	/* INOUT */
+						int *p_rowidexpr_id,	/* OUT */
 						List *redistribution_clauses, /* equijoin RestrictInfo list */
 						List *outer_pathkeys,
 						List *inner_pathkeys,
@@ -1093,6 +1184,8 @@ cdbpath_motion_for_join(PlannerInfo *root,
 	CdbpathMfjRel outer;
 	CdbpathMfjRel inner;
 	int			numsegments;
+
+	*p_rowidexpr_id = 0;
 
 	outer.pathkeys = outer_pathkeys;
 	inner.pathkeys = inner_pathkeys;
@@ -1158,6 +1251,8 @@ cdbpath_motion_for_join(PlannerInfo *root,
 	switch (jointype)
 	{
 		case JOIN_INNER:
+		case JOIN_UNIQUE_OUTER:
+		case JOIN_UNIQUE_INNER:
 			break;
 		case JOIN_SEMI:
 		case JOIN_ANTI:
@@ -1172,10 +1267,90 @@ cdbpath_motion_for_join(PlannerInfo *root,
 			outer.ok_to_replicate = false;
 			inner.ok_to_replicate = false;
 			break;
-		default:
+
+		case JOIN_DEDUP_SEMI:
+
 			/*
-			 * The caller should already have transformed JOIN_UNIQUE_INNER/OUTER
-			 * and JOIN_DEDUP_SEMI/SEMI_REVERSE into JOIN_INNER
+			 * In this plan type, we generate a unique row ID on the outer
+			 * side of the join, perform the join, possibly broadcasting the
+			 * outer side, and remove duplicates after the join, so that only
+			 * one row for each input outer row remains.
+			 *
+			 * If the outer input is General or SegmentGeneral, it's available
+			 * in all the segments, but we cannot reliably generate a row ID
+			 * to distinguish each logical row in that case. So force the
+			 * input to a single node first in that case.
+			 *
+			 * In previous Greenplum versions, we assumed that we can generate
+			 * a unique row ID for General paths, by generating the same
+			 * sequence of numbers on each segment. That works as long as the
+			 * rows are in the same order on each segment, but it seemed like
+			 * a risky assumption. And it didn't work on SegmentGeneral paths
+			 * (i.e. replicated tables) anyway.
+			 */
+			if (!CdbPathLocus_IsPartitioned(inner.locus))
+				goto fail;
+
+			if (CdbPathLocus_IsPartitioned(outer.locus) ||
+				CdbPathLocus_IsBottleneck(outer.locus))
+			{
+				/* ok */
+			}
+			else if (CdbPathLocus_IsGeneral(outer.locus))
+			{
+				CdbPathLocus_MakeSingleQE(&outer.locus,
+										  CdbPathLocus_NumSegments(inner.locus));
+				outer.path->locus = outer.locus;
+
+			}
+			else if (CdbPathLocus_IsSegmentGeneral(outer.locus))
+			{
+				CdbPathLocus_MakeSingleQE(&outer.locus,
+										  CdbPathLocus_CommonSegments(inner.locus,
+																	  outer.locus));
+				outer.path->locus = outer.locus;
+			}
+			else
+				goto fail;
+			inner.ok_to_replicate = false;
+			outer.path = add_rowid_to_path(root, outer.path, p_rowidexpr_id);
+			*p_outer_path = outer.path;
+			break;
+
+		case JOIN_DEDUP_SEMI_REVERSE:
+			/* same as JOIN_DEDUP_SEMI, but with inner and outer reversed */
+			if (!CdbPathLocus_IsPartitioned(outer.locus))
+				goto fail;
+			if (CdbPathLocus_IsPartitioned(inner.locus) ||
+				CdbPathLocus_IsBottleneck(inner.locus))
+			{
+				/* ok */
+			}
+			else if (CdbPathLocus_IsGeneral(inner.locus))
+			{
+				CdbPathLocus_MakeSingleQE(&inner.locus,
+										  CdbPathLocus_NumSegments(outer.locus));
+				inner.path->locus = inner.locus;
+			}
+			else if (CdbPathLocus_IsSegmentGeneral(inner.locus))
+			{
+				CdbPathLocus_MakeSingleQE(&inner.locus,
+										  CdbPathLocus_CommonSegments(outer.locus,
+																	  inner.locus));
+				inner.path->locus = inner.locus;
+			}
+			else
+				goto fail;
+			outer.ok_to_replicate = false;
+			inner.path = add_rowid_to_path(root, inner.path, p_rowidexpr_id);
+			*p_inner_path = inner.path;
+			break;
+
+		default:
+
+			/*
+			 * The caller should already have transformed
+			 * JOIN_UNIQUE_INNER/OUTER into JOIN_INNER
 			 */
 			elog(ERROR, "unexpected join type %d", jointype);
 	}
@@ -1786,474 +1961,6 @@ fail:							/* can't do this join */
 	return outer.move_to;
 }								/* cdbpath_motion_for_join */
 
-
-/*
- * cdbpath_dedup_fixup
- *      Modify path to support unique rowid operation for subquery preds.
- */
-
-typedef struct CdbpathDedupFixupContext
-{
-	PlannerInfo *root;
-	Relids		distinct_on_rowid_relids;
-	List	   *rowid_vars;
-	int32		subplan_id;
-	bool		need_subplan_id;
-	bool		need_segment_id;
-} CdbpathDedupFixupContext;
-
-static CdbVisitOpt
-			cdbpath_dedup_fixup_walker(Path *path, void *context);
-
-
-/* Drop Var nodes from a List unless they belong to a given set of relids. */
-static List *
-cdbpath_dedup_pickvars(List *vars, Relids relids_to_keep)
-{
-	ListCell   *cell;
-	ListCell   *nextcell;
-	ListCell   *prevcell = NULL;
-	Var		   *var;
-
-	for (cell = list_head(vars); cell; cell = nextcell)
-	{
-		nextcell = lnext(cell);
-		var = (Var *) lfirst(cell);
-		Assert(IsA(var, Var));
-		if (!bms_is_member(var->varno, relids_to_keep))
-			vars = list_delete_cell(vars, cell, prevcell);
-		else
-			prevcell = cell;
-	}
-	return vars;
-}								/* cdbpath_dedup_pickvars */
-
-static CdbVisitOpt
-cdbpath_dedup_fixup_unique(UniquePath *uniquePath, CdbpathDedupFixupContext *ctx)
-{
-	Relids		downstream_relids = ctx->distinct_on_rowid_relids;
-	List	   *ctid_exprs;
-	List	   *ctid_operators;
-	List	   *other_vars = NIL;
-	List	   *other_operators = NIL;
-	List	   *distkeys = NIL;
-	ListCell   *cell;
-	bool		save_need_segment_id = ctx->need_segment_id;
-
-	Assert(!ctx->rowid_vars);
-
-	/*
-	 * Leave this node unchanged unless it removes duplicates by row id.
-	 *
-	 * NB. If ctx->distinct_on_rowid_relids is nonempty, row id vars could be
-	 * added to our rel's targetlist while visiting the child subtree.  Any
-	 * such added columns should pass on safely through this Unique op because
-	 * they aren't added to the distinct_on_exprs list.
-	 */
-	if (bms_is_empty(uniquePath->distinct_on_rowid_relids))
-		return CdbVisit_Walk;	/* onward to visit the kids */
-
-	/* No action needed if data is trivially unique. */
-	if (uniquePath->umethod == UNIQUE_PATH_NOOP)
-		return CdbVisit_Walk;	/* onward to visit the kids */
-
-	/* Find set of relids for which subpath must produce row ids. */
-	ctx->distinct_on_rowid_relids = bms_union(ctx->distinct_on_rowid_relids,
-											  uniquePath->distinct_on_rowid_relids);
-
-	/* Tell join ops below that row ids mustn't be left out of targetlists. */
-	ctx->distinct_on_rowid_relids = bms_add_member(ctx->distinct_on_rowid_relids, 0);
-
-	/* Notify descendants if we're going to insert a MotionPath below. */
-	if (uniquePath->must_repartition)
-		ctx->need_segment_id = true;
-
-	/* Visit descendants to get list of row id vars and add to targetlists. */
-	pathnode_walk_node(uniquePath->subpath, cdbpath_dedup_fixup_walker, ctx);
-
-	/* Restore saved flag. */
-	ctx->need_segment_id = save_need_segment_id;
-
-	/*
-	 * CDB TODO: we share kid's targetlist at present, so our tlist could
-	 * contain rowid vars which are no longer needed downstream.
-	 */
-
-	/*
-	 * Build DISTINCT ON key for UniquePath, putting the ctid columns first
-	 * because those are usually more distinctive than the segment ids. Also
-	 * build repartitioning key if needed, using only the ctid columns.
-	 */
-	ctid_exprs = NIL;
-	ctid_operators = NIL;
-	foreach(cell, ctx->rowid_vars)
-	{
-		Var		   *var = (Var *) lfirst(cell);
-
-		Assert(IsA(var, Var) &&
-			   bms_is_member(var->varno, ctx->distinct_on_rowid_relids));
-
-		/* Skip vars which aren't part of the row id for this Unique op. */
-		if (!bms_is_member(var->varno, uniquePath->distinct_on_rowid_relids))
-			continue;
-
-		/* ctid? */
-		if (var->varattno == SelfItemPointerAttributeNumber)
-		{
-			Assert(var->vartype == TIDOID);
-
-			ctid_exprs = lappend(ctid_exprs, var);
-			ctid_operators = lappend_oid(ctid_operators, TIDEqualOperator);
-
-			/* Add to repartitioning key. */
-			if (uniquePath->must_repartition)
-			{
-				DistributionKey *cdistkey;
-				Oid			opfamily;
-
-				opfamily = get_compatible_hash_opfamily(TIDEqualOperator);
-
-				cdistkey = cdb_make_distkey_for_expr(ctx->root,
-													 (Node *) var,
-													 opfamily,
-													 0);
-				distkeys = lappend(distkeys, cdistkey);
-			}
-		}
-
-		/* other uniqueifiers such as gp_segment_id */
-		else
-		{
-			Oid			eqop;
-
-			other_vars = lappend(other_vars, var);
-
-			get_sort_group_operators(exprType((Node *) var),
-									 false, true, false,
-									 NULL, &eqop, NULL, NULL);
-
-			other_operators = lappend_oid(other_operators, eqop);
-		}
-	}
-
-	uniquePath->uniq_exprs = list_concat(ctid_exprs, other_vars);
-	uniquePath->in_operators = list_concat(ctid_operators, other_operators);
-
-	/* To repartition, add a MotionPath below this UniquePath. */
-	if (uniquePath->must_repartition)
-	{
-		CdbPathLocus locus;
-
-		Assert(distkeys);
-		CdbPathLocus_MakeHashed(&locus, distkeys,
-								CdbPathLocus_NumSegments(uniquePath->subpath->locus));
-
-		uniquePath->subpath = cdbpath_create_motion_path(ctx->root,
-														 uniquePath->subpath,
-														 NIL,
-														 false,
-														 locus);
-		Insist(uniquePath->subpath);
-		uniquePath->path.locus = uniquePath->subpath->locus;
-		uniquePath->path.motionHazard = uniquePath->subpath->motionHazard;
-		uniquePath->path.rescannable = uniquePath->subpath->rescannable;
-	}
-
-	/* Prune row id var list to remove items not needed downstream. */
-	ctx->rowid_vars = cdbpath_dedup_pickvars(ctx->rowid_vars, downstream_relids);
-
-	bms_free(ctx->distinct_on_rowid_relids);
-	ctx->distinct_on_rowid_relids = downstream_relids;
-	return CdbVisit_Skip;		/* we visited kids already; done with subtree */
-}								/* cdbpath_dedup_fixup_unique */
-
-static void
-cdbpath_dedup_fixup_baserel(Path *path, CdbpathDedupFixupContext *ctx)
-{
-	RelOptInfo *rel = path->parent;
-	List	   *rowid_vars = NIL;
-	Const	   *con;
-	Var		   *var;
-
-	Assert(!ctx->rowid_vars);
-
-	/* Make a Var node referencing our 'ctid' system attribute. */
-	var = makeVar(rel->relid, SelfItemPointerAttributeNumber, TIDOID, -1, InvalidOid, 0);
-	rowid_vars = lappend(rowid_vars, var);
-
-	/*
-	 * If below a Motion operator, make a Var node for our 'gp_segment_id'
-	 * attr.
-	 *
-	 * Omit if the data is known to come from just one segment, or consists
-	 * only of constants (e.g. values scan) or immutable function results.
-	 */
-	if (ctx->need_segment_id)
-	{
-		if (!CdbPathLocus_IsBottleneck(path->locus) &&
-			!CdbPathLocus_IsGeneral(path->locus))
-		{
-			var = makeVar(rel->relid, GpSegmentIdAttributeNumber, INT4OID, -1, InvalidOid, 0);
-			rowid_vars = lappend(rowid_vars, var);
-		}
-	}
-
-	/*
-	 * If below an Append, add 'gp_subplan_id' pseudo column to the
-	 * targetlist.
-	 *
-	 * set_plan_references() will later replace the pseudo column Var node in
-	 * our rel's targetlist with a copy of its defining expression, i.e. the
-	 * Const node built here.
-	 */
-	if (ctx->need_subplan_id)
-	{
-		/* Make a Const node containing the current subplan id. */
-		con = makeConst(INT4OID, -1, InvalidOid, sizeof(int32),
-						Int32GetDatum(ctx->subplan_id),
-						false, true);
-
-		/* Set up a pseudo column whose value will be the constant. */
-		var = cdb_define_pseudo_column(ctx->root, rel, "gp_subplan_id",
-									   (Expr *) con, sizeof(int32));
-
-		/* Give downstream operators a Var referencing the pseudo column. */
-		rowid_vars = lappend(rowid_vars, var);
-	}
-
-	/* Add these vars to the rel's list of result columns. */
-	add_vars_to_targetlist(ctx->root, rowid_vars, ctx->distinct_on_rowid_relids, false);
-
-	/* Recalculate width of the rel's result rows. */
-	set_rel_width(ctx->root, rel);
-
-	/*
-	 * Tell caller to add our vars to the DISTINCT ON key of the ancestral
-	 * UniquePath, and to the targetlists of any intervening ancestors.
-	 */
-	ctx->rowid_vars = rowid_vars;
-}								/* cdbpath_dedup_fixup_baserel */
-
-static void
-cdbpath_dedup_fixup_joinrel(JoinPath *joinpath, CdbpathDedupFixupContext *ctx)
-{
-	RelOptInfo *rel = joinpath->path.parent;
-
-	Assert(!ctx->rowid_vars);
-
-	/*
-	 * CDB TODO: Subpath id isn't needed from both outer and inner. Don't
-	 * request row id vars from rhs of EXISTS join.
-	 */
-
-	/* Get row id vars from outer subpath. */
-	if (joinpath->outerjoinpath)
-		pathnode_walk_node(joinpath->outerjoinpath, cdbpath_dedup_fixup_walker, ctx);
-
-	/* Get row id vars from inner subpath. */
-	if (joinpath->innerjoinpath)
-	{
-		List	   *outer_rowid_vars = ctx->rowid_vars;
-
-		ctx->rowid_vars = NIL;
-		pathnode_walk_node(joinpath->innerjoinpath, cdbpath_dedup_fixup_walker, ctx);
-
-		/* Which rel has more rows?  Put its row id vars in front. */
-		if (outer_rowid_vars &&
-			ctx->rowid_vars &&
-			joinpath->outerjoinpath->rows >= joinpath->innerjoinpath->rows)
-			ctx->rowid_vars = list_concat(outer_rowid_vars, ctx->rowid_vars);
-		else
-			ctx->rowid_vars = list_concat(ctx->rowid_vars, outer_rowid_vars);
-	}
-
-	/* Update joinrel's targetlist and adjust row width. */
-	if (ctx->rowid_vars)
-		build_joinrel_tlist(ctx->root, rel, ctx->rowid_vars);
-}								/* cdbpath_dedup_fixup_joinrel */
-
-static void
-cdbpath_dedup_fixup_motion(CdbMotionPath *motionpath, CdbpathDedupFixupContext *ctx)
-{
-	bool		save_need_segment_id = ctx->need_segment_id;
-
-	/*
-	 * Motion could bring together rows which happen to have the same ctid but
-	 * are actually from different segments.  They must not be treated as
-	 * duplicates.  To distinguish them, let each row be labeled with its
-	 * originating segment id.
-	 */
-	ctx->need_segment_id = true;
-
-	/* Visit the upstream nodes. */
-	pathnode_walk_node(motionpath->subpath, cdbpath_dedup_fixup_walker, ctx);
-
-	/* Restore saved flag. */
-	ctx->need_segment_id = save_need_segment_id;
-}								/* cdbpath_dedup_fixup_motion */
-
-static void
-cdbpath_dedup_fixup_append(AppendPath *appendPath, CdbpathDedupFixupContext *ctx)
-{
-	Relids		save_distinct_on_rowid_relids = ctx->distinct_on_rowid_relids;
-	List	   *appendrel_rowid_vars;
-	ListCell   *cell;
-	int			ncol;
-	bool		save_need_subplan_id = ctx->need_subplan_id;
-
-	/*
-	 * The planner creates dummy AppendPaths with no subplans, if it can
-	 * eliminate a relation altogther with constraint exclusion. We have
-	 * nothing to do for those.
-	 */
-	if (appendPath->subpaths == NIL)
-		return;
-
-	Assert(!ctx->rowid_vars);
-
-	/* Make a working copy of the set of relids for which row ids are needed. */
-	ctx->distinct_on_rowid_relids = bms_copy(ctx->distinct_on_rowid_relids);
-
-	/*
-	 * Append could bring together rows which happen to have the same ctid but
-	 * are actually from different tables or different branches of a UNION
-	 * ALL.  They must not be treated as duplicates.  To distinguish them, let
-	 * each row be labeled with an integer which will be different for each
-	 * branch of the Append.
-	 */
-	ctx->need_subplan_id = true;
-
-	/* Assign a dummy subplan id (not actually used) for the appendrel. */
-	ctx->subplan_id++;
-
-	/* Add placeholder columns to the appendrel's targetlist. */
-	cdbpath_dedup_fixup_baserel((Path *) appendPath, ctx);
-	ncol = list_length(appendPath->path.pathtarget->exprs);
-
-	appendrel_rowid_vars = ctx->rowid_vars;
-	ctx->rowid_vars = NIL;
-
-	/* Update the parent and child rels. */
-	foreach(cell, appendPath->subpaths)
-	{
-		Path	   *subpath = (Path *) lfirst(cell);
-
-		if (!subpath)
-			continue;
-
-		/* Assign a subplan id to this branch of the Append. */
-		ctx->subplan_id++;
-
-		/* Tell subpath to produce row ids. */
-		ctx->distinct_on_rowid_relids =
-			bms_add_members(ctx->distinct_on_rowid_relids,
-							subpath->parent->relids);
-
-		/* Process one subpath. */
-		pathnode_walk_node(subpath, cdbpath_dedup_fixup_walker, ctx);
-
-		/*
-		 * Subpath and appendrel should have same number of result columns.
-		 * CDB TODO: Add dummy columns to other subpaths to keep their
-		 * targetlists in sync.
-		 */
-		if (list_length(subpath->pathtarget->exprs) != ncol)
-			ereport(ERROR, (errcode(ERRCODE_GP_FEATURE_NOT_YET),
-							errmsg("The query is not yet supported in "
-								   "this version of " PACKAGE_NAME "."),
-							errdetail("Unsupported combination of "
-									  "UNION ALL of joined tables "
-									  "with subquery.")
-							));
-
-		/* Don't need subpath's rowid_vars. */
-		list_free(ctx->rowid_vars);
-		ctx->rowid_vars = NIL;
-	}
-
-	/* Provide appendrel's row id vars to downstream operators. */
-	ctx->rowid_vars = appendrel_rowid_vars;
-
-	/* Restore saved values. */
-	bms_free(ctx->distinct_on_rowid_relids);
-	ctx->distinct_on_rowid_relids = save_distinct_on_rowid_relids;
-	ctx->need_subplan_id = save_need_subplan_id;
-}								/* cdbpath_dedup_fixup_append */
-
-static CdbVisitOpt
-cdbpath_dedup_fixup_walker(Path *path, void *context)
-{
-	CdbpathDedupFixupContext *ctx = (CdbpathDedupFixupContext *) context;
-
-	Assert(!ctx->rowid_vars);
-
-	/* Watch for a UniquePath node calling for removal of dups by row id. */
-	if (IsA(path, UniquePath))
-		return cdbpath_dedup_fixup_unique((UniquePath *) path, ctx);
-
-	/* Leave node unchanged unless a downstream Unique op needs row ids. */
-	if (!bms_overlap(path->parent->relids, ctx->distinct_on_rowid_relids))
-		return CdbVisit_Walk;	/* visit descendants */
-
-	/* Alter this node to produce row ids for an ancestral Unique operator. */
-	switch (path->pathtype)
-	{
-		case T_Append:
-			cdbpath_dedup_fixup_append((AppendPath *) path, ctx);
-			break;
-
-		case T_SeqScan:
-		case T_SampleScan:
-		case T_ExternalScan:
-		case T_IndexScan:
-		case T_BitmapHeapScan:
-		case T_TidScan:
-		case T_SubqueryScan:
-		case T_FunctionScan:
-		case T_ValuesScan:
-		case T_CteScan:
-		case T_ForeignScan:
-			cdbpath_dedup_fixup_baserel(path, ctx);
-			break;
-
-		case T_HashJoin:
-		case T_MergeJoin:
-		case T_NestLoop:
-			cdbpath_dedup_fixup_joinrel((JoinPath *) path, ctx);
-			break;
-
-		case T_Result:
-		case T_Material:
-			/* These nodes share child's RelOptInfo and don't need fixup. */
-			return CdbVisit_Walk;	/* visit descendants */
-
-		case T_Motion:
-			cdbpath_dedup_fixup_motion((CdbMotionPath *) path, ctx);
-			break;
-
-		default:
-			elog(ERROR, "cannot create a unique ID for path type: %d", path->pathtype);
-	}
-	return CdbVisit_Skip;		/* already visited kids, don't revisit them */
-}								/* cdbpath_dedup_fixup_walker */
-
-void
-cdbpath_dedup_fixup(PlannerInfo *root, Path *path)
-{
-	CdbpathDedupFixupContext context;
-
-	memset(&context, 0, sizeof(context));
-
-	context.root = root;
-
-	pathnode_walk_node(path, cdbpath_dedup_fixup_walker, &context);
-
-	Assert(bms_is_empty(context.distinct_on_rowid_relids) &&
-		   !context.rowid_vars &&
-		   !context.need_segment_id &&
-		   !context.need_subplan_id);
-}								/* cdbpath_dedup_fixup */
-
 /*
  * Does the path contain WorkTableScan?
  */
@@ -2412,35 +2119,40 @@ try_redistribute(PlannerInfo *root, CdbpathMfjRel *g, CdbpathMfjRel *o,
 	return false;
 }
 
-
-static void
-failIfUpdateTriggers(Relation relation)
+void
+failIfUpdateTriggers(Oid relid)
 {
-	bool	found = false;
+	Relation		relation;
 
-	if (relation->rd_rel->relhastriggers && NULL == relation->trigdesc)
-		RelationBuildTriggers(relation);
-
-	if (!relation->trigdesc)
-		return;
+	/* Suppose we already hold locks before caller */
+	relation = relation_open(relid, NoLock);
 
 	if (relation->rd_rel->relhastriggers)
 	{
-		for (int i = 0; i < relation->trigdesc->numtriggers && !found; i++)
-		{
-			Trigger trigger = relation->trigdesc->triggers[i];
-			found = trigger_enabled(trigger.tgoid) &&
-					(get_trigger_type(trigger.tgoid) & TRIGGER_TYPE_UPDATE) == TRIGGER_TYPE_UPDATE;
-			if (found)
-				break;
-		}
-	}
+		bool	found = false;
 
-	/* GPDB_96_MERGE_FIXME: Why is this not allowed? */
-	if (found || child_triggers(relation->rd_id, TRIGGER_TYPE_UPDATE))
-		ereport(ERROR,
-				(errcode(ERRCODE_GP_FEATURE_NOT_YET),
-				 errmsg("UPDATE on distributed key column not allowed on relation with update triggers")));
+		if (relation->trigdesc == NULL)
+			RelationBuildTriggers(relation);
+
+		if (relation->trigdesc)
+		{
+			for (int i = 0; i < relation->trigdesc->numtriggers && !found; i++)
+			{
+				Trigger trigger = relation->trigdesc->triggers[i];
+				found = trigger_enabled(trigger.tgoid) &&
+					(get_trigger_type(trigger.tgoid) & TRIGGER_TYPE_UPDATE) == TRIGGER_TYPE_UPDATE;
+				if (found)
+					break;
+			}
+		}
+
+		/* GPDB_96_MERGE_FIXME: Why is this not allowed? */
+		if (found || child_triggers(relation->rd_id, TRIGGER_TYPE_UPDATE))
+			ereport(ERROR,
+					(errcode(ERRCODE_GP_FEATURE_NOT_YET),
+					 errmsg("UPDATE on distributed key column not allowed on relation with update triggers")));
+	}
+	relation_close(relation, NoLock);
 }
 
 /*
@@ -2741,15 +2453,15 @@ make_splitupdate_path(PlannerInfo *root, Path *subpath, Index rti)
 	PathTarget		*splitUpdatePathTarget;
 	SplitUpdatePath	*splitupdatepath;
 	DMLActionExpr	*actionExpr;
-	Relation		resultRelation;
 
 	/* Suppose we already hold locks before caller */
 	rte = planner_rt_fetch(rti, root);
-	resultRelation = relation_open(rte->relid, NoLock);
 
-	failIfUpdateTriggers(resultRelation);
-
-	relation_close(resultRelation, NoLock);
+	/* GPDB_96_MERGE_FIXME: Why is this not allowed? */
+	if (has_update_triggers(rte->relid))
+		ereport(ERROR,
+				(errcode(ERRCODE_GP_FEATURE_NOT_YET),
+				 errmsg("UPDATE on distributed key column not allowed on relation with update triggers")));
 
 	/* Add action column at the end of targetlist */
 	actionExpr = makeNode(DMLActionExpr);

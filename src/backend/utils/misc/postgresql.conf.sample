@@ -329,6 +329,7 @@ max_prepared_transactions = 250		# can be 0 or more
 #join_collapse_limit = 20		# 1 disables collapsing of explicit
 					# JOIN clauses
 #force_parallel_mode = off
+#plan_cache_mode = auto
 
 #gp_segments_for_planner = 0     # if 0, actual number of segments is used
 
@@ -469,15 +470,6 @@ optimizer_analyze_root_partition = on # stats collection on root partitions
 #pljava_statement_cache_size = 0            # Size of the prepared statement MRU cache
 #pljava_release_lingering_savepoints = off  # on/off to release/abort lingering savepoints
 
-
-#------------------------------------------------------------------------------
-# PERFORMANCE MONITOR
-#------------------------------------------------------------------------------
-
-#gp_enable_gpperfmon=on		# Enable the performance monitor
-#gpperfmon_port=8888		# Port used by the performance monitor daemons
-
-										
 #------------------------------------------------------------------------------
 # RUNTIME STATISTICS
 #------------------------------------------------------------------------------
@@ -634,8 +626,6 @@ gp_resqueue_memory_policy = 'eager_free'	# memory request based queueing.
 # APPEND ONLY TABLES
 #---------------------------------------------------------------------------
 #gp_safefswritesize = 0   # minimum size for safe AO writes in a non-mature fs
-max_appendonly_tables = 10000 # Maximum number of append only tables that can 
-							  # participate in writing data concurrently.
 #------------------------------------------------------------------------------
 # VERSION/PLATFORM COMPATIBILITY
 #------------------------------------------------------------------------------

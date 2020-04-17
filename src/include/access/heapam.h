@@ -89,7 +89,7 @@ extern Relation try_relation_open(Oid relationId, LOCKMODE lockmode,
 								  bool noWait);
 extern Relation relation_openrv(const RangeVar *relation, LOCKMODE lockmode);
 extern Relation relation_openrv_extended(const RangeVar *relation,
-						 LOCKMODE lockmode, bool missing_ok, bool noWait);
+						 LOCKMODE lockmode, bool missing_ok);
 extern void relation_close(Relation relation, LOCKMODE lockmode);
 
 extern Relation heap_open(Oid relationId, LOCKMODE lockmode);
@@ -101,12 +101,8 @@ extern Relation heap_openrv_extended(const RangeVar *relation,
 #define heap_close(r,l)  relation_close(r,l)
 
 /* CDB */
-extern Relation CdbOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, 
-								bool *lockUpgraded);
-extern Relation CdbTryOpenRelation(Oid relid, LOCKMODE reqmode,
-								   bool noWait, bool *lockUpgraded);
-extern Relation CdbOpenRelationRv(const RangeVar *relation, LOCKMODE reqmode, 
-								  bool noWait, bool *lockUpgraded);
+extern Relation CdbOpenRelation(Oid relid, LOCKMODE reqmode, bool *lockUpgraded);
+extern Relation CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool *lockUpgraded);
 
 /* struct definitions appear in relscan.h */
 typedef struct HeapScanDescData *HeapScanDesc;

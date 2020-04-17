@@ -39,13 +39,31 @@ EXPLAIN ANALYZE SELECT * FROM explaintest;
 
 set explain_memory_verbosity='summary';
 
--- The plan should consist of a Gather and a Seq Scan, with a
--- "Memory: ..." line on both nodes.
-SELECT COUNT(*) from
-  get_explain_analyze_output($$
+-- The plan should include the slice table with two slices, with a
+-- "Vmem reserved: ..." line on both lines.
+WITH query_plan (et) AS
+(
+  select get_explain_analyze_output($$
     SELECT * FROM explaintest;
-  $$) as et
-WHERE et like '%Memory: %';
+  $$)
+)
+SELECT
+  (SELECT COUNT(*) FROM query_plan WHERE et like '%Vmem reserved: %') as vmem_reserved_lines,
+  (SELECT COUNT(*) FROM query_plan WHERE et like '%Executor Memory: %') as executor_memory_lines
+;
+
+-- With 'detail' level, should have an Executor Memory on each executor node.
+set explain_memory_verbosity='detail';
+WITH query_plan (et) AS
+(
+  select get_explain_analyze_output($$
+    SELECT * FROM explaintest;
+  $$)
+)
+SELECT
+  (SELECT COUNT(*) FROM query_plan WHERE et like '%Vmem reserved: %') as vmem_reserved_lines,
+  (SELECT COUNT(*) FROM query_plan WHERE et like '%Executor Memory: %') as executor_memory_lines
+;
 
 reset explain_memory_verbosity;
 
@@ -131,7 +149,7 @@ explain (costs off) select count(*) over (partition by g) from generate_series(1
 -- The default init_file rules contain a line to mask this out in normal
 -- text-format EXPLAIN output, but it doesn't catch these alternative formats.
 -- start_matchignore
--- m/Optimizer.*Pivotal Optimizer \(GPORCA\) version .*/
+-- m/Optimizer.*Pivotal Optimizer \(GPORCA\)/
 -- end_matchignore
 
 CREATE EXTERNAL WEB TABLE dummy_ext_tab (x text) EXECUTE 'echo foo' FORMAT 'text';

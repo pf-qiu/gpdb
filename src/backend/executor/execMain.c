@@ -39,7 +39,6 @@
  */
 #include "postgres.h"
 
-#include "access/aosegfiles.h"
 #include "access/appendonlywriter.h"
 #include "access/fileam.h"
 #include "access/htup_details.h"
@@ -48,7 +47,6 @@
 #include "access/xact.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_tablespace.h"
-#include "catalog/aoseg.h"
 #include "catalog/aoblkdir.h"
 #include "catalog/aovisimap.h"
 #include "catalog/catalog.h"
@@ -59,7 +57,6 @@
 #include "commands/copy.h"
 #include "commands/createas.h"
 #include "commands/matview.h"
-#include "commands/tablecmds.h" /* XXX: temp for get_parts() */
 #include "commands/tablespace.h"
 #include "commands/trigger.h"
 #include "executor/execdebug.h"
@@ -222,31 +219,16 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 	MemoryContext oldcontext;
 	GpExecIdentity exec_identity;
 	bool		shouldDispatch;
-	bool		needDtxTwoPhase;
+	bool		needDtx;
 
 	/* sanity checks: queryDesc must not be started already */
 	Assert(queryDesc != NULL);
 	Assert(queryDesc->estate == NULL);
 	Assert(queryDesc->plannedstmt != NULL);
-	Assert(queryDesc->memoryAccountId == MEMORY_OWNER_TYPE_Undefined);
-
-	queryDesc->memoryAccountId = MemoryAccounting_CreateExecutorMemoryAccount();
-
-	START_MEMORY_ACCOUNT(queryDesc->memoryAccountId);
 
 	Assert(queryDesc->plannedstmt->intoPolicy == NULL ||
 		GpPolicyIsPartitioned(queryDesc->plannedstmt->intoPolicy) ||
 		GpPolicyIsReplicated(queryDesc->plannedstmt->intoPolicy));
-
-	/**
-	 * Perfmon related stuff.
-	 */
-	if (gp_enable_gpperfmon
-		&& Gp_role == GP_ROLE_DISPATCH
-		&& queryDesc->gpmon_pkt)
-	{
-		gpmon_qlog_query_start(queryDesc->gpmon_pkt);
-	}
 
 	/* GPDB hook for collecting query info */
 	if (query_info_collect_hook)
@@ -521,12 +503,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 	 */
 	estate->eliminateAliens = execute_pruned_plan && estate->es_sliceTable && estate->es_sliceTable->hasMotions && !IS_QUERY_DISPATCHER();
 
-	/*
-	 * Assign a Motion Node to every Plan Node. This makes it
-	 * easy to identify which slice any Node belongs to
-	 */
-	AssignParentMotionToPlanNodes(queryDesc->plannedstmt);
-
 	/* If the interconnect has been set up; we need to catch any
 	 * errors to shut it down -- so we have to wrap InitPlan in a PG_TRY() block. */
 	PG_TRY();
@@ -594,9 +570,9 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 			 * ExecutorSaysTransactionDoesWrites() before any dispatch
 			 * work for this query.
 			 */
-			needDtxTwoPhase = ExecutorSaysTransactionDoesWrites();
-			if (needDtxTwoPhase)
-				setupTwoPhaseTransaction();
+			needDtx = ExecutorSaysTransactionDoesWrites();
+			if (needDtx)
+				setupDtxTransaction();
 
 			if (queryDesc->ddesc != NULL)
 			{
@@ -605,39 +581,11 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 			}
 
 			/*
-			 * First, see whether we need to pre-execute any initPlan subplans.
+			 * First, pre-execute any initPlan subplans.
 			 */
 			if (queryDesc->plannedstmt->nParamExec > 0)
 			{
-				ParamListInfoData *pli = queryDesc->params;
-
-				/*
-				 * First, use paramFetch to fetch any "lazy" parameters, so that
-				 * they are dispatched along with the queries. The QE nodes cannot
-				 * call the callback function on their own.
-				 */
-				if (pli && pli->paramFetch)
-				{
-					int			iparam;
-
-					for (iparam = 0; iparam < queryDesc->params->numParams; iparam++)
-					{
-						ParamExternData *prm = &pli->params[iparam];
-
-						if (!OidIsValid(prm->ptype))
-							(*pli->paramFetch) (pli, iparam + 1);
-					}
-				}
-
 				preprocess_initplans(queryDesc);
-
-				/*
-				 * Copy the values of the preprocessed subplans to the
-				 * external parameters.
-				 */
-				queryDesc->params = addRemoteExecParamsToParamList(queryDesc->plannedstmt,
-																   queryDesc->params,
-																   queryDesc->estate->es_param_exec_vals);
 			}
 
 			/*
@@ -650,7 +598,11 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 			 */
 			if (estate->es_sliceTable->slices[0].gangType != GANGTYPE_UNALLOCATED ||
 				estate->es_sliceTable->slices[0].children)
-				CdbDispatchPlan(queryDesc, needDtxTwoPhase, true);
+			{
+				CdbDispatchPlan(queryDesc,
+								estate->es_param_exec_vals,
+								needDtx, true);
+			}
 		}
 
 		/*
@@ -717,8 +669,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 				break;
 		}
 	}
-
-	END_MEMORY_ACCOUNT();
 
 	/*
 	 * Set up an AFTER-trigger statement context, unless told not to, or
@@ -798,11 +748,7 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 	Assert(estate != NULL);
 	Assert(!(estate->es_top_eflags & EXEC_FLAG_EXPLAIN_ONLY));
 
-	Assert(NULL != queryDesc->plannedstmt && MEMORY_OWNER_TYPE_Undefined != queryDesc->memoryAccountId);
-
-	START_MEMORY_ACCOUNT(queryDesc->memoryAccountId);
-
-	isParallelRetrieveSender = GetParallelRtrvCursorExecRole() == PARALLEL_RETRIEVE_SENDER;
+	isParallelRetrieveSender = (GetParallelRtrvCursorExecRole() == PARALLEL_RETRIEVE_SENDER);
 
 	/*
 	 * Switch into per-query memory context
@@ -1010,7 +956,6 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 		InstrStopNode(queryDesc->totaltime, estate->es_processed);
 
 	MemoryContextSwitchTo(oldcontext);
-	END_MEMORY_ACCOUNT();
 }
 
 /* ----------------------------------------------------------------
@@ -1112,12 +1057,8 @@ standard_ExecutorEnd(QueryDesc *queryDesc)
 
 	Assert(estate != NULL);
 
-	Assert(NULL != queryDesc->plannedstmt && MEMORY_OWNER_TYPE_Undefined != queryDesc->memoryAccountId);
-
 	/* GPDB: Save SPI flag first in case the memory context of plannedstmt is cleaned up*/
 	isInnerQuery = estate->es_plannedstmt->metricsQueryType > TOP_LEVEL_QUERY;
-
-	START_MEMORY_ACCOUNT(queryDesc->memoryAccountId);
 
 	if (DEBUG1 >= log_min_messages)
 	{
@@ -1221,17 +1162,6 @@ standard_ExecutorEnd(QueryDesc *queryDesc)
 	 */
 	FreeExecutorState(estate);
 	
-	/**
-	 * Perfmon related stuff.
-	 */
-	if (gp_enable_gpperfmon 
-			&& Gp_role == GP_ROLE_DISPATCH
-			&& queryDesc->gpmon_pkt)
-	{			
-		gpmon_qlog_query_end(queryDesc->gpmon_pkt);
-		queryDesc->gpmon_pkt = NULL;
-	}
-
 	/* GPDB hook for collecting query info */
 	if (query_info_collect_hook)
 		(*query_info_collect_hook)(isInnerQuery ? METRICS_INNER_QUERY_DONE : METRICS_QUERY_DONE, queryDesc);
@@ -1253,7 +1183,6 @@ standard_ExecutorEnd(QueryDesc *queryDesc)
 				break;
 		}
 	}
-	END_MEMORY_ACCOUNT();
 
 	ReportOOMConsumption();
 }
@@ -1278,10 +1207,6 @@ ExecutorRewind(QueryDesc *queryDesc)
 
 	Assert(estate != NULL);
 
-	Assert(NULL != queryDesc->plannedstmt && MEMORY_OWNER_TYPE_Undefined != queryDesc->memoryAccountId);
-
-	START_MEMORY_ACCOUNT(queryDesc->memoryAccountId);
-
 	/* It's probably not sensible to rescan updating queries */
 	Assert(queryDesc->operation == CMD_SELECT);
 
@@ -1296,8 +1221,6 @@ ExecutorRewind(QueryDesc *queryDesc)
 	ExecReScan(queryDesc->planstate);
 
 	MemoryContextSwitchTo(oldcontext);
-
-	END_MEMORY_ACCOUNT();
 }
 
 
@@ -1567,7 +1490,7 @@ ExecCheckXactReadOnly(PlannedStmt *plannedstmt)
 		 * local mpp tables
 		 */
 		relstorage = get_rel_relstorage(rte->relid);
-		if (relstorage == RELSTORAGE_EXTERNAL || relstorage == RELSTORAGE_FOREIGN)
+		if (relstorage == RELSTORAGE_FOREIGN)
 			continue;
 
 		if (isTempNamespace(get_rel_namespace(rte->relid)))
@@ -1674,6 +1597,9 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 		int			numResultRelations = list_length(resultRelations);
 		ResultRelInfo *resultRelInfos;
 		ResultRelInfo *resultRelInfo;
+		bool        is_conflict_update;
+
+		is_conflict_update = IsOnConflictUpdate(plannedstmt);
 
 		/*
 		 * MPP-2879: The QEs don't pass their MPPEXEC statements through
@@ -1708,11 +1634,12 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 			Relation	resultRelation;
 
 			resultRelationOid = getrelid(resultRelationIndex, rangeTable);
-			if (operation == CMD_UPDATE || operation == CMD_DELETE)
+			if (operation == CMD_UPDATE || operation == CMD_DELETE ||
+				(operation == CMD_INSERT && is_conflict_update)) /* conflictUpdate should be treated as update */
 			{
 				/*
 				 * On QD, the lock on the table has already been taken during parsing, so if it's a child
-				 * partition, we don't need to take a lock. If there a a deadlock GDD will come in place
+				 * partition, we don't need to take a lock. If there a deadlock GDD will come in place
 				 * and resolve the deadlock. ORCA Update / Delete plans only contains the root relation, so
 				 * no locks on leaf partition are taken here. The below changes makes planner as well to not
 				 * take locks on leaf partitions with GDD on.
@@ -1722,10 +1649,7 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 				{
 					lockmode = NoLock;
 				}
-				resultRelation = CdbOpenRelation(resultRelationOid,
-													 lockmode,
-													 false, /* noWait */
-													 NULL); /* lockUpgraded */
+				resultRelation = CdbOpenRelation(resultRelationOid, lockmode, NULL); /* lockUpgraded */
 			}
 			else
 			{
@@ -1751,12 +1675,10 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 		if (Gp_role == GP_ROLE_EXECUTE)
 		{
 			estate->es_result_partitions = plannedstmt->result_partitions;
-			estate->es_result_aosegnos = plannedstmt->result_aosegnos;
 		}
 		else
 		{
 			List          *resultRelations = plannedstmt->resultRelations;
-			int            numResultRelations = list_length(resultRelations);
 			List          *all_relids = NIL;
 			Oid            relid = getrelid(linitial_int(resultRelations), rangeTable);
 			bool           containRoot = false;
@@ -1844,24 +1766,7 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 				}
 			}
 
-			/*
-			 * We also assign a segno for a deletion operation.
-			 * That segno will later be touched to ensure a correct
-			 * incremental backup.
-			 */
-			estate->es_result_aosegnos = assignPerRelSegno(all_relids);
-
 			plannedstmt->result_partitions = estate->es_result_partitions;
-			plannedstmt->result_aosegnos = estate->es_result_aosegnos;
-
-			/* Set any QD resultrels segno, just in case. The QEs set their own in ExecInsert(). */
-			int relno = 0;
-			ResultRelInfo* relinfo;
-			for (relno = 0; relno < numResultRelations; relno ++)
-			{
-				relinfo = &(resultRelInfos[relno]);
-				ResultRelInfoSetSegno(relinfo, estate->es_result_aosegnos);
-			}
 		}
 	}
 	else
@@ -1873,7 +1778,6 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 		estate->es_num_result_relations = 0;
 		estate->es_result_relation_info = NULL;
 		estate->es_result_partitions = NULL;
-		estate->es_result_aosegnos = NIL;
 	}
 
 	estate->es_partition_state = NULL;
@@ -2100,11 +2004,11 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 	}
 
 	/*
-	 * If this is a query that was dispatched from the QE, extract precomputed
-	 * parameters from all init plans
+	 * If this is a query that was dispatched from the QE, install precomputed
+	 * parameter values from all init plans into our EState.
 	 */
 	if (Gp_role == GP_ROLE_EXECUTE && queryDesc->ddesc)
-		ExtractParamsFromInitPlans(plannedstmt, plannedstmt->planTree, estate);
+		InstallDispatchedExecParams(queryDesc->ddesc, estate);
 
 	/*
 	 * Initialize the private state information for all the nodes in the query
@@ -2519,6 +2423,8 @@ CloseResultRelInfo(ResultRelInfo *resultRelInfo)
 			Assert(RelationIsAoCols(resultRelInfo->ri_RelationDesc));
 			aocs_delete_finish(resultRelInfo->ri_deleteDesc);
 		}
+		if (!resultRelInfo->ri_aoInsertDesc && !resultRelInfo->ri_aocsInsertDesc)
+			AORelIncrementModCount(resultRelInfo->ri_RelationDesc);
 		resultRelInfo->ri_deleteDesc = NULL;
 	}
 	if (resultRelInfo->ri_updateDesc != NULL)
@@ -2530,6 +2436,11 @@ CloseResultRelInfo(ResultRelInfo *resultRelInfo)
 			Assert(RelationIsAoCols(resultRelInfo->ri_RelationDesc));
 			aocs_update_finish(resultRelInfo->ri_updateDesc);
 		}
+		/*
+		 * No need to update modcount here, because UPDATE works like
+		 * delete+insert, and the insertion shows up in the tupcount.
+		 */
+		//AORelIncrementModCount(resultRelInfo->ri_RelationDesc);
 		resultRelInfo->ri_updateDesc = NULL;
 	}
 
@@ -2573,7 +2484,7 @@ CloseResultRelInfo(ResultRelInfo *resultRelInfo)
 }
 
 /*
- * ResultRelInfoSetSegno
+ * ResultRelInfoChooseSegno
  *
  * based on a list of relid->segno mapping, look for our own resultRelInfo
  * relid in the mapping and find the segfile number that this resultrel should
@@ -2585,41 +2496,22 @@ CloseResultRelInfo(ResultRelInfo *resultRelInfo)
  * data during this transaction. For non partitioned tables the mapping list
  * will have only one element - our table. for partitioning it may have
  * multiple (depending on how many partitions are AO).
- *
  */
 void
-ResultRelInfoSetSegno(ResultRelInfo *resultRelInfo, List *mapping)
+ResultRelInfoChooseSegno(ResultRelInfo *resultRelInfo)
 {
-   	ListCell *relid_to_segno;
-   	bool	  found = false;
+	if (resultRelInfo->ri_aosegno != InvalidFileSegNumber)
+		return;		/* a target was chosen already */
 
 	/* only relevant for AO relations */
 	if(!relstorage_is_ao(RelinfoGetStorage(resultRelInfo)))
 		return;
 
-	Assert(mapping);
 	Assert(resultRelInfo->ri_RelationDesc);
 
-   	/* lookup the segfile # to write into, according to my relid */
+	resultRelInfo->ri_aosegno = ChooseSegnoForWrite(resultRelInfo->ri_RelationDesc);
 
-   	foreach(relid_to_segno, mapping)
-   	{
-		SegfileMapNode *n = (SegfileMapNode *)lfirst(relid_to_segno);
-		Oid myrelid = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-		if(n->relid == myrelid)
-		{
-			Assert(n->segno != InvalidFileSegNumber);
-			resultRelInfo->ri_aosegno = n->segno;
-
-			elogif(Debug_appendonly_print_insert, LOG,
-				"Appendonly: setting pre-assigned segno %d in result "
-				"relation with relid %d", n->segno, n->relid);
-
-			found = true;
-		}
-	}
-
-	Assert(found);
+	Assert(resultRelInfo->ri_aosegno != InvalidFileSegNumber);
 }
 
 /*
@@ -2766,71 +2658,6 @@ ExecContextForcesOids(PlanState *planstate, bool *hasoids)
 	return false;
 }
 
-void
-SendAOTupCounts(EState *estate)
-{
-	StringInfoData buf;
-	ResultRelInfo *resultRelInfo;
-	int			i;
-	List	   *all_ao_rels = NIL;
-	ListCell   *lc;
-
-	/*
-	 * If we're inserting into partitions, send tuple counts for
-	 * AO tables back to the QD.
-	 */
-	if (Gp_role != GP_ROLE_EXECUTE || !estate->es_result_partitions)
-		return;
-
-	resultRelInfo = estate->es_result_relations;
-	for (i = 0; i < estate->es_num_result_relations; i++)
-	{
-		resultRelInfo = &estate->es_result_relations[i];
-
-		if (relstorage_is_ao(RelinfoGetStorage(resultRelInfo)))
-			all_ao_rels = lappend(all_ao_rels, resultRelInfo);
-
-		if (resultRelInfo->ri_partition_hash)
-		{
-			HASH_SEQ_STATUS hash_seq_status;
-			ResultPartHashEntry *entry;
-
-			hash_seq_init(&hash_seq_status, resultRelInfo->ri_partition_hash);
-			while ((entry = hash_seq_search(&hash_seq_status)) != NULL)
-			{
-				if (relstorage_is_ao(RelinfoGetStorage(&entry->resultRelInfo)))
-					all_ao_rels = lappend(all_ao_rels, &entry->resultRelInfo);
-			}
-		}
-	}
-
-	if (!all_ao_rels)
-		return;
-
-	if (Debug_appendonly_print_insert)
-		ereport(LOG,(errmsg("QE sending tuple counts of %d partitioned "
-							"AO relations... ", list_length(all_ao_rels))));
-
-	pq_beginmessage(&buf, 'o');
-	pq_sendint(&buf, list_length(all_ao_rels), 4);
-
-	foreach(lc, all_ao_rels)
-	{
-		resultRelInfo = (ResultRelInfo *) lfirst(lc);
-		Oid			relid = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-		uint64		tupcount = resultRelInfo->ri_aoprocessed;
-
-		pq_sendint(&buf, relid, 4);
-		pq_sendint64(&buf, tupcount);
-
-		if (Debug_appendonly_print_insert)
-			ereport(LOG,(errmsg("sent tupcount " INT64_FORMAT " for "
-								"relation %d", tupcount, relid)));
-
-	}
-	pq_endmessage(&buf);
-}
-
 /* ----------------------------------------------------------------
  *		ExecPostprocessPlan
  *
@@ -2916,9 +2743,6 @@ ExecEndPlan(PlanState *planstate, EState *estate)
 	 */
 	ExecResetTupleTable(estate->es_tupleTable, false);
 
-	/* Report how many tuples we may have inserted into AO tables */
-	SendAOTupCounts(estate);
-
 	/* Adjust INSERT/UPDATE/DELETE count for replicated table ON QD */
 	AdjustReplicatedTableCounts(estate);
 
@@ -2980,6 +2804,13 @@ ExecutePlan(EState *estate,
 {
 	TupleTableSlot *slot;
 	uint64		current_tuple_count;
+
+	/*
+	 * For holdable cursor, the plan is executed without rewinding on gpdb. We
+	 * need to quit if the executor has already emitted all tuples.
+	 */
+	if (estate->es_got_eos)
+		return;
 
 	/*
 	 * initialize local variables
@@ -3315,7 +3146,7 @@ ExecWithCheckOptions(WCOKind kind, ResultRelInfo *resultRelInfo,
 					 * the permissions on the relation (that is, if the user
 					 * could view it directly anyway).  For RLS violations, we
 					 * don't include the data since we don't know if the user
-					 * should be able to view the tuple as as that depends on
+					 * should be able to view the tuple as that depends on
 					 * the USING policy.
 					 */
 				case WCO_VIEW_CHECK:
@@ -4450,43 +4281,6 @@ EvalPlanQualEnd(EPQState *epqstate)
 	epqstate->origslot = NULL;
 }
 
-/*
- * Calculate the part to use for the given key, then find or calculate
- * and cache required information about that part in the hash table
- * anchored in estate.
- * 
- * Return a pointer to the information, an entry in the table
- * estate->es_result_relations.  Note that the first entry in this
- * table is for the partitioned table itself and that the entire table
- * may be reallocated, changing the addresses of its entries.  
- *
- * Thus, it is important to avoid holding long-lived pointers to 
- * table entries (such as the pointer returned from this function).
- */
-static ResultRelInfo *
-get_part(EState *estate, Datum *values, bool *isnull, TupleDesc tupdesc,
-		 bool openIndices)
-{
-	Oid			targetid;
-
-	/* add a short term memory context if one wasn't assigned already */
-	Assert(estate->es_partition_state != NULL &&
-		estate->es_partition_state->accessMethods != NULL);
-	if (!estate->es_partition_state->accessMethods->part_cxt)
-		estate->es_partition_state->accessMethods->part_cxt =
-			GetPerTupleExprContext(estate)->ecxt_per_tuple_memory;
-
-	targetid = selectPartition(estate->es_result_partitions, values,
-							   isnull, tupdesc, estate->es_partition_state->accessMethods);
-
-	if (!OidIsValid(targetid))
-		ereport(ERROR,
-				(errcode(ERRCODE_NO_PARTITION_FOR_PARTITIONING_KEY),
-				 errmsg("no partition for partitioning key")));
-
-	return targetid_get_partition(targetid, estate, openIndices);
-}
-
 ResultRelInfo *
 targetid_get_partition(Oid targetid, EState *estate, bool openIndices)
 {
@@ -4494,6 +4288,13 @@ targetid_get_partition(Oid targetid, EState *estate, bool openIndices)
 	ResultRelInfo *childInfo = estate->es_result_relations;
 	ResultPartHashEntry *entry;
 	bool		found;
+
+	/*
+	 * If the resolved target is the table/partition that was named as the
+	 * update target itself, don't create a new ResultRelInfo entry for it.
+	 */
+	if (targetid == RelationGetRelid(parentInfo->ri_RelationDesc))
+		return parentInfo;
 
 	if (parentInfo->ri_partition_hash == NULL)
 	{
@@ -4543,30 +4344,26 @@ targetid_get_partition(Oid targetid, EState *estate, bool openIndices)
 	return childInfo;
 }
 
-ResultRelInfo *
-values_get_partition(Datum *values, bool *nulls, TupleDesc tupdesc,
-					 EState *estate, bool openIndices)
-{
-	ResultRelInfo *relinfo;
-
-	Assert(PointerIsValid(estate->es_result_partitions));
-
-	relinfo = get_part(estate, values, nulls, tupdesc, openIndices);
-
-	return relinfo;
-}
-
 /*
- * Find the partition we want and get the ResultRelInfo for the
- * partition.
+ * Calculate the part to use for the given key, then find or calculate
+ * and cache required information about that part in the hash table
+ * anchored in estate.
+ *
+ * Return a ResultRelInfo for that partition, an entry in the table
+ * estate->es_result_relations. The first entry in this table is for the
+ * partitioned table itself.
+ *
+ * NB: The entire table may be reallocated, changing the addresses of its
+ * entries. Thus, it is important to avoid holding long-lived pointers to
+ * table entries, such as the pointer returned from this function!
  */
 ResultRelInfo *
-slot_get_partition(TupleTableSlot *slot, EState *estate)
+slot_get_partition(TupleTableSlot *slot, EState *estate, bool openIndices)
 {
-	ResultRelInfo *resultRelInfo;
-	AttrNumber max_attr;
-	Datum *values;
-	bool *nulls;
+	AttrNumber	max_attr;
+	Datum	   *values;
+	bool	   *nulls;
+	Oid			targetid;
 
 	Assert(PointerIsValid(estate->es_result_partitions));
 
@@ -4576,10 +4373,23 @@ slot_get_partition(TupleTableSlot *slot, EState *estate)
 	values = slot_get_values(slot);
 	nulls = slot_get_isnull(slot);
 
-	resultRelInfo = get_part(estate, values, nulls, slot->tts_tupleDescriptor,
-							 true);
+	/* add a short term memory context if one wasn't assigned already */
+	Assert(estate->es_partition_state != NULL &&
+		estate->es_partition_state->accessMethods != NULL);
+	if (!estate->es_partition_state->accessMethods->part_cxt)
+		estate->es_partition_state->accessMethods->part_cxt =
+			GetPerTupleExprContext(estate)->ecxt_per_tuple_memory;
 
-	return resultRelInfo;
+	targetid = selectPartition(estate->es_result_partitions, values, nulls,
+							   slot->tts_tupleDescriptor,
+							   estate->es_partition_state->accessMethods);
+
+	if (!OidIsValid(targetid))
+		ereport(ERROR,
+				(errcode(ERRCODE_NO_PARTITION_FOR_PARTITIONING_KEY),
+				 errmsg("no partition for partitioning key")));
+
+	return targetid_get_partition(targetid, estate, openIndices);
 }
 
 
@@ -4855,7 +4665,7 @@ createPartitionAccessMethods(int numLevels)
 {
 	PartitionAccessMethods *accessMethods = palloc(sizeof(PartitionAccessMethods));;
 	accessMethods->partLevels = numLevels;
-	accessMethods->amstate = palloc0(numLevels * sizeof(void *));
+	accessMethods->cmpfuncs = (FmgrInfo **) palloc0(numLevels * sizeof(FmgrInfo *));
 	accessMethods->part_cxt = NULL;
 
 	return accessMethods;

@@ -194,6 +194,10 @@ static Datum ExecEvalGroupingFuncExpr(GroupingFuncExprState *gstate,
 static Datum ExecEvalGroupIdExpr(GroupIdExprState *gstate,
 					ExprContext *econtext,
 					bool *isNull, ExprDoneCond *isDone);
+static Datum ExecEvalGroupingSetIdExpr(GroupIdExprState *gstate,
+					ExprContext *econtext,
+					bool *isNull,
+					ExprDoneCond *isDone);
 
 static Datum ExecEvalPartSelectedExpr(PartSelectedExprState *exprstate,
 						ExprContext *econtext,
@@ -216,6 +220,12 @@ static Datum ExecEvalPartListRuleExpr(PartListRuleExprState *exprstate,
 static Datum ExecEvalPartListNullTestExpr(PartListNullTestExprState *exprstate,
 							ExprContext *econtext,
 							bool *isNull, ExprDoneCond *isDone);
+static Datum ExecEvalAggExprId(AggExprIdState *exprstate,
+							   ExprContext *econtext,
+							   bool *isNull, ExprDoneCond *isDone);
+static Datum ExecEvalRowIdExpr(RowIdExprState *exprstate,
+							   ExprContext *econtext,
+							   bool *isNull, ExprDoneCond *isDone);
 
 static bool ExecIsExprUnsafeToConst_walker(Node *node, void *context);
 static bool ExecIsExprUnsafeToConst(Node *node);
@@ -1163,15 +1173,6 @@ ExecEvalConst(ExprState *exprstate, ExprContext *econtext,
  *
  *		Returns the value of a PARAM_EXEC parameter.
  * ----------------------------------------------------------------
- */
-
-/*
- * Greenplum Database Changes:
- * In executor mode, a PARAM_EXEC parameter can not be evaluated by executing
- * the subplan.  The subplan was executed on the dispatcher prior to
- * launching the main query.  The value of the result is passed to the qExec
- * in the ParamInfo, with a kind of PARAM_EXEC_REMOTE.
- * So, this function was changed to just do a lookup in that case.
  */
 static Datum
 ExecEvalParamExec(ExprState *exprstate, ExprContext *econtext,
@@ -3559,6 +3560,22 @@ ExecEvalGroupIdExpr(GroupIdExprState *gstate,
 	return Int32GetDatum(group_id);
 }
 
+static Datum
+ExecEvalGroupingSetIdExpr(GroupIdExprState *gstate,
+					ExprContext *econtext,
+					bool *isNull,
+					ExprDoneCond *isDone)
+{
+	int			gset_id = gstate->aggstate->gset_id;
+
+	if (isDone)
+		*isDone = ExprSingleResult;
+
+	*isNull = false;
+
+	return Int32GetDatum(gset_id);
+}
+
 /* ----------------------------------------------------------------
  *		ExecEvalArray - ARRAY[] expressions
  * ----------------------------------------------------------------
@@ -5110,6 +5127,58 @@ static Datum ExecEvalPartListNullTestExpr(PartListNullTestExprState *exprstate,
 }
 
 /* ----------------------------------------------------------------
+ *		ExecEvalAggExprId
+ *
+ *		Evaluate the AggExprId, which is zero indexed, indicates which DQA is
+ *		this tuple for, in the tuple split case.
+ * ----------------------------------------------------------------
+ */
+static Datum ExecEvalAggExprId(AggExprIdState *exprstate,
+							   ExprContext *econtext,
+							   bool *isNull, ExprDoneCond *isDone)
+{
+	Assert(NULL != exprstate);
+	Assert(NULL != isNull);
+	if (IsA(exprstate->parent, TupleSplitState))
+	{
+		TupleSplitState *tsState = (TupleSplitState *)exprstate->parent;
+
+		*isNull = false;
+		*isDone = ExprSingleResult;
+
+		return Int32GetDatum(tsState->currentExprId);
+	}
+
+	*isNull = true;
+	*isDone = ExprSingleResult;
+	return Int32GetDatum(0);
+}
+
+
+/* ----------------------------------------------------------------
+ *		ExecEvalRowIdExpr
+ *
+ *		Evaluate the RowIdExpr, which is zero indexed, indicates which DQA is
+ *		this tuple for, in the tuple split case.
+ * ----------------------------------------------------------------
+ */
+static Datum
+ExecEvalRowIdExpr(RowIdExprState *exprstate,
+				  ExprContext *econtext,
+				  bool *isNull, ExprDoneCond *isDone)
+{
+	Assert(NULL != exprstate);
+	Assert(NULL != isNull);
+
+	exprstate->rowcounter++;
+
+	*isNull = false;
+	if (isDone)
+		*isDone = ExprSingleResult;
+	return Int64GetDatum(exprstate->rowcounter);
+}
+
+/* ----------------------------------------------------------------
  *		ExecEvalCoerceViaIO
  *
  *		Evaluate a CoerceViaIO node.
@@ -5464,6 +5533,19 @@ ExecInitExpr(Expr *node, PlanState *parent)
 					state = (ExprState *) grp_state;
 					state->evalfunc = (ExprStateEvalFunc) ExecEvalGroupIdExpr;
 				}
+			}
+			break;
+		case T_GroupingSetId:
+			{
+				GroupIdExprState *grp_state = makeNode(GroupIdExprState);
+
+				if (!parent || !IsA(parent, AggState) || !IsA(parent->plan, Agg))
+					elog(ERROR, "parent of GROUPINGSET_ID is not Agg node");
+
+				grp_state->aggstate = (AggState *) parent;
+
+				state = (ExprState *) grp_state;
+				state->evalfunc = (ExprStateEvalFunc) ExecEvalGroupingSetIdExpr;
 			}
 			break;
 		case T_WindowFunc:
@@ -6154,6 +6236,35 @@ ExecInitExpr(Expr *node, PlanState *parent)
 			}
 			break;
 
+		case T_AggExprId:
+			{
+				AggExprIdState *exprstate = makeNode(AggExprIdState);
+
+				exprstate->xprstate.evalfunc = (ExprStateEvalFunc) ExecEvalAggExprId;
+				exprstate->parent = parent;
+
+				state = (ExprState *) exprstate;
+			}
+			break;
+
+		case T_RowIdExpr:
+			{
+				RowIdExprState *exprstate = makeNode(RowIdExprState);
+
+				/*
+				 * Generate a number that's unique for this row, within this query
+				 * execution. Different segments can generate rows in parallel, so
+				 * we include the segment ID in the value so that two segments never
+				 * generate the same value.
+				 */
+				exprstate->rowcounter = ((uint64) GpIdentity.dbid) << 48 ;
+
+				exprstate->xprstate.evalfunc = (ExprStateEvalFunc) ExecEvalRowIdExpr;
+
+				state = (ExprState *) exprstate;
+			}
+			break;
+
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) nodeTag(node));
@@ -6731,11 +6842,12 @@ neededColumnContextWalker(Node *node, neededColumnContext *c)
 	{
 		Var *var = (Var *)node;
 
-		if (var->varattno > 0)
-		{
-			Assert(var->varattno <= c->n);
+		if (IS_SPECIAL_VARNO(var->varno))
+			return false;
+
+		if (var->varattno > 0 && var->varattno <= c->n)
 			c->mask[var->varattno - 1] = true;
-		}
+
 		/*
 		 * If all attributes are included,
 		 * set all entries in mask to true.

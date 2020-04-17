@@ -73,6 +73,7 @@
 #include "utils/syscache.h"
 
 #include "catalog/oid_dispatch.h"
+#include "catalog/pg_attribute_encoding.h"
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbendpoint.h"
 #include "cdb/cdbpartition.h"
@@ -1185,9 +1186,7 @@ ProcessUtilitySlow(Node *parsetree,
 									default:
 										Assert(relStorage == RELSTORAGE_HEAP ||
 											   relStorage == RELSTORAGE_AOROWS ||
-											   relStorage == RELSTORAGE_AOCOLS ||
-											   relStorage == RELSTORAGE_EXTERNAL ||
-											   relStorage == RELSTORAGE_FOREIGN);
+											   relStorage == RELSTORAGE_AOCOLS);
 								}
 							}
 
@@ -1210,6 +1209,14 @@ ProcessUtilitySlow(Node *parsetree,
 							 * one needs a secondary relation too.
 							 */
 							CommandCounterIncrement();
+
+							/* Add column encoding entries based on the WITH clauses */
+							if (cstmt->isCtas && cstmt->options)
+							{
+								Relation rel = heap_open(address.objectId, AccessExclusiveLock);
+								AddDefaultRelationAttributeOptions(rel, cstmt->options);
+								heap_close(rel, NoLock);
+							}
 
 							if (relKind != RELKIND_COMPOSITE_TYPE)
 							{
@@ -1281,7 +1288,8 @@ ProcessUtilitySlow(Node *parsetree,
 													 true,
 													 NULL);
 							CreateForeignTable((CreateForeignTableStmt *) stmt,
-											   address.objectId);
+											   address.objectId,
+											   false /* skip_permission_checks */);
 							EventTriggerCollectSimpleCommand(address,
 															 secondaryObject,
 															 stmt);
@@ -1956,7 +1964,6 @@ ExecDropStmt(DropStmt *stmt, bool isTopLevel)
 		case OBJECT_VIEW:
 		case OBJECT_MATVIEW:
 		case OBJECT_FOREIGN_TABLE:
-		case OBJECT_EXTTABLE:
 			RemoveRelations(stmt);
 			break;
 		default:
@@ -2314,9 +2321,6 @@ AlterObjectTypeCommandTag(ObjectType objtype)
 		case OBJECT_EXTPROTOCOL:
 			tag = "ALTER PROTOCOL";
 			break;
-		case OBJECT_EXTTABLE:
-			tag = "ALTER EXTERNAL TABLE";
-			break;
 
 		default:
 			tag = "???";
@@ -2527,9 +2531,6 @@ CreateCommandTag(Node *parsetree)
 			{
 				case OBJECT_TABLE:
 					tag = "DROP TABLE";
-					break;
-				case OBJECT_EXTTABLE:
-					tag = "DROP EXTERNAL TABLE";
 					break;
 				case OBJECT_SEQUENCE:
 					tag = "DROP SEQUENCE";

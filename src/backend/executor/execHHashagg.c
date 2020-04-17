@@ -295,12 +295,13 @@ makeHashAggEntryForInput(AggState *aggstate, TupleTableSlot *inputslot, uint32 h
 	MemoryContext oldcxt;
 	HashAggTable *hashtable = aggstate->hhashtable;
 	TupleTableSlot *hashslot = aggstate->hashslot;
-	Datum *values = slot_get_values(aggstate->hashslot); 
-	bool *isnull = slot_get_isnull(aggstate->hashslot); 
-	ListCell *lc;
-	uint32 tup_len;
-	uint32 aggs_len;
-	uint32 len;
+	Datum	   *values = slot_get_values(aggstate->hashslot);
+	bool	   *isnull = slot_get_isnull(aggstate->hashslot);
+	ListCell   *lc;
+	uint32		aggs_len;
+	uint32		len;
+	uint32		null_save_len;
+	bool		has_nulls;
 
 	/*
 	 * Extract the grouping columns from the inputslot, and store them into
@@ -313,7 +314,6 @@ makeHashAggEntryForInput(AggState *aggstate, TupleTableSlot *inputslot, uint32 h
 		values[n-1] = slot_getattr(inputslot, n, &(isnull[n-1])); 
 	}
 
-	tup_len = 0;
 	aggs_len = aggstate->numaggs * sizeof(AggStatePerGroupData);
 
 	oldcxt = MemoryContextSwitchTo(hashtable->entry_cxt);
@@ -332,14 +332,10 @@ makeHashAggEntryForInput(AggState *aggstate, TupleTableSlot *inputslot, uint32 h
 	 *
 	 * The memtuple_form_to() next time does the actual memtuple copy.
 	 */
-	entry->tuple_and_aggs = (void *)memtuple_form_to(hashslot->tts_mt_bind,
-													 values,
-													 isnull,
-													 entry->tuple_and_aggs,
-													 &tup_len, false);
-	Assert(tup_len > 0 && entry->tuple_and_aggs == NULL);
+	len = compute_memtuple_size(hashslot->tts_mt_bind, values, isnull,
+								&null_save_len, &has_nulls);
 
-	if (GET_TOTAL_USED_SIZE(hashtable) + MAXALIGN(MAXALIGN(tup_len) + aggs_len) >=
+	if (GET_TOTAL_USED_SIZE(hashtable) + MAXALIGN(MAXALIGN(len) + aggs_len) >=
 		hashtable->max_mem)
 	{
 		MemoryContextSwitchTo(oldcxt);
@@ -350,14 +346,13 @@ makeHashAggEntryForInput(AggState *aggstate, TupleTableSlot *inputslot, uint32 h
 	 * Form memtuple into group_buf.
 	 */
 	entry->tuple_and_aggs = mpool_alloc(hashtable->group_buf,
-										MAXALIGN(MAXALIGN(tup_len) + aggs_len));
-	len = tup_len;
-	entry->tuple_and_aggs = (void *)memtuple_form_to(hashslot->tts_mt_bind,
-													 values,
-													 isnull,
-													 entry->tuple_and_aggs,
-													 &len, false);
-	Assert(len == tup_len && entry->tuple_and_aggs != NULL);
+										MAXALIGN(MAXALIGN(len) + aggs_len));
+
+	memtuple_form_to(hashslot->tts_mt_bind,
+					 values,
+					 isnull,
+					 len, null_save_len, has_nulls,
+					 entry->tuple_and_aggs);
 
 	MemoryContextSwitchTo(oldcxt);
 	return entry;
@@ -1386,8 +1381,6 @@ spill_hash_table(AggState *aggstate)
 			SANITY_CHECK_METADATA_SIZE(hashtable);
 
 			hashtable->num_batches++;
-			
-			CheckSendPlanStateGpmonPkt(&aggstate->ss.ps);
 		}
 
 		for (bucket_no = file_no; bucket_no < hashtable->nbuckets;
@@ -1973,8 +1966,6 @@ agg_hash_reload(AggState *aggstate)
 		ResetExprContext(tmpcontext);
 	}
 
-	CheckSendPlanStateGpmonPkt(&aggstate->ss.ps);
-
 	if (hashtable->is_spilling)
 	{
         int freed_size = 0;
@@ -2256,13 +2247,6 @@ agg_hash_explain(AggState *aggstate)
 	}
 }
 
-/* Resets all gpmon states for this agg and sends an updated gpmon packet */
-static void
-Gpmon_ResetAggHashTable(AggState* aggstate)
-{
-	CheckSendPlanStateGpmonPkt(&aggstate->ss.ps);
-}
-
 /* Function: reset_agg_hash_table
  *
  * Clear the hash table content anchored by the bucket array.
@@ -2346,8 +2330,6 @@ void reset_agg_hash_table(AggState *aggstate, int64 nentries)
 	MemoryContextReset(hashtable->serialization_cxt);
 
 	init_agg_hash_iter(hashtable);
-
-	Gpmon_ResetAggHashTable(aggstate);
 }
 
 /* Function: destroy_agg_hash_table
@@ -2366,8 +2348,6 @@ void destroy_agg_hash_table(AggState *aggstate)
 			"HashAgg: destroying hash table -- ngroup=" INT64_FORMAT " ntuple=" INT64_FORMAT,
 			aggstate->hhashtable->num_ht_groups,
 			aggstate->hhashtable->num_tuples);
-		
-		Gpmon_ResetAggHashTable(aggstate);
 
 		/* destroy_batches(aggstate->hhashtable); */
 		pfree(aggstate->hhashtable->buckets);

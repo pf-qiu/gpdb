@@ -146,13 +146,10 @@ static const char BinarySignature[11] = "PGCOPY\n\377\r\n\0";
 
 
 /* non-export function prototypes */
-static CopyState BeginCopy(bool is_from, Relation rel, Node *raw_query,
-		  const char *queryString, const Oid queryRelId, List *attnamelist,
-		  List *options, TupleDesc tupDesc);
 static void EndCopy(CopyState cstate);
-static CopyState BeginCopyTo(Relation rel, Node *query, const char *queryString,
-			const Oid queryRelId, const char *filename, bool is_program,
-			List *attnamelist, List *options, bool skip_ext_partition);
+static CopyState BeginCopyTo(Relation rel, Node *query, const char *queryString, const Oid queryRelId,
+					const char *filename, bool is_program, List *attnamelist,
+					List *options, bool skip_ext_partition);
 static void EndCopyTo(CopyState cstate, uint64 *processed);
 static uint64 DoCopyTo(CopyState cstate);
 static uint64 CopyToDispatch(CopyState cstate);
@@ -1147,8 +1144,7 @@ DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed)
 		PreventCommandIfParallelMode("COPY FROM");
 
 		cstate = BeginCopyFrom(rel, stmt->filename, stmt->is_program,
-							   NULL, NULL, stmt->attlist, options,
-							   stmt->ao_segnos);
+							   NULL, NULL, stmt->attlist, options);
 		cstate->range_table = range_table;
 
 		/*
@@ -1158,12 +1154,13 @@ DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed)
 		{
 			/* Single row error handling requested */
 			SingleRowErrorDesc *sreh = cstate->sreh;
-			bool		log_to_file = false;
+			char		log_to_file = LOG_ERRORS_DISABLE;
 
-			if (sreh->into_file)
+			if (IS_LOG_TO_FILE(sreh->log_error_type))
 			{
 				cstate->errMode = SREH_LOG;
-				log_to_file = true;
+				/* LOG ERRORS PERSISTENTLY for COPY is not allowed for now. */
+				log_to_file = LOG_ERRORS_ENABLE;
 			}
 			else
 			{
@@ -1809,7 +1806,7 @@ ProcessCopyOptions(CopyState cstate,
  * If in the text format, delimit columns with delimiter <delim> and print
  * NULL values as <null_print>.
  */
-static CopyState
+CopyState
 BeginCopy(bool is_from,
 		  Relation rel,
 		  Node *raw_query,
@@ -1846,7 +1843,7 @@ BeginCopy(bool is_from,
 	 * Since external scan calls BeginCopyFrom to init CopyStateData.
 	 * Current relation may be an external relation.
 	 */
-	if (rel != NULL && RelationIsExternal(rel))
+	if (rel != NULL && rel_is_external_table(RelationGetRelid(rel)))
 	{
 		is_copy = false;
 		num_columns = rel->rd_att->natts;
@@ -2014,17 +2011,6 @@ BeginCopy(bool is_from,
 		if (cstate->on_segment)
 			cstate->queryDesc->plannedstmt->copyIntoClause =
 					MakeCopyIntoClause(glob_copystmt);
-
-		if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
-		{
-			Assert(queryString);
-			gpmon_qlog_query_submit(cstate->queryDesc->gpmon_pkt);
-			gpmon_qlog_query_text(cstate->queryDesc->gpmon_pkt,
-					queryString,
-					application_name,
-					GetResqueueName(GetResQueueId()),
-					GetResqueuePriority(GetResQueueId()));
-		}
 
 		/* GPDB hook for collecting query info */
 		if (query_info_collect_hook)
@@ -2203,8 +2189,6 @@ CopyDispatchOnSegment(CopyState cstate, const CopyStmt *stmt)
 
 			all_relids = list_concat(all_relids, all_partition_relids(pn));
 		}
-
-		dispatchStmt->ao_segnos = assignPerRelSegno(all_relids);
 	}
 
 	dispatchStmt->skip_ext_partition = cstate->skip_ext_partition;
@@ -2307,7 +2291,6 @@ MakeCopyIntoClause(CopyStmt *stmt)
 	copyIntoClause = makeNode(CopyIntoClause);
 
 	copyIntoClause->is_program = stmt->is_program;
-	copyIntoClause->ao_segnos = stmt->ao_segnos;
 	copyIntoClause->filename = stmt->filename;
 	copyIntoClause->options = stmt->options;
 	copyIntoClause->attlist = stmt->attlist;
@@ -2486,8 +2469,7 @@ BeginCopyTo(Relation rel,
 	CopyState	cstate;
 	MemoryContext oldcontext;
 
-	if (rel != NULL && rel->rd_rel->relkind != RELKIND_RELATION &&
-		!RelationIsExternal(rel))
+	if (rel != NULL && rel->rd_rel->relkind != RELKIND_RELATION)
 	{
 		if (rel->rd_rel->relkind == RELKIND_VIEW)
 			ereport(ERROR,
@@ -2517,14 +2499,6 @@ BeginCopyTo(Relation rel,
 					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 					 errmsg("cannot copy from non-table relation \"%s\"",
 							RelationGetRelationName(rel))));
-	}
-	if (rel != NULL && RelationIsExternal(rel))
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-				 errmsg("cannot copy from external relation \"%s\"",
-						RelationGetRelationName(rel)),
-				 errhint("Try the COPY (SELECT ...) TO variant.")));
 	}
 
 	cstate = BeginCopy(false, rel, query, queryString, queryRelId, attnamelist,
@@ -2657,7 +2631,7 @@ BeginCopyToForExternalTable(Relation extrel, List *options)
 {
 	CopyState	cstate;
 
-	Assert(RelationIsExternal(extrel));
+	Assert(rel_is_external_table(RelationGetRelid(extrel)));
 
 	cstate = BeginCopy(false, extrel, NULL, NULL, InvalidOid, NIL, options, NULL);
 	cstate->dispatch_mode = COPY_DIRECT;
@@ -2828,7 +2802,6 @@ CopyToDispatch(CopyState cstate)
 
 		cdbCopyStart(cdbCopy, stmt,
 					 RelationBuildPartitionDesc(cstate->rel, false),
-					 NIL,
 					 cstate->file_encoding);
 
 		if (cstate->binary)
@@ -3229,7 +3202,7 @@ CopyTo(CopyState cstate)
 
 				pfree(proj);
 			}
-			else if(RelationIsExternal(rel))
+			else if (rel->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 			{
 				/* should never get here */
 				if (!cstate->skip_ext_partition)
@@ -3628,10 +3601,13 @@ CopyFrom(CopyState cstate)
 	bool	   *baseNulls;
 	GpDistributionData *part_distData = NULL;
 	int			firstBufferedLineNo = 0;
+	bool		is_external_table;
 
 	Assert(cstate->rel);
 
-	if (cstate->rel->rd_rel->relkind != RELKIND_RELATION)
+	is_external_table = (cstate->rel->rd_rel->relkind == RELKIND_FOREIGN_TABLE &&
+						 rel_is_external_table(RelationGetRelid(cstate->rel)));
+	if (cstate->rel->rd_rel->relkind != RELKIND_RELATION && !is_external_table)
 	{
 		if (cstate->rel->rd_rel->relkind == RELKIND_VIEW)
 			ereport(ERROR,
@@ -3763,7 +3739,7 @@ CopyFrom(CopyState cstate)
 					  cstate->rel,
 					  1,		/* dummy rangetable index */
 					  0);
-	ResultRelInfoSetSegno(resultRelInfo, cstate->ao_segnos);
+	ResultRelInfoChooseSegno(resultRelInfo);
 
 	parentResultRelInfo = resultRelInfo;
 
@@ -3941,7 +3917,7 @@ CopyFrom(CopyState cstate)
 		elog(DEBUG5, "COPY command sent to segdbs");
 
 		cdbCopyStart(cdbCopy, glob_copystmt,
-					 estate->es_result_partitions, cstate->ao_segnos, cstate->file_encoding);
+					 estate->es_result_partitions, cstate->file_encoding);
 
 		/*
 		 * Skip header processing if dummy file get from master for COPY FROM ON
@@ -4018,6 +3994,8 @@ CopyFrom(CopyState cstate)
 					break;
 			}
 
+			ExecStoreVirtualTuple(baseSlot);
+
 			if (estate->es_result_partitions)
 			{
 				/*
@@ -4030,8 +4008,7 @@ CopyFrom(CopyState cstate)
 
 				PG_TRY();
 				{
-					resultRelInfo = values_get_partition(baseValues, baseNulls,
-														 tupDesc, estate, true);
+					resultRelInfo = slot_get_partition(baseSlot,  estate, true);
 					success = true;
 				}
 				PG_CATCH();
@@ -4047,8 +4024,6 @@ CopyFrom(CopyState cstate)
 
 				estate->es_result_relation_info = resultRelInfo;
 			}
-
-			ExecStoreVirtualTuple(baseSlot);
 
 			/*
 			 * And now we can form the input tuple.
@@ -4129,7 +4104,7 @@ CopyFrom(CopyState cstate)
 			if (relstorage == RELSTORAGE_AOROWS &&
 				resultRelInfo->ri_aoInsertDesc == NULL)
 			{
-				ResultRelInfoSetSegno(resultRelInfo, cstate->ao_segnos);
+				ResultRelInfoChooseSegno(resultRelInfo);
 				resultRelInfo->ri_aoInsertDesc =
 					appendonly_insert_init(resultRelInfo->ri_RelationDesc,
 										   resultRelInfo->ri_aosegno, false);
@@ -4137,12 +4112,12 @@ CopyFrom(CopyState cstate)
 			else if (relstorage == RELSTORAGE_AOCOLS &&
 					 resultRelInfo->ri_aocsInsertDesc == NULL)
 			{
-				ResultRelInfoSetSegno(resultRelInfo, cstate->ao_segnos);
+				ResultRelInfoChooseSegno(resultRelInfo);
 				resultRelInfo->ri_aocsInsertDesc =
 					aocs_insert_init(resultRelInfo->ri_RelationDesc,
 									 resultRelInfo->ri_aosegno, false);
 			}
-			else if (relstorage == RELSTORAGE_EXTERNAL &&
+			else if (is_external_table &&
 					 resultRelInfo->ri_extInsertDesc == NULL)
 			{
 				resultRelInfo->ri_extInsertDesc =
@@ -4258,7 +4233,7 @@ CopyFrom(CopyState cstate)
 					aocs_insert(resultRelInfo->ri_aocsInsertDesc, slot);
 					insertedTid = *slot_get_ctid(slot);
 				}
-				else if (relstorage == RELSTORAGE_EXTERNAL)
+				else if (is_external_table)
 				{
 					HeapTuple tuple;
 
@@ -4309,8 +4284,6 @@ CopyFrom(CopyState cstate)
 			 * count, so this counter is meaningless.
 			 */
 			processed++;
-			if (relstorage_is_ao(relstorage))
-				resultRelInfo->ri_aoprocessed++;
 			if (cstate->cdbsreh)
 				cstate->cdbsreh->processed++;
 		}
@@ -4361,7 +4334,7 @@ CopyFrom(CopyState cstate)
 			 * counts it again as a rejected row. So we ignore the reject count
 			 * from the master and only consider the reject count from segments.
 			 */
-			if (cstate->cdbsreh->log_to_file)
+			if (IS_LOG_TO_FILE(cstate->cdbsreh->logerrors))
 				total_rejected_from_qd = 0;
 
 			total_rejected = total_rejected_from_qd + total_rejected_from_qes;
@@ -4403,9 +4376,6 @@ CopyFrom(CopyState cstate)
 				cstate->on_segment ? processed : 0);
 	}
 
-	if (estate->es_result_partitions && Gp_role == GP_ROLE_EXECUTE)
-		SendAOTupCounts(estate);
-
 	/* update AO tuple counts */
 	if (cstate->dispatch_mode == COPY_DISPATCH)
 	{
@@ -4417,29 +4387,10 @@ CopyFrom(CopyState cstate)
 			{
 				int64 tupcount;
 
-				if (cdbCopy->aotupcounts)
-				{
-					HTAB *ht = cdbCopy->aotupcounts;
-					struct {
-						Oid relid;
-						int64 tupcount;
-					} *ao;
-					bool found;
-					Oid relid = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-
-					ao = hash_search(ht, &relid, HASH_FIND, &found);
-					if (found)
-						tupcount = ao->tupcount;
-					else
-						tupcount = 0;
-				}
-				else
-				{
-					tupcount = processed;
-				}
+				tupcount = processed;
 
 				/* find out which segnos the result rels in the QE's used */
-				ResultRelInfoSetSegno(resultRelInfo, cstate->ao_segnos);
+				ResultRelInfoChooseSegno(resultRelInfo);
 
 				if (resultRelInfo->ri_aoInsertDesc)
 					resultRelInfo->ri_aoInsertDesc->insertCount += tupcount;
@@ -4584,8 +4535,7 @@ BeginCopyFrom(Relation rel,
 			  copy_data_source_cb data_source_cb,
 			  void *data_source_cb_extra,
 			  List *attnamelist,
-			  List *options,
-			  List *ao_segnos)
+			  List *options)
 {
 	CopyState	cstate;
 	TupleDesc	tupDesc;
@@ -4610,7 +4560,8 @@ BeginCopyFrom(Relation rel,
 	if (cstate->on_segment || data_source_cb)
 		cstate->dispatch_mode = COPY_DIRECT;
 	else if (Gp_role == GP_ROLE_DISPATCH &&
-			 cstate->rel && cstate->rel->rd_cdbpolicy)
+			 cstate->rel && cstate->rel->rd_cdbpolicy &&
+			 cstate->rel->rd_cdbpolicy->ptype != POLICYTYPE_ENTRY)
 		cstate->dispatch_mode = COPY_DISPATCH;
 	else if (Gp_role == GP_ROLE_EXECUTE)
 		cstate->dispatch_mode = COPY_EXECUTOR;
@@ -4810,31 +4761,6 @@ BeginCopyFrom(Relation rel,
 		{
 			PartitionNode *pn = RelationBuildPartitionDesc(cstate->rel, false);
 			all_relids = list_concat(all_relids, all_partition_relids(pn));
-		}
-
-		cstate->ao_segnos = assignPerRelSegno(all_relids);
-	}
-	else
-	{
-		if (ao_segnos)
-		{
-			/* We must be a QE if we received the aosegnos config */
-			Assert(Gp_role == GP_ROLE_EXECUTE);
-			cstate->ao_segnos = ao_segnos;
-		}
-		else
-		{
-			/*
-			 * utility mode (or dispatch mode for no policy table).
-			 * create a one entry map for our one and only relation
-			 */
-			if (RelationIsAoRows(cstate->rel) || RelationIsAoCols(cstate->rel))
-			{
-				SegfileMapNode *n = makeNode(SegfileMapNode);
-				n->relid = RelationGetRelid(cstate->rel);
-				n->segno = SetSegnoForWrite(cstate->rel, InvalidFileSegNumber);
-				cstate->ao_segnos = lappend(cstate->ao_segnos, n);
-			}
 		}
 	}
 
@@ -5086,7 +5012,7 @@ HandleCopyError(CopyState cstate)
 		}
 		cstate->cdbsreh->errmsg = errormsg;
 
-		if (cstate->cdbsreh->log_to_file)
+		if (IS_LOG_TO_FILE(cstate->cdbsreh->logerrors))
 		{
 			if (Gp_role == GP_ROLE_DISPATCH && !cstate->on_segment)
 			{
@@ -7749,7 +7675,6 @@ GetTargetKeyCols(Oid relid, PartitionNode *children, Bitmapset *needed_cols,
 				 bool distkeys, EState *estate)
 {
 	int			i;
-	ListCell   *lc;
 
 	/*
 	 * Partition key columns.
@@ -7810,9 +7735,9 @@ GetTargetKeyCols(Oid relid, PartitionNode *children, Bitmapset *needed_cols,
 	/* Recurse to subpartitions */
 	if (children)
 	{
-		foreach(lc, children->rules)
+		for (i = 0; i < children->num_rules; i++)
 		{
-			PartitionRule *pr = (PartitionRule *) lfirst(lc);
+			PartitionRule *pr = children->rules[i];
 
 			needed_cols = GetTargetKeyCols(pr->parchildrelid, pr->children,
 										   needed_cols, distkeys, estate);

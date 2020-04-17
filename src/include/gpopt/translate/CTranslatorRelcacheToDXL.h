@@ -32,7 +32,6 @@
 #include "naucrates/md/CMDRelationExternalGPDB.h"
 #include "naucrates/md/CMDAggregateGPDB.h"
 #include "naucrates/md/CMDFunctionGPDB.h"
-#include "naucrates/md/CMDTriggerGPDB.h"
 #include "naucrates/md/CMDCheckConstraintGPDB.h"
 #include "naucrates/md/CMDPartConstraintGPDB.h"
 #include "naucrates/md/CMDScalarOpGPDB.h"
@@ -266,7 +265,7 @@ namespace gpdxl
 
 			// storage type for a relation
 			static
-			IMDRelation::Erelstoragetype RetrieveRelStorageType(CHAR storage_type);
+			IMDRelation::Erelstoragetype RetrieveRelStorageType(Relation rel);
 
 			// fix frequencies if they add up to more than 1.0
 			static
@@ -361,10 +360,6 @@ namespace gpdxl
 			static
 			IMDIndex *RetrievePartTableIndex(CMemoryPool *mp, CMDAccessor *md_accessor, LogicalIndexInfo *index_info, IMDId *mdid_index, const IMDRelation *md_rel);
 
-			// return the triggers defined on the given relation
-			static
-			IMdIdArray *RetrieveRelTriggers(CMemoryPool *mp, Relation rel);
-
 			// return the check constraints defined on the relation with the given oid
 			static
 			IMdIdArray *RetrieveRelCheckConstraints(CMemoryPool *mp, OID oid);
@@ -388,6 +383,9 @@ namespace gpdxl
 			// retrieve the opfamilies mdids for the given index
 			static
 			IMdIdArray *RetrieveIndexOpFamilies(CMemoryPool *mp, IMDId *mdid_index);
+
+			static
+			IMdIdArray *RetrieveRelDistributionOpFamilies(CMemoryPool *mp, GpPolicy *policy);
 
             // for non-leaf partition tables return the number of child partitions
             // else return 1
@@ -451,10 +449,6 @@ namespace gpdxl
 			// retrieve an aggregate from the relcache
 			static
 			CMDAggregateGPDB *RetrieveAgg(CMemoryPool *mp, IMDId *mdid);
-
-			// retrieve a trigger from the relcache
-			static
-			CMDTriggerGPDB *RetrieveTrigger(CMemoryPool *mp, IMDId *mdid);
 			
 			// translate GPDB comparison type
 			static

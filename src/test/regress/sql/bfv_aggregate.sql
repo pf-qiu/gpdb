@@ -1397,7 +1397,7 @@ select avg('1000000000000000000'::int8) from generate_series(1, 100000);
 
 -- Test cases where the planner would like to distribute on a column, to implement
 -- grouping or distinct, but can't because the datatype isn't GPDB-hashable.
--- These are all variants of the the same issue; all of these used to miss the
+-- These are all variants of the same issue; all of these used to miss the
 -- check on whether the column is GPDB_hashble, producing an assertion failure.
 create table int2vectortab (distkey int, t int2vector,t2 int2vector) distributed by (distkey);
 insert into int2vectortab values
@@ -1412,6 +1412,27 @@ select t from int2vectortab union select t from int2vectortab;
 select count(*) over (partition by t) from int2vectortab;
 select count(distinct t) from int2vectortab;
 select count(distinct t), count(distinct t2) from int2vectortab;
+
+--
+-- Testing aggregate above FULL JOIN
+--
+
+-- SETUP
+CREATE TABLE pagg_tab1(x int, y int) DISTRIBUTED BY (x);
+CREATE TABLE pagg_tab2(x int, y int) DISTRIBUTED BY (x);
+
+INSERT INTO pagg_tab1 SELECT i % 30, i % 20 FROM generate_series(0, 299, 2) i;
+INSERT INTO pagg_tab2 SELECT i % 20, i % 30 FROM generate_series(0, 299, 3) i;
+
+ANALYZE pagg_tab1;
+ANALYZE pagg_tab2;
+
+-- TEST
+-- should have Redistribute Motion above the FULL JOIN
+EXPLAIN (COSTS OFF)
+SELECT a.x, sum(b.x) FROM pagg_tab1 a FULL OUTER JOIN pagg_tab2 b ON a.x = b.y GROUP BY a.x ORDER BY 1 NULLS LAST;
+SELECT a.x, sum(b.x) FROM pagg_tab1 a FULL OUTER JOIN pagg_tab2 b ON a.x = b.y GROUP BY a.x ORDER BY 1 NULLS LAST;
+
 
 -- CLEANUP
 set client_min_messages='warning';

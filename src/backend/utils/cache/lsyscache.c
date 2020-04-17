@@ -57,6 +57,7 @@
 #include "utils/fmgroids.h"
 #include "utils/tqual.h"
 #include "funcapi.h"
+#include "cdb/cdbhash.h"
 
 #include "catalog/heap.h"                   /* SystemAttributeDefinition() */
 #include "catalog/pg_aggregate.h"
@@ -590,19 +591,47 @@ get_compatible_hash_opfamily(Oid opno)
 		HeapTuple	tuple = &catlist->members[i]->tuple;
 		Form_pg_amop aform = (Form_pg_amop) GETSTRUCT(tuple);
 
-		/*
-		 * The given operator should be an "=" operator with same input
-		 * types. So this shouldn't happen. But if it does, let's avoid
-		 * getting even more confused.
-		 */
-		if (aform->amoplefttype != aform->amoprighttype)
-			continue;
-
 		if (aform->amopmethod == HASH_AM_OID &&
 			aform->amopstrategy == HTEqualStrategyNumber)
 		{
 			result = aform->amopfamily;
 			break;
+		}
+	}
+
+	ReleaseSysCacheList(catlist);
+
+	return result;
+}
+
+Oid
+get_compatible_legacy_hash_opfamily(Oid opno)
+{
+	Oid			result = InvalidOid;
+	CatCList   *catlist;
+	int			i;
+
+	/*
+	 * Search pg_amop to see if the target operator is registered as the "="
+	 * operator of any hash opfamily.  If the operator is registered in
+	 * multiple opfamilies, assume we can use any one.
+	 */
+	catlist = SearchSysCacheList1(AMOPOPID, ObjectIdGetDatum(opno));
+
+	for (i = 0; i < catlist->n_members; i++)
+	{
+		HeapTuple	tuple = &catlist->members[i]->tuple;
+		Form_pg_amop aform = (Form_pg_amop) GETSTRUCT(tuple);
+
+		if (aform->amopmethod == HASH_AM_OID &&
+			aform->amopstrategy == HTEqualStrategyNumber)
+		{
+			Oid hashfunc = cdb_hashproc_in_opfamily(aform->amopfamily, aform->amoplefttype);
+			if (isLegacyCdbHashFunction(hashfunc))
+			{
+				result = aform->amopfamily;
+				break;
+			}
 		}
 	}
 
@@ -1504,99 +1533,45 @@ get_oprjoin(Oid opno)
 
 /*				---------- TRIGGER CACHE ----------					 */
 
-/*
- * get_trigger_name
- *	  returns the name of the trigger with the given triggerid
- *
- * Note: returns a palloc'd copy of the string, or NULL if no such trigger
- */
-char *
-get_trigger_name(Oid triggerid)
+
+/* Does table have update triggers? */
+bool
+has_update_triggers(Oid relid)
 {
-	Relation	rel;
-	HeapTuple	tp;
-	char	   *result = NULL;
-	ScanKeyData	scankey;
-	SysScanDesc sscan;
+	Relation	relation;
+	bool		result = false;
 
-	ScanKeyInit(&scankey, ObjectIdAttributeNumber,
-				BTEqualStrategyNumber, F_OIDEQ,
-				ObjectIdGetDatum(triggerid));
-	rel = heap_open(TriggerRelationId, AccessShareLock);
-	sscan = systable_beginscan(rel, TriggerOidIndexId, true,
-							   NULL, 1, &scankey);
+	/* Assume the caller already holds a suitable lock. */
+	relation = relation_open(relid, NoLock);
 
-	tp = systable_getnext(sscan);
-	if (HeapTupleIsValid(tp))
+	if (relation->rd_rel->relhastriggers)
 	{
-		Form_pg_trigger trigtup = (Form_pg_trigger) GETSTRUCT(tp);
+		bool	found = false;
 
-		result = pstrdup(NameStr(trigtup->tgname));
+		if (relation->trigdesc == NULL)
+			RelationBuildTriggers(relation);
+
+		if (relation->trigdesc)
+		{
+			for (int i = 0; i < relation->trigdesc->numtriggers && !found; i++)
+			{
+				Trigger trigger = relation->trigdesc->triggers[i];
+				found = trigger_enabled(trigger.tgoid) &&
+					(get_trigger_type(trigger.tgoid) & TRIGGER_TYPE_UPDATE) == TRIGGER_TYPE_UPDATE;
+				if (found)
+					break;
+			}
+		}
+
+		/* GPDB_96_MERGE_FIXME: Why is this not allowed? */
+		if (found || child_triggers(relation->rd_id, TRIGGER_TYPE_UPDATE))
+			result = true;
 	}
-	systable_endscan(sscan);
-	heap_close(rel, AccessShareLock);
+	relation_close(relation, NoLock);
 
 	return result;
 }
 
-/*
- * get_trigger_relid
- *		Given trigger id, return the trigger's relation oid
- */
-Oid
-get_trigger_relid(Oid triggerid)
-{
-	Relation	rel;
-	HeapTuple	tp;
-	Oid			result = InvalidOid;
-	ScanKeyData	scankey;
-	SysScanDesc sscan;
-
-	ScanKeyInit(&scankey, ObjectIdAttributeNumber,
-				BTEqualStrategyNumber, F_OIDEQ,
-				ObjectIdGetDatum(triggerid));
-	rel = heap_open(TriggerRelationId, AccessShareLock);
-	sscan = systable_beginscan(rel, TriggerOidIndexId, true,
-							   NULL, 1, &scankey);
-
-	tp = systable_getnext(sscan);
-	if (HeapTupleIsValid(tp))
-		result = ((Form_pg_trigger) GETSTRUCT(tp))->tgrelid;
-	systable_endscan(sscan);
-	heap_close(rel, AccessShareLock);
-
-	return result;
-}
-
-/*
- * get_trigger_funcid
- *		Given trigger id, return the trigger's function oid
- */
-Oid
-get_trigger_funcid(Oid triggerid)
-{
-	Relation	rel;
-	HeapTuple	tp;
-	Oid			result = InvalidOid;
-	ScanKeyData	scankey;
-	SysScanDesc sscan;
-
-	ScanKeyInit(&scankey, ObjectIdAttributeNumber,
-				BTEqualStrategyNumber, F_OIDEQ,
-				ObjectIdGetDatum(triggerid));
-	rel = heap_open(TriggerRelationId, AccessShareLock);
-	sscan = systable_beginscan(rel, TriggerOidIndexId, true,
-							   NULL, 1, &scankey);
-
-	tp = systable_getnext(sscan);
-	if (HeapTupleIsValid(tp))
-		result = ((Form_pg_trigger) GETSTRUCT(tp))->tgfoid;
-
-	systable_endscan(sscan);
-	heap_close(rel, AccessShareLock);
-
-	return result;
-}
 
 /*
  * get_trigger_type
@@ -4092,6 +4067,8 @@ get_cast_func(Oid oidSrc, Oid oidDest, bool *is_binary_coercible, Oid *oidCastFu
 	*is_binary_coercible = false;
 
 	*pathtype = find_coercion_pathway(oidDest, oidSrc, COERCION_IMPLICIT, oidCastFunc);
+	if (*pathtype == COERCION_PATH_RELABELTYPE)
+		*is_binary_coercible = true;
 	if (*pathtype != COERCION_PATH_NONE)
 		return true;
 	return false;

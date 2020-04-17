@@ -261,6 +261,15 @@ _equalGroupId(const GroupId *a, const GroupId *b)
 }
 
 static bool
+_equalGroupingSetId(const GroupingSetId *a, const GroupingSetId *b)
+{
+
+	COMPARE_LOCATION_FIELD(location);
+
+	return true;
+}
+
+static bool
 _equalWindowFunc(const WindowFunc *a, const WindowFunc *b)
 {
 	COMPARE_SCALAR_FIELD(winfnoid);
@@ -1251,7 +1260,7 @@ _equalSingleRowErrorDesc(const SingleRowErrorDesc *a, const SingleRowErrorDesc *
 {
 	COMPARE_SCALAR_FIELD(rejectlimit);
 	COMPARE_SCALAR_FIELD(is_limit_in_rows);
-	COMPARE_SCALAR_FIELD(into_file);
+	COMPARE_SCALAR_FIELD(log_error_type);
 
 	return true;
 }
@@ -1297,6 +1306,7 @@ _equalCreateStmt(const CreateStmt *a, const CreateStmt *b)
 	COMPARE_SCALAR_FIELD(ownerid);
 	COMPARE_SCALAR_FIELD(buildAoBlkdir);
 	COMPARE_NODE_FIELD(attr_encodings);
+	COMPARE_SCALAR_FIELD(isCtas);
 
 	return true;
 }
@@ -2908,6 +2918,14 @@ _equalDistributedBy(const DistributedBy *a, const DistributedBy *b)
 }
 
 static bool
+_equalRowIdExpr(const RowIdExpr *a, const RowIdExpr *b)
+{
+	COMPARE_SCALAR_FIELD(rowidexpr_id);
+
+	return true;
+}
+
+static bool
 _equalXmlSerialize(const XmlSerialize *a, const XmlSerialize *b)
 {
 	COMPARE_SCALAR_FIELD(xmloption);
@@ -3072,6 +3090,9 @@ equal(const void *a, const void *b)
 			break;
 		case T_GroupId:
 			retval = _equalGroupId(a, b);
+			break;
+		case T_GroupingSetId:
+			retval = _equalGroupingSetId(a, b);
 			break;
 		case T_WindowFunc:
 			retval = _equalWindowFunc(a, b);
@@ -3749,6 +3770,12 @@ equal(const void *a, const void *b)
 			break;
 		case T_RoleSpec:
 			retval = _equalRoleSpec(a, b);
+			break;
+		case T_AggExprId:
+			retval = true;
+			break;
+		case T_RowIdExpr:
+			retval = _equalRowIdExpr(a, b);
 			break;
 
 		default:

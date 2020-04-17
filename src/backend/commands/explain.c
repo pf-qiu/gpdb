@@ -47,10 +47,10 @@
 
 #include "cdb/cdbgang.h"
 #include "executor/execDynamicScan.h"
+#include "optimizer/tlist.h"
 
 #ifdef USE_ORCA
 extern char *SerializeDXLPlan(Query *parse);
-extern const char *OptVersion();
 #endif
 
 
@@ -102,6 +102,8 @@ static void show_merge_append_keys(MergeAppendState *mstate, List *ancestors,
 					   ExplainState *es);
 static void show_agg_keys(AggState *astate, List *ancestors,
 			  ExplainState *es);
+static void show_tuple_split_keys(TupleSplitState *tstate, List *ancestors,
+								  ExplainState *es);
 static void show_grouping_sets(PlanState *planstate, Agg *agg,
 							   List *ancestors, ExplainState *es);
 static void show_grouping_set_keys(PlanState *planstate,
@@ -232,6 +234,9 @@ ExplainQuery(ExplainStmt *stmt, const char *queryString,
 
 	/* currently, summary option is not exposed to users; just set it */
 	es->summary = es->analyze;
+
+	if (explain_memory_verbosity >= EXPLAIN_MEMORY_VERBOSITY_DETAIL)
+		es->memory_detail = true;
 
 	/*
 	 * Parse analysis was done already, but we still have to run the rule
@@ -533,6 +538,9 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	if (es->analyze)
 		instrument_option |= INSTRUMENT_CDB;
 
+	if (es->memory_detail)
+		instrument_option |= INSTRUMENT_MEMORY_DETAIL;
+
 	/*
 	 * We always collect timing for the entire statement, even when node-level
 	 * timing is off, so we don't look at es->timing here.  (We could skip
@@ -560,17 +568,6 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	queryDesc = CreateQueryDesc(plannedstmt, queryString,
 								GetActiveSnapshot(), InvalidSnapshot,
 								dest, params, instrument_option);
-
-	if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
-	{
-		Assert(queryString);
-		gpmon_qlog_query_submit(queryDesc->gpmon_pkt);
-		gpmon_qlog_query_text(queryDesc->gpmon_pkt,
-				queryString,
-				application_name,
-				GetResqueueName(GetResQueueId()),
-				GetResqueuePriority(GetResQueueId()));
-	}
 
 	/* GPDB hook for collecting query info */
 	if (query_info_collect_hook)
@@ -669,7 +666,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 		ExplainProperty("Optimizer", "Postgres query optimizer", false, es);
 #ifdef USE_ORCA
 	else
-		ExplainPropertyStringInfo("Optimizer", es, "Pivotal Optimizer (GPORCA) version %s", OptVersion());
+		ExplainPropertyStringInfo("Optimizer", es, "Pivotal Optimizer (GPORCA)");
 #endif
 
 	/* We only list the non-default GUCs in verbose mode */
@@ -867,7 +864,7 @@ ExplainPrintTriggers(ExplainState *es, QueryDesc *queryDesc)
 	/*
 	 * GPDB_91_MERGE_FIXME: If the target is a partitioned table, we
 	 * should also report information on the triggers in the partitions.
-	 * I.e. we should scan the the 'ri_partition_hash' of each
+	 * I.e. we should scan the 'ri_partition_hash' of each
 	 * ResultRelInfo as well. This is somewhat academic, though, as long
 	 * as we don't support triggers in GPDB in general..
 	 */
@@ -1076,7 +1073,6 @@ ExplainPreScanNode(PlanState *planstate, Bitmapset **rels_used)
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_DynamicSeqScan:
-		case T_ExternalScan:
 		case T_DynamicIndexScan:
 		case T_ShareInputScan:
 			*rels_used = bms_add_member(*rels_used,
@@ -1209,9 +1205,6 @@ ExplainNode(PlanState *planstate, List *ancestors,
 					break;
 			}
 			break;
-		case T_Repeat:
-			pname = sname = "Repeat";
-			break;
 		case T_Append:
 			pname = sname = "Append";
 			break;
@@ -1251,9 +1244,6 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			break;
 		case T_DynamicSeqScan:
 			pname = sname = "Dynamic Seq Scan";
-			break;
-		case T_ExternalScan:
-			pname = sname = "External Scan";
 			break;
 		case T_SampleScan:
 			pname = sname = "Sample Scan";
@@ -1346,6 +1336,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			break;
 		case T_Sort:
 			pname = sname = "Sort";
+			break;
+		case T_TupleSplit:
+			pname = "TupleSplit";
 			break;
 		case T_Agg:
 			{
@@ -1475,9 +1468,6 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_PartitionSelector:
 			pname = sname = "Partition Selector";
 			break;
-		case T_RowTrigger:
-			pname = sname = "RowTrigger";
- 			break;
 		default:
 			pname = sname = "???";
 			break;
@@ -1558,7 +1548,6 @@ ExplainNode(PlanState *planstate, List *ancestors,
 	{
 		case T_SeqScan:
 		case T_DynamicSeqScan:
-		case T_ExternalScan:
 		case T_DynamicIndexScan:
 		case T_SampleScan:
 		case T_BitmapHeapScan:
@@ -1910,7 +1899,6 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			/* FALLTHROUGH */
 		case T_SeqScan:
 		case T_DynamicSeqScan:
-		case T_ExternalScan:
 		case T_ValuesScan:
 		case T_CteScan:
 		case T_WorkTableScan:
@@ -2048,6 +2036,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 										   planstate, es);
 			break;
 		}
+		case T_TupleSplit:
+			show_tuple_split_keys((TupleSplitState *)planstate, ancestors, es);
+			break;
 		case T_Agg:
 			show_agg_keys((AggState *) planstate, ancestors, es);
 			show_upper_qual(plan->qual, "Filter", planstate, ancestors, es);
@@ -2101,9 +2092,6 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			break;
 		case T_Hash:
 			show_hash_info((HashState *) planstate, es);
-			break;
-		case T_Repeat:
-			show_upper_qual(plan->qual, "Filter", planstate, ancestors, es);
 			break;
 		case T_Motion:
 			{
@@ -2211,6 +2199,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		IsA(plan, ModifyTable) ||
 		IsA(plan, Append) ||
 		IsA(plan, MergeAppend) ||
+		IsA(plan, Sequence) ||
 		IsA(plan, BitmapAnd) ||
 		IsA(plan, BitmapOr) ||
 		IsA(plan, SubqueryScan) ||
@@ -2505,6 +2494,65 @@ show_merge_append_keys(MergeAppendState *mstate, List *ancestors,
 						 plan->sortOperators, plan->collations,
 						 plan->nullsFirst,
 						 ancestors, es);
+}
+
+/*
+ * Show the Split key for an SplitTuple
+ */
+static void
+show_tuple_split_keys(TupleSplitState *tstate, List *ancestors,
+					  ExplainState *es)
+{
+	TupleSplit *plan = (TupleSplit *)tstate->ss.ps.plan;
+
+	ancestors = lcons(tstate, ancestors);
+
+	List	   *context;
+	bool		useprefix;
+	List	   *result = NIL;
+	PlanState *planstate = outerPlanState(tstate);
+	/* Set up deparsing context */
+	context = set_deparse_context_planstate(es->deparse_cxt,
+											(Node *) planstate,
+											ancestors);
+	useprefix = (list_length(es->rtable) > 1 || es->verbose);
+
+	StringInfoData buf;
+	initStringInfo(&buf);
+
+	for (int i = 0; i < plan->numDisDQAs; i++)
+	{
+		int id = -1;
+		Bitmapset *bm = plan->dqa_args_id_bms[i];
+		resetStringInfo(&buf);
+		appendStringInfoChar(&buf, '(');
+		while ((id = bms_next_member(bm, id)) >= 0)
+		{
+			TargetEntry *te = get_sortgroupref_tle((Index)id, planstate->plan->targetlist);
+			char	   *exprstr;
+
+			if (!te)
+				elog(ERROR, "no tlist entry for sort key: %d", id);
+			/* Deparse the expression, showing any top-level cast */
+			exprstr = deparse_expression((Node *) te->expr, context,
+										 useprefix, true);
+
+			appendStringInfoString(&buf, exprstr);
+			appendStringInfoChar(&buf, ',');
+		}
+		buf.data[buf.len - 1] = ')';
+
+		result = lappend(result, pstrdup(buf.data));
+	}
+	ExplainPropertyList("Split by Col", result, es);
+
+	if (plan->numCols > 0)
+		show_sort_group_keys(outerPlanState(tstate), "Group Key",
+							 plan->numCols, plan->grpColIdx,
+							 NULL, NULL, NULL,
+							 ancestors, es);
+
+	ancestors = list_delete_first(ancestors);
 }
 
 /*
@@ -3263,7 +3311,6 @@ ExplainTargetRel(Plan *plan, Index rti, ExplainState *es)
 		case T_ForeignScan:
 		case T_CustomScan:
 		case T_ModifyTable:
-		case T_ExternalScan:
 			/* Assert it's on a real relation */
 			Assert(rte->rtekind == RTE_RELATION);
 			objectname = get_rel_name(rte->relid);
@@ -3318,7 +3365,7 @@ ExplainTargetRel(Plan *plan, Index rti, ExplainState *es)
 
 				/*
 				 * Unlike in a FunctionScan, in a TableFunctionScan the call
-				 * should always be a a function call of a single function.
+				 * should always be a function call of a single function.
 				 * Get the real name of the function.
 				 */
 				{

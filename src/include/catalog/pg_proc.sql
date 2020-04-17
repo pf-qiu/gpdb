@@ -128,7 +128,7 @@
 -- Greenplum MPP exposed internally-defined functions. 
  CREATE FUNCTION gp_pgdatabase() RETURNS SETOF record LANGUAGE internal VOLATILE PARALLEL SAFE AS 'gp_pgdatabase__' WITH (OID=5065, DESCRIPTION="view mpp pgdatabase state");
 
- CREATE FUNCTION gp_execution_segment() RETURNS SETOF int4 LANGUAGE internal VOLATILE PARALLEL SAFE AS 'mpp_execution_segment' WITH (OID=6022, DESCRIPTION="segment executing function");
+ CREATE FUNCTION gp_execution_segment() RETURNS int4 LANGUAGE internal VOLATILE PARALLEL SAFE AS 'mpp_execution_segment' WITH (OID=6022, DESCRIPTION="segment executing function");
 -- #define MPP_EXECUTION_SEGMENT_OID 6022
 -- #define MPP_EXECUTION_SEGMENT_TYPE 23
 
@@ -147,8 +147,6 @@
  CREATE FUNCTION get_ao_distribution(IN rel regclass, OUT segmentid int4, OUT tupcount int8) RETURNS SETOF pg_catalog.record LANGUAGE internal VOLATILE READS SQL DATA AS 'get_ao_distribution' WITH (OID=7169, DESCRIPTION="show append only table tuple distribution across segment databases");
 
  CREATE FUNCTION get_ao_compression_ratio(regclass) RETURNS float8 LANGUAGE internal VOLATILE STRICT READS SQL DATA AS 'get_ao_compression_ratio' WITH (OID=7171, DESCRIPTION="show append only table compression ratio");
-
- CREATE FUNCTION gp_update_ao_master_stats(regclass) RETURNS int8 LANGUAGE internal VOLATILE MODIFIES SQL DATA AS 'gp_update_ao_master_stats' WITH (OID=7173, DESCRIPTION="append only tables utility function");
 
  CREATE FUNCTION gp_endpoints_info(IN isall bool, OUT token text, OUT cursorname text, OUT sessionid int4, OUT hostname text, OUT port int4, OUT dbid int4, OUT userid oid, OUT status text, OUT endpointname text) RETURNS SETOF record LANGUAGE internal VOLATILE EXECUTE ON MASTER AS 'gp_endpoints_info' WITH (OID=7178, DESCRIPTION="mpp endpoints information");
 
@@ -183,10 +181,9 @@
 
  CREATE FUNCTION gp_truncate_error_log(text) RETURNS bool LANGUAGE INTERNAL STRICT VOLATILE PARALLEL SAFE AS 'gp_truncate_error_log' WITH (OID=7069, DESCRIPTION="truncate the error log for the specified external table");
 
--- elog related
- CREATE FUNCTION gp_elog(text) RETURNS void LANGUAGE internal IMMUTABLE STRICT PARALLEL SAFE AS 'gp_elog' WITH (OID=5044, DESCRIPTION="Insert text into the error log");
+ CREATE FUNCTION gp_read_persistent_error_log(exttable text, OUT cmdtime timestamptz, OUT relname text, OUT filename text, OUT linenum int4, OUT bytenum int4, OUT errmsg text, OUT rawdata text, OUT rawbytes bytea) RETURNS SETOF record LANGUAGE INTERNAL STRICT VOLATILE PARALLEL SAFE EXECUTE ON ALL SEGMENTS AS 'gp_read_persistent_error_log' WITH (OID = 7080, DESCRIPTION="read the persistent error log for the specified external table");
 
- CREATE FUNCTION gp_elog(text, bool) RETURNS void LANGUAGE internal IMMUTABLE STRICT PARALLEL SAFE AS 'gp_elog' WITH (OID=5045, DESCRIPTION="Insert text into the error log");
+ CREATE FUNCTION gp_truncate_persistent_error_log(text) RETURNS bool LANGUAGE INTERNAL STRICT VOLATILE PARALLEL SAFE AS 'gp_truncate_persistent_error_log' WITH (OID=7081, DESCRIPTION="truncate the persistent error log for the specified external table");
 
 -- Segment and master administration functions, see utils/gp/segadmin.c
  CREATE FUNCTION gp_add_master_standby(text, text, text) RETURNS int2 LANGUAGE internal VOLATILE PARALLEL RESTRICTED AS 'gp_add_master_standby' WITH (OID=5046, DESCRIPTION="Perform the catalog operations necessary for adding a new standby");
@@ -441,3 +438,6 @@ CREATE FUNCTION cdblegacyhash_uuid(uuid) RETURNS int4 LANGUAGE internal IMMUTABL
 CREATE FUNCTION cdblegacyhash_anyenum(anyenum) RETURNS int4 LANGUAGE internal IMMUTABLE STRICT PARALLEL SAFE AS 'cdblegacyhash_anyenum' WITH (OID=6171, DESCRIPTION="Legacy cdbhash function");
 
 CREATE FUNCTION gp_create_restore_point(text) RETURNS SETOF record LANGUAGE internal IMMUTABLE STRICT AS 'gp_create_restore_point' WITH (OID=6998,  DESCRIPTION="Create a named restore point on all segments");
+
+
+CREATE FUNCTION gp_exttable_fdw_handler(internal) RETURNS internal LANGUAGE internal IMMUTABLE STRICT AS 'exttable_fdw_handler' WITH (OID=5107, DESCRIPTION="handler for internal external table FDW");

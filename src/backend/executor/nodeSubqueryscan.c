@@ -29,11 +29,8 @@
  */
 #include "postgres.h"
 
-#include "cdb/cdbvars.h"
 #include "executor/execdebug.h"
 #include "executor/nodeSubqueryscan.h"
-#include "optimizer/var.h"              /* CDB: contain_var_reference() */
-#include "parser/parsetree.h"
 
 static TupleTableSlot *SubqueryNext(SubqueryScanState *node);
 
@@ -62,16 +59,6 @@ SubqueryNext(SubqueryScanState *node)
 	 * cycles for ExecCopySlot().  (Our own ScanTupleSlot is used only for
 	 * EvalPlanQual rechecks.)
 	 */
-
-    /*
-     * CDB: Label each row with a synthetic ctid if needed for subquery dedup.
-     */
-    if (node->cdb_want_ctid &&
-        !TupIsNull(slot))
-    {
-    	slot_set_ctid_from_fake(slot, &node->cdb_fake_ctid);
-    }
-
 	return slot;
 }
 
@@ -142,10 +129,6 @@ ExecInitSubqueryScan(SubqueryScan *node, EState *estate, int eflags)
 		ExecInitExpr((Expr *) node->scan.plan.qual,
 					 (PlanState *) subquerystate);
 
-	/* Check if targetlist or qual contains a var node referencing the ctid column */
-	subquerystate->cdb_want_ctid = contain_ctid_var_reference(&node->scan);
-	ItemPointerSetInvalid(&subquerystate->cdb_fake_ctid);
-
 	/*
 	 * tuple table initialization
 	 */
@@ -195,9 +178,6 @@ ExecEndSubqueryScan(SubqueryScanState *node)
 		ExecClearTuple(node->ss.ss_ScanTupleSlot);
 	}
 
-	/* gpmon */
-	EndPlanStateGpmonPkt(&node->ss.ps);
-
 	/*
 	 * close down subquery
 	 */
@@ -215,8 +195,6 @@ ExecReScanSubqueryScan(SubqueryScanState *node)
 {
 	ExecScanReScan(&node->ss);
 
-	ItemPointerSet(&node->cdb_fake_ctid, 0, 0);
-
 	/*
 	 * ExecReScan doesn't know about my subplan, so I have to do
 	 * changed-parameter signaling myself.  This is just as well, because the
@@ -231,8 +209,6 @@ ExecReScanSubqueryScan(SubqueryScanState *node)
 	 */
 	if (node->subplan->chgParam == NULL)
 		ExecReScan(node->subplan);
-
-	CheckSendPlanStateGpmonPkt(&node->ss.ps);
 }
 
 void

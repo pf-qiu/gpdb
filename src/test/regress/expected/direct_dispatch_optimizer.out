@@ -39,19 +39,7 @@ NOTICE:  CREATE TABLE will create partition "direct_test_partition_1_prt_9" for 
 NOTICE:  CREATE TABLE will create partition "direct_test_partition_1_prt_10" for table "direct_test_partition"
 NOTICE:  CREATE TABLE will create partition "direct_test_partition_1_prt_11" for table "direct_test_partition"
 NOTICE:  CREATE TABLE will create partition "direct_test_partition_1_prt_12" for table "direct_test_partition"
-create unique index direct_test_uk on direct_test_partition(trans_id);
-NOTICE:  building index for child partition "direct_test_partition_1_prt_1"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_2"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_3"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_4"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_5"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_6"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_7"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_8"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_9"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_10"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_11"
-NOTICE:  building index for child partition "direct_test_partition_1_prt_12"
+create unique index direct_test_uk on direct_test_partition(trans_id,date);
 create table direct_test_range_partition (a int, b int, c int, d int) distributed by (a) partition by range(d) (start(1) end(10) every(1));
 NOTICE:  CREATE TABLE will create partition "direct_test_range_partition_1_prt_1" for table "direct_test_range_partition"
 NOTICE:  CREATE TABLE will create partition "direct_test_range_partition_1_prt_2" for table "direct_test_range_partition"
@@ -251,7 +239,7 @@ INFO:  Distributed transaction command 'Distributed Abort (No Prepared)' to PART
 --
 -- Known_opt_diff: MPP-21346
 select count(*) from direct_test_bitmap where dt='2008-02-05';
-INFO:  (slice 1) Dispatch command to ALL contents: 0 1 2
+INFO:  (slice 1) Dispatch command to SINGLE content
  count 
 -------
      0
@@ -259,7 +247,7 @@ INFO:  (slice 1) Dispatch command to ALL contents: 0 1 2
 
 -- Known_opt_diff: MPP-21346
 select count(*) from direct_test_bitmap where dt='2008-02-01';
-INFO:  (slice 1) Dispatch command to ALL contents: 0 1 2
+INFO:  (slice 1) Dispatch command to SINGLE content
  count 
 -------
    100
@@ -283,7 +271,7 @@ INFO:  (slice 1) Dispatch command to SINGLE content
 --
 -- Known_opt_diff: MPP-21346
 select count(*) from direct_test_range_partition where a =1;
-INFO:  (slice 1) Dispatch command to ALL contents: 0 1 2
+INFO:  (slice 1) Dispatch command to SINGLE content
  count 
 -------
      1

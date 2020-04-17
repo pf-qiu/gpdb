@@ -98,6 +98,7 @@ extern bool get_compatible_hash_operators_and_family(Oid opno,
 										 Oid *lhs_opno, Oid *rhs_opno,
 										 Oid *opfamily);
 extern Oid get_compatible_hash_opfamily(Oid opno);
+extern Oid get_compatible_legacy_hash_opfamily(Oid opno);
 extern bool get_op_hash_functions(Oid opno,
 					  RegProcedure *lhs_procno, RegProcedure *rhs_procno);
 extern List *get_op_btree_interpretation(Oid opno);
@@ -128,9 +129,7 @@ extern Oid	get_commutator(Oid opno);
 extern Oid	get_negator(Oid opno);
 extern RegProcedure get_oprrest(Oid opno);
 extern RegProcedure get_oprjoin(Oid opno);
-extern char *get_trigger_name(Oid triggerid);
-extern Oid get_trigger_relid(Oid triggerid);
-extern Oid get_trigger_funcid(Oid triggerid);
+extern bool has_update_triggers(Oid relid);
 extern int32 get_trigger_type(Oid triggerid);
 extern bool trigger_enabled(Oid triggerid);
 extern char *get_func_name(Oid funcid);

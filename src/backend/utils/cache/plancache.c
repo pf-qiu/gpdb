@@ -108,6 +108,8 @@ static void PlanCacheRelCallback(Datum arg, Oid relid);
 static void PlanCacheFuncCallback(Datum arg, int cacheid, uint32 hashvalue);
 static void PlanCacheSysCallback(Datum arg, int cacheid, uint32 hashvalue);
 
+/* GUC parameter */
+int	plan_cache_mode;
 
 /*
  * InitPlanCache: initialize module during InitPostgres.
@@ -1090,6 +1092,12 @@ choose_custom_plan(CachedPlanSource *plansource, ParamListInfo boundParams, Into
 	if (IsTransactionStmtPlan(plansource))
 		return false;
 
+	/* Let settings force the decision */
+	if (plan_cache_mode == PLAN_CACHE_MODE_FORCE_GENERIC_PLAN)
+		return false;
+	if (plan_cache_mode == PLAN_CACHE_MODE_FORCE_CUSTOM_PLAN)
+		return true;
+
 	/* See if caller wants to force the decision */
 	if (plansource->cursor_options & CURSOR_OPT_GENERIC_PLAN)
 		return false;
@@ -1631,8 +1639,9 @@ AcquireExecutorLocks(List *stmt_list, bool acquire)
 				 * the GDD is enabled, we could acquire RowExclusiveLock here.
 				 */
 				if ((plannedstmt->commandType == CMD_UPDATE ||
-					 plannedstmt->commandType == CMD_DELETE) &&
-					CondUpgradeRelLock(rte->relid, false))
+					 plannedstmt->commandType == CMD_DELETE ||
+					 IsOnConflictUpdate(plannedstmt)) &&
+					CondUpgradeRelLock(rte->relid))
 					lockmode = ExclusiveLock;
 				else
 					lockmode = RowExclusiveLock;
@@ -1736,8 +1745,10 @@ ScanQueryForLocks(Query *parsetree, bool acquire)
 					 * the GDD is enabled, we could acquire RowExclusiveLock here.
 					 */
 					if ((parsetree->commandType == CMD_UPDATE ||
-						 parsetree->commandType == CMD_DELETE) &&
-						CondUpgradeRelLock(rte->relid, false))
+						 parsetree->commandType == CMD_DELETE ||
+						 (parsetree->onConflict &&
+						  parsetree->onConflict->action == ONCONFLICT_UPDATE)) &&
+						CondUpgradeRelLock(rte->relid))
 						lockmode = ExclusiveLock;
 					else
 						lockmode = RowExclusiveLock;

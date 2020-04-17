@@ -56,7 +56,7 @@ EXPLAIN (ANALYZE) SELECT * from boxes LEFT JOIN apples ON apples.id = boxes.appl
 -- m/Segments: \d+/
 -- s/Segments: \d+/Segments: #/
 -- m/Pivotal Optimizer \(GPORCA\) version \d+\.\d+\.\d+",?/
--- s/Pivotal Optimizer \(GPORCA\) version \d+\.\d+\.\d+",?/Pivotal Optimizer \(GPORCA\) version ##.##.##"/
+-- s/Pivotal Optimizer \(GPORCA\) version \d+\.\d+\.\d+",?/Pivotal Optimizer \(GPORCA\)"/
 -- m/ Memory: \d+/
 -- s/ Memory: \d+/ Memory: ###/
 -- m/Maximum Memory Used: \d+/
@@ -88,15 +88,22 @@ EXPLAIN (ANALYZE, FORMAT YAML) SELECT * from boxes LEFT JOIN apples ON apples.id
 --
 -- start_matchsubs
 -- m/Pivotal Optimizer \(GPORCA\) version \d+\.\d+\.\d+/
--- s/Pivotal Optimizer \(GPORCA\) version \d+\.\d+\.\d+/Pivotal Optimizer \(GPORCA\) version ##.##.##/
+-- s/Pivotal Optimizer \(GPORCA\) version \d+\.\d+\.\d+/Pivotal Optimizer \(GPORCA\)/
 -- end_matchsubs
 -- explain_processing_off
 EXPLAIN (FORMAT JSON, COSTS OFF) SELECT * FROM generate_series(1, 10);
 
 EXPLAIN (FORMAT XML, COSTS OFF) SELECT * FROM generate_series(1, 10);
+
+-- Test for an old bug in printing Sequence nodes in JSON/XML format
+-- (https://github.com/greenplum-db/gpdb/issues/9410)
+CREATE TABLE jsonexplaintest (i int4) PARTITION BY RANGE (i) (START(1) END(3) EVERY(1));
+EXPLAIN (FORMAT JSON, COSTS OFF) SELECT * FROM jsonexplaintest WHERE i = 2;
+
 -- explain_processing_on
 
 -- Cleanup
 DROP TABLE boxes;
 DROP TABLE apples;
 DROP TABLE box_locations;
+DROP TABLE jsonexplaintest;

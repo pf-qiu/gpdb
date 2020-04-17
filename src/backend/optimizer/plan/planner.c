@@ -226,11 +226,7 @@ planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		if (gp_log_optimization_time)
 			INSTR_TIME_SET_CURRENT(starttime);
 
-		START_MEMORY_ACCOUNT(MemoryAccounting_CreateAccount(0, MEMORY_OWNER_TYPE_PlannerHook));
-		{
-			result = (*planner_hook) (parse, cursorOptions, boundParams);
-		}
-		END_MEMORY_ACCOUNT();
+		result = (*planner_hook) (parse, cursorOptions, boundParams);
 
 		if (gp_log_optimization_time)
 		{
@@ -261,7 +257,6 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	PlannerConfig *config;
 	instr_time		starttime;
 	instr_time		endtime;
-	MemoryAccountIdType curMemoryAccountId;
 	bool		isParallelCursor = false;
 
 	/*
@@ -301,14 +296,6 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	 */
 	if (gp_log_optimization_time)
 		INSTR_TIME_SET_CURRENT(starttime);
-
-	curMemoryAccountId = MemoryAccounting_GetOrCreatePlannerAccount();
-	/*
-	 * Incorrectly indented on purpose to avoid re-indenting an entire upstream
-	 * function
-	 */
-	START_MEMORY_ACCOUNT(curMemoryAccountId);
-	{
 
 	/* Cursor options may come from caller or from DECLARE CURSOR stmt */
 	if (parse->utilityStmt &&
@@ -646,7 +633,6 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	result->subplan_sliceIds = glob->subplan_sliceIds;
 	result->rewindPlanIDs = glob->rewindPlanIDs;
 	result->result_partitions = root->result_partitions;
-	result->result_aosegnos = root->result_aosegnos;
 	result->rowMarks = glob->finalrowmarks;
 	result->relationOids = glob->relationOids;
 	result->invalItems = glob->invalItems;
@@ -679,9 +665,6 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		INSTR_TIME_SUBTRACT(endtime, starttime);
 		elog(LOG, "Planner Time: %.3f ms", INSTR_TIME_GET_MILLISEC(endtime));
 	}
-
-	}
-	END_MEMORY_ACCOUNT();
 
 	return result;
 }
@@ -1871,6 +1854,7 @@ grouping_planner(PlannerInfo *root, bool inheritance_update,
 	int64		count_est = 0;
 	double		limit_tuples = -1.0;
 	bool		have_postponed_srfs = false;
+	List       *saved_pathkeys = NIL;
 	double		tlist_rows;
 	PathTarget *final_target;
 	RelOptInfo *current_rel;
@@ -2462,6 +2446,7 @@ grouping_planner(PlannerInfo *root, bool inheritance_update,
 	final_rel->userid = current_rel->userid;
 	final_rel->useridiscurrent = current_rel->useridiscurrent;
 	final_rel->fdwroutine = current_rel->fdwroutine;
+	final_rel->exec_location = current_rel->exec_location;
 
 	if (root->is_split_update)
 	{
@@ -2529,6 +2514,41 @@ grouping_planner(PlannerInfo *root, bool inheritance_update,
 
 			if (newmarks)
 			{
+				/*
+				 * Greenplum specific behavior:
+				 * LockRowsPath will clear the pathkeys info since
+				 * when some other transactions concurrently update
+				 * the same relation then it cannot guarantee the order.
+				 * Postgres will not consider parallel path for the
+				 * select statement with locking clause (it sets parallel_safe
+				 * to false and parallel_workers to 0 in function
+				 * create_lockrows_path). However, Greenplum contains many
+				 * segments and is innately parallel. If we simply clear
+				 * the pathkey here, then if later we need a gather, we will
+				 * not choose merge gather so even if there is no concurrent
+				 * transaction, the data is not in order. See Github issue:
+				 * https://github.com/greenplum-db/gpdb/issues/9724.
+				 * So here, just before the finaly gather, we save the pathkeys
+				 * and then invoke create_lockrows_path. In the following
+				 * gather, if we found saved_pathkeys is not NIL, we just
+				 * create a merge gather.
+				 *
+				 * Another need to mention here is that, the condition that
+				 * code can reach here is very rigour: the query has to be
+				 * a toplevel select statement and the range table has to be
+				 * a normal heap table and there is only one table invole the
+				 * query and other conditions (refer `checkCanOptSelectLockingClause`
+				 * for details. As the above analysis, if the code reaches
+				 * here and the path->pathkeys is not NIL, the following gather
+				 * has to be the final gather. This is very important because
+				 * if it is not the final gather, it might be used by others
+				 * as subpath, and its pathkeys is not NIL which breaks the
+				 * rules for lockrows path. We need to keep the pathkeys in
+				 * the final gather here.
+				 */
+				if (path->pathkeys != NIL)
+					saved_pathkeys = copyObject(path->pathkeys);
+
 				path = (Path *) create_lockrows_path(root, final_rel, path,
 									root->rowMarks,
 									SS_assign_special_param(root));
@@ -2564,7 +2584,7 @@ grouping_planner(PlannerInfo *root, bool inheritance_update,
 			 * because we don't have them available anymore.
 			 */
 			pathkeys =
-				cdbpullup_truncatePathKeysForTargetList(path->pathkeys,
+				cdbpullup_truncatePathKeysForTargetList(saved_pathkeys == NIL ? path->pathkeys : saved_pathkeys,
 														make_tlist_from_pathtarget(path->pathtarget));
 
 			CdbPathLocus_MakeSingleQE(&locus, getgpsegmentCount());
@@ -3917,6 +3937,7 @@ create_grouping_paths(PlannerInfo *root,
 	grouped_rel->userid = input_rel->userid;
 	grouped_rel->useridiscurrent = input_rel->useridiscurrent;
 	grouped_rel->fdwroutine = input_rel->fdwroutine;
+	grouped_rel->exec_location = input_rel->exec_location;
 
 	/*
 	 * Check for degenerate grouping.
@@ -4090,10 +4111,6 @@ create_grouping_paths(PlannerInfo *root,
 		try_mpp_multistage_aggregation = false;
 	}
 	else if (!parse->hasAggs && parse->groupClause == NIL)
-	{
-		try_mpp_multistage_aggregation = false;
-	}
-	else if (parse->groupingSets)
 	{
 		try_mpp_multistage_aggregation = false;
 	}
@@ -4339,6 +4356,7 @@ create_grouping_paths(PlannerInfo *root,
 													  grouped_rel,
 													  path,
 													  target,
+													  AGGSPLIT_SIMPLE,
 												  (List *) parse->havingQual,
 													  rollup_lists,
 													  rollup_groupclauses,
@@ -4566,7 +4584,9 @@ create_grouping_paths(PlannerInfo *root,
 										   dNumGroups,
 										   agg_costs,
 										   &agg_partial_costs,
-										   &agg_final_costs);
+										   &agg_final_costs,
+										   rollup_lists,
+										   rollup_groupclauses);
 
 	/*
 	 * If there is an FDW that's responsible for all baserels of the query,
@@ -4708,6 +4728,7 @@ create_window_paths(PlannerInfo *root,
 	window_rel->userid = input_rel->userid;
 	window_rel->useridiscurrent = input_rel->useridiscurrent;
 	window_rel->fdwroutine = input_rel->fdwroutine;
+	window_rel->exec_location = input_rel->exec_location;
 
 	/*
 	 * Consider computing window functions starting from the existing
@@ -4933,7 +4954,7 @@ create_distinct_paths(PlannerInfo *root,
 		/* Apply the preunique optimization, if enabled and worthwhile. */
 		/* GPDB_84_MERGE_FIXME: pre-unique for hash distinct not implemented. */
 		/* GPDB_96_MERGE_FIXME: disabled altogether */
-		if (root->config->gp_enable_preunique && needMotion && !use_hashed_distinct)
+		if (gp_enable_preunique && needMotion && !use_hashed_distinct)
 		{
 			double		base_cost,
 				alt_cost;
@@ -4948,7 +4969,7 @@ create_distinct_paths(PlannerInfo *root,
 			alt_cost += cpu_operator_cost * numDistinct
 				* list_length(parse->distinctClause);
 
-			if (alt_cost < base_cost || root->config->gp_eager_preunique)
+			if (alt_cost < base_cost || gp_eager_preunique)
 			{
 				/*
 				 * Reduce the number of rows to move by adding a [Sort
@@ -5016,6 +5037,7 @@ create_distinct_paths(PlannerInfo *root,
 	distinct_rel->userid = input_rel->userid;
 	distinct_rel->useridiscurrent = input_rel->useridiscurrent;
 	distinct_rel->fdwroutine = input_rel->fdwroutine;
+	distinct_rel->exec_location = input_rel->exec_location;
 
 	/* Estimate number of distinct rows there will be */
 	if (parse->groupClause || parse->groupingSets || parse->hasAggs ||
@@ -5363,6 +5385,7 @@ create_ordered_paths(PlannerInfo *root,
 	ordered_rel->userid = input_rel->userid;
 	ordered_rel->useridiscurrent = input_rel->useridiscurrent;
 	ordered_rel->fdwroutine = input_rel->fdwroutine;
+	ordered_rel->exec_location = input_rel->exec_location;
 
 	foreach(lc, input_rel->pathlist)
 	{

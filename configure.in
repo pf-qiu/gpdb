@@ -247,13 +247,6 @@ PGAC_ARG_BOOL(enable, orafce, no,
 AC_SUBST(enable_orafce)
 
 #
-# --enable-gpperfmon
-#
-PGAC_ARG_BOOL(enable, gpperfmon, no,
-              [build with gpperfmon])
-AC_SUBST(enable_gpperfmon)
-
-#
 # --enable-debug adds -g to compiler flags
 #
 PGAC_ARG_BOOL(enable, debug, no,
@@ -683,9 +676,17 @@ AC_SUBST(CFLAGS_VECTOR, $CFLAGS_VECTOR)
 # supply -g if --enable-debug
 if test "$enable_debug" = yes && test "$ac_cv_prog_cc_g" = yes; then
   if test "$GCC" = yes; then
-  	CFLAGS="$CFLAGS -g -ggdb"
+    CFLAGS="$CFLAGS -g -ggdb"
   else
     CFLAGS="$CFLAGS -g"
+  fi
+fi
+
+if test "$enable_debug" = yes && test "$ac_cv_prog_cxx_g" = yes; then
+  if test "$GCC" = yes; then
+    CXXFLAGS="$CXXFLAGS -g3 -ggdb"
+  else
+    CXXFLAGS="$CXXFLAGS -g3"
   fi
 fi
 
@@ -814,6 +815,17 @@ PGAC_ARG_BOOL(enable, orca, yes, [disable ORCA optimizer],
                          [Define to 1 to build with Greenplum ORCA optimizer. (--enable-orca)])])
 AC_MSG_RESULT([checking whether to build with ORCA... $enable_orca])
 AC_SUBST(enable_orca)
+
+# Build ORCA in debug if enable-cassert
+if test "$enable_cassert" = yes; then
+  AC_DEFINE([GPOS_DEBUG], 1,
+	    [Define to 1 to build ORCA in debug (GPOS_DEBUG=1)])
+fi
+
+if test "$PORTNAME" = darwin; then
+  AC_DEFINE([GPOS_Darwin], 1,
+	    [Define to 1 to build ORCA for MacOS (GPOS_Darwin=1)])
+fi
 
 #
 # --enable-mapreduce enables GPMapreduce support
@@ -1156,18 +1168,11 @@ if test "$with_libxml" = "no" && test "$enable_gpcloud" = "yes"; then
 fi
 
 #
-# libapr. Used for gpfdist and gpperfmon
+# libapr. Used for gpfdist
 #
 PGAC_ARG_REQ(with, apr-config,
              [PATH], [path to apr-1-config utility])
 AC_SUBST(with_apr_config)
-
-#
-# libapu. Used for gpperfmon.
-#
-PGAC_ARG_REQ(with, apu-config,
-             [PATH], [path to apu-1-config utility])
-AC_SUBST(with_apu_config)
 
 #
 # Elf
@@ -1480,35 +1485,30 @@ AC_DEFUN([CHECK_APR], [
   # anyway)
   _LIBS="$LIBS"
   LIBS="$LIBS $apr_link_ld_libs"
-  AC_SEARCH_LIBS(apr_getopt_long, [apr-1], [], [AC_MSG_ERROR([libapr-1 is required by gpfdist and gpperfmon])])
+  AC_SEARCH_LIBS(apr_getopt_long, [apr-1], [], [AC_MSG_ERROR([libapr-1 is required by gpfdist])])
+  LIBS="$_LIBS"
  ])
 
 if test "$enable_gpfdist" = yes ; then
   CHECK_APR()
+  _LIBS="$LIBS"
   AC_SEARCH_LIBS(event_add, [event], [], [AC_MSG_ERROR([libevent is required for gpfdist])])
+  EVENT_LIBS=" -levent"
+  AC_SUBST(EVENT_LIBS)
 
-  AC_SEARCH_LIBS(yaml_parser_initialize, [yaml], [have_yaml=yes], [AC_MSG_WARN([libyaml is not found. disabling transformations for gpfdist.])])
-  LIBS="$_LIBS"
+  AC_SEARCH_LIBS(yaml_parser_initialize, [yaml], [have_yaml=yes; YAML_LIBS=" -lyaml"], [AC_MSG_WARN([libyaml is not found. disabling transformations for gpfdist.])])
+  AC_SUBST(YAML_LIBS)
   AC_SUBST(have_yaml)
-fi
-
-if test "$enable_mapreduce" = yes; then
-  AC_SEARCH_LIBS(yaml_parser_initialize, [yaml], [have_yaml=yes], [AC_MSG_ERROR([libyaml is required for Greenplum Mapreduce])])
-  AC_SUBST(have_yaml)
-fi
-
-if test "$enable_gpperfmon" = yes; then
-  CHECK_APR()
-  GPAC_PATH_APU_1_CONFIG
-  LIBS="$LIBS $apu_link_ld_libs"
-  AC_SEARCH_LIBS(event_add, [event], [], [AC_MSG_ERROR([libevent is required for gpperfrmon])])
-  AC_SEARCH_LIBS(apr_queue_push, [aprutil-1], [], [AC_MSG_ERROR([libaprutil-1 is required for gpperfmon])])
-
-  AC_SEARCH_LIBS(sigar_open, [sigar], [with_libsigar=yes], [AC_MSG_ERROR([libsigar is required for gpperfmon])])
   LIBS="$_LIBS"
-  AC_SUBST(with_libsigar)
 fi
 
+if test "$enable_mapreduce" = yes ; then
+  _LIBS="$LIBS"
+  AC_SEARCH_LIBS(yaml_parser_initialize, [yaml], [have_yaml=yes; YAML_LIBS=" -lyaml"], [AC_MSG_ERROR([libyaml is required for Greenplum Mapreduce])])
+  AC_SUBST(YAML_LIBS)
+  AC_SUBST(have_yaml)
+  LIBS="$_LIBS"
+fi
 
 if test "$with_openssl" = yes ; then
   dnl Order matters!
@@ -1618,10 +1618,9 @@ elif test "$with_uuid" = ossp ; then
 fi
 AC_SUBST(UUID_LIBS)
 
-# Check for Greenplum Query Optimizer (orca) libraries.
+# Check for xerces if GPORCA is enabled.
 if test "$enable_orca" = yes; then
   PGAC_CHECK_ORCA_XERCES
-  PGAC_CHECK_ORCA_LIBS
 fi
 
 # OpenBSD requires libexecinfo from ports for backtrace() as it's a glibc addition
@@ -1709,10 +1708,6 @@ if test "$enable_gpfdist" = yes; then
   CPPFLAGS="$apr_includes $CPPFLAGS"
   AC_CHECK_HEADERS(apr_getopt.h, [], [AC_MSG_ERROR(['header file <apr_getopt.h> is required for gpfdist'])])
   CPPFLAGS=$ac_save_CPPFLAGS
-fi
-
-if test "enable_gpperfmon" = yes; then
-  AC_CHECK_HEADERS(event.h, [], [AC_MSG_ERROR([header file <event.h> is required for gpperfmon])])
 fi
 
 if test "$with_zlib" = yes; then
@@ -1870,12 +1865,6 @@ if test "$enable_mapreduce" = yes; then
   AC_CHECK_HEADERS(yaml.h, [], [AC_MSG_ERROR([header file <yaml.h> is required for Greenplum Mapreduce])])
 fi
 
-# Check for GPORCA and supporting GPORCA OS abstraction layer header files.
-if test "$enable_orca" = yes; then
-  PGAC_CHECK_ORCA_HEADERS
-  PGAC_CHECK_ORCA_VERSION
-fi
-
 if test "$PORTNAME" = "win32" ; then
    AC_CHECK_HEADERS(crtdefs.h)
 fi
@@ -2016,6 +2005,17 @@ AC_CHECK_FUNCS(m4_normalize([
 	wcstombs
 	wcstombs_l
 ]))
+
+# For upstream Postgres, the getifaddrs() symbol is optional, but the GPDB
+# ifaddrs utility requires it, along with inet_ntop(). The check for getifaddrs
+# is duplicated here to avoid a merge conflict in the AC_CHECK_FUNCS block
+# above.
+AC_CHECK_FUNCS(m4_normalize([
+	getifaddrs
+	inet_ntop
+]), [], [
+	AC_MSG_ERROR([getifaddrs and inet_ntop are required for Greenplum])
+])
 
 AC_REPLACE_FUNCS(fseeko)
 case $host_os in

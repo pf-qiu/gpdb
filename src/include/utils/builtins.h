@@ -833,6 +833,7 @@ extern Datum bpchar_smaller(PG_FUNCTION_ARGS);
 extern int	bpchartruelen(char *s, int len);
 extern Datum bpcharlen(PG_FUNCTION_ARGS);
 extern Datum bpcharoctetlen(PG_FUNCTION_ARGS);
+extern Datum hashchar(PG_FUNCTION_ARGS);
 extern Datum hashbpchar(PG_FUNCTION_ARGS);
 extern Datum bpchar_pattern_lt(PG_FUNCTION_ARGS);
 extern Datum bpchar_pattern_le(PG_FUNCTION_ARGS);
@@ -840,6 +841,7 @@ extern Datum bpchar_pattern_gt(PG_FUNCTION_ARGS);
 extern Datum bpchar_pattern_ge(PG_FUNCTION_ARGS);
 extern Datum btbpchar_pattern_cmp(PG_FUNCTION_ARGS);
 extern Datum btbpchar_pattern_sortsupport(PG_FUNCTION_ARGS);
+extern Datum hashname(PG_FUNCTION_ARGS);
 extern Datum hashtext(PG_FUNCTION_ARGS);
 extern Datum hashvarlena(PG_FUNCTION_ARGS);
 
@@ -1411,9 +1413,6 @@ extern Datum matrix_add(PG_FUNCTION_ARGS);
 Datum int4_pivot_accum(PG_FUNCTION_ARGS);
 Datum int8_pivot_accum(PG_FUNCTION_ARGS);
 Datum float8_pivot_accum(PG_FUNCTION_ARGS);
-
-/* utils/error/elog.c */
-extern Datum gp_elog(PG_FUNCTION_ARGS);
 
 /* utils/fmgr/deprecated.c */
 extern Datum gp_deprecated(PG_FUNCTION_ARGS);

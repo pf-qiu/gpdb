@@ -66,6 +66,9 @@ exprType(const Node *expr)
 		case T_GroupId:
 			type = INT4OID;
 			break;
+		case T_GroupingSetId:
+			type = INT4OID;
+			break;
 		case T_WindowFunc:
 			type = ((const WindowFunc *) expr)->wintype;
 			break;
@@ -280,6 +283,12 @@ exprType(const Node *expr)
 			break;
 		case T_PartListNullTestExpr:
 			type = BOOLOID;
+			break;
+		case T_AggExprId:
+			type = INT4OID;
+			break;
+		case T_RowIdExpr:
+			type = INT8OID;
 			break;
 
 		default:
@@ -793,6 +802,9 @@ exprCollation(const Node *expr)
 		case T_GroupId:
 			coll = InvalidOid;
 			break;
+		case T_GroupingSetId:
+			coll = InvalidOid;
+			break;
 		case T_WindowFunc:
 			coll = ((const WindowFunc *) expr)->wincollid;
 			break;
@@ -968,6 +980,10 @@ exprCollation(const Node *expr)
 			 */
 			coll = InvalidOid;
 			break;
+		case T_AggExprId:
+		case T_RowIdExpr:
+			coll = InvalidOid;
+			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(expr));
 			coll = InvalidOid;	/* keep compiler quiet */
@@ -1051,6 +1067,9 @@ exprSetCollation(Node *expr, Oid collation)
 			Assert(!OidIsValid(collation));
 			break;
 		case T_GroupId:
+			Assert(!OidIsValid(collation));
+			break;
+		case T_GroupingSetId:
 			Assert(!OidIsValid(collation));
 			break;
 		case T_WindowFunc:
@@ -1278,6 +1297,9 @@ exprLocation(const Node *expr)
 			break;
 		case T_GroupId:
 			loc = ((const GroupId *) expr)->location;
+			break;
+		case T_GroupingSetId:
+			loc = ((const GroupingSetId *) expr)->location;
 			break;
 		case T_WindowFunc:
 			/* function name should always be the first thing */
@@ -1933,6 +1955,8 @@ expression_tree_walker(Node *node,
 		case T_PartBoundOpenExpr:
 		case T_PartListRuleExpr:
 		case T_PartListNullTestExpr:
+		case T_AggExprId:
+		case T_RowIdExpr:
 			/* primitive node types with no expression subnodes */
 			break;
 		case T_WithCheckOption:
@@ -1968,6 +1992,7 @@ expression_tree_walker(Node *node,
 			}
 			break;
 		case T_GroupId:
+		case T_GroupingSetId:
 			break;
 		case T_WindowFunc:
 			{
@@ -2589,7 +2614,6 @@ expression_tree_mutator(Node *node,
 		case T_RangeTblRef:
 		case T_String:
 		case T_Null:
-		case T_RowTrigger:
 		case T_PartSelectedExpr:
 		case T_PartDefaultExpr:
 		case T_PartBoundExpr:
@@ -2652,6 +2676,16 @@ expression_tree_mutator(Node *node,
 				GroupId   *newnode;
 
 				FLATCOPY(newnode, groupid, GroupId);
+
+				return (Node *) newnode;
+			}
+			break;
+		case T_GroupingSetId:
+			{
+				GroupingSetId   *gsetid = (GroupingSetId *) node;
+				GroupingSetId   *newnode;
+
+				FLATCOPY(newnode, gsetid, GroupingSetId);
 
 				return (Node *) newnode;
 			}
@@ -3216,6 +3250,23 @@ expression_tree_mutator(Node *node,
 				return (Node *) newnode;
 			}
 			break;
+		case T_AggExprId:
+			{
+				AggExprId *exprId = (AggExprId *)node;
+				AggExprId *new_exprId;
+				FLATCOPY(new_exprId, exprId, AggExprId);
+				return (Node *)new_exprId;
+			}
+			break;
+		case T_RowIdExpr:
+			{
+				RowIdExpr *rowidexpr = (RowIdExpr *) node;
+				RowIdExpr *newnode;
+
+				FLATCOPY(newnode, rowidexpr, RowIdExpr);
+				return (Node *) newnode;
+			}
+			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) nodeTag(node));
@@ -3452,6 +3503,7 @@ raw_expression_tree_walker(Node *node,
 		case T_GroupingFunc:
 			return walker(((GroupingFunc *) node)->args, context);
 		case T_GroupId:
+		case T_GroupingSetId:
 			break;
 		case T_SubLink:
 			{

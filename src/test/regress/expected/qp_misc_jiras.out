@@ -2729,19 +2729,21 @@ select * from qp_misc_jiras.tbl_694_1 join qp_misc_jiras.tbl_694_2 on qp_misc_ji
 
 drop table qp_misc_jiras.tbl_694_1;
 drop table qp_misc_jiras.tbl_694_2;
-select * from ( select 'a' as a) x join (select 'a' as b) y on a=b;
+-- GPDB_10_MERGE_FIXME: Here we cast the unknown typed literal to text. After
+-- we move past postgres 10 we can drop the cast.
+select * from ( select 'a'::text as a) x join (select 'a'::text as b) y on a=b;
  a | b 
 ---+---
  a | a
 (1 row)
 
-select * from ( ( select 'a' as a ) xx join (select 'a' as b) yy on a = b ) x join (select 'a' as c) y on a=c;
+select * from ( ( select 'a'::text as a ) xx join (select 'a'::text as b) yy on a = b ) x join (select 'a'::text as c) y on a=c;
  a | b | c 
 ---+---+---
  a | a | a
 (1 row)
 
-select x.b from ( ( select 'a' as a ) xx join (select 'a' as b) yy on a = b ) x join (select 'a' as c) y on a=c;
+select x.b from ( ( select 'a'::text as a ) xx join (select 'a'::text as b) yy on a = b ) x join (select 'a'::text as c) y on a=c;
  b 
 ---
  a
@@ -3203,30 +3205,6 @@ select get_ao_distribution('qp_misc_jiras.tbl7126_co_zlib3');
 (3 rows)
 
 -- end_ignore
-select gp_update_ao_master_stats('qp_misc_jiras.tbl7126_ao');
- gp_update_ao_master_stats 
----------------------------
-                    100000
-(1 row)
-
-select gp_update_ao_master_stats('qp_misc_jiras.tbl7126_ao_zlib3');
- gp_update_ao_master_stats 
----------------------------
-                    100000
-(1 row)
-
-select gp_update_ao_master_stats('qp_misc_jiras.tbl7126_co');
- gp_update_ao_master_stats 
----------------------------
-                    100000
-(1 row)
-
-select gp_update_ao_master_stats('qp_misc_jiras.tbl7126_co_zlib3');
- gp_update_ao_master_stats 
----------------------------
-                    100000
-(1 row)
-
 -- drop the objects created
 drop table qp_misc_jiras.tbl7126_ao;
 drop table qp_misc_jiras.tbl7126_ao_zlib3;
@@ -3751,17 +3729,19 @@ select i as a, i as b from qp_misc_jiras.tbl7553_test group by grouping sets( (a
 (2 rows)
 
 explain select j as a, j as b from qp_misc_jiras.tbl7553_test group by grouping sets( (a, b), (a)); 
-                                                         QUERY PLAN                                                         
-----------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice2; segments: 3)  (cost=10000008018.50..10000008684.25 rows=2000 width=8)
-   ->  GroupAggregate  (cost=10000008018.50..10000008684.25 rows=667 width=8)
-         Group Key: j, j
-         Group Key: j
-         ->  Sort  (cost=10000008018.50..10000008233.75 rows=28700 width=4)
-               Sort Key: j, j
-               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=10000000000.00..10000000961.00 rows=28700 width=4)
-                     Hash Key: j
-                     ->  Seq Scan on tbl7553_test  (cost=10000000000.00..10000000961.00 rows=28700 width=4)
+                                                    QUERY PLAN                                                    
+------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=10000009220.77..10000009300.77 rows=2000 width=8)
+   Group Key: (GROUPINGSET_ID()), j, j
+   ->  Sort  (cost=10000009220.77..10000009235.77 rows=6000 width=8)
+         Sort Key: (GROUPINGSET_ID()), j
+         ->  Gather Motion 3:1  (slice1; segments: 3)  (cost=10000008018.50..10000008844.25 rows=6000 width=8)
+               ->  Partial GroupAggregate  (cost=10000008018.50..10000008724.25 rows=2000 width=8)
+                     Group Key: j, j
+                     Group Key: j
+                     ->  Sort  (cost=10000008018.50..10000008233.75 rows=28700 width=8)
+                           Sort Key: j
+                           ->  Seq Scan on tbl7553_test  (cost=10000000000.00..10000000961.00 rows=28700 width=8)
  Optimizer: Postgres query optimizer
 (10 rows)
 

@@ -1281,7 +1281,7 @@ try_relation_open(Oid relationId, LOCKMODE lockmode, bool noWait)
  * for distributed tables.
  */
 Relation
-CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
+CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool *lockUpgraded)
 {
     LOCKMODE    lockmode = reqmode;
 	Relation    rel;
@@ -1303,7 +1303,7 @@ CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
 	if (lockmode == RowExclusiveLock)
 	{
 		if (Gp_role == GP_ROLE_DISPATCH &&
-			CondUpgradeRelLock(relid, noWait))
+			CondUpgradeRelLock(relid))
 		{
 			lockmode = ExclusiveLock;
 			if (lockUpgraded != NULL)
@@ -1311,7 +1311,7 @@ CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
 		}
     }
 
-	rel = try_heap_open(relid, lockmode, noWait);
+	rel = try_heap_open(relid, lockmode, false);
 	if (!RelationIsValid(rel))
 		return NULL;
 
@@ -1342,11 +1342,11 @@ CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
  * an error or a valid opened relation returned.
  */
 Relation
-CdbOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
+CdbOpenRelation(Oid relid, LOCKMODE reqmode, bool *lockUpgraded)
 {
 	Relation rel;
 
-	rel = CdbTryOpenRelation(relid, reqmode, noWait, lockUpgraded);
+	rel = CdbTryOpenRelation(relid, reqmode, lockUpgraded);
 
 	if (!RelationIsValid(rel))
 	{
@@ -1359,47 +1359,6 @@ CdbOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
 	return rel;
 
 }                                       /* CdbOpenRelation */
-
-/*
- * CdbOpenRelationRv -- Opens a relation with a specified lock mode.
- *
- * CDB: Like CdbTryOpenRelation, except that it guarantees either
- * an error or a valid opened relation returned.
- */
-Relation
-CdbOpenRelationRv(const RangeVar *relation, LOCKMODE reqmode, bool noWait, 
-				  bool *lockUpgraded)
-{
-	Oid			relid;
-	Relation	rel;
-
-	/* Look up the appropriate relation using namespace search */
-	relid = RangeVarGetRelid(relation, NoLock, false);
-	rel = CdbTryOpenRelation(relid, reqmode, noWait, lockUpgraded);
-
-	if (!RelationIsValid(rel))
-	{
-		if (relation->schemaname)
-		{
-			ereport(ERROR,
-					(errcode(ERRCODE_UNDEFINED_TABLE),
-					 errmsg("relation \"%s.%s\" does not exist",
-							relation->schemaname, relation->relname)));
-		}
-		else
-		{
-			ereport(ERROR,
-					(errcode(ERRCODE_UNDEFINED_TABLE),
-					 errmsg("relation \"%s\" does not exist",
-							relation->relname)));
-		}
-	}
-
-	return rel;
-
-}                                       /* CdbOpenRelation */
-
-
 
 /* ----------------
  *		relation_openrv - open any relation specified by a RangeVar
@@ -1469,7 +1428,7 @@ relation_openrv(const RangeVar *relation, LOCKMODE lockmode)
  */
 Relation
 relation_openrv_extended(const RangeVar *relation, LOCKMODE lockmode,
-						 bool missing_ok, bool noWait)
+						 bool missing_ok)
 {
 	Oid			relOid;
 
@@ -1488,7 +1447,7 @@ relation_openrv_extended(const RangeVar *relation, LOCKMODE lockmode,
 		return NULL;
 
 	/* Let try_relation_open do the rest */
-	return try_relation_open(relOid, lockmode, noWait);
+	return relation_open(relOid, lockmode);
 }
 
 /* ----------------
@@ -1633,7 +1592,7 @@ heap_openrv_extended(const RangeVar *relation, LOCKMODE lockmode,
 {
 	Relation	r;
 
-	r = relation_openrv_extended(relation, lockmode, missing_ok, false);
+	r = relation_openrv_extended(relation, lockmode, missing_ok);
 
 	if (r)
 	{

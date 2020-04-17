@@ -657,18 +657,15 @@ enable_largefile
 have_win32_dbghelp
 HAVE_IPV6
 LIBOBJS
-CXXCPP
 UUID_LIBS
 LDAP_LIBS_BE
 LDAP_LIBS_FE
 CURL_LIBS
 CURL_CFLAGS
 CURL_CONFIG
-with_libsigar
-apu_link_ld_libs
-apu_includes
-APU_1_CONFIG
 have_yaml
+YAML_LIBS
+EVENT_LIBS
 apr_cppflags
 apr_cflags
 apr_link_ld_libs
@@ -722,7 +719,6 @@ LDFLAGS_EX
 ELF_SYS
 EGREP
 GREP
-with_apu_config
 with_apr_config
 with_libcurl
 with_rt
@@ -776,7 +772,6 @@ GENHTML
 LCOV
 GCOV
 enable_debug
-enable_gpperfmon
 enable_orafce
 enable_debug_extensions
 enable_pxf
@@ -852,7 +847,6 @@ enable_gpfdist
 enable_pxf
 enable_debug_extensions
 enable_orafce
-enable_gpperfmon
 enable_debug
 enable_profiling
 enable_coverage
@@ -896,7 +890,6 @@ with_quicklz
 with_rt
 with_libcurl
 with_apr_config
-with_apu_config
 with_gnu_ld
 enable_largefile
 '
@@ -914,7 +907,6 @@ CCC
 CPP
 LDFLAGS_EX
 LDFLAGS_SL
-CXXCPP
 DOCBOOKSTYLE'
 
 
@@ -1542,7 +1534,6 @@ Optional Features:
   --disable-debug-extensions
                           exclude debug extensions in gpcontrib
   --enable-orafce         build with Oracle compatibility functions
-  --enable-gpperfmon      build with gpperfmon
   --enable-debug          build with debugging symbols (-g)
   --enable-profiling      build with profiling enabled
   --enable-coverage       build with coverage testing instrumentation
@@ -1605,7 +1596,6 @@ Optional Packages:
   --without-rt            do not use Realtime Library
   --without-libcurl       do not use libcurl
   --with-apr-config=PATH  path to apr-1-config utility
-  --with-apu-config=PATH  path to apu-1-config utility
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
 
 Some influential environment variables:
@@ -1621,7 +1611,6 @@ Some influential environment variables:
   CPP         C preprocessor
   LDFLAGS_EX  extra linker flags for linking executables only
   LDFLAGS_SL  extra linker flags for linking shared libraries only
-  CXXCPP      C++ preprocessor
   DOCBOOKSTYLE
               location of DocBook stylesheets
 
@@ -2096,222 +2085,6 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_func
-
-# ac_fn_cxx_try_link LINENO
-# -------------------------
-# Try to link conftest.$ac_ext, and return whether this succeeded.
-ac_fn_cxx_try_link ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  rm -f conftest.$ac_objext conftest$ac_exeext
-  if { { ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_link") 2>conftest.err
-  ac_status=$?
-  if test -s conftest.err; then
-    grep -v '^ *+' conftest.err >conftest.er1
-    cat conftest.er1 >&5
-    mv -f conftest.er1 conftest.err
-  fi
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; } && {
-	 test -z "$ac_cxx_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext && {
-	 test "$cross_compiling" = yes ||
-	 test -x conftest$ac_exeext
-       }; then :
-  ac_retval=0
-else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_retval=1
-fi
-  # Delete the IPA/IPO (Inter Procedural Analysis/Optimization) information
-  # created by the PGI compiler (conftest_ipa8_conftest.oo), as it would
-  # interfere with the next link command; also delete a directory that is
-  # left behind by Apple's compiler.  We do this before executing the actions.
-  rm -rf conftest.dSYM conftest_ipa8_conftest.oo
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-  as_fn_set_status $ac_retval
-
-} # ac_fn_cxx_try_link
-
-# ac_fn_cxx_try_cpp LINENO
-# ------------------------
-# Try to preprocess conftest.$ac_ext, and return whether this succeeded.
-ac_fn_cxx_try_cpp ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  if { { ac_try="$ac_cpp conftest.$ac_ext"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.err
-  ac_status=$?
-  if test -s conftest.err; then
-    grep -v '^ *+' conftest.err >conftest.er1
-    cat conftest.er1 >&5
-    mv -f conftest.er1 conftest.err
-  fi
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; } > conftest.i && {
-	 test -z "$ac_cxx_preproc_warn_flag$ac_cxx_werror_flag" ||
-	 test ! -s conftest.err
-       }; then :
-  ac_retval=0
-else
-  $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-    ac_retval=1
-fi
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-  as_fn_set_status $ac_retval
-
-} # ac_fn_cxx_try_cpp
-
-# ac_fn_cxx_check_header_mongrel LINENO HEADER VAR INCLUDES
-# ---------------------------------------------------------
-# Tests whether HEADER exists, giving a warning if it cannot be compiled using
-# the include files in INCLUDES and setting the cache variable VAR
-# accordingly.
-ac_fn_cxx_check_header_mongrel ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  if eval \${$3+:} false; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-else
-  # Is the header compilable?
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking $2 usability" >&5
-$as_echo_n "checking $2 usability... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-#include <$2>
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  ac_header_compiler=yes
-else
-  ac_header_compiler=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_header_compiler" >&5
-$as_echo "$ac_header_compiler" >&6; }
-
-# Is the header present?
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking $2 presence" >&5
-$as_echo_n "checking $2 presence... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <$2>
-_ACEOF
-if ac_fn_cxx_try_cpp "$LINENO"; then :
-  ac_header_preproc=yes
-else
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_header_preproc" >&5
-$as_echo "$ac_header_preproc" >&6; }
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc:$ac_cxx_preproc_warn_flag in #((
-  yes:no: )
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: accepted by the compiler, rejected by the preprocessor!" >&5
-$as_echo "$as_me: WARNING: $2: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: proceeding with the compiler's result" >&5
-$as_echo "$as_me: WARNING: $2: proceeding with the compiler's result" >&2;}
-    ;;
-  no:yes:* )
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: present but cannot be compiled" >&5
-$as_echo "$as_me: WARNING: $2: present but cannot be compiled" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2:     check for missing prerequisite headers?" >&5
-$as_echo "$as_me: WARNING: $2:     check for missing prerequisite headers?" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: see the Autoconf documentation" >&5
-$as_echo "$as_me: WARNING: $2: see the Autoconf documentation" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2:     section \"Present But Cannot Be Compiled\"" >&5
-$as_echo "$as_me: WARNING: $2:     section \"Present But Cannot Be Compiled\"" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: proceeding with the compiler's result" >&5
-$as_echo "$as_me: WARNING: $2: proceeding with the compiler's result" >&2;}
-( $as_echo "## ------------------------------------ ##
-## Report this to support@greenplum.org ##
-## ------------------------------------ ##"
-     ) | sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-esac
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  eval "$3=\$ac_header_compiler"
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-fi
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_cxx_check_header_mongrel
-
-# ac_fn_cxx_try_run LINENO
-# ------------------------
-# Try to link conftest.$ac_ext, and return whether this succeeded. Assumes
-# that executables *can* be run.
-ac_fn_cxx_try_run ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  if { { ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_link") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; } && { ac_try='./conftest$ac_exeext'
-  { { case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_try") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; }; then :
-  ac_retval=0
-else
-  $as_echo "$as_me: program exited with status $ac_status" >&5
-       $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-       ac_retval=$ac_status
-fi
-  rm -rf conftest.dSYM conftest_ipa8_conftest.oo
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-  as_fn_set_status $ac_retval
-
-} # ac_fn_cxx_try_run
 
 # ac_fn_c_check_member LINENO AGGR MEMBER VAR INCLUDES
 # ----------------------------------------------------
@@ -3646,34 +3419,6 @@ if test "${enable_orafce+set}" = set; then :
 
 else
   enable_orafce=no
-
-fi
-
-
-
-
-#
-# --enable-gpperfmon
-#
-
-
-# Check whether --enable-gpperfmon was given.
-if test "${enable_gpperfmon+set}" = set; then :
-  enableval=$enable_gpperfmon;
-  case $enableval in
-    yes)
-      :
-      ;;
-    no)
-      :
-      ;;
-    *)
-      as_fn_error $? "no argument expected for --enable-gpperfmon option" "$LINENO" 5
-      ;;
-  esac
-
-else
-  enable_gpperfmon=no
 
 fi
 
@@ -6101,9 +5846,17 @@ CFLAGS_VECTOR=$CFLAGS_VECTOR
 # supply -g if --enable-debug
 if test "$enable_debug" = yes && test "$ac_cv_prog_cc_g" = yes; then
   if test "$GCC" = yes; then
-  	CFLAGS="$CFLAGS -g -ggdb"
+    CFLAGS="$CFLAGS -g -ggdb"
   else
     CFLAGS="$CFLAGS -g"
+  fi
+fi
+
+if test "$enable_debug" = yes && test "$ac_cv_prog_cxx_g" = yes; then
+  if test "$GCC" = yes; then
+    CXXFLAGS="$CXXFLAGS -g3 -ggdb"
+  else
+    CXXFLAGS="$CXXFLAGS -g3"
   fi
 fi
 
@@ -6527,6 +6280,19 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: checking whether to build with ORCA... $enable_orca" >&5
 $as_echo "checking whether to build with ORCA... $enable_orca" >&6; }
 
+
+# Build ORCA in debug if enable-cassert
+if test "$enable_cassert" = yes; then
+
+$as_echo "#define GPOS_DEBUG 1" >>confdefs.h
+
+fi
+
+if test "$PORTNAME" = darwin; then
+
+$as_echo "#define GPOS_Darwin 1" >>confdefs.h
+
+fi
 
 #
 # --enable-mapreduce enables GPMapreduce support
@@ -8263,7 +8029,7 @@ if test "$with_libxml" = "no" && test "$enable_gpcloud" = "yes"; then
 fi
 
 #
-# libapr. Used for gpfdist and gpperfmon
+# libapr. Used for gpfdist
 #
 
 
@@ -8277,32 +8043,6 @@ if test "${with_apr_config+set}" = set; then :
       ;;
     no)
       as_fn_error $? "argument required for --with-apr-config option" "$LINENO" 5
-      ;;
-    *)
-
-      ;;
-  esac
-
-fi
-
-
-
-
-#
-# libapu. Used for gpperfmon.
-#
-
-
-
-# Check whether --with-apu-config was given.
-if test "${with_apu_config+set}" = set; then :
-  withval=$with_apu_config;
-  case $withval in
-    yes)
-      as_fn_error $? "argument required for --with-apu-config option" "$LINENO" 5
-      ;;
-    no)
-      as_fn_error $? "argument required for --with-apu-config option" "$LINENO" 5
       ;;
     *)
 
@@ -12025,10 +11765,12 @@ if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
 else
-  as_fn_error $? "libapr-1 is required by gpfdist and gpperfmon" "$LINENO" 5
+  as_fn_error $? "libapr-1 is required by gpfdist" "$LINENO" 5
 fi
 
+  LIBS="$_LIBS"
 
+  _LIBS="$LIBS"
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_add" >&5
 $as_echo_n "checking for library containing event_add... " >&6; }
 if ${ac_cv_search_event_add+:} false; then :
@@ -12087,6 +11829,8 @@ else
   as_fn_error $? "libevent is required for gpfdist" "$LINENO" 5
 fi
 
+  EVENT_LIBS=" -levent"
+
 
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing yaml_parser_initialize" >&5
 $as_echo_n "checking for library containing yaml_parser_initialize... " >&6; }
@@ -12141,17 +11885,19 @@ $as_echo "$ac_cv_search_yaml_parser_initialize" >&6; }
 ac_res=$ac_cv_search_yaml_parser_initialize
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  have_yaml=yes
+  have_yaml=yes; YAML_LIBS=" -lyaml"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libyaml is not found. disabling transformations for gpfdist." >&5
 $as_echo "$as_me: WARNING: libyaml is not found. disabling transformations for gpfdist." >&2;}
 fi
 
-  LIBS="$_LIBS"
 
+
+  LIBS="$_LIBS"
 fi
 
-if test "$enable_mapreduce" = yes; then
+if test "$enable_mapreduce" = yes ; then
+  _LIBS="$LIBS"
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing yaml_parser_initialize" >&5
 $as_echo_n "checking for library containing yaml_parser_initialize... " >&6; }
 if ${ac_cv_search_yaml_parser_initialize+:} false; then :
@@ -12205,399 +11951,15 @@ $as_echo "$ac_cv_search_yaml_parser_initialize" >&6; }
 ac_res=$ac_cv_search_yaml_parser_initialize
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  have_yaml=yes
+  have_yaml=yes; YAML_LIBS=" -lyaml"
 else
   as_fn_error $? "libyaml is required for Greenplum Mapreduce" "$LINENO" 5
 fi
 
 
-fi
-
-if test "$enable_gpperfmon" = yes; then
-
-
-if test x"$with_apr_config" != x; then
-  APR_1_CONFIG=$with_apr_config
-fi
-if test -z "$APR_1_CONFIG"; then
-  for ac_prog in apr-1-config
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_APR_1_CONFIG+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $APR_1_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_APR_1_CONFIG="$APR_1_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_APR_1_CONFIG="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-APR_1_CONFIG=$ac_cv_path_APR_1_CONFIG
-if test -n "$APR_1_CONFIG"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $APR_1_CONFIG" >&5
-$as_echo "$APR_1_CONFIG" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$APR_1_CONFIG" && break
-done
-
-fi
-
-if test -n "$APR_1_CONFIG"; then
-  gpac_apr_1_config_version=`$APR_1_CONFIG --version 2>/dev/null | sed q`
-  if test -z "$gpac_apr_1_config_version"; then
-    as_fn_error $? "apr-1-config is required for gpfdist, unable to identify version" "$LINENO" 5
-  fi
-  { $as_echo "$as_me:${as_lineno-$LINENO}: using apr-1-config $gpac_apr_1_config_version" >&5
-$as_echo "$as_me: using apr-1-config $gpac_apr_1_config_version" >&6;}
-  apr_includes=`"$APR_1_CONFIG" --includes`
-  apr_link_ld_libs=`"$APR_1_CONFIG" --link-ld --libs`
-  apr_cflags=`"$APR_1_CONFIG" --cflags`
-  apr_cppflags=`"$APR_1_CONFIG" --cppflags`
-
-
-
-
-else
-  as_fn_error $? "apr-1-config is required for gpfdist, unable to find binary" "$LINENO" 5
-fi
-
-  # If the 'apr-1-config --link-ld' produced correct output, -lapr-1 is already
-  # in LIBS, hence AC_SEARCH_LIBS rather than AC_CHECK_LIB. (and the autoconf
-  # manual recommends always using AC_SEARCH_LIBS rather than AC_CHECK_LIB
-  # anyway)
-  _LIBS="$LIBS"
-  LIBS="$LIBS $apr_link_ld_libs"
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing apr_getopt_long" >&5
-$as_echo_n "checking for library containing apr_getopt_long... " >&6; }
-if ${ac_cv_search_apr_getopt_long+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char apr_getopt_long ();
-int
-main ()
-{
-return apr_getopt_long ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' apr-1; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_apr_getopt_long=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_apr_getopt_long+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_apr_getopt_long+:} false; then :
-
-else
-  ac_cv_search_apr_getopt_long=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_apr_getopt_long" >&5
-$as_echo "$ac_cv_search_apr_getopt_long" >&6; }
-ac_res=$ac_cv_search_apr_getopt_long
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-else
-  as_fn_error $? "libapr-1 is required by gpfdist and gpperfmon" "$LINENO" 5
-fi
-
-
-
-if test x"$with_apu_config" != x; then
-  APU_1_CONFIG=$with_apu_config
-fi
-if test -z "$APU_1_CONFIG"; then
-  for ac_prog in apu-1-config
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_APU_1_CONFIG+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $APU_1_CONFIG in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_APU_1_CONFIG="$APU_1_CONFIG" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_APU_1_CONFIG="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-APU_1_CONFIG=$ac_cv_path_APU_1_CONFIG
-if test -n "$APU_1_CONFIG"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $APU_1_CONFIG" >&5
-$as_echo "$APU_1_CONFIG" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  test -n "$APU_1_CONFIG" && break
-done
-
-fi
-
-if test -n "$APU_1_CONFIG"; then
-  gpac_apu_1_config_version=`$APU_1_CONFIG --version 2>/dev/null | sed q`
-  if test -z "$gpac_apu_1_config_version"; then
-    as_fn_error $? "apu-1-config is required for gpperfmon, unable to identify version" "$LINENO" 5
-  fi
-  { $as_echo "$as_me:${as_lineno-$LINENO}: using apu-1-config $gpac_apu_1_config_version" >&5
-$as_echo "$as_me: using apu-1-config $gpac_apu_1_config_version" >&6;}
-  apu_includes=`"$APU_1_CONFIG" --includes`
-  apu_link_ld_libs=`"$APU_1_CONFIG" --link-ld --libs`
-
-
-else
-  as_fn_error $? "apu-1-config is required for gpperfmon, unable to find binary" "$LINENO" 5
-fi
-
-  LIBS="$LIBS $apu_link_ld_libs"
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_add" >&5
-$as_echo_n "checking for library containing event_add... " >&6; }
-if ${ac_cv_search_event_add+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char event_add ();
-int
-main ()
-{
-return event_add ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' event; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_event_add=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_event_add+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_event_add+:} false; then :
-
-else
-  ac_cv_search_event_add=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_event_add" >&5
-$as_echo "$ac_cv_search_event_add" >&6; }
-ac_res=$ac_cv_search_event_add
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-else
-  as_fn_error $? "libevent is required for gpperfrmon" "$LINENO" 5
-fi
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing apr_queue_push" >&5
-$as_echo_n "checking for library containing apr_queue_push... " >&6; }
-if ${ac_cv_search_apr_queue_push+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char apr_queue_push ();
-int
-main ()
-{
-return apr_queue_push ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' aprutil-1; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_apr_queue_push=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_apr_queue_push+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_apr_queue_push+:} false; then :
-
-else
-  ac_cv_search_apr_queue_push=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_apr_queue_push" >&5
-$as_echo "$ac_cv_search_apr_queue_push" >&6; }
-ac_res=$ac_cv_search_apr_queue_push
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-else
-  as_fn_error $? "libaprutil-1 is required for gpperfmon" "$LINENO" 5
-fi
-
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing sigar_open" >&5
-$as_echo_n "checking for library containing sigar_open... " >&6; }
-if ${ac_cv_search_sigar_open+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char sigar_open ();
-int
-main ()
-{
-return sigar_open ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' sigar; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_sigar_open=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if ${ac_cv_search_sigar_open+:} false; then :
-  break
-fi
-done
-if ${ac_cv_search_sigar_open+:} false; then :
-
-else
-  ac_cv_search_sigar_open=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_sigar_open" >&5
-$as_echo "$ac_cv_search_sigar_open" >&6; }
-ac_res=$ac_cv_search_sigar_open
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  with_libsigar=yes
-else
-  as_fn_error $? "libsigar is required for gpperfmon" "$LINENO" 5
-fi
 
   LIBS="$_LIBS"
-
 fi
-
 
 if test "$with_openssl" = yes ; then
     if test "$PORTNAME" != "win32"; then
@@ -13567,7 +12929,7 @@ fi
 fi
 
 
-# Check for Greenplum Query Optimizer (orca) libraries.
+# Check for xerces if GPORCA is enabled.
 if test "$enable_orca" = yes; then
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for strnicmp in -lxerces-c" >&5
@@ -13620,203 +12982,6 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Xerces-C" >&5
 $as_echo_n "checking for Xerces-C... " >&6; }
-
-
-ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gpos_init in -lgpos" >&5
-$as_echo_n "checking for gpos_init in -lgpos... " >&6; }
-if ${ac_cv_lib_gpos_gpos_init+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lgpos  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char gpos_init ();
-int
-main ()
-{
-return gpos_init ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_gpos_gpos_init=yes
-else
-  ac_cv_lib_gpos_gpos_init=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_gpos_gpos_init" >&5
-$as_echo "$ac_cv_lib_gpos_gpos_init" >&6; }
-if test "x$ac_cv_lib_gpos_gpos_init" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBGPOS 1
-_ACEOF
-
-  LIBS="-lgpos $LIBS"
-
-else
-  as_fn_error $? "library 'gpos' is required for GPORCA" "$LINENO" 5
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lgpdbcost" >&5
-$as_echo_n "checking for main in -lgpdbcost... " >&6; }
-if ${ac_cv_lib_gpdbcost_main+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lgpdbcost -lgpopt -lnaucrates $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-
-int
-main ()
-{
-return main ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_gpdbcost_main=yes
-else
-  ac_cv_lib_gpdbcost_main=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_gpdbcost_main" >&5
-$as_echo "$ac_cv_lib_gpdbcost_main" >&6; }
-if test "x$ac_cv_lib_gpdbcost_main" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBGPDBCOST 1
-_ACEOF
-
-  LIBS="-lgpdbcost $LIBS"
-
-else
-  as_fn_error $? "library 'gpdbcost' is required for GPORCA" "$LINENO" 5
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for InitDXL in -lnaucrates" >&5
-$as_echo_n "checking for InitDXL in -lnaucrates... " >&6; }
-if ${ac_cv_lib_naucrates_InitDXL+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lnaucrates -lgpopt $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char InitDXL ();
-int
-main ()
-{
-return InitDXL ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_naucrates_InitDXL=yes
-else
-  ac_cv_lib_naucrates_InitDXL=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_naucrates_InitDXL" >&5
-$as_echo "$ac_cv_lib_naucrates_InitDXL" >&6; }
-if test "x$ac_cv_lib_naucrates_InitDXL" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBNAUCRATES 1
-_ACEOF
-
-  LIBS="-lnaucrates $LIBS"
-
-else
-  as_fn_error $? "library 'naucrates' is required for GPORCA" "$LINENO" 5
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gpopt_init in -lgpopt" >&5
-$as_echo_n "checking for gpopt_init in -lgpopt... " >&6; }
-if ${ac_cv_lib_gpopt_gpopt_init+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lgpopt  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char gpopt_init ();
-int
-main ()
-{
-return gpopt_init ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_gpopt_gpopt_init=yes
-else
-  ac_cv_lib_gpopt_gpopt_init=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_gpopt_gpopt_init" >&5
-$as_echo "$ac_cv_lib_gpopt_gpopt_init" >&6; }
-if test "x$ac_cv_lib_gpopt_gpopt_init" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBGPOPT 1
-_ACEOF
-
-  LIBS="-lgpopt $LIBS"
-
-else
-  as_fn_error $? "library 'gpopt' is required for GPORCA" "$LINENO" 5
-fi
-
-ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-
 
 fi
 
@@ -14176,23 +13341,6 @@ fi
 done
 
   CPPFLAGS=$ac_save_CPPFLAGS
-fi
-
-if test "enable_gpperfmon" = yes; then
-  for ac_header in event.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "event.h" "ac_cv_header_event_h" "$ac_includes_default"
-if test "x$ac_cv_header_event_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_EVENT_H 1
-_ACEOF
-
-else
-  as_fn_error $? "header file <event.h> is required for gpperfmon" "$LINENO" 5
-fi
-
-done
-
 fi
 
 if test "$with_zlib" = yes; then
@@ -14711,264 +13859,6 @@ else
 fi
 
 done
-
-fi
-
-# Check for GPORCA and supporting GPORCA OS abstraction layer header files.
-if test "$enable_orca" = yes; then
-  ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking how to run the C++ preprocessor" >&5
-$as_echo_n "checking how to run the C++ preprocessor... " >&6; }
-if test -z "$CXXCPP"; then
-  if ${ac_cv_prog_CXXCPP+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-      # Double quotes because CXXCPP needs to be expanded
-    for CXXCPP in "$CXX -E" "/lib/cpp"
-    do
-      ac_preproc_ok=false
-for ac_cxx_preproc_warn_flag in '' yes
-do
-  # Use a header file that comes with gcc, so configuring glibc
-  # with a fresh cross-compiler works.
-  # Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
-  # <limits.h> exists even on freestanding compilers.
-  # On the NeXT, cc -E runs the code through the compiler's parser,
-  # not just through cpp. "Syntax error" is here to catch this case.
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#ifdef __STDC__
-# include <limits.h>
-#else
-# include <assert.h>
-#endif
-		     Syntax error
-_ACEOF
-if ac_fn_cxx_try_cpp "$LINENO"; then :
-
-else
-  # Broken: fails on valid input.
-continue
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-
-  # OK, works on sane cases.  Now check whether nonexistent headers
-  # can be detected and how.
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <ac_nonexistent.h>
-_ACEOF
-if ac_fn_cxx_try_cpp "$LINENO"; then :
-  # Broken: success on invalid input.
-continue
-else
-  # Passes both tests.
-ac_preproc_ok=:
-break
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-
-done
-# Because of `break', _AC_PREPROC_IFELSE's cleaning code was skipped.
-rm -f conftest.i conftest.err conftest.$ac_ext
-if $ac_preproc_ok; then :
-  break
-fi
-
-    done
-    ac_cv_prog_CXXCPP=$CXXCPP
-
-fi
-  CXXCPP=$ac_cv_prog_CXXCPP
-else
-  ac_cv_prog_CXXCPP=$CXXCPP
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $CXXCPP" >&5
-$as_echo "$CXXCPP" >&6; }
-ac_preproc_ok=false
-for ac_cxx_preproc_warn_flag in '' yes
-do
-  # Use a header file that comes with gcc, so configuring glibc
-  # with a fresh cross-compiler works.
-  # Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
-  # <limits.h> exists even on freestanding compilers.
-  # On the NeXT, cc -E runs the code through the compiler's parser,
-  # not just through cpp. "Syntax error" is here to catch this case.
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#ifdef __STDC__
-# include <limits.h>
-#else
-# include <assert.h>
-#endif
-		     Syntax error
-_ACEOF
-if ac_fn_cxx_try_cpp "$LINENO"; then :
-
-else
-  # Broken: fails on valid input.
-continue
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-
-  # OK, works on sane cases.  Now check whether nonexistent headers
-  # can be detected and how.
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <ac_nonexistent.h>
-_ACEOF
-if ac_fn_cxx_try_cpp "$LINENO"; then :
-  # Broken: success on invalid input.
-continue
-else
-  # Passes both tests.
-ac_preproc_ok=:
-break
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-
-done
-# Because of `break', _AC_PREPROC_IFELSE's cleaning code was skipped.
-rm -f conftest.i conftest.err conftest.$ac_ext
-if $ac_preproc_ok; then :
-
-else
-  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "C++ preprocessor \"$CXXCPP\" fails sanity check
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-
-
-ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-for ac_header in gpos/_api.h
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "gpos/_api.h" "ac_cv_header_gpos__api_h" "$ac_includes_default"
-if test "x$ac_cv_header_gpos__api_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_GPOS__API_H 1
-_ACEOF
-
-else
-  as_fn_error $? "GPOS header files are required for GPORCA" "$LINENO" 5
-fi
-
-done
-
-for ac_header in naucrates/init.h
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "naucrates/init.h" "ac_cv_header_naucrates_init_h" "$ac_includes_default"
-if test "x$ac_cv_header_naucrates_init_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_NAUCRATES_INIT_H 1
-_ACEOF
-
-else
-  as_fn_error $? "Naucrates header files are required for GPORCA" "$LINENO" 5
-fi
-
-done
-
-for ac_header in gpopt/init.h
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "gpopt/init.h" "ac_cv_header_gpopt_init_h" "$ac_includes_default"
-if test "x$ac_cv_header_gpopt_init_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_GPOPT_INIT_H 1
-_ACEOF
-
-else
-  as_fn_error $? "GPOPT header files are required for GPORCA" "$LINENO" 5
-fi
-
-done
-
-for ac_header in gpdbcost/CCostModelGPDB.h
-do :
-  ac_fn_cxx_check_header_mongrel "$LINENO" "gpdbcost/CCostModelGPDB.h" "ac_cv_header_gpdbcost_CCostModelGPDB_h" "$ac_includes_default"
-if test "x$ac_cv_header_gpdbcost_CCostModelGPDB_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_GPDBCOST_CCOSTMODELGPDB_H 1
-_ACEOF
-
-else
-  as_fn_error $? "GPDB Cost Model header files are required for GPORCA" "$LINENO" 5
-fi
-
-done
-
-ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking Checking ORCA version" >&5
-$as_echo_n "checking Checking ORCA version... " >&6; }
-ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-if test "$cross_compiling" = yes; then :
-  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "cannot run test program while cross compiling
-See \`config.log' for more details" "$LINENO" 5; }
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-#include "gpopt/version.h"
-#include <string.h>
-
-int
-main ()
-{
-
-return strncmp("3.88.", GPORCA_VERSION_STRING, 5);
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_run "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
-$as_echo "ok" >&6; }
-else
-  as_fn_error $? "Your ORCA version is expected to be 3.88.XXX" "$LINENO" 5
-
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
 
 fi
 
@@ -16643,6 +15533,27 @@ if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
 _ACEOF
+
+fi
+done
+
+
+# For upstream Postgres, the getifaddrs() symbol is optional, but the GPDB
+# ifaddrs utility requires it, along with inet_ntop(). The check for getifaddrs
+# is duplicated here to avoid a merge conflict in the AC_CHECK_FUNCS block
+# above.
+for ac_func in getifaddrs inet_ntop
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+else
+
+	as_fn_error $? "getifaddrs and inet_ntop are required for Greenplum" "$LINENO" 5
 
 fi
 done

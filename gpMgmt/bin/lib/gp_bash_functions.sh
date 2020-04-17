@@ -478,13 +478,14 @@ CREATE_SPREAD_MIRROR_ARRAY () {
 		# Calculate the index based on host and subnet number
 		((PRIM_SEG_INDEX=($DEST_HOST*$NUM_DATADIR)+($DEST_SUBNET*$DIRS_PER_SUBNET)))
 
-		QE_M_NAME=`$ECHO ${QE_PRIMARY_ARRAY[$PRIM_SEG_INDEX]}|$AWK -F"~" '{print $1}'`
+		QE_M_HOST=`$ECHO ${QE_PRIMARY_ARRAY[$PRIM_SEG_INDEX]}|$AWK -F"~" '{print $1}'`
+		QE_M_NAME=`$ECHO ${QE_PRIMARY_ARRAY[$PRIM_SEG_INDEX]}|$AWK -F"~" '{print $2}'`
 		GP_M_DIR=${MIRROR_DATA_DIRECTORY[$SEGS_PROCESSED%$NUM_DATADIR]}
-		P_PORT=`$ECHO $QE_LINE|$AWK -F"~" '{print $2}'`
+		P_PORT=`$ECHO $QE_LINE|$AWK -F"~" '{print $3}'`
 		((GP_M_PORT=$P_PORT+$MIRROR_OFFSET))
-		M_CONTENT=`$ECHO $QE_LINE|$AWK -F"~" '{print $5}'`
-		M_SEG=`$ECHO $QE_LINE|$AWK -F"~" '{print $3}'|$AWK -F"/" '{print $NF}'`
-		QE_MIRROR_ARRAY=(${QE_MIRROR_ARRAY[@]} ${QE_M_NAME}~${GP_M_PORT}~${GP_M_DIR}/${M_SEG}~${DBID_COUNT}~${M_CONTENT})
+		M_CONTENT=`$ECHO $QE_LINE|$AWK -F"~" '{print $6}'`
+		M_SEG=`$ECHO $QE_LINE|$AWK -F"~" '{print $4}'|$AWK -F"/" '{print $NF}'`
+		QE_MIRROR_ARRAY=(${QE_MIRROR_ARRAY[@]} ${QE_M_HOST}~${QE_M_NAME}~${GP_M_PORT}~${GP_M_DIR}/${M_SEG}~${DBID_COUNT}~${M_CONTENT})
 		POSTGRES_PORT_CHK $GP_M_PORT $QE_M_NAME
 		((DBID_COUNT=$DBID_COUNT+1))
 		((SEGS_PROCESSED=$SEGS_PROCESSED+1))
@@ -539,14 +540,15 @@ CREATE_GROUP_MIRROR_ARRAY () {
 
 		if [ $DEBUG_LEVEL -eq 0 ] && [ x"" != x"$VERBOSE" ];then $NOLINE_ECHO ".\c";fi
 
-		QE_M_NAME=`$ECHO ${QE_PRIMARY_ARRAY[$MIRROR_INDEX]}|$AWK -F"~" '{print $1}'`
-		GP_M_DIR=${MIRROR_DATA_DIRECTORY[$PRIMARY_INDEX%$NUM_DATADIR]}/`$ECHO $QE_LINE|$AWK -F"~" '{print $3}'|$AWK -F"/" '{print $NF}'`
+		QE_M_HOST=`$ECHO ${QE_PRIMARY_ARRAY[$MIRROR_INDEX]}|$AWK -F"~" '{print $1}'`
+		QE_M_NAME=`$ECHO ${QE_PRIMARY_ARRAY[$MIRROR_INDEX]}|$AWK -F"~" '{print $2}'`
+		GP_M_DIR=${MIRROR_DATA_DIRECTORY[$PRIMARY_INDEX%$NUM_DATADIR]}/`$ECHO $QE_LINE|$AWK -F"~" '{print $4}'|$AWK -F"/" '{print $NF}'`
 
-		M_CONTENT=`$ECHO $QE_LINE|$AWK -F"~" '{print $5}'`
-		P_PORT=`$ECHO $QE_LINE|$AWK -F"~" '{print $2}'`
+		M_CONTENT=`$ECHO $QE_LINE|$AWK -F"~" '{print $6}'`
+		P_PORT=`$ECHO $QE_LINE|$AWK -F"~" '{print $3}'`
 		GP_M_PORT=$(($P_PORT+$MIRROR_OFFSET))
 
-		QE_MIRROR_ARRAY=(${QE_MIRROR_ARRAY[@]} ${QE_M_NAME}~${GP_M_PORT}~${GP_M_DIR}~${DBID_COUNT}~${M_CONTENT})
+		QE_MIRROR_ARRAY=(${QE_MIRROR_ARRAY[@]} ${QE_M_HOST}~${QE_M_NAME}~${GP_M_PORT}~${GP_M_DIR}~${DBID_COUNT}~${M_CONTENT})
 		POSTGRES_PORT_CHK $GP_M_PORT $QE_M_NAME
 
 		DBID_COUNT=$(($DBID_COUNT+1))
@@ -724,7 +726,24 @@ BUILD_MASTER_PG_HBA_FILE () {
 
         # Add replication config
         $ECHO "local    replication $USER_NAME         $PG_METHOD" >> ${GP_DIR}/$PG_HBA
-        $ECHO "host     replication $USER_NAME         samenet       trust" >> ${GP_DIR}/$PG_HBA
+        # Add the samehost replication entry to support single-host development
+        $ECHO "host     replication $USER_NAME         samehost       trust" >> ${GP_DIR}/$PG_HBA
+        if [ $HBA_HOSTNAMES -eq 0 ];then
+            local MASTER_IP_ADDRESS_NO_LOOPBACK=($("$GPHOME"/libexec/ifaddrs --no-loopback))
+            if [ x"" != x"$STANDBY_HOSTNAME" ] && [ "$STANDBY_HOSTNAME" != "$MASTER_HOSTNAME" ];then
+                local STANDBY_IP_ADDRESS_NO_LOOPBACK=($($TRUSTED_SHELL $STANDBY_HOSTNAME "$GPHOME"/libexec/ifaddrs --no-loopback))
+            fi
+            for ADDR in "${MASTER_IP_ADDRESS_NO_LOOPBACK[@]}" "${STANDBY_IP_ADDRESS_NO_LOOPBACK[@]}"
+            do
+                CIDRADDR=$(GET_CIDRADDR $ADDR)
+                $ECHO "host     replication $USER_NAME         $CIDRADDR       trust" >> ${GP_DIR}/$PG_HBA
+            done
+        else
+            $ECHO "host     replication $USER_NAME         $MASTER_HOSTNAME       trust" >> ${GP_DIR}/$PG_HBA
+            if [ x"" != x"$STANDBY_HOSTNAME" ] && [ "$STANDBY_HOSTNAME" != "$MASTER_HOSTNAME" ];then
+                $ECHO "host     replication $USER_NAME         $STANDBY_HOSTNAME       trust" >> ${GP_DIR}/$PG_HBA
+            fi
+        fi
         LOG_MSG "[INFO]:-Complete Master $PG_HBA configuration"
         LOG_MSG "[INFO]:-End Function $FUNCNAME"
 }
@@ -758,63 +777,6 @@ prompt_validation_timeout = 1.0
 sync_retries = 3
 _EOF_
         LOG_MSG "[INFO]:-End Function $FUNCNAME"
-}
-
-BUILD_PERFMON() {
-	LOG_MSG "[INFO]:-Start Function $FUNCNAME"
-	GP_DIR=$1
-	$MKDIR -p $GP_DIR/gpperfmon/conf $GP_DIR/gpperfmon/logs $GP_DIR/gpperfmon/data
-	$CAT <<_EOF_ >> $GP_DIR/gpperfmon/conf/gpperfmon.conf
-[GPMMON]
-# quantum specifies the time in seconds between updates from
-# performance monitor agents on all segments. Valid values
-# are 10, 15, 20, 30, or 60
-quantum = 15
-
-# min_query_time specifies the minimum query run time
-# in seconds for statistics collection. The monitor logs all
-# queries that run longer than this value in the queries_history
-# table. For queries with shorter run times, no historical
-# data is collected.
-min_query_time = 20
-
-# This should be a percentage between 0 and 100 and should be
-# less than the error_disk_space_percentage.  If a filesystem's
-# disk space used percentage equals or exceeds this value a
-# warning will be logged and a warning email/snmp trap may be
-# sent.  If this configuration is set to 0 or not specified, no
-# warnings are sent.
-#warning_disk_space_percentage = 80
-
-# This should be a percentage between 0 and 100 and should be
-# greater than the warning_disk_space_percentage. If a
-# filesystem's disk space used percentage equals or exceeds
-# this value an error will be logged and a error email/snmp
-# trap may be sent.  If this configuration is set to 0 or not
-# specified, no errors are sent.
-#error_disk_space_percentage = 90
-
-#This is the interval in minutes that limits the number of
-#error/warning messages that are sent. The minimum value for
-#this configuration is 1.  Setting this to 0 or not specifying
-#this configuration results in it getting set to the minimum.
-disk_space_interval = 60
-
-#This is the maximum number of error/warning messages that
-#will be sent in the disk_space_interval.  The maximum value
-#for this configuration is 50.  The minimum value for this
-#configuration is 1.  Setting this configuration to greater
-#than 50 or not specifying this configuration results in it
-#getting set to the maximum.
-max_disk_space_messages_per_interval = 10
-
-# The number of partitions for statistics data in month
-# will be retained. Older partitions will be dropped.
-#partition_age = 6
-
-
-log_location = $GP_DIR/gpperfmon/logs
-_EOF_
 }
 
 GET_PG_PID_ACTIVE () {
@@ -1149,6 +1111,21 @@ CHK_GPDB_ID () {
 		LOG_MSG "[WARN]:-No initdb file, unable to verify id" 1
 	fi
 	LOG_MSG "[INFO]:-End Function $FUNCNAME"
+}
+
+SET_GP_USER_PW () {
+    LOG_MSG "[INFO]:-Start Function $FUNCNAME"
+
+    local alter_statement="alter user :\"username\" password :'password';"
+
+    $PSQL --variable=ON_ERROR_STOP=1 \
+      -p $MASTER_PORT \
+      -d "$DEFAULTDB" \
+      --variable=username="$USER_NAME" \
+      --variable=password="$GP_PASSWD" <<< "$alter_statement" >> $LOG_FILE 2>&1
+
+    ERROR_CHK $? "update Greenplum superuser password" 1
+    LOG_MSG "[INFO]:-End Function $FUNCNAME"
 }
 
 #******************************************************************************

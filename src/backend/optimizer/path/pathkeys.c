@@ -37,6 +37,7 @@
 
 #include "cdb/cdbhash.h"
 #include "cdb/cdbpullup.h"		/* cdbpullup_expr(), cdbpullup_make_var() */
+#include "optimizer/cost.h"
 
 static bool pathkey_is_redundant(PathKey *new_pathkey, List *pathkeys);
 static bool right_merge_direction(PlannerInfo *root, PathKey *pathkey);
@@ -347,7 +348,7 @@ generate_implied_quals(PlannerInfo *root)
 {
 	ListCell   *lc;
 
-	if (!root->config->gp_enable_predicate_propagation)
+	if (!gp_enable_predicate_propagation)
 		return;
 
 	foreach(lc, root->non_eq_clauses)
@@ -1030,27 +1031,6 @@ convert_subquery_pathkeys(PlannerInfo *root, RelOptInfo *rel,
 																 tle);
 
 					/* See if we have a matching EC for that */
-					/*
-					 * In GPDB, we pass create_it = 'true', because even if the
-					 * sub-pathkey doesn't seem interesting to the parent, we
-					 * want to preserve the ordering if the result is gathered
-					 * to a single node later on. This case comes up, if you
-					 * e.g. create a view with an ORDER BY:
-					 *
-					 * CREATE VIEW v AS SELECT * FROM sourcetable ORDER BY vn;
-					 *
-					 * and query it:
-					 *
-					 * SELECT row_number() OVER(), vn FROM v_sourcetable;
-					 *
-					 * Although it's not required by the SQL standard, we try
-					 * to preserve the PostgreSQL behaviour, and honor the
-					 * ORDER BY. The parent query doesn't have an equivalence
-					 * class for the path key (vn), but if we don't pass it
-					 * up to the parent, it will not preserve the order when
-					 * it adds the Gather Motion to pull together the rows,
-					 * underneath the WindowAgg.
-					 */
 					outer_ec = get_eclass_for_sort_expr(root,
 														outer_expr,
 														NULL,
@@ -1059,7 +1039,7 @@ convert_subquery_pathkeys(PlannerInfo *root, RelOptInfo *rel,
 														sub_expr_coll,
 														0,
 														rel->relids,
-														true); /* create_it */
+														false); /* create_it */
 
 					/*
 					 * If we don't find a matching EC, this sub-pathkey isn't
@@ -1420,6 +1400,18 @@ make_distribution_exprs_for_groupclause(PlannerInfo *root, List *groupclause, Li
 		Oid			opfamily;
 
 		if (!sortcl->hashable)
+			continue;
+
+		/*
+		 * If this expression is not sortable, we cannot construct a PathKey
+		 * to represent it. Give up.
+		 *
+		 * In principle, we could still use it as distribution key, but we'd
+		 * need a different representation for it. For now, though, we don't
+		 * bother. A datatype without ordering operators is a rare thing in
+		 * practice.
+		 */
+		if (sortcl->sortop == InvalidOid)
 			continue;
 
 		expr = (Expr *) get_sortgroupclause_expr(sortcl, tlist);

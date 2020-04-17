@@ -41,7 +41,7 @@ extern void cdb_estimate_rel_size(RelOptInfo   *relOptInfo,
 							  BlockNumber  *pages,
 							  double       *tuples,
 							  double       *allvisfrac);
-extern double cdb_estimate_partitioned_numtuples(Relation rel, bool *stats_missing);
+extern double cdb_estimate_partitioned_numtuples(Relation rel);
 
 extern int32 get_relation_data_width(Oid relid, int32 *attr_widths);
 
@@ -68,6 +68,8 @@ extern Selectivity join_selectivity(PlannerInfo *root,
 extern bool has_row_triggers(PlannerInfo *root, Index rti, CmdType event);
 
 #define DEFAULT_EXTERNAL_TABLE_PAGES 1000
+#define DEFAULT_EXTERNAL_TABLE_TUPLES 1000000
+
 #define DEFAULT_INTERNAL_TABLE_PAGES 100
 
 #endif   /* PLANCAT_H */

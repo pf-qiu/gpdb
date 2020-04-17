@@ -575,53 +575,6 @@ select * from orca.t_text where user_id=9;
 
 reset optimizer_enable_space_pruning;
 set optimizer_enumerate_plans=off;
-set optimizer_enable_constant_expression_evaluation=off;
-
--- create a user defined type and only define equality on it
--- the type can be used in the partitioning list, but Orca is not able to pick a heterogenous index
--- because constraint derivation needs all comparison operators
-drop type if exists orca.employee cascade;
-create type orca.employee as (empid int, empname text);
-
-create function orca.emp_equal(orca.employee, orca.employee) returns boolean
-  as 'select $1.empid = $2.empid;'
-  language sql
-  immutable
-  returns null on null input;
-create operator pg_catalog.= (
-        leftarg = orca.employee,
-        rightarg = orca.employee,
-        procedure = orca.emp_equal
-);
-create operator class orca.employee_op_class default for type orca.employee
-  using btree as
-  operator 3 =;
-
-drop table if exists orca.t_employee;
-create table orca.t_employee(timest date, user_id numeric(16,0) not null, tag1 char(5), emp orca.employee)
-  distributed by (user_id)
-  partition by list(emp)
-  (partition part1 values('(1, ''foo'')'::orca.employee), partition part2 values('(2, ''foo'')'::orca.employee));
-create index user_id_idx1 on orca.t_employee_1_prt_part1(user_id);
-create index user_id_idx2 on orca.t_employee_1_prt_part2(user_id);
-
-insert into orca.t_employee values('01-03-2012'::date,0,'tag1','(1, ''foo'')'::orca.employee);
-insert into orca.t_employee values('01-03-2012'::date,1,'tag1','(1, ''foo'')'::orca.employee);
-insert into orca.t_employee values('01-04-2012'::date,2,'tag1','(2, ''foo'')'::orca.employee);
-insert into orca.t_employee values('01-05-2012'::date,1,'tag1','(1, ''foo'')'::orca.employee);
-insert into orca.t_employee values('01-06-2012'::date,2,'tag1','(2, ''foo'')'::orca.employee);
-insert into orca.t_employee values('01-07-2012'::date,1,'tag1','(1, ''foo'')'::orca.employee);
-insert into orca.t_employee values('01-08-2012'::date,2,'tag1','(2, ''foo'')'::orca.employee);
-
-set optimizer_enable_constant_expression_evaluation=on;
-set optimizer_enable_dynamictablescan = off;
--- start_ignore
-analyze orca.t_employee;
--- end_ignore
-explain select * from orca.t_employee where user_id = 2;
-select * from orca.t_employee where user_id = 2;
-reset optimizer_enable_dynamictablescan;
-
 reset optimizer_enable_constant_expression_evaluation;
 reset optimizer_enable_partial_index;
 
@@ -2288,7 +2241,6 @@ CREATE TABLE tc4 (a int, b int, check(a + b > 1 and a = b));
 INSERT INTO tc4 VALUES(NULL, NULL);
 SELECT * from tc4 where a IS NULL;
 
--- citext fallback
 CREATE EXTENSION IF NOT EXISTS citext;
 drop table if exists tt, tc;
 create table tc (a int, c citext) distributed by (a);
@@ -2300,7 +2252,6 @@ insert into tt values (1, 'a'), (1, 'A');
 insert into tc values (1, 'b'), (1, 'B');
 insert into tt values (1, 'b'), (1, 'B');
 
--- expected fall back to the planner
 select * from tc, tt where c = v;
 
 -- test gpexpand phase 1
@@ -2353,6 +2304,106 @@ explain select count(*) from gpexp_hash h join gpexp_repl r on h.a=r.a;
 select count(*) as expect_20 from gpexp_hash h join gpexp_repl r on h.a=r.a;
 explain select count(*) as expect_20 from noexp_hash h join gpexp_repl r on h.a=r.a;
 select count(*) as expect_20 from noexp_hash h join gpexp_repl r on h.a=r.a;
+
+create table part1(a int, b int) partition by range(b) (start(1) end(5) every(1));
+create table part2(a int, b int) partition by range(b) (start(1) end(5) every(1));
+insert into part1 select i, (i % 2) + 1 from generate_series(1, 1000) i;
+insert into part2 select i, (i % 2) + 1 from generate_series(1, 100) i;
+-- make sure some child partitions have not been analyzed. This just means that
+-- stats are missing for some child partition but not necessarily that the relation
+-- is empty. So we should not flag this as an empty relation 
+analyze part1_1_prt_1;
+analyze part1_1_prt_2;
+analyze part2_1_prt_1;
+analyze part2_1_prt_2;
+-- the plan should contain a 2 stage limit. If we incorrectly estimate that the
+-- relation is empty, we would end up choosing a single stage limit. 
+explain select * from part1, part2 where part1.b = part2.b limit 5;
+
+-- test opfamily handling in ORCA
+-- start_ignore
+DROP FUNCTION abseq(int, int) CASCADE;
+DROP FUNCTION abslt(int, int) CASCADE;
+DROP FUNCTION absgt(int, int) CASCADE;
+DROP FUNCTION abscmp(int, int) CASCADE;
+-- end_ignore
+CREATE FUNCTION abseq(int, int) RETURNS BOOL AS
+$$
+  begin return abs($1) = abs($2); end;
+$$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+CREATE OPERATOR |=| (
+  PROCEDURE = abseq,
+  LEFTARG = int,
+  RIGHTARG = int,
+  COMMUTATOR = |=|,
+  hashes, merges);
+
+CREATE FUNCTION abshashfunc(int) RETURNS int AS
+$$
+  begin return hashint4(abs($1)); end;
+$$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+CREATE FUNCTION abslt(int, int) RETURNS BOOL AS
+$$
+  begin return abs($1) < abs($2); end;
+$$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+CREATE OPERATOR |<| (
+  PROCEDURE = abslt,
+  LEFTARG = int,
+  RIGHTARG = int);
+
+CREATE FUNCTION absgt(int, int) RETURNS BOOL AS
+$$
+  begin return abs($1) > abs($2); end;
+$$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+CREATE OPERATOR |>| (
+  PROCEDURE = absgt,
+  LEFTARG = int,
+  RIGHTARG = int);
+
+CREATE FUNCTION abscmp(int, int) RETURNS int AS
+$$
+  begin return btint4cmp(abs($1),abs($2)); end;
+$$ LANGUAGE plpgsql STRICT IMMUTABLE;
+
+DROP TABLE IF EXISTS atab_old_hash;
+DROP TABLE IF EXISTS btab_old_hash;
+CREATE TABLE atab_old_hash (a int) DISTRIBUTED BY (a);
+CREATE TABLE btab_old_hash (b int) DISTRIBUTED BY (b);
+
+INSERT INTO atab_old_hash VALUES (-1), (0), (1);
+INSERT INTO btab_old_hash VALUES (-1), (0), (1), (2);
+
+-- Test simple join using the new operator(s) before creating the opclass/opfamily
+EXPLAIN SELECT a, b FROM atab_old_hash INNER JOIN btab_old_hash ON a |=| b;
+SELECT a, b FROM atab_old_hash INNER JOIN btab_old_hash ON a |=| b;
+
+CREATE OPERATOR CLASS abs_int_hash_ops FOR TYPE int4
+  USING hash AS
+  OPERATOR 1 |=|,
+  FUNCTION 1 abshashfunc(int);
+
+CREATE OPERATOR CLASS abs_int_btree_ops FOR TYPE int4
+  USING btree AS
+  OPERATOR 1 |<|,
+  OPERATOR 3 |=|,
+  OPERATOR 5 |>|,
+  FUNCTION 1 abscmp(int, int);
+
+-- OK test different kinds of joins
+EXPLAIN SELECT a, b FROM atab_old_hash INNER JOIN btab_old_hash ON a |=| b;
+SELECT a, b FROM atab_old_hash INNER JOIN btab_old_hash ON a |=| b;
+
+EXPLAIN SELECT a, b FROM btab_old_hash LEFT OUTER JOIN atab_old_hash ON a |=| b;
+SELECT a, b FROM btab_old_hash LEFT OUTER JOIN atab_old_hash ON a |=| b;
+
+set optimizer_expand_fulljoin = on;
+EXPLAIN SELECT a, b FROM atab_old_hash FULL JOIN btab_old_hash ON a |=| b;
+SELECT a, b FROM atab_old_hash FULL JOIN btab_old_hash ON a |=| b;
+reset optimizer_expand_fulljoin;
 
 -- start_ignore
 DROP SCHEMA orca CASCADE;

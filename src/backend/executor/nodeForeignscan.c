@@ -169,9 +169,15 @@ ExecInitForeignScan(ForeignScan *node, EState *estate, int eflags)
 
 	/*
 	 * tuple table initialization
+	 *
+	 * In GPDB, cannot use ExecInitScanTupleSlot() on foreign scans of join
+	 * relations.
 	 */
 	ExecInitResultTupleSlot(estate, &scanstate->ss.ps);
-	ExecInitScanTupleSlot(estate, &scanstate->ss);
+	if (scanrelid > 0)
+		ExecInitScanTupleSlot(estate, &scanstate->ss);
+	else
+		scanstate->ss.ss_ScanTupleSlot = ExecAllocTableSlot(&estate->es_tupleTable);
 
 	/*
 	 * open the base relation, if any, and acquire an appropriate lock on it;
@@ -252,7 +258,10 @@ ExecEndForeignScan(ForeignScanState *node)
 	if (plan->operation != CMD_SELECT)
 		node->fdwroutine->EndDirectModify(node);
 	else
-		node->fdwroutine->EndForeignScan(node);
+	{
+		if (!node->is_squelched)
+			node->fdwroutine->EndForeignScan(node);
+	}
 
 	/* Shut down any outer plan. */
 	if (outerPlanState(node))
@@ -354,4 +363,26 @@ ExecForeignScanInitializeWorker(ForeignScanState *node, shm_toc *toc)
 		coordinate = shm_toc_lookup(toc, plan_node_id);
 		fdwroutine->InitializeWorkerForeignScan(node, toc, coordinate);
 	}
+}
+
+
+
+/* ----------------------------------------------------------------
+*		ExecSquelchForeignScan
+*
+*		Performs identically to ExecEndForeignScan except that
+*		closure errors are ignored.  This function is called for
+*		normal termination when the external data source is NOT
+*		exhausted (such as for a LIMIT clause).
+* ----------------------------------------------------------------
+*/
+void
+ExecSquelchForeignScan(ForeignScanState *node)
+{
+	ForeignScan *plan = (ForeignScan *) node->ss.ps.plan;
+
+	node->is_squelched = true;
+
+	if (plan->operation == CMD_SELECT)
+		node->fdwroutine->EndForeignScan(node);
 }

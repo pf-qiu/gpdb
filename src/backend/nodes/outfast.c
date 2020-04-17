@@ -203,6 +203,8 @@
 
 static void _outNode(StringInfo str, void *obj);
 
+#define outDatum(str, value, typlen, typbyval) _outDatum(str, value, typlen, typbyval)
+
 static void
 _outList(StringInfo str, List *node)
 {
@@ -355,7 +357,6 @@ _outCopyStmt(StringInfo str, CopyStmt *node)
 	WRITE_NODE_FIELD(options);
 	WRITE_NODE_FIELD(sreh);
 	WRITE_NODE_FIELD(partitions);
-	WRITE_NODE_FIELD(ao_segnos);
 }
 
 static void
@@ -390,6 +391,21 @@ _outMergeJoin(StringInfo str, MergeJoin *node)
 }
 
 static void
+_outTupleSplit(StringInfo str, TupleSplit *node)
+{
+	WRITE_NODE_TYPE("TupleSplit");
+
+	_outPlanInfo(str, (Plan *) node);
+
+	WRITE_INT_FIELD(numCols);
+	WRITE_INT_ARRAY(grpColIdx, node->numCols, AttrNumber);
+	WRITE_INT_FIELD(numDisDQAs);
+
+	for (int i = 0; i < node->numDisDQAs ; i ++)
+		WRITE_BITMAPSET_FIELD(dqa_args_id_bms[i]);
+}
+
+static void
 _outAgg(StringInfo str, Agg *node)
 {
 	WRITE_NODE_TYPE("AGG");
@@ -407,6 +423,8 @@ _outAgg(StringInfo str, Agg *node)
 	WRITE_NODE_FIELD(groupingSets);
 	WRITE_NODE_FIELD(chain);
 	WRITE_BOOL_FIELD(streaming);
+
+	WRITE_UINT_FIELD(agg_expr_id);
 }
 
 static void
@@ -656,6 +674,7 @@ _outCreateStmt_common(StringInfo str, CreateStmt *node)
 	WRITE_OID_FIELD(ownerid);
 	WRITE_BOOL_FIELD(buildAoBlkdir);
 	WRITE_NODE_FIELD(attr_encodings);
+	WRITE_BOOL_FIELD(isCtas);
 }
 
 static void
@@ -706,44 +725,6 @@ _outPartitionBoundSpec(StringInfo str, PartitionBoundSpec *node)
 	WRITE_NODE_FIELD(partEnd);
 	WRITE_NODE_FIELD(partEvery);
 	WRITE_LOCATION_FIELD(location);
-}
-
-static void
-_outPartition(StringInfo str, Partition *node)
-{
-	WRITE_NODE_TYPE("PARTITION");
-
-	WRITE_OID_FIELD(partid);
-	WRITE_OID_FIELD(parrelid);
-	WRITE_CHAR_FIELD(parkind);
-	WRITE_INT_FIELD(parlevel);
-	WRITE_BOOL_FIELD(paristemplate);
-	WRITE_BINARY_FIELD(parnatts, sizeof(int16));
-	WRITE_INT_ARRAY(paratts, node->parnatts, int16);
-	WRITE_OID_ARRAY(parclass, node->parnatts);
-}
-
-static void
-_outPartitionRule(StringInfo str, PartitionRule *node)
-{
-	WRITE_NODE_TYPE("PARTITIONRULE");
-
-	WRITE_OID_FIELD(parruleid);
-	WRITE_OID_FIELD(paroid);
-	WRITE_OID_FIELD(parchildrelid);
-	WRITE_OID_FIELD(parparentoid);
-	WRITE_BOOL_FIELD(parisdefault);
-	WRITE_STRING_FIELD(parname);
-	WRITE_NODE_FIELD(parrangestart);
-	WRITE_BOOL_FIELD(parrangestartincl);
-	WRITE_NODE_FIELD(parrangeend);
-	WRITE_BOOL_FIELD(parrangeendincl);
-	WRITE_NODE_FIELD(parrangeevery);
-	WRITE_NODE_FIELD(parlistvalues);
-	WRITE_BINARY_FIELD(parruleord, sizeof(int16));
-	WRITE_NODE_FIELD(parreloptions);
-	WRITE_OID_FIELD(partemplatespaceId);
-	WRITE_NODE_FIELD(children);
 }
 
 static void
@@ -1091,21 +1072,6 @@ _outTupleDescNode(StringInfo str, TupleDescNode *node)
 }
 
 static void
-_outSerializedParamExternData(StringInfo str, SerializedParamExternData *node)
-{
-	WRITE_NODE_TYPE("SERIALIZEDPARAMEXTERNDATA");
-
-	WRITE_BOOL_FIELD(isnull);
-	WRITE_INT16_FIELD(pflags);
-	WRITE_OID_FIELD(ptype);
-	WRITE_INT16_FIELD(plen);
-	WRITE_BOOL_FIELD(pbyval);
-
-	if (!node->isnull)
-		_outDatum(str, node->value, node->plen, node->pbyval);
-}
-
-static void
 _outCookedConstraint(StringInfo str, CookedConstraint *node)
 {
 	WRITE_NODE_TYPE("COOKEDCONSTRAINT");
@@ -1284,6 +1250,18 @@ _outCreateAmStmt(StringInfo str, const CreateAmStmt *node)
 	WRITE_NODE_FIELD(handler_name);
 	WRITE_INT_FIELD(amtype);
 }
+static void
+_outAggExprId(StringInfo str, const AggExprId *node)
+{
+	WRITE_NODE_TYPE("AGGEXPRID");
+}
+static void
+_outRowIdExpr(StringInfo str, const RowIdExpr *node)
+{
+	WRITE_NODE_TYPE("ROWIDEXPR");
+
+	WRITE_INT_FIELD(rowidexpr_id);
+}
 
 /*
  * _outNode -
@@ -1325,9 +1303,6 @@ _outNode(StringInfo str, void *obj)
 				break;
 			case T_Result:
 				_outResult(str, obj);
-				break;
-			case T_Repeat:
-				_outRepeat(str, obj);
 				break;
 			case T_ModifyTable:
 				_outModifyTable(str, obj);
@@ -1377,8 +1352,8 @@ _outNode(StringInfo str, void *obj)
 			case T_CustomScan:
 				_outCustomScan(str, obj);
 				break;
-			case T_ExternalScan:
-				_outExternalScan(str, obj);
+			case T_ExternalScanInfo:
+				_outExternalScanInfo(str, obj);
 				break;
 			case T_IndexScan:
 				_outIndexScan(str, obj);
@@ -1428,6 +1403,9 @@ _outNode(StringInfo str, void *obj)
 			case T_Agg:
 				_outAgg(str, obj);
 				break;
+			case T_TupleSplit:
+				_outTupleSplit(str, obj);
+				break;
 			case T_WindowAgg:
 				_outWindowAgg(str, obj);
 				break;
@@ -1470,9 +1448,6 @@ _outNode(StringInfo str, void *obj)
 			case T_SplitUpdate:
 				_outSplitUpdate(str, obj);
 				break;
-			case T_RowTrigger:
-				_outRowTrigger(str, obj);
-				break;
 			case T_AssertOp:
 				_outAssertOp(str, obj);
 				break;
@@ -1511,6 +1486,9 @@ _outNode(StringInfo str, void *obj)
 				break;
 			case T_GroupId:
 				_outGroupId(str, obj);
+				break;
+			case T_GroupingSetId:
+				_outGroupingSetId(str, obj);
 				break;
 			case T_WindowFunc:
 				_outWindowFunc(str, obj);
@@ -2005,9 +1983,6 @@ _outNode(StringInfo str, void *obj)
 			case T_VacuumStmt:
 				_outVacuumStmt(str, obj);
 				break;
-			case T_AOVacuumPhaseConfig:
-				_outAOVacuumPhaseConfig(str, obj);
-				break;
 			case T_CdbProcess:
 				_outCdbProcess(str, obj);
 				break;
@@ -2111,8 +2086,8 @@ _outNode(StringInfo str, void *obj)
 			case T_TupleDescNode:
 				_outTupleDescNode(str, obj);
 				break;
-			case T_SerializedParamExternData:
-				_outSerializedParamExternData(str, obj);
+			case T_SerializedParams:
+				_outSerializedParams(str, obj);
 				break;
 
 			case T_AlterTSConfigurationStmt:
@@ -2174,6 +2149,12 @@ _outNode(StringInfo str, void *obj)
 				break;
 			case T_CreateAmStmt:
 				_outCreateAmStmt(str, obj);
+				break;
+			case T_AggExprId:
+				_outAggExprId(str, obj);
+				break;
+			case T_RowIdExpr:
+				_outRowIdExpr(str, obj);
 				break;
 
 			default:

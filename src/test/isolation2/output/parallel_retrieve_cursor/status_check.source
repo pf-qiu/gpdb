@@ -711,12 +711,10 @@ DECLARE
 (1 row)
 2: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c4';
 ERROR:  Error on receive from seg0 10.34.58.56:25432 pid=41925: server closed the connection unexpectedly
-DETAIL:  
 	This probably means the server terminated abnormally
 	before or while processing the request.
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c4');
 ERROR:  Error on receive from seg0 10.34.58.56:25432 pid=41728: server closed the connection unexpectedly
-DETAIL:  
 	This probably means the server terminated abnormally
 	before or while processing the request.
 -- check no endpoint info left

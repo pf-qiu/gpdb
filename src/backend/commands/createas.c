@@ -179,6 +179,7 @@ create_ctas_internal(List *attrList, IntoClause *into, QueryDesc *queryDesc, boo
 	create->relKind = relkind;
 	create->relStorage = relstorage;
 	create->ownerid = GetUserId();
+	create->isCtas = true;
 
 	/*
 	 * Create the relation.  (This will error out if there's an existing view,
@@ -253,6 +254,7 @@ create_ctas_nodata(List *tlist, IntoClause *into, QueryDesc *queryDesc)
 	List	   *attrList;
 	ListCell   *t,
 			   *lc;
+	ObjectAddress intoRelationAddr;
 
 	/*
 	 * Build list of ColumnDefs from non-junk elements of the tlist.  If a
@@ -308,7 +310,16 @@ create_ctas_nodata(List *tlist, IntoClause *into, QueryDesc *queryDesc)
 				 errmsg("too many column names were specified")));
 
 	/* Create the relation definition using the ColumnDef list */
-	return create_ctas_internal(attrList, into, queryDesc, true);
+	intoRelationAddr = create_ctas_internal(attrList, into, queryDesc, true);
+
+	/* Add column encoding entries based on the WITH clause */
+	if (into->options)
+	{
+		Relation rel = heap_open(intoRelationAddr.objectId, AccessExclusiveLock);
+		AddDefaultRelationAttributeOptions(rel, into->options);
+		heap_close(rel, NoLock);
+	}
+	return intoRelationAddr;
 }
 
 
@@ -763,15 +774,21 @@ intorel_receive(TupleTableSlot *slot, DestReceiver *self)
 
 		tuple = ExecCopySlotMemTuple(slot);
 		if (myState->ao_insertDesc == NULL)
+		{
+			LockSegnoForWrite(into_rel, RESERVED_SEGNO);
 			myState->ao_insertDesc = appendonly_insert_init(into_rel, RESERVED_SEGNO, false);
+		}
 
 		appendonly_insert(myState->ao_insertDesc, tuple, InvalidOid, &aoTupleId);
 		pfree(tuple);
 	}
 	else if (RelationIsAoCols(into_rel))
 	{
-		if(myState->aocs_insertDes == NULL)
+		if (myState->aocs_insertDes == NULL)
+		{
+			LockSegnoForWrite(into_rel, RESERVED_SEGNO);
 			myState->aocs_insertDes = aocs_insert_init(into_rel, RESERVED_SEGNO, false);
+		}
 
 		aocs_insert(myState->aocs_insertDes, slot);
 	}

@@ -468,7 +468,7 @@ COptTasks::SetCostModelParams
 	{
 		// change NLJ cost factor
 		ICostModelParams::SCostParam *cost_param = NULL;
-		if (OPTIMIZER_GPDB_CALIBRATED == optimizer_cost_model)
+		if (OPTIMIZER_GPDB_CALIBRATED >= optimizer_cost_model)
 		{
 			cost_param = cost_model->GetCostModelParams()->PcpLookup(CCostModelParamsGPDB::EcpNLJFactor);
 		}
@@ -484,7 +484,7 @@ COptTasks::SetCostModelParams
 	{
 		// change sort cost factor
 		ICostModelParams::SCostParam *cost_param = NULL;
-		if (OPTIMIZER_GPDB_CALIBRATED == optimizer_cost_model)
+		if (OPTIMIZER_GPDB_CALIBRATED >= optimizer_cost_model)
 		{
 			cost_param = cost_model->GetCostModelParams()->PcpLookup(CCostModelParamsGPDB::EcpSortTupWidthCostUnit);
 
@@ -511,7 +511,7 @@ COptTasks::GetCostModel
 	)
 {
 	ICostModel *cost_model = NULL;
-	if (OPTIMIZER_GPDB_CALIBRATED == optimizer_cost_model)
+	if (OPTIMIZER_GPDB_CALIBRATED >= optimizer_cost_model)
 	{
 		cost_model = GPOS_NEW(mp) CCostModelGPDB(mp, num_segments);
 	}
@@ -626,7 +626,10 @@ COptTasks::OptimizeTask
 
 			BOOL is_master_only = !optimizer_enable_motions ||
 						(!optimizer_enable_motions_masteronly_queries && !query_to_dxl_translator->HasDistributedTables());
-			CAutoTraceFlag atf(EopttraceDisableMotions, is_master_only);
+			// See NoteDistributionPolicyOpclasses() in src/backend/gpopt/translate/CTranslatorQueryToDXL.cpp
+			BOOL use_legacy_opfamilies = (query_to_dxl_translator->GetDistributionHashOpsKind() == DistrUseLegacyHashOps);
+			CAutoTraceFlag atf1(EopttraceDisableMotions, is_master_only);
+			CAutoTraceFlag atf2(EopttraceUseLegacyOpfamilies, use_legacy_opfamilies);
 
 			plan_dxl = COptimizer::PdxlnOptimize
 									(

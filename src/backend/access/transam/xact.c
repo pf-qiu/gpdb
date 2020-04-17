@@ -20,7 +20,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "access/appendonlywriter.h"
 #include "access/commit_ts.h"
 #include "access/multixact.h"
 #include "access/parallel.h"
@@ -2680,9 +2679,6 @@ CommitTransaction(void)
 	if (Gp_role == GP_ROLE_DISPATCH && IsResQueueEnabled())
 		AtCommit_ResScheduler();
 
-	/* Perform any AO table commit processing */
-	AtCommit_AppendOnly();
-
 	/*
 	 * Let ON COMMIT management do its thing (must happen after closing
 	 * cursors, to avoid dangling-reference problems)
@@ -2823,6 +2819,9 @@ CommitTransaction(void)
 						 RESOURCE_RELEASE_BEFORE_LOCKS,
 						 true, true);
 
+	/* detach combocid dsm */
+	AtEOXact_ComboCid_Dsm_Detach();
+
 	/* Check we've released all buffer pins */
 	AtEOXact_Buffers(true);
 
@@ -2873,7 +2872,6 @@ CommitTransaction(void)
 
 	AtCommit_TablespaceStorage();
 
-	AtEOXact_AppendOnly();
 	AtCommit_Notify();
 	AtEOXact_GUC(true, 1);
 	AtEOXact_SPI(true);
@@ -2986,8 +2984,6 @@ PrepareTransaction(void)
 
 	/* Shut down the deferred-trigger manager */
 	AfterTriggerEndXact(true);
-
-	AtEOXact_SharedSnapshot();
 
 	/*
 	 * Let ON COMMIT management do its thing (must happen after closing
@@ -3157,6 +3153,8 @@ PrepareTransaction(void)
 						 RESOURCE_RELEASE_BEFORE_LOCKS,
 						 true, true);
 
+	/* detach combocid dsm */
+	AtEOXact_ComboCid_Dsm_Detach();
 	/* Check we've released all buffer pins */
 	AtEOXact_Buffers(true);
 
@@ -3349,9 +3347,6 @@ AbortTransaction(void)
 	/* Perform any Resource Scheduler abort procesing. */
 	if (Gp_role == GP_ROLE_DISPATCH && IsResQueueEnabled())
 		AtAbort_ResScheduler();
-		
-	/* Perform any AO table abort processing */
-	AtAbort_AppendOnly();
 
 	AtEOXact_DispatchOids(false);
 
@@ -3413,6 +3408,7 @@ AbortTransaction(void)
 		ResourceOwnerRelease(TopTransactionResourceOwner,
 							 RESOURCE_RELEASE_BEFORE_LOCKS,
 							 false, true);
+		AtEOXact_ComboCid_Dsm_Detach();
 		AtEOXact_Buffers(false);
 		AtEOXact_RelationCache(false);
 		AtEOXact_Inval(false);
@@ -3430,7 +3426,6 @@ AbortTransaction(void)
 		DatabaseStorageResetSessionLock();
 
 		AtAbort_TablespaceStorage();
-		AtEOXact_AppendOnly();
 		gp_guc_need_restore = true;
 		AtEOXact_GUC(false, 1);
 		gp_guc_need_restore = false;

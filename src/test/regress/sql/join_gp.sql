@@ -554,3 +554,118 @@ select * from (
 join t_randomly_dist_table on t_subquery_general.a = t_randomly_dist_table.c;
 
 drop table t_randomly_dist_table;
+
+
+-- test lateral join inner plan contains limit
+-- we cannot pass params across motion so we
+-- can only generate a plan to gather all the
+-- data to singleQE. Here we create a compound
+-- data type as params to pass into inner plan.
+-- By doing so, if we fail to pass correct params
+-- into innerplan, it will throw error because
+-- of nullpointer reference. If we only use int
+-- type as params, the nullpointer reference error
+-- may not happen because we parse null to integer 0.
+
+create type mytype_for_lateral_test as (x int, y int);
+create table t1_lateral_limit(a int, b int, c mytype_for_lateral_test);
+create table t2_lateral_limit(a int, b int);
+insert into t1_lateral_limit values (1, 1, '(1,1)');
+insert into t1_lateral_limit values (1, 2, '(2,2)');
+insert into t2_lateral_limit values (2, 2);
+insert into t2_lateral_limit values (3, 3);
+
+explain select * from t1_lateral_limit as t1 cross join lateral
+(select ((c).x+t2.b) as n  from t2_lateral_limit as t2 order by n limit 1)s;
+
+select * from t1_lateral_limit as t1 cross join lateral
+(select ((c).x+t2.b) as n  from t2_lateral_limit as t2 order by n limit 1)s;
+
+-- The following case is from Github Issue
+-- https://github.com/greenplum-db/gpdb/issues/8860
+-- It is the same issue as the above test suite.
+create table t_mylog_issue_8860 (myid int, log_date timestamptz );
+insert into  t_mylog_issue_8860 values (1,timestamptz '2000-01-02 03:04'),(1,timestamptz '2000-01-02 03:04'-'1 hour'::interval);
+insert into  t_mylog_issue_8860 values (2,timestamptz '2000-01-02 03:04'),(2,timestamptz '2000-01-02 03:04'-'2 hour'::interval);
+
+explain select ml1.myid, log_date as first_date, ml2.next_date from t_mylog_issue_8860 ml1
+inner join lateral
+(select myid, log_date as next_date
+ from t_mylog_issue_8860 where myid = ml1.myid and log_date > ml1.log_date order by log_date asc limit 1) ml2
+on true;
+
+select ml1.myid, log_date as first_date, ml2.next_date from t_mylog_issue_8860 ml1
+inner join lateral
+(select myid, log_date as next_date
+ from t_mylog_issue_8860 where myid = ml1.myid and log_date > ml1.log_date order by log_date asc limit 1) ml2
+on true;
+
+-- test prefetch join qual
+-- we do not handle this correct
+-- the only case we need to prefetch join qual is:
+--   1. outer plan contains motion
+--   2. the join qual contains subplan that contains motion
+reset client_min_messages;
+set Test_print_prefetch_joinqual = true;
+-- prefetch join qual is only set correct for planner
+set optimizer = off;
+
+create table t1_test_pretch_join_qual(a int, b int, c int);
+create table t2_test_pretch_join_qual(a int, b int, c int);
+
+-- the following plan contains redistribute motion in both inner and outer plan
+-- the join qual is t1.c > t2.c, it contains no motion, should not prefetch
+explain (costs off) select * from t1_test_pretch_join_qual t1 join t2_test_pretch_join_qual t2
+on t1.b = t2.b and t1.c > t2.c;
+
+create table t3_test_pretch_join_qual(a int, b int, c int);
+
+-- the following plan contains motion in both outer plan and join qual,
+-- so we should prefetch join qual
+explain (costs off) select * from t1_test_pretch_join_qual t1 join t2_test_pretch_join_qual t2
+on t1.b = t2.b and t1.a > any (select sum(b) from t3_test_pretch_join_qual t3 where c > t2.a);
+
+reset Test_print_prefetch_joinqual;
+reset optimizer;
+
+-- Github Issue: https://github.com/greenplum-db/gpdb/issues/9733
+-- Previously in the function bring_to_outer_query and
+-- bring_to_singleQE it depends on the path->param_info field
+-- to determine if the path contains outerParams. This is not
+-- enought. The following case would SegFault before because
+-- the indexpath's orderby clause contains outerParams.
+create table gist_tbl_github9733 (b box, p point, c circle);
+insert into gist_tbl_github9733
+select box(point(0.05*i, 0.05*i), point(0.05*i, 0.05*i)),
+       point(0.05*i, 0.05*i),
+       circle(point(0.05*i, 0.05*i), 1.0)
+from generate_series(0,10000) as i;
+vacuum analyze gist_tbl_github9733;
+create index gist_tbl_point_index_github9733 on gist_tbl_github9733 using gist (p);
+set enable_seqscan=off;
+set enable_bitmapscan=off;
+explain (costs off)
+select p from
+  (values (box(point(0,0), point(0.5,0.5))),
+          (box(point(0.5,0.5), point(0.75,0.75))),
+          (box(point(0.8,0.8), point(1.0,1.0)))) as v(bb)
+cross join lateral
+  (select p from gist_tbl_github9733 where p <@ bb order by p <-> bb[0] limit 2) ss;
+
+reset enable_seqscan;
+explain (costs off)
+select p from
+  (values (box(point(0,0), point(0.5,0.5))),
+          (box(point(0.5,0.5), point(0.75,0.75))),
+          (box(point(0.8,0.8), point(1.0,1.0)))) as v(bb)
+cross join lateral
+  (select p from gist_tbl_github9733 where p <@ bb order by p <-> bb[0] limit 2) ss;
+
+select p from
+  (values (box(point(0,0), point(0.5,0.5))),
+          (box(point(0.5,0.5), point(0.75,0.75))),
+          (box(point(0.8,0.8), point(1.0,1.0)))) as v(bb)
+cross join lateral
+  (select p from gist_tbl_github9733 where p <@ bb order by p <-> bb[0] limit 2) ss;
+
+reset enable_bitmapscan;

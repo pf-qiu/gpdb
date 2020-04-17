@@ -24,7 +24,6 @@
 #include "access/subtrans.h"
 #include "access/twophase.h"
 #include "access/distributedlog.h"
-#include "access/appendonlywriter.h"
 #include "cdb/cdblocaldistribxact.h"
 #include "cdb/cdbvars.h"
 #include "commands/async.h"
@@ -141,8 +140,6 @@ CreateSharedMemoryAndSemaphores(bool makePrivate, int port)
 		size = add_size(size, BufferShmemSize());
 		size = add_size(size, LockShmemSize());
 		size = add_size(size, PredicateLockShmemSize());
-		if (Gp_role == GP_ROLE_DISPATCH)
-			size = add_size(size, AppendOnlyWriterShmemSize());
 
 		if (IsResQueueEnabled() && Gp_role == GP_ROLE_DISPATCH)
 		{
@@ -286,12 +283,6 @@ CreateSharedMemoryAndSemaphores(bool makePrivate, int port)
 	 * Set up predicate lock manager
 	 */
 	InitPredicateLocks();
-
-	/*
-	 * Set up append only writer
-	 */
-	if (Gp_role == GP_ROLE_DISPATCH)
-		InitAppendOnlyWriter();
 
 	/*
 	 * Set up resource manager 

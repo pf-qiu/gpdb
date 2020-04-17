@@ -32,6 +32,10 @@ create table ctas_bar as select a.generate_series as a, b.generate_series as b f
 create table ctas_baz as select 'delete me' as action, * from ctas_bar distributed by (a);
 -- "action" has no type.
 \d ctas_baz
+-- start_matchsubs
+-- m/^(ERROR:  .*)\(parse_coerce\.c:\d+\)$/
+-- s/\(parse_coerce\.c:\d+\)$/(parse_coerce.c:XXX)/
+-- end_matchsubs
 select action, b from ctas_baz order by 1,2 limit 5;
 select action, b from ctas_baz order by 2 limit 5;
 select action::text, b from ctas_baz order by 1,2 limit 5;
@@ -124,3 +128,11 @@ DROP TABLE IF EXISTS unnest_2d_tbl01_out;
 -- The following CTAS fails previously, see Github Issue 9365
 CREATE TABLE unnest_2d_tbl01_out AS
   SELECT id, (array_unnest_2d_to_1d(val)).* FROM unnest_2d_tbl01;
+
+-- Github issue 9790.
+-- Previously, CTAS with no data won't handle the 'WITH' clause
+CREATE TABLE ctas_base(a int, b int);
+CREATE TABLE ctas_aocs WITH (appendonly=true, orientation=column) AS SELECT * FROM ctas_base WITH NO DATA;
+SELECT * FROM ctas_aocs;
+DROP TABLE ctas_base;
+DROP TABLE ctas_aocs;

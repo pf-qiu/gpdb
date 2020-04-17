@@ -411,7 +411,7 @@ _readSingleRowErrorDesc(void)
 
 	READ_INT_FIELD(rejectlimit);
 	READ_BOOL_FIELD(is_limit_in_rows);
-	READ_BOOL_FIELD(into_file);
+	READ_CHAR_FIELD(log_error_type);
 
 	READ_DONE();
 }
@@ -619,7 +619,6 @@ _readCopyIntoClause(void)
 	READ_BOOL_FIELD(is_program);
 	READ_STRING_FIELD(filename);
 	READ_NODE_FIELD(options);
-	READ_NODE_FIELD(ao_segnos);
 
 	READ_DONE();
 }
@@ -630,6 +629,7 @@ _readRefreshClause(void)
 	READ_LOCALS(RefreshClause);
 
 	READ_BOOL_FIELD(concurrent);
+	READ_BOOL_FIELD(skipData);
 	READ_NODE_FIELD(relation);
 
 	READ_DONE();
@@ -1389,6 +1389,19 @@ _readGroupId(void)
 	READ_LOCALS(GroupId);
 
 	READ_INT_FIELD(agglevelsup);
+	READ_LOCATION_FIELD(location);
+
+	READ_DONE();
+}
+
+/*
+ * _readGroupingSetId
+ */
+static GroupingSetId *
+_readGroupingSetId(void)
+{
+	READ_LOCALS(GroupingSetId);
+
 	READ_LOCATION_FIELD(location);
 
 	READ_DONE();
@@ -2229,7 +2242,6 @@ _readRangeTblEntry(void)
 	READ_NODE_FIELD(securityQuals);
 
 	READ_BOOL_FIELD(forceDistRandom);
-	/* 'pseudocols' is intentionally missing, see out function */
 
 	READ_DONE();
 }
@@ -2335,7 +2347,6 @@ _readPlannedStmt(void)
 
 	READ_BITMAPSET_FIELD(rewindPlanIDs);
 	READ_NODE_FIELD(result_partitions);
-	READ_NODE_FIELD(result_aosegnos);
 	READ_NODE_FIELD(queryPartOids);
 	READ_NODE_FIELD(queryPartsMetadata);
 	READ_NODE_FIELD(numSelectorsPerScanId);
@@ -2813,6 +2824,8 @@ _readFunctionScan(void)
 
 	READ_NODE_FIELD(functions);
 	READ_BOOL_FIELD(funcordinality);
+	READ_NODE_FIELD(param);
+	READ_BOOL_FIELD(resultInTupleStore);
 
 	READ_DONE();
 }
@@ -3075,6 +3088,25 @@ _readAgg(void)
 	READ_NODE_FIELD(groupingSets);
 	READ_NODE_FIELD(chain);
 	READ_BOOL_FIELD(streaming);
+	READ_UINT_FIELD(agg_expr_id);
+
+	READ_DONE();
+}
+
+static TupleSplit *
+_readTupleSplit(void)
+{
+	READ_LOCALS(TupleSplit);
+
+	ReadCommonPlan(&local_node->plan);
+
+	READ_INT_FIELD(numCols);
+	READ_ATTRNUMBER_ARRAY(grpColIdx, local_node->numCols);
+	READ_INT_FIELD(numDisDQAs);
+
+	local_node->dqa_args_id_bms = palloc0(sizeof(Bitmapset *) * local_node->numDisDQAs);
+	for (int i = 0; i < local_node->numDisDQAs; i++)
+		local_node->dqa_args_id_bms[i] = _readBitmapset();
 
 	READ_DONE();
 }
@@ -3368,12 +3400,12 @@ _readCreateStmt(void)
 	READ_OID_FIELD(ownerid);
 	READ_BOOL_FIELD(buildAoBlkdir);
 	READ_NODE_FIELD(attr_encodings);
+	READ_BOOL_FIELD(isCtas);
 
 	READ_DONE();
 }
 #endif /* COMPILING_BINARY_FUNCS */
 
-#ifndef COMPILING_BINARY_FUNCS
 static Partition *
 _readPartition(void)
 {
@@ -3390,9 +3422,7 @@ _readPartition(void)
 
 	READ_DONE();
 }
-#endif /* COMPILING_BINARY_FUNCS */
 
-#ifndef COMPILING_BINARY_FUNCS
 static PartitionRule *
 _readPartitionRule(void)
 {
@@ -3402,6 +3432,7 @@ _readPartitionRule(void)
 	READ_OID_FIELD(paroid);
 	READ_OID_FIELD(parchildrelid);
 	READ_OID_FIELD(parparentoid);
+	READ_BOOL_FIELD(parisdefault);
 	READ_STRING_FIELD(parname);
 	READ_NODE_FIELD(parrangestart);
 	READ_BOOL_FIELD(parrangestartincl);
@@ -3416,20 +3447,21 @@ _readPartitionRule(void)
 
 	READ_DONE();
 }
-#endif /* COMPILING_BINARY_FUNCS */
 
-#ifndef COMPILING_BINARY_FUNCS
 static PartitionNode *
 _readPartitionNode(void)
 {
 	READ_LOCALS(PartitionNode);
 
 	READ_NODE_FIELD(part);
-	READ_NODE_FIELD(rules);
+	READ_NODE_FIELD(default_part);
+	READ_INT_FIELD(num_rules);
+	local_node->rules = palloc(local_node->num_rules * sizeof(PartitionRule *));
+	for (int i = 0; i < local_node->num_rules; i++)
+		READ_NODE_FIELD(rules[i]);
 
 	READ_DONE();
 }
-#endif /* COMPILING_BINARY_FUNCS */
 
 static PgPartRule *
 _readPgPartRule(void)
@@ -3828,19 +3860,6 @@ _readConstraintsSetStmt(void)
 	READ_DONE();
 }
 
-static AOVacuumPhaseConfig *
-_readAOVacuumPhaseConfig()
-{
-	READ_LOCALS(AOVacuumPhaseConfig);
-
-	READ_NODE_FIELD(appendonly_compaction_segno);
-	READ_NODE_FIELD(appendonly_compaction_insert_segno);
-	READ_BOOL_FIELD(appendonly_relation_empty);
-	READ_ENUM_FIELD(appendonly_phase,AOVacuumPhase);
-
-	READ_DONE();
-}
-
 /*
  * _readVacuumStmt
  */
@@ -3852,9 +3871,6 @@ _readVacuumStmt(void)
 	READ_INT_FIELD(options);
 	READ_NODE_FIELD(relation);
 	READ_NODE_FIELD(va_cols);
-
-	READ_BOOL_FIELD(skip_twophase);
-	READ_NODE_FIELD(ao_vacuum_phase_config);
 
 	READ_DONE();
 }
@@ -4061,6 +4077,8 @@ parseNodeString(void)
 		return_value = _readGroupingFunc();
 	else if (MATCH("GROUPID", 7))
 		return_value = _readGroupId();
+	else if (MATCH("GROUPINGSETID", 13))
+		return_value = _readGroupingSetId();
 	else if (MATCH("WINDOWFUNC", 10))
 		return_value = _readWindowFunc();
 	else if (MATCH("ARRAYREF", 8))
@@ -4219,6 +4237,8 @@ parseNodeString(void)
 		return_value = _readSort();
 	else if (MATCH("AGG", 3))
 		return_value = _readAgg();
+	else if (MATCH("TupleSplit", 10))
+		return_value = _readTupleSplit();
 	else if (MATCH("WINDOWAGG", 9))
 		return_value = _readWindowAgg();
 	else if (MATCH("UNIQUE", 6))
@@ -4403,8 +4423,6 @@ parseNodeString(void)
 		return_value = _readTypeName();
 	else if (MATCHX("VACUUMSTMT"))
 		return_value = _readVacuumStmt();
-	else if (MATCHX("AOVACUUMPHASECONFIG"))
-		return_value = _readAOVacuumPhaseConfig();
 	else if (MATCHX("VARIABLESETSTMT"))
 		return_value = _readVariableSetStmt();
 	else if (MATCHX("VIEWSTMT"))

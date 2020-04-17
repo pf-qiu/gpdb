@@ -18,6 +18,16 @@
 include: helpers/server_helpers.sql;
 CREATE
 
+-- Make the test faster and also make some queries fail as expected after
+-- 2pc retry PANIC (do not finish earlier before PANIC happens).
+alter system set dtx_phase2_retry_second to 5;
+ALTER
+select pg_reload_conf();
+ pg_reload_conf 
+----------------
+ t              
+(1 row)
+
 -- This function is used to loop until master shutsdown, to make sure
 -- next command executed is only after restart and doesn't go through
 -- while PANIC is still being processed by master, as master continues
@@ -188,10 +198,10 @@ INSERT 10
 -- To help speedy recovery
 11: CHECKPOINT;
 CHECKPOINT
--- Set to maximum number of 2PC retries to avoid any failures. Alter
+-- Increase 2PC retry timeout to avoid any failures. Alter
 -- system is required to set the GUC and can't be set on session level
 -- as session reset happens for every abort retry.
-11: alter system set dtx_phase2_retry_count to 1500;
+11: alter system set dtx_phase2_retry_second to 600;
 ALTER
 11: select pg_reload_conf();
  pg_reload_conf 
@@ -227,17 +237,12 @@ ALTER
  Success:                      
 (1 row)
 11: SELECT pg_ctl(datadir, 'restart') from gp_segment_configuration where role = 'p' and content = 0;
- pg_ctl                                                                                               
-------------------------------------------------------------------------------------------------------
- waiting for server to shut down done
-server stopped
-waiting for server to start done
-server started
- 
+ pg_ctl 
+--------
+ OK     
 (1 row)
 12<:  <... completed>
 ERROR:  Error on receive from seg0 127.0.0.1:7002 pid=25361: server closed the connection unexpectedly
-DETAIL:  
 	This probably means the server terminated abnormally
 	before or while processing the request.
 13: SELECT count(*) from QE_panic_test_table;
@@ -254,9 +259,17 @@ DETAIL:
 -----------------
  Success:        
 (1 row)
-13: alter system reset dtx_phase2_retry_count;
+13: alter system reset dtx_phase2_retry_second;
 ALTER
 13: select pg_reload_conf();
+ pg_reload_conf 
+----------------
+ t              
+(1 row)
+
+14: alter system reset dtx_phase2_retry_second;
+ALTER
+14: select pg_reload_conf();
  pg_reload_conf 
 ----------------
  t              

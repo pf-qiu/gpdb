@@ -1135,6 +1135,7 @@ _readCreateStmt_common(CreateStmt *local_node)
 	READ_OID_FIELD(ownerid);
 	READ_BOOL_FIELD(buildAoBlkdir);
 	READ_NODE_FIELD(attr_encodings);
+	READ_BOOL_FIELD(isCtas);
 
 	/*
 	 * Some extra checks to make sure we didn't get lost
@@ -1295,60 +1296,6 @@ _readExpandStmtSpec(void)
 	READ_DONE();
 }
 
-static Partition *
-_readPartition(void)
-{
-	READ_LOCALS(Partition);
-
-	READ_OID_FIELD(partid);
-	READ_OID_FIELD(parrelid);
-	READ_CHAR_FIELD(parkind);
-	READ_INT_FIELD(parlevel);
-	READ_BOOL_FIELD(paristemplate);
-	READ_BINARY_FIELD(parnatts, sizeof(int16));
-	READ_ATTRNUMBER_ARRAY(paratts, local_node->parnatts);
-	READ_OID_ARRAY(parclass, local_node->parnatts);
-
-	READ_DONE();
-}
-
-static PartitionRule *
-_readPartitionRule(void)
-{
-	READ_LOCALS(PartitionRule);
-
-	READ_OID_FIELD(parruleid);
-	READ_OID_FIELD(paroid);
-	READ_OID_FIELD(parchildrelid);
-	READ_OID_FIELD(parparentoid);
-	READ_BOOL_FIELD(parisdefault);
-	READ_STRING_FIELD(parname);
-	READ_NODE_FIELD(parrangestart);
-	READ_BOOL_FIELD(parrangestartincl);
-	READ_NODE_FIELD(parrangeend);
-	READ_BOOL_FIELD(parrangeendincl);
-	READ_NODE_FIELD(parrangeevery);
-	READ_NODE_FIELD(parlistvalues);
-	READ_BINARY_FIELD(parruleord, sizeof(int16));
-	READ_NODE_FIELD(parreloptions);
-	READ_OID_FIELD(partemplatespaceId);
-	READ_NODE_FIELD(children);
-
-	READ_DONE();
-}
-
-static PartitionNode *
-_readPartitionNode(void)
-{
-	READ_LOCALS(PartitionNode);
-
-	READ_NODE_FIELD(part);
-	READ_NODE_FIELD(default_part);
-	READ_NODE_FIELD(rules);
-
-	READ_DONE();
-}
-
 static CreateExternalStmt *
 _readCreateExternalStmt(void)
 {
@@ -1424,10 +1371,8 @@ _readCopyStmt(void)
 	READ_NODE_FIELD(options);
 	READ_NODE_FIELD(sreh);
 	READ_NODE_FIELD(partitions);
-	READ_NODE_FIELD(ao_segnos);
 
 	READ_DONE();
-
 }
 
 static GrantRoleStmt *
@@ -1450,11 +1395,50 @@ _readQueryDispatchDesc(void)
 	READ_LOCALS(QueryDispatchDesc);
 
 	READ_STRING_FIELD(intoTableSpaceName);
+	READ_NODE_FIELD(paramInfo);
 	READ_NODE_FIELD(oidAssignments);
 	READ_NODE_FIELD(sliceTable);
 	READ_NODE_FIELD(cursorPositions);
 	READ_STRING_FIELD(parallelCursorName);
 	READ_BOOL_FIELD(useChangedAOOpts);
+	READ_DONE();
+}
+
+static SerializedParams *
+_readSerializedParams(void)
+{
+	READ_LOCALS(SerializedParams);
+
+	READ_INT_FIELD(nExternParams);
+	local_node->externParams = palloc0(local_node->nExternParams * sizeof(SerializedParamExternData));
+	for (int i = 0; i < local_node->nExternParams; i++)
+	{
+		READ_BOOL_FIELD(externParams[i].isnull);
+		READ_INT_FIELD(externParams[i].pflags);
+		READ_OID_FIELD(externParams[i].ptype);
+		READ_INT_FIELD(externParams[i].plen);
+		READ_BOOL_FIELD(externParams[i].pbyval);
+
+		if (!local_node->externParams[i].isnull)
+			local_node->externParams[i].value = readDatum(local_node->externParams[i].pbyval);
+	}
+
+	READ_INT_FIELD(nExecParams);
+	local_node->execParams = palloc0(local_node->nExecParams * sizeof(SerializedParamExecData));
+	for (int i = 0; i < local_node->nExecParams; i++)
+	{
+		READ_BOOL_FIELD(execParams[i].isnull);
+		READ_BOOL_FIELD(execParams[i].isvalid);
+		READ_INT_FIELD(execParams[i].plen);
+		READ_BOOL_FIELD(execParams[i].pbyval);
+
+		if (local_node->execParams[i].isvalid && !local_node->execParams[i].isnull)
+			local_node->execParams[i].value = readDatum(local_node->execParams[i].pbyval);
+		READ_BOOL_FIELD(execParams[i].pbyval);
+	}
+
+	READ_NODE_FIELD(transientTypes);
+
 	READ_DONE();
 }
 
@@ -1469,22 +1453,6 @@ _readOidAssignment(void)
 	READ_OID_FIELD(keyOid1);
 	READ_OID_FIELD(keyOid2);
 	READ_OID_FIELD(oid);
-	READ_DONE();
-}
-
-/*
- * _readRepeat
- */
-static Repeat *
-_readRepeat(void)
-{
-	READ_LOCALS(Repeat);
-
-	ReadCommonPlan(&local_node->plan);
-
-	READ_NODE_FIELD(repeatCountExpr);
-	READ_UINT64_FIELD(grouping);
-
 	READ_DONE();
 }
 
@@ -1510,14 +1478,12 @@ _readDynamicSeqScan(void)
 }
 
 /*
- * _readExternalScan
+ * _readExternalScanInfo
  */
-static ExternalScan *
-_readExternalScan(void)
+static ExternalScanInfo *
+_readExternalScanInfo(void)
 {
-	READ_LOCALS(ExternalScan);
-
-	ReadCommonScan(&local_node->scan);
+	READ_LOCALS(ExternalScanInfo);
 
 	READ_NODE_FIELD(uriList);
 	READ_STRING_FIELD(fmtOptString);
@@ -1525,9 +1491,10 @@ _readExternalScan(void)
 	READ_BOOL_FIELD(isMasterOnly);
 	READ_INT_FIELD(rejLimit);
 	READ_BOOL_FIELD(rejLimitInRows);
-	READ_BOOL_FIELD(logErrors);
+	READ_CHAR_FIELD(logErrors);
 	READ_INT_FIELD(encoding);
 	READ_INT_FIELD(scancounter);
+	READ_NODE_FIELD(extOptions);
 
 	READ_DONE();
 }
@@ -1625,24 +1592,6 @@ _readSplitUpdate(void)
 	READ_INT_FIELD(numHashAttrs);
 	READ_ATTRNUMBER_ARRAY(hashAttnos, local_node->numHashAttrs);
 	READ_OID_ARRAY(hashFuncs, local_node->numHashAttrs);
-
-	ReadCommonPlan(&local_node->plan);
-
-	READ_DONE();
-}
-
-/*
- * _readRowTrigger
- */
-static RowTrigger *
-_readRowTrigger(void)
-{
-	READ_LOCALS(RowTrigger);
-
-	READ_INT_FIELD(relid);
-	READ_INT_FIELD(eventFlags);
-	READ_NODE_FIELD(oldValuesColIdx);
-	READ_NODE_FIELD(newValuesColIdx);
 
 	ReadCommonPlan(&local_node->plan);
 
@@ -1908,23 +1857,6 @@ _readTupleDescNode(void)
 	READ_DONE();
 }
 
-static SerializedParamExternData *
-_readSerializedParamExternData(void)
-{
-	READ_LOCALS(SerializedParamExternData);
-
-	READ_BOOL_FIELD(isnull);
-	READ_INT16_FIELD(pflags);
-	READ_OID_FIELD(ptype);
-	READ_INT16_FIELD(plen);
-	READ_BOOL_FIELD(pbyval);
-
-	if (!local_node->isnull)
-		local_node->value = readDatumBinary(local_node->pbyval);
-
-	READ_DONE();
-}
-
 static AlterExtensionStmt *
 _readAlterExtensionStmt(void)
 {
@@ -2141,6 +2073,21 @@ _readLockingClause(void)
 	READ_DONE();
 }
 
+static AggExprId *
+_readAggExprId(void)
+{
+	READ_LOCALS(AggExprId);
+	READ_DONE();
+}
+
+static RowIdExpr *
+_readRowIdExpr(void)
+{
+	READ_LOCALS(RowIdExpr);
+	READ_INT_FIELD(rowidexpr_id);
+	READ_DONE();
+}
+
 static Node *
 _readValue(NodeTag nt)
 {
@@ -2293,9 +2240,6 @@ readNodeBinary(void)
 			case T_Result:
 				return_value = _readResult();
 				break;
-			case T_Repeat:
-				return_value = _readRepeat();
-				break;
 			case T_Append:
 				return_value = _readAppend();
 				break;
@@ -2326,8 +2270,8 @@ readNodeBinary(void)
 			case T_DynamicSeqScan:
 				return_value = _readDynamicSeqScan();
 				break;
-			case T_ExternalScan:
-				return_value = _readExternalScan();
+			case T_ExternalScanInfo:
+				return_value = _readExternalScanInfo();
 				break;
 			case T_IndexScan:
 				return_value = _readIndexScan();
@@ -2392,6 +2336,9 @@ readNodeBinary(void)
 			case T_Agg:
 				return_value = _readAgg();
 				break;
+			case T_TupleSplit:
+				return_value = _readTupleSplit();
+				break;
 			case T_WindowAgg:
 				return_value = _readWindowAgg();
 				break;
@@ -2434,9 +2381,6 @@ readNodeBinary(void)
 			case T_SplitUpdate:
 				return_value = _readSplitUpdate();
 				break;
-			case T_RowTrigger:
-				return_value = _readRowTrigger();
-				break;
 			case T_AssertOp:
 				return_value = _readAssertOp();
 				break;
@@ -2475,6 +2419,9 @@ readNodeBinary(void)
 				break;
 			case T_GroupId:
 				return_value = _readGroupId();
+				break;
+			case T_GroupingSetId:
+				return_value = _readGroupingSetId();
 				break;
 			case T_WindowFunc:
 				return_value = _readWindowFunc();
@@ -2972,9 +2919,6 @@ readNodeBinary(void)
 			case T_VacuumStmt:
 				return_value = _readVacuumStmt();
 				break;
-			case T_AOVacuumPhaseConfig:
-				return_value = _readAOVacuumPhaseConfig();
-				break;
 			case T_CdbProcess:
 				return_value = _readCdbProcess();
 				break;
@@ -3048,8 +2992,8 @@ readNodeBinary(void)
 			case T_TupleDescNode:
 				return_value = _readTupleDescNode();
 				break;
-			case T_SerializedParamExternData:
-				return_value = _readSerializedParamExternData();
+			case T_SerializedParams:
+				return_value = _readSerializedParams();
 				break;
 
 			case T_AlterTSConfigurationStmt:
@@ -3118,7 +3062,12 @@ readNodeBinary(void)
 			case T_LockingClause:
 				return_value = _readLockingClause();
 				break;
-
+			case T_AggExprId:
+				return_value = _readAggExprId();
+				break;
+			case T_RowIdExpr:
+				return_value = _readRowIdExpr();
+				break;
 			default:
 				return_value = NULL; /* keep the compiler silent */
 				elog(ERROR, "could not deserialize unrecognized node type: %d",
