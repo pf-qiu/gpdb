@@ -123,6 +123,13 @@ cdbpath_create_motion_path(PlannerInfo *root,
 	Assert(cdbpathlocus_is_valid(locus) &&
 		   cdbpathlocus_is_valid(subpath->locus));
 
+	/*
+	 * Motion is to change path's locus, if target locus is the
+	 * same as the subpath's, there is no need to add motion.
+	 */
+	if (cdbpathlocus_equal(subpath->locus, locus))
+		return subpath;
+
 	/* Moving subpath output to a single executor process (qDisp or qExec)? */
 	if (CdbPathLocus_IsOuterQuery(locus))
 	{
@@ -337,9 +344,13 @@ cdbpath_create_motion_path(PlannerInfo *root,
 	/* If subplan uses no tables, it can run on qDisp or a singleton qExec. */
 	else if (CdbPathLocus_IsGeneral(subpath->locus))
 	{
-		/* No motion needed if general-->general or general-->replicated. */
+		/*
+		 * No motion needed if general-->general or general-->replicated or
+		 * general-->segmentGeneral
+		 */
 		if (CdbPathLocus_IsGeneral(locus) ||
-			CdbPathLocus_IsReplicated(locus))
+			CdbPathLocus_IsReplicated(locus) ||
+			CdbPathLocus_IsSegmentGeneral(locus))
 		{
 			return subpath;
 		}
@@ -2117,42 +2128,6 @@ try_redistribute(PlannerInfo *root, CdbpathMfjRel *g, CdbpathMfjRel *o,
 	 * to let caller know.
 	 */
 	return false;
-}
-
-void
-failIfUpdateTriggers(Oid relid)
-{
-	Relation		relation;
-
-	/* Suppose we already hold locks before caller */
-	relation = relation_open(relid, NoLock);
-
-	if (relation->rd_rel->relhastriggers)
-	{
-		bool	found = false;
-
-		if (relation->trigdesc == NULL)
-			RelationBuildTriggers(relation);
-
-		if (relation->trigdesc)
-		{
-			for (int i = 0; i < relation->trigdesc->numtriggers && !found; i++)
-			{
-				Trigger trigger = relation->trigdesc->triggers[i];
-				found = trigger_enabled(trigger.tgoid) &&
-					(get_trigger_type(trigger.tgoid) & TRIGGER_TYPE_UPDATE) == TRIGGER_TYPE_UPDATE;
-				if (found)
-					break;
-			}
-		}
-
-		/* GPDB_96_MERGE_FIXME: Why is this not allowed? */
-		if (found || child_triggers(relation->rd_id, TRIGGER_TYPE_UPDATE))
-			ereport(ERROR,
-					(errcode(ERRCODE_GP_FEATURE_NOT_YET),
-					 errmsg("UPDATE on distributed key column not allowed on relation with update triggers")));
-	}
-	relation_close(relation, NoLock);
 }
 
 /*
