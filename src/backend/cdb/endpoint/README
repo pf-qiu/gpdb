@@ -131,18 +131,23 @@ Start A Retrieve Session
 
 Once a parallel retrieve cursor has been declared, retrieve sessions can
 be started on each endpoint's host by using the endpoint's token as the
-session authentication password. Runtime parameter
-"gp_session_role=retrieve" needs to be provided to start retrieve
+session authentication password. The user of this retrieve session is the role who declares
+this parallel retrieve cursor. 
+ 
+Parameter "gp_session_role=retrieve" needs to be provided to start retrieve
 session.
 
 Examples:
 
-$> PGOPTIONS="-c gp_session_role=retrieve" psql -h mdw -p 25432 -d postgres
+$> PGOPTIONS="-c gp_session_role=retrieve" psql -h mdw -p 25432 -d postgres -U user1
 Password: tk071500004015dc6da471b20417afed65
 postgres=#
 
 Here the "tk071500004015dc6da471b20417afed65", "mdw" and "25432" are the
 endpoint "c1_00001507_00000000"'s token, hostname and port.
+
+Besides the user and password should match, the user also
+needs login permission. Otherwise this role is not allowed to login, even with correct password.
 
 Multiple parallel retrieve cursors can be retrieved from the same retrieve
 session as long as their token is the same.

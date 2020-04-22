@@ -130,7 +130,7 @@ typedef struct SessionInfoEntry
 
 	/* The auth token for this session. */
 	int8		token[ENDPOINT_TOKEN_LEN];
-	/* How many endpoint are referred to this entry. */
+	/* How many endpoints are referred to this entry. */
 	uint16      endpointCounter;
 }	SessionInfoEntry;
 
@@ -635,6 +635,7 @@ init_session_info_entry(void)
 
 		infoEntry->endpointCounter = 0;
 	}
+
 	infoEntry->endpointCounter++;
 	/*
 	 * Overwrite exists token in case the wrapped session id entry not get
@@ -950,7 +951,7 @@ get_endpointdesc_by_index(int index)
  *
  * For the endpoint, the session_id is the gp_session_id since it is the same
  * with the session which created the parallel retrieve cursor.
- * For the retriever, the session_id is picked by the token when doing the
+ * For the retriever, the session_id is picked by the token when perform the
  * authentication.
  *
  * The caller is responsible for acquiring ParallelCursorEndpointLock lock.
@@ -964,9 +965,6 @@ find_endpoint(const char *endpointName, int sessionID)
 
 	for (int i = 0; i < MAX_ENDPOINT_SIZE; ++i)
 	{
-		/* endpoint_name is unique across sessions. But it is not right, */
-		/* need to fetch the endpoint created in the session with the */
-		/* given session_id. */
 		if (!sharedEndpoints[i].empty &&
 			sharedEndpoints[i].sessionID == sessionID &&
 			endpoint_name_equals(sharedEndpoints[i].name, endpointName) &&
@@ -1112,8 +1110,8 @@ clean_session_token_info()
 			{
 				hash_search(sharedSessionInfoHash, &tag, HASH_REMOVE, NULL);
 				elog(DEBUG3,
-					"CDB_ENDPOINT: clean_session_token_info removes exists entry for "
-					"user id: %d, session: %d",
+					"CDB_ENDPOINT: clean_session_token_info removes existing entry for "
+					"user id: %u, session: %d",
 					tag.userID, EndpointCtl.sessionID);
 			}
 		}

@@ -428,7 +428,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 			}
 		}
 
-		/* get end-point status on master */
+		/* get endpoint status on master */
 		LWLockAcquire(ParallelCursorEndpointLock, LW_SHARED);
 		int			cnt = 0;
 
@@ -459,7 +459,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 			{
 				const EndpointDesc *entry = get_endpointdesc_by_index(i);
 				/*
-				 * Only allow current user to get his own endpoints.
+				 * Only allow current user to get own endpoints.
 				 * Or let superuser get all endpoints.
 				 */
 				if (!entry->empty && (superuser() || entry->userID == GetUserId()))
@@ -720,5 +720,6 @@ status_string_to_enum(const char *status)
 	else
 	{
 		elog(ERROR, "unknown endpoint status %s", status);
+		return Status_Invalid;
 	}
 }

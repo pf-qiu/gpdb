@@ -9,7 +9,11 @@
  * To start a retrieve session, the endpoint's token is needed as the password for
  * authentication. The user should be the same as the one who declares the
  * parallel retrieve cursor. Also a runtime parameter gp_session_role=retrieve
- * needs to be set to start the session. As long as login succeeds, the retrieve
+ * needs to be set to start the session. Besides the user and password should match,
+ * the user also needs login permission. Otherwise this role is not allowed to login,
+ * even with correct password.
+ *
+ * As long as login succeeds, the retrieve
  * session will be able to retrieve from all endpoints which have the same token.
  * Call AuthEndpoint() with user and token to do the retrieve authentication.
  *
@@ -528,7 +532,7 @@ receive_tuple_slot(MsgQueueStatusEntry *entry)
 		tup = TupleQueueReaderNext(entry->tqReader, false, &readerdone);
 	}
 
-	/* readerdone returns true only after sender detach mq */
+	/* readerdone returns true only after sender detached message queue */
 	if (readerdone)
 	{
 		Assert(!tup);
@@ -553,11 +557,10 @@ receive_tuple_slot(MsgQueueStatusEntry *entry)
 		Assert(entry->retrieveTs);
 		ExecClearTuple(entry->retrieveTs);
 		result = entry->retrieveTs;
-		ExecStoreHeapTuple(tup, /* tuple to store */
-						   result,		/* slot in which to store the tuple */
-						   InvalidBuffer,		/* buffer associated with this
-												 * tuple */
-						   false);		/* slot should not pfree tuple */
+		ExecStoreHeapTuple(tup, 			/* tuple to store */
+						   result,			/* slot in which to store the tuple */
+						   InvalidBuffer,	/* buffer associated with this tuple */
+						   false);			/* slot should not pfree tuple */
 	}
 	return result;
 }
@@ -566,11 +569,11 @@ receive_tuple_slot(MsgQueueStatusEntry *entry)
  * finish_retrieve - Finish a retrieve statement.
  *
  * When finish retrieve statement, if this process have not yet finish this
- * mq reading, then don't reset it's pid.
+ * message queue reading, then don't reset it's pid.
  *
- * If current retrieve statement retrieve all tuples from endpoint. Set endpoint
+ * If current retrieve statement retrieve all tuples from endpoint. Set endpoint's
  * status to Status_Finished.
- * Else, set endpoint stats from Status_Retrieving to Status_Attached.
+ * Otherwise, set endpoint's status from Status_Retrieving to Status_Attached.
  *
  * Note: don't drop the result slot, we only have one chance to built it.
  * Errors in these function is not expect to be raised.
@@ -773,7 +776,7 @@ retrieve_xact_abort_callback(XactEvent ev, void *vp)
 }
 
 /*
- * Retrieve role sub xact abort callback.
+ * Callback for retrieve role's sub-xact abort .
  */
 static void
 retrieve_subxact_abort_callback(SubXactEvent event, SubTransactionId mySubid,
