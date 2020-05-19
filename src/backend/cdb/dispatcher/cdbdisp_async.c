@@ -70,8 +70,7 @@ typedef struct CdbDispatchCmdAsync
 
 	/*
 	 * When waitMode is set to DISPATCH_WAIT_ACK_MESSAGE, ackMessage is
-	 * required. So we could wait and receive specified acknowledge message
-	 * from QE.
+	 * required to specify the expected acknowledge message from QE.
 	 */
 	const char	*ackMessage;
 
@@ -320,15 +319,14 @@ cdbdisp_dispatchToGang_async(struct CdbDispatcherState *ds,
 }
 
 /*
- * Check for acknowledge NOTIFY message form QEs.
+ * Check the specified acknowledge messages from QEs.
  *
- * Check all dispatch connection to get back specified acknowledge message. (Set
- * stillRunning to true when one dispatch work is completed)
+ * Check all dispatch connections to get expected acknowledge message.
+ * Return true if receive all QEs' acknowledge message.
  *
- * Return true means receive all QEs' acknowledge NOTIFY message.
- *
- * wait: true means wait until received all QEs' acknowledge NOTIFY message.
- * Either success or fail.
+ * message: specifies the expected ACK message to check.
+ * wait: if true, this function will wait until required ACK messages
+ *       have been received from all QEs.
  */
 static bool
 cdbdisp_checkAckMessage_async(struct CdbDispatcherState *ds, const char *message, bool wait)
@@ -462,6 +460,7 @@ checkDispatchResult(CdbDispatcherState *ds,
 
 	db_count = pParms->dispatchCount;
 	fds = (struct pollfd *) palloc(db_count * sizeof(struct pollfd));
+
 	/*
 	 * OK, we are finished submitting the command to the segdbs. Now, we have
 	 * to wait for them to finish.

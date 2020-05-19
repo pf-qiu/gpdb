@@ -1060,7 +1060,11 @@ cdb_setup(void)
 {
 	elog(DEBUG1, "Initializing Greenplum components...");
 
-	/* If gp_role is UTILITY, skip this call. */
+	/*
+	 * RETRIEVE is used to fetch data from endpoints.
+	 * If gp_role is UTILITY or RETRIEVE,
+	 * there is no need to setup motion layer, so skip this call.
+	 */
 	if (Gp_role != GP_ROLE_UTILITY && Gp_role != GP_ROLE_RETRIEVE)
 	{
 		ensureInterconnectAddress();
