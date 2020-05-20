@@ -405,7 +405,7 @@ DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
 	/*
 	 * If all data get sent, hang the process and wait for QD to close it. The
 	 * purpose is to not clean up EndpointDesc entry until CLOSE/COMMIT/ABORT
-	 * (i.e. ProtalCleanup get executed). So user can still see the finished
+	 * (i.e. PortalCleanup get executed). So user can still see the finished
 	 * endpoint status through gp_endpoints_info UDF. This is needed because
 	 * pg_cursor view can still see the PARALLEL RETRIEVE CURSOR
 	 */
@@ -422,7 +422,7 @@ DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
 }
 
 /*
- * alloc_endpoint - Allocate an EndpointDesc entry in shared memroy.
+ * alloc_endpoint - Allocate an EndpointDesc entry in shared memory.
  *
  * cursorName - the parallel retrieve cursor name.
  * dsmHandle  - dsm handle of shared memory message queue.
@@ -842,7 +842,7 @@ abort_endpoint(struct ParallelRtrvCursorSenderState *state)
  *
  * If all data get sent, hang the process and wait for QD to close it.
  * The purpose is to not clean up EndpointDesc entry until
- * CLOSE/COMMIT/ABORT (ie. ProtalCleanup get executed).
+ * CLOSE/COMMIT/ABORT (ie. PortalCleanup get executed).
  */
 static void
 wait_parallel_retrieve_close(void)

@@ -1109,28 +1109,28 @@ processResults(CdbDispatchResult *dispatchResult)
 	PGnotify *qnotifies = PQnotifies(segdbDesc->conn);
 	while(qnotifies && elog_geterrcode() == 0)
 	{
-		/*
-		 * If there was nextval request then respond back on this libpq connection
-		 * with the next value. Check and process nextval message only if QD has not
-		 * already hit the error. Since QD could have hit the error while processing
-		 * the previous nextval_qd() request itself and since full error handling is
-		 * not complete yet like releasing all the locks, etc.., shouldn't attempt
-		 * to call nextval_qd() again.
-		 */
-		if (strcmp(qnotifies->relname, "nextval") == 0)
+		if (strcmp(qnotifies->relname, CDB_NOTIFY_NEXTVAL) == 0)
 		{
+			/*
+			 * If there was nextval request then respond back on this libpq connection
+			 * with the next value. Check and process nextval message only if QD has not
+			 * already hit the error. Since QD could have hit the error while processing
+			 * the previous nextval_qd() request itself and since full error handling is
+			 * not complete yet like releasing all the locks, etc.., shouldn't attempt
+			 * to call nextval_qd() again.
+			 */
 			int64 last;
 			int64 cached;
 			int64 increment;
 			bool overflow;
-			int dbid;
-			int seq_oid;
+			Oid dbid;
+			Oid seq_oid;
 
-			if (sscanf(qnotifies->extra, "%d:%d", &dbid, &seq_oid) != 2)
+			if (sscanf(qnotifies->extra, "%u:%u", &dbid, &seq_oid) != 2)
 				elog(ERROR, "invalid nextval message");
 
 			if (dbid != MyDatabaseId)
-				elog(ERROR, "nextval message database id:%d doesn't match my database id:%d",
+				elog(ERROR, "nextval message database id:%u doesn't match my database id:%u",
 					 dbid, MyDatabaseId);
 
 			PG_TRY();
@@ -1146,18 +1146,23 @@ processResults(CdbDispatchResult *dispatchResult)
 			/* respond back on this libpq connection with the next value */
 			send_sequence_response(segdbDesc->conn, seq_oid, last, cached, increment, overflow, false /* error */);
 		}
-
-		/*
-		 * retrieve acknowledge NOTIFY message form libpq. And put it to
-		 * dispatchResult->ackPGNotifies queue.
-		 */
-		if (strcmp(qnotifies->relname, CDB_QE_ACKNOWLEDGE_NOTIFY_CHANNEL) == 0)
+		else if (strcmp(qnotifies->relname, CDB_NOTIFY_QE_ACKNOWLEDGE) == 0)
 		{
+			/*
+			 * retrieve acknowledge NOTIFY message from QE, put it into
+			 * dispatchResult->ackPGNotifies queue.
+			 */
 			qnotifies->next = (struct pgNotify *) dispatchResult->ackPGNotifies;
 			dispatchResult->ackPGNotifies = (struct PGnotify *) qnotifies;
 
 			/* Don't free the notify here since it in queue now */
 			qnotifies = NULL;
+		}
+		else
+		{
+			/* Got an unknown PGnotify, just record it in log */
+			if (qnotifies->relname)
+				elog(LOG, "got an unknown notify message : %s", qnotifies->relname);
 		}
 
 		if (qnotifies)

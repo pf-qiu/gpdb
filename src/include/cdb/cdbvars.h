@@ -38,9 +38,6 @@
 #define PRIO_MAX 20
 #endif
 
-
-#define CDB_QE_ACKNOWLEDGE_NOTIFY_CHANNEL "**ACK_NOTIFY**"
-
 /*
  * Parameters gp_session_role and gp_role
  *
@@ -810,5 +807,11 @@ extern bool gp_create_table_random_default_distribution;
 
 /* Functions in guc_gp.c to lookup values in enum GUCs */
 extern const char * lookup_autostats_mode_by_value(GpAutoStatsModeValue val);
+
+/* notification condition name of next value, used in PGnotify */
+#define CDB_NOTIFY_NEXTVAL "nextval"
+
+/* notification condition name of acknowledge notify, used in PGnotify */
+#define CDB_NOTIFY_QE_ACKNOWLEDGE "ack_notify"
 
 #endif   /* CDBVARS_H */

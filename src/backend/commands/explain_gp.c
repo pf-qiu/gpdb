@@ -2301,7 +2301,7 @@ void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc)
 			}
 			default:
 			{
-				elog(ERROR, "invalid ndPoint position : %d", endPointExecPosition);
+				elog(ERROR, "invalid endpoint position : %d", endPointExecPosition);
 			}
 		}
 		ExplainPropertyText("Endpoint", endpointInfoStr.data, es);
