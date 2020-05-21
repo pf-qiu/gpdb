@@ -69,8 +69,9 @@ typedef struct CdbDispatchCmdAsync
 	volatile DispatchWaitMode waitMode;
 
 	/*
-	 * When waitMode is set to DISPATCH_WAIT_ACK_MESSAGE, ackMessage is
-	 * required to specify the expected acknowledge message from QE.
+	 * When waitMode is set to DISPATCH_WAIT_ACK_MESSAGE, the expected acknowledge
+	 * message from QE should be specified. This field stores the expected text
+	 * message from QE.
 	 */
 	const char	*ackMessage;
 

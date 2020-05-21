@@ -68,7 +68,7 @@ struct MsgQueueStatusEntry
 	/* The name of endpoint to be retrieved, also behave as hash key */
 	char		endpointName[NAMEDATALEN];
 	/* The endpoint to be retrieved */
-	Endpoint    endpoint;
+	Endpoint	endpoint;
 	/* The dsm handle which contains shared memory message queue */
 	dsm_segment *mqSeg;
 	/* Shared memory message queue */
@@ -87,15 +87,15 @@ struct MsgQueueStatusEntry
  */
 static HTAB *mqStatusHTB = NULL;
 
-static void init_msg_queue_status_entry(MsgQueueStatusEntry *entry);
-static Endpoint get_endpoint_from_mq_status_entry(MsgQueueStatusEntry *entry);
+static void init_msg_queue_status_entry(MsgQueueStatusEntry * entry);
+static Endpoint get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry);
 static MsgQueueStatusEntry *start_retrieve(const char *endpointName);
 static void validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName);
-static void finish_retrieve(MsgQueueStatusEntry *entry, bool resetPID);
-static void attach_receiver_mq(MsgQueueStatusEntry *entry, dsm_handle dsmHandle);
-static void detach_receiver_mq(MsgQueueStatusEntry *entry);
-static void notify_sender(MsgQueueStatusEntry *entry, bool isFinished);
-static void retrieve_cancel_action(MsgQueueStatusEntry *entry, char *msg);
+static void finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID);
+static void attach_receiver_mq(MsgQueueStatusEntry * entry, dsm_handle dsmHandle);
+static void detach_receiver_mq(MsgQueueStatusEntry * entry);
+static void notify_sender(MsgQueueStatusEntry * entry, bool isFinished);
+static void retrieve_cancel_action(MsgQueueStatusEntry * entry, char *msg);
 static void retrieve_exit_callback(int code, Datum arg);
 static void retrieve_xact_abort_callback(XactEvent ev, void *vp);
 static void retrieve_subxact_abort_callback(SubXactEvent event,
@@ -103,7 +103,7 @@ static void retrieve_subxact_abort_callback(SubXactEvent event,
 								SubTransactionId parentSubid,
 								void *arg);
 static TupleDesc read_tuple_desc_info(shm_toc *toc);
-static TupleTableSlot *receive_tuple_slot(MsgQueueStatusEntry *entry);
+static TupleTableSlot *receive_tuple_slot(MsgQueueStatusEntry * entry);
 
 /*
  * AuthEndpoint - authenticate for retrieve role connection.
@@ -164,7 +164,7 @@ void
 ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
 {
 	TupleTableSlot *result = NULL;
-	int64 retrieveCount = 0;
+	int64		retrieveCount = 0;
 
 	if (EndpointCtl.receiver.currentMQEntry == NULL)
 	{
@@ -207,11 +207,11 @@ ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
  * If endpoint not retrieved before, init the new entry
  */
 static void
-init_msg_queue_status_entry(MsgQueueStatusEntry *entry)
+init_msg_queue_status_entry(MsgQueueStatusEntry * entry)
 {
-	entry->mqSeg      = NULL;
-	entry->endpoint   = NULL;
-	entry->mqHandle   = NULL;
+	entry->mqSeg = NULL;
+	entry->endpoint = NULL;
+	entry->mqHandle = NULL;
 	entry->retrieveTs = NULL;
 	entry->retrieveStatus = RETRIEVE_STATUS_INIT;
 }
@@ -224,7 +224,7 @@ init_msg_queue_status_entry(MsgQueueStatusEntry *entry)
  * ParallelCursorEndpointLock shout be acquired before calling this function.
  */
 static Endpoint
-get_endpoint_from_mq_status_entry(MsgQueueStatusEntry *entry)
+get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
 {
 	if (entry->endpoint)
 	{
@@ -251,23 +251,25 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry *entry)
  * When call RETRIEVE statement in PQprepare() & PQexecPrepared(), this func will
  * be called 2 times.
  */
-static MsgQueueStatusEntry*
-start_retrieve(const char* endpointName)
+static MsgQueueStatusEntry *
+start_retrieve(const char *endpointName)
 {
 	bool		isFound;
 	Endpoint	endpointDesc;
 	MsgQueueStatusEntry *entry;
 	dsm_handle	handle = DSM_HANDLE_INVALID;
+
 	Assert(endpointName);
 	Assert(endpointName[0]);
 
 	/*
-	 * Initialize a hashtable,
-	 * its key is the endpoint's name, its value is MsgQueueStatusEntry
+	 * Initialize a hashtable, its key is the endpoint's name, its value is
+	 * MsgQueueStatusEntry
 	 */
 	if (mqStatusHTB == NULL)
 	{
 		HASHCTL		ctl;
+
 		MemSet(&ctl, 0, sizeof(ctl));
 		ctl.keysize = NAMEDATALEN;
 		ctl.entrysize = sizeof(MsgQueueStatusEntry);
@@ -280,7 +282,7 @@ start_retrieve(const char* endpointName)
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	if (isFound)
 	{
-		Assert(entry != NULL );
+		Assert(entry != NULL);
 		endpointDesc = get_endpoint_from_mq_status_entry(entry);
 	}
 	else
@@ -290,8 +292,8 @@ start_retrieve(const char* endpointName)
 	if (!endpointDesc)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-			errmsg("failed to attach non-existing endpoint %s",
-			       endpointName)));
+						errmsg("failed to attach non-existing endpoint %s",
+							   endpointName)));
 	}
 	if (!isFound)
 	{
@@ -306,7 +308,7 @@ start_retrieve(const char* endpointName)
 
 	/* begins to retrieve tuples from endpoint if still have data to retrieve. */
 	if (endpointDesc->attachStatus == Status_Ready ||
-		   endpointDesc->attachStatus == Status_Attached)
+		endpointDesc->attachStatus == Status_Attached)
 	{
 		endpointDesc->attachStatus = Status_Retrieving;
 	}
@@ -324,13 +326,13 @@ start_retrieve(const char* endpointName)
  * validate whether it fulfill the requirements.
  */
 static void
-validate_retrieve_endpoint(Endpoint endpointDesc, const char* endpointName)
+validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 {
 	if (EndpointCtl.GpParallelRtrvRole != PARALLEL_RETRIEVE_RECEIVER)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 						errmsg("%s could not attach endpoint",
-							   endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole))));
+				  endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole))));
 	}
 	Assert(endpointDesc->mqDsmHandle != DSM_HANDLE_INVALID);
 	if (endpointDesc->userID != GetUserId())
@@ -348,9 +350,9 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char* endpointName)
 		/* already attached by other process before */
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				errmsg("endpoint %s is already attached by receiver(pid: %d)",
-				       endpointName, endpointDesc->receiverPid),
-				errdetail("An endpoint can only be attached by one retrieving session.")));
+			   errmsg("endpoint %s is already attached by receiver(pid: %d)",
+					  endpointName, endpointDesc->receiverPid),
+				 errdetail("An endpoint can only be attached by one retrieving session.")));
 	}
 
 	if (endpointDesc->senderPid == InvalidPid)
@@ -364,7 +366,7 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char* endpointName)
  * Attach to the endpoint's shared memory message queue.
  */
 static void
-attach_receiver_mq(MsgQueueStatusEntry *entry, dsm_handle dsmHandle)
+attach_receiver_mq(MsgQueueStatusEntry * entry, dsm_handle dsmHandle)
 {
 	TupleDesc	td;
 	dsm_segment *dsmSeg = NULL;
@@ -416,7 +418,7 @@ attach_receiver_mq(MsgQueueStatusEntry *entry, dsm_handle dsmHandle)
  * Detach from the endpoint's message queue.
  */
 static void
-detach_receiver_mq(MsgQueueStatusEntry *entry)
+detach_receiver_mq(MsgQueueStatusEntry * entry)
 {
 	Assert(entry);
 	Assert(entry->mqSeg);
@@ -437,9 +439,10 @@ detach_receiver_mq(MsgQueueStatusEntry *entry)
  * If current endpoint get freed, it means the endpoint aborted.
  */
 static void
-notify_sender(MsgQueueStatusEntry *entry, bool isFinished)
+notify_sender(MsgQueueStatusEntry * entry, bool isFinished)
 {
 	EndpointDesc *endpoint;
+
 	Assert(entry);
 
 	LWLockAcquire(ParallelCursorEndpointLock, LW_SHARED);
@@ -449,8 +452,8 @@ notify_sender(MsgQueueStatusEntry *entry, bool isFinished)
 		LWLockRelease(ParallelCursorEndpointLock);
 		ereport(ERROR,
 				(errcode(ERRCODE_QUERY_CANCELED),
-				 errmsg("Parallel RETRIEVE CURSOR endpoint %s aborted unexpectedly.",
-					entry->endpointName)));
+		 errmsg("Parallel RETRIEVE CURSOR endpoint %s aborted unexpectedly.",
+				entry->endpointName)));
 	}
 	if (isFinished)
 	{
@@ -487,7 +490,7 @@ read_tuple_desc_info(shm_toc *toc)
  * When read all tuples, should tell endpoint/sender that the retrieve is done.
  */
 static TupleTableSlot *
-receive_tuple_slot(MsgQueueStatusEntry *entry)
+receive_tuple_slot(MsgQueueStatusEntry * entry)
 {
 	TupleTableSlot *result = NULL;
 	HeapTuple	tup = NULL;
@@ -557,10 +560,11 @@ receive_tuple_slot(MsgQueueStatusEntry *entry)
 		Assert(entry->retrieveTs);
 		ExecClearTuple(entry->retrieveTs);
 		result = entry->retrieveTs;
-		ExecStoreHeapTuple(tup, 			/* tuple to store */
-						   result,			/* slot in which to store the tuple */
-						   InvalidBuffer,	/* buffer associated with this tuple */
-						   false);			/* slot should not pfree tuple */
+		ExecStoreHeapTuple(tup, /* tuple to store */
+						   result,		/* slot in which to store the tuple */
+						   InvalidBuffer,		/* buffer associated with this
+												 * tuple */
+						   false);		/* slot should not pfree tuple */
 	}
 	return result;
 }
@@ -579,7 +583,7 @@ receive_tuple_slot(MsgQueueStatusEntry *entry)
  * Errors in these function is not expect to be raised.
  */
 static void
-finish_retrieve(MsgQueueStatusEntry *entry, bool resetPID)
+finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 {
 	EndpointDesc *endpoint = NULL;
 
@@ -621,8 +625,8 @@ finish_retrieve(MsgQueueStatusEntry *entry, bool resetPID)
 	if (endpoint->attachStatus == Status_Retrieving)
 	{
 		/*
-		 * If finish retrieving, set the endpoint to FINISHED,
-		 * otherwise set the endpoint to ATTACHED.
+		 * If finish retrieving, set the endpoint to FINISHED, otherwise set
+		 * the endpoint to ATTACHED.
 		 */
 		if (entry->retrieveStatus == RETRIEVE_STATUS_FINISH)
 		{
@@ -643,11 +647,12 @@ finish_retrieve(MsgQueueStatusEntry *entry, bool resetPID)
  * happened.
  */
 static void
-retrieve_cancel_action(MsgQueueStatusEntry *entry, char *msg)
+retrieve_cancel_action(MsgQueueStatusEntry * entry, char *msg)
 {
-	Endpoint endpoint;
+	Endpoint	endpoint;
 
 	Assert(entry);
+
 	/*
 	 * If current role is not receiver, the retrieve must already finished
 	 * success or get cleaned before.
@@ -734,9 +739,9 @@ retrieve_exit_callback(int code, Datum arg)
 	{
 		if (entry->retrieveStatus != RETRIEVE_STATUS_FINISH)
 			retrieve_cancel_action(
-				entry,
-				"Endpoint retrieve session quit, "
-				"all unfinished endpoint backends will be cancelled");
+								   entry,
+								   "Endpoint retrieve session quit, "
+					   "all unfinished endpoint backends will be cancelled");
 		if (entry->mqSeg)
 		{
 			/* It could have been detached already when finish. */

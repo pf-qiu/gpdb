@@ -77,7 +77,7 @@ static bool check_parallel_retrieve_cursor(const char *cursorName, bool isWait);
 
 /* Endpoint control information for current session. */
 struct EndpointControl EndpointCtl = {
-	PARALLEL_RETRIEVE_NONE, InvalidSession, .sender={NULL}, .receiver={NULL}};
+PARALLEL_RETRIEVE_NONE, InvalidSession,.sender = {NULL},.receiver = {NULL}};
 
 /*
  * Convert the string tk0123456789 to int 0123456789 and save it into
@@ -130,7 +130,7 @@ SetParallelRtrvCursorExecRole(enum ParallelRtrvCursorExecRole role)
 	if (EndpointCtl.GpParallelRtrvRole != PARALLEL_RETRIEVE_NONE && EndpointCtl.GpParallelRtrvRole != role)
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 						errmsg("endpoint role %s is already set to %s",
-							   endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole),
+					 endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole),
 							   endpoint_role_to_string(role))));
 
 	elog(DEBUG3, "CDB_ENDPOINT: set endpoint role to %s",
@@ -256,21 +256,21 @@ check_parallel_retrieve_cursor(const char *cursorName, bool isWait)
 {
 	bool		retVal = false;
 	Portal		portal;
-	EState *estate = NULL;
+	EState	   *estate = NULL;
 
 	/* get the portal from the portal name */
 	portal = GetPortalByName(cursorName);
 	if (!PortalIsValid(portal))
 	{
 		ereport(ERROR, (errcode(ERRCODE_UNDEFINED_CURSOR),
-			errmsg("cursor \"%s\" does not exist", cursorName)));
+						errmsg("cursor \"%s\" does not exist", cursorName)));
 		return false;			/* keep compiler happy */
 	}
 	if (!PortalIsParallelRetrieve())
 	{
 		ereport(ERROR,
-			(errcode(ERRCODE_SYNTAX_ERROR),
-				errmsg("this UDF only works for PARALLEL RETRIEVE CURSOR.")));
+				(errcode(ERRCODE_SYNTAX_ERROR),
+			   errmsg("this UDF only works for PARALLEL RETRIEVE CURSOR.")));
 		return false;
 	}
 	estate = portal->queryDesc->estate;
@@ -300,6 +300,7 @@ check_parallel_cursor_errors(EState *estate)
 	Assert(estate);
 
 	ds = estate->dispatcherState;
+
 	/*
 	 * If QD, wait for QEs to finish and check their results.
 	 */
@@ -331,9 +332,9 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 {
 	if (Gp_role != GP_ROLE_DISPATCH)
 		ereport(
-			ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
-			errmsg(
-				 "gp_endpoints_info() only can be called on query dispatcher")));
+				ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
+						errmsg(
+			 "gp_endpoints_info() only can be called on query dispatcher")));
 
 	bool		allSessions = PG_GETARG_BOOL(0);
 	FuncCallContext *funcctx;
@@ -385,8 +386,8 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 		if (cdb_pgresults.numResults == 0)
 		{
 			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-							errmsg("gp_endpoints_info didn't get back any data "
-								   "from the segDBs")));
+						 errmsg("gp_endpoints_info didn't get back any data "
+								"from the segDBs")));
 		}
 		for (int i = 0; i < cdb_pgresults.numResults; i++)
 		{
@@ -394,10 +395,10 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 			{
 				cdbdisp_clearCdbPgResults(&cdb_pgresults);
 				ereport(
-					ERROR,
-					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg(
-						 "gp_endpoints_info(): resultStatus is not tuples_Ok")));
+						ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg(
+					 "gp_endpoints_info(): resultStatus is not tuples_Ok")));
 			}
 			res_number += PQntuples(cdb_pgresults.pg_results[i]);
 		}
@@ -441,7 +442,8 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 		}
 		if (cnt != 0)
 		{
-			int idx = mystatus->status_num;
+			int			idx = mystatus->status_num;
+
 			mystatus->status_num += cnt;
 			if (mystatus->status)
 			{
@@ -458,9 +460,10 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 			for (int i = 0; i < MAX_ENDPOINT_SIZE; i++)
 			{
 				const EndpointDesc *entry = get_endpointdesc_by_index(i);
+
 				/*
-				 * Only allow current user to get own endpoints.
-				 * Or let superuser get all endpoints.
+				 * Only allow current user to get own endpoints. Or let
+				 * superuser get all endpoints.
 				 */
 				if (!entry->empty && (superuser() || entry->userID == GetUserId()))
 				{
@@ -619,8 +622,8 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 		get_endpointdesc_by_index(mystatus->currentIdx);
 
 		/*
-		 * Only allow current user to list his own endpoints.
-		 * Or let superuser list all endpoints.
+		 * Only allow current user to list his own endpoints. Or let superuser
+		 * list all endpoints.
 		 */
 		if (!entry->empty && (superuser() || entry->userID == GetUserId()))
 		{

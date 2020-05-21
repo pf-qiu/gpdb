@@ -83,12 +83,15 @@
 #include "utils/faultinjector.h"
 #endif
 
-/* The timeout before returns failure for endpoints initialization. */
+/* The timeout before returns failure for endpoints initialization, in milliseconds */
 #define WAIT_NORMAL_TIMEOUT				100
-/* How many above timeout occurs, before check QD connection alive */
-#define CHECK_QD_CONNECTION_ALIVE 		50
+/* How many times does above timeout occur, before senders check if QD connection is alive */
+#define CHECK_QD_CONNECTION_ALIVE		50
 
-/* This value is copy from PG's PARALLEL_TUPLE_QUEUE_SIZE */
+/*
+ * The size of endpoint tuple queue in bytes.
+ * This value is copy from PG's PARALLEL_TUPLE_QUEUE_SIZE
+ */
 #define ENDPOINT_TUPLE_QUEUE_SIZE		65536
 
 #define SHMEM_ENDPOINTS_ENTRIES			"SharedMemoryEndpointDescEntries"
@@ -131,7 +134,7 @@ typedef struct SessionInfoEntry
 	/* The auth token for this session. */
 	int8		token[ENDPOINT_TOKEN_LEN];
 	/* How many endpoints are referred to this entry. */
-	uint16      endpointCounter;
+	uint16		endpointCounter;
 }	SessionInfoEntry;
 
 /* Shared hash table for session infos */
@@ -154,9 +157,9 @@ static void create_and_connect_mq(TupleDesc tupleDesc,
 					  shm_mq_handle **mqHandle /* out */ );
 static void detach_mq(dsm_segment *dsmSeg);
 static void init_session_info_entry(void);
-static void wait_receiver(struct ParallelRtrvCursorSenderState *state);
-static void unset_endpoint_sender_pid(volatile EndpointDesc *endPointDesc);
-static void abort_endpoint(struct ParallelRtrvCursorSenderState *state);
+static void wait_receiver(struct ParallelRtrvCursorSenderState * state);
+static void unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc);
+static void abort_endpoint(struct ParallelRtrvCursorSenderState * state);
 static void wait_parallel_retrieve_close(void);
 
 /* utility */
@@ -168,8 +171,6 @@ static void clean_session_token_info();
 /*
  * Endpoint_ShmemSize - Calculate the shared memory size for PARALLEL RETRIEVE
  * CURSOR execute.
- *
- * The size contains LWLocks and EndpointSharedCTX.
  */
 Size
 EndpointShmemSize(void)
@@ -193,9 +194,9 @@ EndpointCTXShmemInit(void)
 	HASHCTL		hctl;
 
 	sharedEndpoints = (EndpointDesc *) ShmemInitStruct(
-		SHMEM_ENDPOINTS_ENTRIES,
-		MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(EndpointDesc))),
-		&isShmemReady);
+													 SHMEM_ENDPOINTS_ENTRIES,
+				 MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(EndpointDesc))),
+													   &isShmemReady);
 	Assert(isShmemReady || !IsUnderPostmaster);
 	if (!isShmemReady)
 	{
@@ -242,7 +243,7 @@ enum EndPointExecPosition
 GetParallelCursorEndpointPosition(PlannedStmt *plan)
 {
 	if (plan->planTree->flow->flotype == FLOW_SINGLETON &&
-			plan->planTree->flow->locustype != CdbLocusType_SegmentGeneral)
+		plan->planTree->flow->locustype != CdbLocusType_SegmentGeneral)
 	{
 		return ENDPOINT_ON_ENTRY_DB;
 	}
@@ -258,7 +259,7 @@ GetParallelCursorEndpointPosition(PlannedStmt *plan)
 			return ENDPOINT_ON_SINGLE_QE;
 		}
 		else if (plan->slices[0].directDispatch.isDirectDispatch &&
-				plan->slices[0].directDispatch.contentIds != NULL)
+				 plan->slices[0].directDispatch.contentIds != NULL)
 		{
 			/*
 			 * Direct dispatch to some segments, so end-points only exist on
@@ -283,7 +284,7 @@ void
 WaitEndpointReady(EState *estate)
 {
 	Assert(estate);
-	CdbDispatcherState* ds = estate->dispatcherState;
+	CdbDispatcherState *ds = estate->dispatcherState;
 
 	cdbdisp_checkDispatchAckMessage(ds, ENDPOINT_READY_ACK, true);
 	check_parallel_cursor_errors(estate);
@@ -311,7 +312,7 @@ get_or_create_token(void)
 							  ENDPOINT_TOKEN_LEN - sessionIdLen))
 		{
 			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-							errmsg("failed to generate a new random token.")));
+						  errmsg("failed to generate a new random token.")));
 		}
 	}
 	return currentToken;
@@ -330,7 +331,7 @@ get_or_create_token(void)
  */
 DestReceiver *
 CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
-		struct ParallelRtrvCursorSenderState *state)
+								struct ParallelRtrvCursorSenderState * state)
 {
 	shm_mq_handle *shmMqHandle;
 
@@ -372,7 +373,7 @@ CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
  */
 void
 DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
-		struct ParallelRtrvCursorSenderState *state)
+								 struct ParallelRtrvCursorSenderState * state)
 {
 	Assert(state->endpoint);
 	Assert(state->dsmSeg);
@@ -560,7 +561,7 @@ create_and_connect_mq(TupleDesc tupleDesc, dsm_segment **mqSeg /* out */ ,
 	if (*mqSeg == NULL)
 	{
 		ereport(
-			ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
+				ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
 			errmsg("failed to create shared message queue for endpoints.")));
 	}
 	dsm_pin_mapping(*mqSeg);
@@ -592,13 +593,13 @@ create_and_connect_mq(TupleDesc tupleDesc, dsm_segment **mqSeg /* out */ ,
 static void
 init_session_info_entry(void)
 {
-	SessionInfoEntry	*infoEntry = NULL;
-	bool				 found = false;
-	SessionTokenTag		 tag;
-	const int8			*token = NULL;
+	SessionInfoEntry *infoEntry = NULL;
+	bool		found = false;
+	SessionTokenTag tag;
+	const int8 *token = NULL;
 
-	tag.sessionID	= gp_session_id;
-	tag.userID		= GetUserId();
+	tag.sessionID = gp_session_id;
+	tag.userID = GetUserId();
 
 	/* track current session id for session_info_clean_callback  */
 	EndpointCtl.sessionID = gp_session_id;
@@ -608,6 +609,7 @@ init_session_info_entry(void)
 												 HASH_ENTER, &found);
 	elog(DEBUG3, "CDB_ENDPOINT: Finish endpoint init. Found SessionInfoEntry: %d",
 		 found);
+
 	/*
 	 * Save the token if it is the first time we create endpoint in current
 	 * session. We guarantee that one session will map to one token only.
@@ -616,8 +618,9 @@ init_session_info_entry(void)
 	{
 		/* Track userID in current transaction */
 		MemoryContext oldMemoryCtx = MemoryContextSwitchTo(TopMemoryContext);
+
 		EndpointCtl.sender.sessionUserList = lappend_oid(
-			EndpointCtl.sender.sessionUserList, GetUserId());
+							EndpointCtl.sender.sessionUserList, GetUserId());
 		MemoryContextSwitchTo(oldMemoryCtx);
 
 		token = get_or_create_token();
@@ -637,6 +640,7 @@ init_session_info_entry(void)
 	}
 
 	infoEntry->endpointCounter++;
+
 	/*
 	 * Overwrite exists token in case the wrapped session id entry not get
 	 * removed For example, 1 hours ago, a session 7 exists and have entry
@@ -694,13 +698,14 @@ checkQDConnectionAlive()
  * from the queue, the queue will be not available for receiver.
  */
 static void
-wait_receiver(struct ParallelRtrvCursorSenderState *state)
+wait_receiver(struct ParallelRtrvCursorSenderState * state)
 {
-	int cnt = 0;
+	int			cnt = 0;
+
 	elog(DEBUG3, "CDB_ENDPOINTS: wait receiver.");
 	while (true)
 	{
-		int	wr = 0;
+		int			wr = 0;
 
 		CHECK_FOR_INTERRUPTS();
 
@@ -714,7 +719,8 @@ wait_receiver(struct ParallelRtrvCursorSenderState *state)
 		if (wr & WL_TIMEOUT)
 		{
 			/*
-			 * For every 50 WaitLatch timeouts, check if QD connection still alive.
+			 * For every 50 WaitLatch timeouts, check if QD connection still
+			 * alive.
 			 */
 			cnt++;
 			if (cnt == CHECK_QD_CONNECTION_ALIVE)
@@ -782,8 +788,8 @@ unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
 	elog(DEBUG3, "CDB_ENDPOINT: unset endpoint sender pid.");
 
 	/*
-	 * Only the endpoint QE/entry DB execute this unset sender pid function. The
-	 * sender pid in Endpoint entry must be MyProcPid or InvalidPid.
+	 * Only the endpoint QE/entry DB execute this unset sender pid function.
+	 * The sender pid in Endpoint entry must be MyProcPid or InvalidPid.
 	 */
 	Assert(MyProcPid == endPointDesc->senderPid ||
 		   endPointDesc->senderPid == InvalidPid);
@@ -805,14 +811,15 @@ unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
  * abort_endpoint - xact abort routine for endpoint
  */
 static void
-abort_endpoint(struct ParallelRtrvCursorSenderState *state)
+abort_endpoint(struct ParallelRtrvCursorSenderState * state)
 {
 	if (state->endpoint)
 	{
 		LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
+
 		/*
-		 * These two better be called in one lock section.
-		 * So retriever abort will not execute extra works.
+		 * These two better be called in one lock section. So retriever abort
+		 * will not execute extra works.
 		 */
 		unset_endpoint_sender_pid(state->endpoint);
 		free_endpoint(state->endpoint);
@@ -847,11 +854,12 @@ abort_endpoint(struct ParallelRtrvCursorSenderState *state)
 static void
 wait_parallel_retrieve_close(void)
 {
-	int cnt = 0;
+	int			cnt = 0;
+
 	ResetLatch(&MyProc->procLatch);
 	while (true)
 	{
-		int	wr;
+		int			wr;
 
 		CHECK_FOR_INTERRUPTS();
 
@@ -865,7 +873,8 @@ wait_parallel_retrieve_close(void)
 		if (wr & WL_TIMEOUT)
 		{
 			/*
-			 * For every 50 WaitLatch timeouts, check if QD connection still alive.
+			 * For every 50 WaitLatch timeouts, check if QD connection still
+			 * alive.
 			 */
 			cnt++;
 			if (cnt == CHECK_QD_CONNECTION_ALIVE)
@@ -887,9 +896,9 @@ wait_parallel_retrieve_close(void)
 		}
 
 		/*
-		 * procLatch may be set by a timeout, e.g. AuthenticationTimeout,
-		 * to handle this case, we check QueryFinishPending and QueryCancelPending
-		 * to make sure we can continue waiting.
+		 * procLatch may be set by a timeout, e.g. AuthenticationTimeout, to
+		 * handle this case, we check QueryFinishPending and
+		 * QueryCancelPending to make sure we can continue waiting.
 		 */
 		ResetLatch(&MyProc->procLatch);
 		if (QueryFinishPending || QueryCancelPending)
@@ -926,10 +935,11 @@ free_endpoint(volatile EndpointDesc * endpoint)
 	tag.sessionID = endpoint->sessionID;
 	tag.userID = endpoint->userID;
 	infoEntry = (SessionInfoEntry *) hash_search(
-		sharedSessionInfoHash, &tag, HASH_FIND, NULL);
+							   sharedSessionInfoHash, &tag, HASH_FIND, NULL);
 	Assert(infoEntry);
 	Assert(infoEntry->endpointCounter > 0);
-	if (infoEntry) {
+	if (infoEntry)
+	{
 		infoEntry->endpointCounter--;
 	}
 
@@ -996,8 +1006,8 @@ get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ )
 	if (infoEntry == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg("token for user id: %u, session: %d doesn't exist",
-							   tag.userID, sessionId)));
+				   errmsg("token for user id: %u, session: %d doesn't exist",
+						  tag.userID, sessionId)));
 	}
 	memcpy(token, infoEntry->token, ENDPOINT_TOKEN_LEN);
 	LWLockRelease(ParallelCursorEndpointLock);
@@ -1047,9 +1057,11 @@ generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 	 * retrieving session.
 	 */
 #ifdef HAVE_STRONG_RANDOM
-	int len = 0;
-	//part1:cursor name
-	int cursorLen = strlen(cursorName);
+	int			len = 0;
+
+	/* part1:cursor name */
+	int			cursorLen = strlen(cursorName);
+
 	if (cursorLen > ENDPOINT_NAME_CURSOR_LEN)
 	{
 		cursorLen = ENDPOINT_NAME_CURSOR_LEN;
@@ -1057,19 +1069,22 @@ generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 	Assert((cursorLen + ENDPOINT_NAME_SESSIONID_LEN + ENDPOINT_NAME_RANDOM_LEN) < NAMEDATALEN);
 	memcpy(name, cursorName, cursorLen);
 	len += cursorLen;
-	//part2:sessionID
-	snprintf(name + len , ENDPOINT_NAME_SESSIONID_LEN + 1,
-			"%08x", sessionID);
+
+	/* part2:sessionID */
+	snprintf(name + len, ENDPOINT_NAME_SESSIONID_LEN + 1,
+			 "%08x", sessionID);
 	len += ENDPOINT_NAME_SESSIONID_LEN;
-	//part3:random
-	char	*random = palloc(ENDPOINT_NAME_RANDOM_LEN / 2);
+
+	/* part3:random */
+	char	   *random = palloc(ENDPOINT_NAME_RANDOM_LEN / 2);
+
 	if (!pg_strong_random(random, ENDPOINT_NAME_RANDOM_LEN / 2))
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-					errmsg("failed to generate a new random.")));
+						errmsg("failed to generate a new random.")));
 	}
-	hex_encode((const char*)random, ENDPOINT_NAME_RANDOM_LEN / 2,
-			name + len);
+	hex_encode((const char *) random, ENDPOINT_NAME_RANDOM_LEN / 2,
+			   name + len);
 	pfree(random);
 	len += ENDPOINT_NAME_RANDOM_LEN;
 	name[len] = '\0';
@@ -1085,34 +1100,36 @@ static void
 clean_session_token_info()
 {
 	elog(DEBUG3,
-		"CDB_ENDPOINT: session_info_clean_callback clean token for session %d",
-		EndpointCtl.sessionID);
+	  "CDB_ENDPOINT: session_info_clean_callback clean token for session %d",
+		 EndpointCtl.sessionID);
 
 	if (EndpointCtl.sender.sessionUserList &&
-			EndpointCtl.sender.sessionUserList->length > 0)
+		EndpointCtl.sender.sessionUserList->length > 0)
 	{
 		ListCell   *cell;
+
 		LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 		foreach(cell, EndpointCtl.sender.sessionUserList)
 		{
 			SessionTokenTag tag;
 
 			/*
-			 * When proc exit, the gp_session_id is -1, so use our record session
-			 * id instead
+			 * When proc exit, the gp_session_id is -1, so use our record
+			 * session id instead
 			 */
 			tag.sessionID = EndpointCtl.sessionID;
 			tag.userID = lfirst_oid(cell);
 
 			SessionInfoEntry *infoEntry = (SessionInfoEntry *) hash_search(
-					sharedSessionInfoHash, &tag, HASH_FIND, NULL);
+							   sharedSessionInfoHash, &tag, HASH_FIND, NULL);
+
 			if (infoEntry && infoEntry->endpointCounter == 0)
 			{
 				hash_search(sharedSessionInfoHash, &tag, HASH_REMOVE, NULL);
 				elog(DEBUG3,
-					"CDB_ENDPOINT: clean_session_token_info removes existing entry for "
-					"user id: %u, session: %d",
-					tag.userID, EndpointCtl.sessionID);
+					 "CDB_ENDPOINT: clean_session_token_info removes existing entry for "
+					 "user id: %u, session: %d",
+					 tag.userID, EndpointCtl.sessionID);
 			}
 		}
 		LWLockRelease(ParallelCursorEndpointLock);
@@ -1123,20 +1140,21 @@ clean_session_token_info()
 
 /*
  * Clean up for the sender of parallel retrieve cursor sender.
- *  1. Free the endpoint and detach the message queue;
- *  2. clear session-token mapping;
- *  3. clear parallel retrieve cursor role.
+ *	1. Free the endpoint and detach the message queue;
+ *	2. clear session-token mapping;
+ *	3. clear parallel retrieve cursor role.
  */
 void
 ClearParallelRtrvCursorSenderState(
-		struct ParallelRtrvCursorSenderState *state)
+								struct ParallelRtrvCursorSenderState * state)
 {
-    abort_endpoint(state);
-    clean_session_token_info();
-    ClearParallelRtrvCursorExecRole();
+	abort_endpoint(state);
+	clean_session_token_info();
+	ClearParallelRtrvCursorExecRole();
 }
 
-void AllocParallelRtrvCursorSenderState(EState *estate)
+void
+AllocParallelRtrvCursorSenderState(EState *estate)
 {
 	Assert(estate);
 	MemoryContext oldcontext;
@@ -1148,7 +1166,8 @@ void AllocParallelRtrvCursorSenderState(EState *estate)
 	MemoryContextSwitchTo(oldcontext);
 }
 
-void FreeParallelRtrvCursorSenderState(EState *estate)
+void
+FreeParallelRtrvCursorSenderState(EState *estate)
 {
 	if (estate->es_sender_state)
 	{

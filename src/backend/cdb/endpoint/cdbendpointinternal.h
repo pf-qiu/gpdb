@@ -54,7 +54,7 @@ enum AttachStatus
 	Status_Attached,
 	Status_Finished,
 	Status_Released
-} AttachStatus;
+}	AttachStatus;
 
 /*
  * Endpoint Description, used by parallel retrieve cursor.
@@ -71,22 +71,24 @@ typedef struct EndpointDesc
 								 * current endpoint */
 	dsm_handle	mqDsmHandle;	/* DSM handle, which contains shared message
 								 * queue */
-	Latch		ackDone;		/* Latch to sync EPR_SENDER and EPR_RECEIVER status */
+	Latch		ackDone;		/* Latch to sync EPR_SENDER and EPR_RECEIVER
+								 * status */
 	enum AttachStatus attachStatus;		/* The attach status of the endpoint */
 	int			sessionID;		/* Connection session id */
 	Oid			userID;			/* User ID of the current executed PARALLEL
 								 * RETRIEVE CURSOR */
-	bool		empty;			/* Whether current EndpointDesc slot in DSM is free */
-} EndpointDesc;
+	bool		empty;			/* Whether current EndpointDesc slot in DSM is
+								 * free */
+}	EndpointDesc;
 
 /*
  * The state information for parallel retrieve cursor
  */
 typedef struct ParallelRtrvCursorSenderState
 {
-    struct EndpointDesc *endpoint;	/* endpoint entry */
-    dsm_segment *dsmSeg;			/* dsm_segment pointer */
-} ParallelRtrvCursorSenderState;
+	struct EndpointDesc *endpoint;		/* endpoint entry */
+	dsm_segment *dsmSeg;		/* dsm_segment pointer */
+}	ParallelRtrvCursorSenderState;
 
 /*
  * Retrieve role status.
@@ -119,14 +121,14 @@ typedef struct EndpointControl
 	struct sender
 	{
 		/* Track userIDs to clean up SessionInfoEntry when transaction exit */
-		List *sessionUserList;
-	} sender;
+		List	   *sessionUserList;
+	}			sender;
 
 	struct receiver
 	{
 		/* Track current msg queue entry for running RETRIEVE statement */
 		MsgQueueStatusEntry *currentMQEntry;
-	} receiver;
+	}			receiver;
 }	EndpointControl;
 
 typedef EndpointDesc *Endpoint;
@@ -146,6 +148,6 @@ extern const char *endpoint_role_to_string(enum ParallelRtrvCursorExecRole role)
 extern bool endpoint_token_equals(const int8 *token1, const int8 *token2);
 extern bool endpoint_name_equals(const char *name1, const char *name2);
 extern void endpoint_parse_token(int8 *token /* out */ , const char *tokenStr);
-extern char *endpoint_print_token(const int8 *token);	/* Need to pfree() the result */
+extern char *endpoint_print_token(const int8 *token);	/* Need to pfree the result */
 
 #endif   /* CDBENDPOINTINTERNAL_H */
