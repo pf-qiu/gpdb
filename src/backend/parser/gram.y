@@ -12556,12 +12556,12 @@ DeclareCursorStmt: DECLARE cursor_name cursor_options CURSOR opt_hold FOR Select
 cursor_name:	name						{ $$ = $1; }
 		;
 
-cursor_options: /*EMPTY*/							{ $$ = 0; }
-			| cursor_options NO SCROLL				{ $$ = $1 | CURSOR_OPT_NO_SCROLL; }
-			| cursor_options SCROLL					{ $$ = $1 | CURSOR_OPT_SCROLL; }
-			| cursor_options BINARY					{ $$ = $1 | CURSOR_OPT_BINARY; }
-			| cursor_options INSENSITIVE			{ $$ = $1 | CURSOR_OPT_INSENSITIVE; }
-			| cursor_options PARALLEL RETRIEVE		{ $$ = $1 | CURSOR_OPT_PARALLEL_RETRIEVE; }
+cursor_options: /*EMPTY*/					{ $$ = 0; }
+			| cursor_options NO SCROLL		{ $$ = $1 | CURSOR_OPT_NO_SCROLL; }
+			| cursor_options SCROLL			{ $$ = $1 | CURSOR_OPT_SCROLL; }
+			| cursor_options BINARY			{ $$ = $1 | CURSOR_OPT_BINARY; }
+			| cursor_options INSENSITIVE	{ $$ = $1 | CURSOR_OPT_INSENSITIVE; }
+			| cursor_options PARALLEL RETRIEVE	{ $$ = $1 | CURSOR_OPT_PARALLEL_RETRIEVE; }
 		;
 
 opt_hold: /* EMPTY */						{ $$ = 0; }
