@@ -85,8 +85,6 @@
 
 /* The timeout before returns failure for endpoints initialization, in milliseconds */
 #define WAIT_NORMAL_TIMEOUT				100
-/* How many times does above timeout occur, before senders check if QD connection is alive */
-#define CHECK_QD_CONNECTION_ALIVE		50
 
 /*
  * The size of endpoint tuple queue in bytes.
@@ -700,8 +698,6 @@ checkQDConnectionAlive()
 static void
 wait_receiver(struct ParallelRtrvCursorSenderState * state)
 {
-	int			cnt = 0;
-
 	elog(DEBUG3, "CDB_ENDPOINTS: wait receiver.");
 	while (true)
 	{
@@ -713,25 +709,20 @@ wait_receiver(struct ParallelRtrvCursorSenderState * state)
 			break;
 
 		elog(DEBUG5, "CDB_ENDPOINT: sender wait latch in wait_receiver()");
-		wr = WaitLatch(&state->endpoint->ackDone,
-					   WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT,
-					   WAIT_NORMAL_TIMEOUT);
+		wr = WaitLatchOrSocket(&state->endpoint->ackDone,
+		WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT | WL_SOCKET_READABLE,
+							   MyProcPort->sock,
+							   WAIT_NORMAL_TIMEOUT);
 		if (wr & WL_TIMEOUT)
+			continue;
+
+		if (wr & WL_SOCKET_READABLE)
 		{
-			/*
-			 * For every 50 WaitLatch timeouts, check if QD connection still
-			 * alive.
-			 */
-			cnt++;
-			if (cnt == CHECK_QD_CONNECTION_ALIVE)
+			if (!checkQDConnectionAlive())
 			{
-				if (!checkQDConnectionAlive())
-				{
-					abort_endpoint(state);
-					elog(LOG, "CDB_ENDPOINT: QD connection lost while waiting receiver, close shared memory message queue.");
-					proc_exit(0);
-				}
-				cnt = 0;
+				elog(LOG, "CDB_ENDPOINT: sender found that the connection to QD is broken.");
+				abort_endpoint(state);
+				proc_exit(0);
 			}
 			continue;
 		}
@@ -854,8 +845,6 @@ abort_endpoint(struct ParallelRtrvCursorSenderState * state)
 static void
 wait_parallel_retrieve_close(void)
 {
-	int			cnt = 0;
-
 	ResetLatch(&MyProc->procLatch);
 	while (true)
 	{
@@ -867,32 +856,27 @@ wait_parallel_retrieve_close(void)
 			break;
 
 		elog(DEBUG3, "CDB_ENDPOINT: wait for parallel retrieve cursor close");
-		wr = WaitLatch(&MyProc->procLatch,
-					   WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT,
-					   WAIT_NORMAL_TIMEOUT);
+		wr = WaitLatchOrSocket(&MyProc->procLatch,
+		WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT | WL_SOCKET_READABLE,
+							   MyProcPort->sock,
+							   WAIT_NORMAL_TIMEOUT);
 		if (wr & WL_TIMEOUT)
-		{
-			/*
-			 * For every 50 WaitLatch timeouts, check if QD connection still
-			 * alive.
-			 */
-			cnt++;
-			if (cnt == CHECK_QD_CONNECTION_ALIVE)
-			{
-				if (!checkQDConnectionAlive())
-				{
-					elog(LOG, "CDB_ENDPOINT: wait parallel retrieve close, close shared memory message queue.");
-					proc_exit(0);
-				}
-				cnt = 0;
-			}
 			continue;
-		}
 
 		if (wr & WL_POSTMASTER_DEATH)
 		{
 			elog(LOG, "CDB_ENDPOINT: postmaster exit, close shared memory message queue.");
 			proc_exit(0);
+		}
+
+		if (wr & WL_SOCKET_READABLE)
+		{
+			if (!checkQDConnectionAlive())
+			{
+				elog(LOG, "CDB_ENDPOINT: sender found that the connection to QD is broken.");
+				proc_exit(0);
+			}
+			continue;
 		}
 
 		/*
