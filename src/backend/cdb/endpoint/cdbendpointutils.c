@@ -689,10 +689,17 @@ status_enum_to_string(enum AttachStatus status)
 		case Status_Released:
 			result = GP_ENDPOINT_STATUS_RELEASED;
 			break;
-		default:
-			Assert(false);
+		case Status_Invalid:
+
+			/*
+			 * This function is called when displays endpoint's information.
+			 * Only valid endpoints will be printed out. So the status of the
+			 * endpoint shouldn't be invalid.
+			 */
+			elog(ERROR, "invalid status of endpoint");
 			break;
 	}
+	Assert(result != NULL);
 	return result;
 }
 

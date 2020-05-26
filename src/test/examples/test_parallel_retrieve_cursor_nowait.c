@@ -138,7 +138,6 @@ exec_check_parallel_cursor(PGconn *master_conn, int isCheckFinish)
 	PGresult   *res1;
 	const char *check_sql = "SELECT * FROM gp_check_parallel_retrieve_cursor('myportal');";
 
-
 	printf("\n------ Begin checking parallel retrieve cursor status ------\n");
 	/* call wait mode monitor UDF and it will wait for finish retrieving. */
 	if (!isCheckFinish)
