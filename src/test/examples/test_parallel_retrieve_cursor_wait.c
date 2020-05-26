@@ -4,7 +4,7 @@
  *
  * test_parallel_cursor_wait.c
  *		this program only support gpdb with the PARALLEL RETRIEVE CURSOR feature. It shows how to
- * use LIBPQ to make a connect to gpdb master node and create a PARALLEL RETRIEVE CURSOR and check 
+ * use LIBPQ to make a connect to gpdb master node and create a PARALLEL RETRIEVE CURSOR and check
  * it's status in wait mode, and how to make multiple retrieve mode connections to all endpoints
  * of the PARALLEL RETRIEVE CURSOR (i.e. gpdb all segment nodes in this sample) and parallelly
  * retrieve the results of these endpoints.
@@ -47,11 +47,14 @@ check_prepare_conn(PGconn *conn, const char *dbName, int conn_idx)
 		exit(1);
 	}
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 	{
-		/* Set always-secure search path, so malicous users can't take control. */
+		/*
+		 * Set always-secure search path, so malicous users can't take
+		 * control.
+		 */
 		res = PQexec(conn,
-					"SELECT pg_catalog.set_config('search_path', '', false)");
+				   "SELECT pg_catalog.set_config('search_path', '', false)");
 		if (PQresultStatus(res) != PGRES_TUPLES_OK)
 		{
 			fprintf(stderr, "SET failed: %s", PQerrorMessage(conn));
@@ -61,13 +64,14 @@ check_prepare_conn(PGconn *conn, const char *dbName, int conn_idx)
 		PQclear(res);
 	}
 }
+
 /* execute sql and check it is a command without result set returned */
 static int
 exec_sql_without_resultset(PGconn *conn, const char *sql, int conn_idx)
 {
 	PGresult   *res1;
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 		printf("\nExec SQL on Master:\n\t> %s\n", sql);
 	else
 		printf("\nExec SQL on EndPoint[%d]:\n\t> %s\n", conn_idx, sql);
@@ -87,6 +91,7 @@ exec_sql_without_resultset(PGconn *conn, const char *sql, int conn_idx)
 	PQclear(res1);
 	return 0;
 }
+
 /* execute sql and print the result set */
 static int
 exec_sql_with_resultset(PGconn *conn, const char *sql, int conn_idx)
@@ -95,7 +100,7 @@ exec_sql_with_resultset(PGconn *conn, const char *sql, int conn_idx)
 	int			nFields;
 	int			i;
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 		printf("\nExec SQL on Master:\n\t> %s\n", sql);
 	else
 		printf("\nExec SQL on EndPoint[%d]:\n\t> %s\n", conn_idx, sql);;
@@ -145,15 +150,16 @@ main(int argc, char **argv)
 			   *pgoptions,
 			   *pgoptions_retrieve_mode,
 			   *pgtty;
-	char	   *dbName, *dbUser;
+	char	   *dbName,
+			   *dbUser;
 	int			i;
-	int			retVal;  /* return value for this func */
+	int			retVal;			/* return value for this func */
 
 	PGconn	   *master_conn,
 			  **endpoint_conns = NULL;
 	size_t		endpoint_conns_num = 0;
-	char	   **tokens = NULL,
-			   **endpoint_names = NULL;
+	char	  **tokens = NULL,
+			  **endpoint_names = NULL;
 
 	PGresult   *res1;
 
@@ -192,8 +198,8 @@ main(int argc, char **argv)
 		goto LABEL_ERR;
 
 	/*
-	 * start a transaction block because PARALLEL RETRIEVE CURSOR only support WITHOUT
-	 * HOLD option
+	 * start a transaction block because PARALLEL RETRIEVE CURSOR only support
+	 * WITHOUT HOLD option
 	 */
 	if (exec_sql_without_resultset(master_conn, "BEGIN;", MASTER_CONNECT_INDEX) != 0)
 		goto LABEL_ERR;
@@ -235,8 +241,8 @@ main(int argc, char **argv)
 	 */
 	for (i = 0; i < ntup; i++)
 	{
-		char* host = PQgetvalue(res1, i, 0);
-		char* port = PQgetvalue(res1, i, 1);
+		char	   *host = PQgetvalue(res1, i, 0);
+		char	   *port = PQgetvalue(res1, i, 1);
 
 		tokens[i] = strdup(PQgetvalue(res1, i, 2));
 		endpoint_names[i] = strdup(PQgetvalue(res1, i, 3));
@@ -263,16 +269,18 @@ main(int argc, char **argv)
 
 	/*
 	 * Call it to suspend the main thread, so that the thread of "execute the
-	 * PARALLEL RETRIEVE CURSOR" will run fistly, which will make the statement printed
-	 * out not misunderstanding. This is not necessary for functionality.
+	 * PARALLEL RETRIEVE CURSOR" will run fistly, which will make the
+	 * statement printed out not misunderstanding. This is not necessary for
+	 * functionality.
 	 */
-    usleep(1);
+	usleep(1);
 
 	/*
-	 * Now the endpoint becomes 'READY' after "DECLARE ... PARALLEL RETRIEVE CURSOR" returns,
-	 * then we can retrieve the result of the endpoints in parallel. This section can be 
-	 * executed parallely on different host or in different threads/processes on the same 
-	 * host. For simplicity, here just use loop in one process
+	 * Now the endpoint becomes 'READY' after "DECLARE ... PARALLEL RETRIEVE
+	 * CURSOR" returns, then we can retrieve the result of the endpoints in
+	 * parallel. This section can be executed parallely on different host or
+	 * in different threads/processes on the same host. For simplicity, here
+	 * just use loop in one process
 	 */
 	for (i = 0; i < endpoint_conns_num; i++)
 	{
@@ -280,9 +288,12 @@ main(int argc, char **argv)
 
 		printf("\n------ Begin retrieving data from Endpoint %d# ------\n", i);
 
-		/* the endpoint is ready to be retrieved when 'DECLARE PARALLEL RETRIEVE CURSOR returns, here begin to retrieve */
+		/*
+		 * the endpoint is ready to be retrieved when 'DECLARE PARALLEL
+		 * RETRIEVE CURSOR returns, here begin to retrieve
+		 */
 		snprintf(sql, sizeof(sql), "RETRIEVE ALL FROM ENDPOINT %s;", endpoint_names[i]);
-		if(exec_sql_with_resultset(endpoint_conns[i], sql, i))
+		if (exec_sql_with_resultset(endpoint_conns[i], sql, i))
 		{
 			fprintf(stderr, "Error during retrieving result on endpoint.\n");
 			goto LABEL_ERR;
@@ -317,8 +328,8 @@ LABEL_FINISH:
 
 	if (tokens)
 	{
-		for (int i=0; i< endpoint_conns_num; i++)
-			if(tokens[i])
+		for (int i = 0; i < endpoint_conns_num; i++)
+			if (tokens[i])
 				free(tokens[i]);
 
 		free(tokens);
@@ -326,8 +337,8 @@ LABEL_FINISH:
 
 	if (endpoint_names)
 	{
-		for (int i=0; i< endpoint_conns_num; i++)
-			if(endpoint_names[i])
+		for (int i = 0; i < endpoint_conns_num; i++)
+			if (endpoint_names[i])
 				free(endpoint_names[i]);
 
 		free(endpoint_names);
