@@ -3607,14 +3607,14 @@ int gpfdist_init(int argc, const char* const argv[])
 #ifndef WIN32
 	char	   *wd = getenv("GPFDIST_WATCHDOG_TIMER");
 	char	   *endptr;
-	long		val;
+	int64		val;
 
 	if (wd != NULL)
 	{
 		errno = 0;
 		val = strtol(wd, &endptr, 10);
 
-		if (errno || endptr == wd || val > INT_MAX)
+		if (errno || endptr == wd || val > INT_MAX || val < 0)
 		{
 			fprintf(stderr, "incorrect watchdog timer: %s\n", strerror(errno));
 			return -1;
