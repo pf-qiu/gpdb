@@ -18,10 +18,10 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test1: close not executed PARALLEL RETRIEVE CURSOR
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 1 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1: CLOSE c1;
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: SELECT auth_token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
 *U: @in_sh 'sub_endpoint_name @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
 
@@ -32,10 +32,10 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- test for a large table
 1: BEGIN;
 1: DECLARE c11 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t11;
-1: @out_sh 'parse_endpoint 11 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c11';
+1: @out_sh 'parse_endpoint 11 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c11';
 1: CLOSE c11;
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true) WHERE cursorname='c11';
+1: SELECT auth_token,status FROM gp_endpoints_info(true) WHERE cursorname='c11';
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
 *U: @in_sh 'sub_endpoint_name @ENDPOINT11': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT11';
 
@@ -58,7 +58,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: DECLARE c11 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 1: ROLLBACK;
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true);
+1: SELECT auth_token,status FROM gp_endpoints_info(true);
 
 -- Test3: execute non-existing PARALLEL RETRIEVE CURSOR
 1: BEGIN;
@@ -70,7 +70,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 1: ROLLBACK;
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true);
+1: SELECT auth_token,status FROM gp_endpoints_info(true);
 
 -- Test4: execute one of PARALLEL RETRIEVE CURSORs
 1: BEGIN;
@@ -85,7 +85,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: DECLARE c9 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 1: DECLARE c10 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 1: DECLARE c11 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 -- test check and wait in normal way
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
@@ -106,13 +106,13 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: DECLARE c1 CURSOR FOR SELECT * FROM t1;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true);
+1: SELECT auth_token,status FROM gp_endpoints_info(true);
 1: ROLLBACK;
 
 1: BEGIN;
 1: DECLARE c1 CURSOR FOR SELECT * FROM t1;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
@@ -126,7 +126,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test6: select order by limit
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1 ORDER BY a LIMIT 10;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
 *R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
@@ -141,7 +141,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test7: select order by limit 0
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1 ORDER BY a LIMIT 0;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 
@@ -157,7 +157,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test8: select empty table
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t2;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 
@@ -173,7 +173,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test9: select table with text column
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t3;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 
@@ -189,7 +189,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test10: select empty table with text column
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t4;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 
@@ -205,7 +205,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test11: endpoints on one segment.
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1 WHERE a = 50;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c1');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
@@ -221,7 +221,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test12: PARALLEL RETRIEVE CURSOR for aggregate function: sum
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT SUM(a) FROM t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c1');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
@@ -236,7 +236,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test13: PARALLEL RETRIEVE CURSOR for aggregate function: avg
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT AVG(a) FROM t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 
 -1U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
 -1R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
@@ -249,7 +249,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test14: PARALLEL RETRIEVE CURSOR for count(*)
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) FROM t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 -1U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
@@ -262,7 +262,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test15: PARALLEL RETRIEVE CURSOR for two tables' join;
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1, t5 where t1.a = t5.b;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 *R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
@@ -274,7 +274,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test16: PARALLEL RETRIEVE CURSOR for the count of two tables' join;
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) FROM t1, t5 where t1.a = t5.b;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 -1R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
@@ -286,7 +286,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test17: re-execute a PARALLEL RETRIEVE CURSOR and retrieve in same sessions.
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
@@ -295,7 +295,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1<:
 1: CLOSE c1;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
@@ -308,7 +308,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test18: re-execute a PARALLEL RETRIEVE CURSOR and retrieve in different sessions.
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
@@ -321,7 +321,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1<:
 1: CLOSE c1;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
@@ -335,7 +335,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: BEGIN;
 1: SAVEPOINT s1;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1: ROLLBACK TO s1;
 1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 
@@ -354,11 +354,11 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1q:
 1: BEGIN;
 1: DECLARE c21a PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) from t1;
-1: @out_sh 'get_cell TOKEN21a 3 1 ; match_sub $TOKEN21a token21a' : SELECT token FROM gp_endpoints_info(true) WHERE cursorname='c21a';
+1: @out_sh 'get_cell TOKEN21a 3 1 ; match_sub $TOKEN21a token21a' : SELECT auth_token FROM gp_endpoints_info(true) WHERE cursorname='c21a';
 -- Declare more cursors in the same session should not change the first one's token
 1: DECLARE c21b PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) from t1;
 1: DECLARE c21c PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
-1: SELECT token FROM gp_endpoints_info(true) WHERE cursorname='c21a';
+1: SELECT auth_token FROM gp_endpoints_info(true) WHERE cursorname='c21a';
 1: COMMIT;
 1q:
 -1Rq:
@@ -369,7 +369,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test22: UDF plan should be able to run on entry db.
 1: BEGIN;
 1: DECLARE c22 PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM generate_series(1,10);
-1: @out_sh 'parse_endpoint 22 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c22';
+1: @out_sh 'parse_endpoint 22 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c22';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c22');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT22': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT22';
@@ -387,7 +387,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test23: Catalog scan plan should be able to run on entry db.
 1: BEGIN;
 1: DECLARE c23 PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT relname FROM pg_class where relname='pg_class';
-1: @out_sh 'parse_endpoint 23 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c23';
+1: @out_sh 'parse_endpoint 23 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c23';
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c23');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT23': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT23';
@@ -404,9 +404,9 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: DECLARE "x12345678901234567890123456789012345678901234567890123456789x" PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM t5;
 1: DECLARE "x123456789012345678901234567890123456789012345678901234567890123456789x" PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM t5;
 1: DECLARE "x1234567890123456789012345678901234567890123456789012345678901x" PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM t5;
-1: @out_sh 'parse_endpoint 24 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789x';
-1: @out_sh 'parse_endpoint 24_1 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789012';
-1: @out_sh 'parse_endpoint 24_2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x1234567890123456789012345678901234567890123456789012345678901x';
+1: @out_sh 'parse_endpoint 24 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789x';
+1: @out_sh 'parse_endpoint 24_1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789012';
+1: @out_sh 'parse_endpoint 24_2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x1234567890123456789012345678901234567890123456789012345678901x';
 *R: @in_sh 'sub_endpoint_name @ENDPOINT24': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT24";
 *R: @in_sh 'sub_endpoint_name @ENDPOINT24_1': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT24_1";
 *R: @in_sh 'sub_endpoint_name @ENDPOINT24_2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT24_2";
@@ -421,7 +421,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- Test26: Retrieve one endpoint and quit the session, then connect the segment again and retrieve twice. No crash should happen.
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t5;
-1: @out_sh 'parse_endpoint 26 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 26 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 
 2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
 2Rq:

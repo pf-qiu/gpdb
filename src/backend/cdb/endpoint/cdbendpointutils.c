@@ -357,7 +357,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 		TupleDesc	tupdesc =
 		CreateTemplateTupleDesc(GP_ENDPOINTS_INFO_ATTRNUM, false);
 
-		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "token", TEXTOID, -1, 0);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "auth_token", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "cursorname", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 3, "sessionid", INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 4, "hostname", TEXTOID, -1, 0);
@@ -379,7 +379,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 		CdbPgResults cdb_pgresults = {NULL, 0};
 
 		CdbDispatchCommand(
-		 "SELECT endpointname,cursorname,token,dbid,status,senderpid,userid,"
+		 "SELECT endpointname,cursorname,auth_token,dbid,status,senderpid,userid,"
 					  "sessionid FROM pg_catalog.gp_endpoints_status_info()",
 					  DF_WITH_SNAPSHOT | DF_CANCEL_ON_ERROR, &cdb_pgresults);
 
@@ -585,7 +585,7 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 		/* build tuple descriptor */
 		TupleDesc	tupdesc = CreateTemplateTupleDesc(10, false);
 
-		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "token", TEXTOID, -1, 0);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "auth_token", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "databaseid", INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 3, "senderpid", INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 4, "receiverpid", INT4OID, -1, 0);

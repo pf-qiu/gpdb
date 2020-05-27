@@ -17,17 +17,17 @@ DECLARE
 DECLARE
 1: DECLARE c3 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
+1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
  endpoint_id3_1 | token_id | host_id | port_id | READY
  endpoint_id3_2 | token_id | host_id | port_id | READY
  endpoint_id3_3 | token_id | host_id | port_id | READY
@@ -273,17 +273,17 @@ DECLARE
 DECLARE
 1: DECLARE c6 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
+1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
  endpoint_id4_1 | token_id | host_id | port_id | READY
  endpoint_id4_2 | token_id | host_id | port_id | READY
  endpoint_id4_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
+1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
  endpoint_id5_1 | token_id | host_id | port_id | READY
  endpoint_id5_2 | token_id | host_id | port_id | READY
  endpoint_id5_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
+1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
  endpoint_id6_1 | token_id | host_id | port_id | READY
  endpoint_id6_2 | token_id | host_id | port_id | READY
  endpoint_id6_3 | token_id | host_id | port_id | READY

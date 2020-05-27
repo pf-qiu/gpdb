@@ -12,7 +12,7 @@ INSERT 100
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
@@ -162,26 +162,26 @@ DECLARE
 1: CLOSE c1;
 CLOSE
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- token | status 
--------+--------
+1: SELECT auth_token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+ auth_token | status 
+------------+--------
 (0 rows)
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
 *U: SELECT * FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c1';
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
 -- error out for closed cursor
@@ -195,7 +195,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
@@ -432,20 +432,20 @@ COMMIT
 (0 rows)
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
 *U: SELECT * FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c2';
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
- token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
--------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
+ auth_token | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid | endpointname | cursorname 
+------------+------------+-----------+-------------+--------+------+-----------+--------+--------------+------------
 (0 rows)
 
 -- error out for closed cursor
@@ -459,7 +459,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c3 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
+1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
  endpoint_id3_1 | token_id | host_id | port_id | READY
  endpoint_id3_2 | token_id | host_id | port_id | READY
  endpoint_id3_3 | token_id | host_id | port_id | READY
@@ -595,7 +595,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c4 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
+1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
  endpoint_id4_1 | token_id | host_id | port_id | READY
  endpoint_id4_2 | token_id | host_id | port_id | READY
  endpoint_id4_3 | token_id | host_id | port_id | READY
@@ -732,7 +732,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c5 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
+1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
  endpoint_id5_1 | token_id | host_id | port_id | READY
  endpoint_id5_2 | token_id | host_id | port_id | READY
  endpoint_id5_3 | token_id | host_id | port_id | READY
@@ -867,7 +867,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c6 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
+1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
  endpoint_id6_1 | token_id | host_id | port_id | READY
  endpoint_id6_2 | token_id | host_id | port_id | READY
  endpoint_id6_3 | token_id | host_id | port_id | READY
@@ -997,7 +997,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c61 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 61 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c61';
+1: @out_sh 'parse_endpoint 61 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c61';
  endpoint_id61_1 | token_id | host_id | port_id | READY
  endpoint_id61_2 | token_id | host_id | port_id | READY
  endpoint_id61_3 | token_id | host_id | port_id | READY
@@ -1126,7 +1126,7 @@ ERROR:  canceling statement due to user request
 BEGIN
 1: DECLARE c7 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 7 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c7';
+1: @out_sh 'parse_endpoint 7 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c7';
  endpoint_id7_1 | token_id | host_id | port_id | READY
  endpoint_id7_2 | token_id | host_id | port_id | READY
  endpoint_id7_3 | token_id | host_id | port_id | READY

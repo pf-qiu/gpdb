@@ -7,7 +7,7 @@ insert into t1 select generate_series(1,100);
 --------- Test1: Basic test for parallel retrieve interface & close cursor
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 *U: @in_sh 'sub_endpoint_name @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
@@ -16,7 +16,7 @@ insert into t1 select generate_series(1,100);
 1<:
 1: CLOSE c1;
 -- check no endpoint info
-1: SELECT token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: SELECT auth_token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
 *U: SELECT * FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c1';
 
@@ -27,7 +27,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test2: enhanced test for parallel retrieve interface status & cursor auto closed when transaction closed
 1: BEGIN;
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
 -- test RETRIEVE success on seg1
 0R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
@@ -62,7 +62,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test3: 2 retrieving sessions connect to the same endpoint report error & cancel QE exec backend
 1: BEGIN;
 1: DECLARE c3 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
+1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');
 0R: @in_sh 'sub_endpoint_name @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
 -- a new retrieve session should report error
@@ -90,7 +90,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test4: terminate (using signal QUIT) QE exec backend
 1: BEGIN;
 1: DECLARE c4 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
+1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c4');
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
 0R: @in_sh 'sub_endpoint_name @ENDPOINT4': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT4";
@@ -119,7 +119,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test5: terminate (using signal TERM) QE exec backend
 1: BEGIN;
 1: DECLARE c5 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
+1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c5');
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
 0R: @in_sh 'sub_endpoint_name @ENDPOINT5': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT5";
@@ -147,7 +147,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test6: Cancel (using signal INT) the process of 'CHECK PARALLEL RETRIEVE CURSOR'
 1: BEGIN;
 1: DECLARE c6 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
+1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
 -- get backend pid of this session which run 'gp_wait_parallel_retrieve_cursor'
 1: @out_sh 'get_cell PID61 3 1 ; sub "${PID61}[ \t]*" QDPid61': select pg_backend_pid();
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c6');
@@ -171,7 +171,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test6.1: Cancel (using signal INT) the process of 'CHECK PARALLEL RETRIEVE CURSOR' without rollback
 1: BEGIN;
 1: DECLARE c61 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 61 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c61';
+1: @out_sh 'parse_endpoint 61 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c61';
 -- get backend pid of this session which run 'gp_wait_parallel_retrieve_cursor'
 1: @out_sh 'get_cell PID611 3 1 ; sub "${PID611}[ \t]*" QDPid611': select pg_backend_pid();
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c61');
@@ -196,7 +196,7 @@ insert into t1 select generate_series(1,100);
 ---------- Test7: terminate (using signal QUIT) the process of 'CHECK PARALLEL RETRIEVE CURSOR'
 1: BEGIN;
 1: DECLARE c7 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 7 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c7';
+1: @out_sh 'parse_endpoint 7 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c7';
 -- get backend pid of this session which run 'gp_wait_parallel_retrieve_cursor'
 1: @out_sh 'get_cell PID71 3 1 ; sub "${PID71}[ \t]*" QDPid71': select pg_backend_pid();
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c7');

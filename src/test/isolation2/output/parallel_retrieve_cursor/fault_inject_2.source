@@ -28,7 +28,7 @@ CREATE
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t2;
 DECLARE
-1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
  endpoint_id6_1 | token_id | host_id | port_id | READY
  endpoint_id6_2 | token_id | host_id | port_id | READY
  endpoint_id6_3 | token_id | host_id | port_id | READY

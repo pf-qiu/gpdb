@@ -15,7 +15,7 @@ $$ LANGUAGE SQL;
 -- Test: Declare a cursor
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 
 -- Test: Should not change gp_session_role and gp_role in retrieve mode
 0R: set gp_session_role to 'utility';

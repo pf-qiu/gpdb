@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
 
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t2;
-1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
 0U: SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c1';

@@ -16,7 +16,7 @@ insert into rt1 select generate_series(1,100);
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions, 
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 1 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @out_sh 'parse_endpoint 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');
@@ -52,7 +52,7 @@ insert into rt1 select generate_series(1,100);
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions, 
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');
@@ -88,7 +88,7 @@ insert into rt1 select generate_series(1,100);
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions, 
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 3 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @out_sh 'parse_endpoint 3 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');
@@ -124,7 +124,7 @@ insert into rt1 select generate_series(1,100);
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions, 
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 4 1 2 3 4': SELECT endpointname,token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @out_sh 'parse_endpoint 4 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');

@@ -148,9 +148,9 @@
 
  CREATE FUNCTION get_ao_compression_ratio(regclass) RETURNS float8 LANGUAGE internal VOLATILE STRICT READS SQL DATA AS 'get_ao_compression_ratio' WITH (OID=7171, DESCRIPTION="show append only table compression ratio");
 
- CREATE FUNCTION gp_endpoints_info(IN isall bool, OUT token text, OUT cursorname text, OUT sessionid int4, OUT hostname text, OUT port int4, OUT dbid int4, OUT userid oid, OUT status text, OUT endpointname text) RETURNS SETOF record LANGUAGE internal VOLATILE EXECUTE ON MASTER AS 'gp_endpoints_info' WITH (OID=7178, DESCRIPTION="mpp endpoints information");
+ CREATE FUNCTION gp_endpoints_info(IN isall bool, OUT auth_token text, OUT cursorname text, OUT sessionid int4, OUT hostname text, OUT port int4, OUT dbid int4, OUT userid oid, OUT status text, OUT endpointname text) RETURNS SETOF record LANGUAGE internal VOLATILE EXECUTE ON MASTER AS 'gp_endpoints_info' WITH (OID=7178, DESCRIPTION="mpp endpoints information");
 
- CREATE FUNCTION gp_endpoints_status_info(OUT token text, OUT databaseid int4, OUT senderpid int4, OUT receiverpid int4, OUT status text, OUT dbid int4, OUT sessionid int4, OUT userid oid, OUT endpointname text, OUT cursorname text) RETURNS SETOF record LANGUAGE internal VOLATILE EXECUTE ON ANY AS 'gp_endpoints_status_info' WITH (OID=7179, DESCRIPTION="endpoints status information");
+ CREATE FUNCTION gp_endpoints_status_info(OUT auth_token text, OUT databaseid int4, OUT senderpid int4, OUT receiverpid int4, OUT status text, OUT dbid int4, OUT sessionid int4, OUT userid oid, OUT endpointname text, OUT cursorname text) RETURNS SETOF record LANGUAGE internal VOLATILE EXECUTE ON ANY AS 'gp_endpoints_status_info' WITH (OID=7179, DESCRIPTION="endpoints status information");
 
  CREATE FUNCTION gp_check_parallel_retrieve_cursor(IN cursorname text, OUT finished bool) RETURNS bool LANGUAGE internal VOLATILE EXECUTE ON ANY AS 'gp_check_parallel_retrieve_cursor' WITH (OID=7180, DESCRIPTION="check whether all endpoint of this parallel retrieve cursor has been retrieved finished ");
  

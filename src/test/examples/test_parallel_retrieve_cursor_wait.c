@@ -142,7 +142,7 @@ exec_parallel_cursor_threadfunc(void *master_conn)
 		exit(1);
 	return NULL;
 }
-
+f
 int
 main(int argc, char **argv)
 {
@@ -212,7 +212,7 @@ main(int argc, char **argv)
 	/*
 	 * get the endpoints info of this PARALLEL RETRIEVE CURSOR
 	 */
-	const char *sql1 = "select hostname,port,token,endpointname from pg_catalog.gp_endpoints where cursorname='myportal';";
+	const char *sql1 = "select hostname,port,auth_token,endpointname from pg_catalog.gp_endpoints where cursorname='myportal';";
 
 	printf("\nExec SQL on Master:\n\t> %s\n", sql1);
 	res1 = PQexec(master_conn, sql1);
