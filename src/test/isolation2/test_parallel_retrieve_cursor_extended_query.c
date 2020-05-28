@@ -17,7 +17,7 @@
 static void
 finish_conn_nicely(PGconn *master_conn, PGconn *endpoint_conns[], size_t endpoint_conns_num)
 {
-	int i;
+	int			i;
 
 	if (master_conn)
 		PQfinish(master_conn);
@@ -45,11 +45,14 @@ check_prepare_conn(PGconn *conn, const char *dbName, int conn_idx)
 		exit(1);
 	}
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 	{
-		/* Set always-secure search path, so malicous users can't take control. */
+		/*
+		 * Set always-secure search path, so malicous users can't take
+		 * control.
+		 */
 		res = PQexec(conn,
-					"SELECT pg_catalog.set_config('search_path', '', false)");
+				   "SELECT pg_catalog.set_config('search_path', '', false)");
 		if (PQresultStatus(res) != PGRES_TUPLES_OK)
 		{
 			fprintf(stderr, "SET failed: %s", PQerrorMessage(conn));
@@ -59,13 +62,14 @@ check_prepare_conn(PGconn *conn, const char *dbName, int conn_idx)
 		PQclear(res);
 	}
 }
+
 /* execute sql and check it is a command without result set returned */
 static int
 exec_sql_without_resultset(PGconn *conn, const char *sql, int conn_idx)
 {
 	PGresult   *res1;
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 		printf("\nExec SQL on Master:\n\t> %s\n", sql);
 	else
 		printf("\nExec SQL on EndPoint[%d]:\n\t> %s\n", conn_idx, sql);
@@ -92,24 +96,27 @@ exec_sql_with_resultset_in_extended_query_protocol(PGconn *conn, const char *sql
 {
 	PGresult   *res1;
 	int			nFields;
-	int			i,j;
+	int			i,
+				j;
 	const char *paramValues[1];
 
 	paramValues[0] = "0";
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 		printf("\nExec SQL on Master:\n\t> %s\n", sql);
 	else
 		printf("\nExec SQL on EndPoint[%d]:\n\t> %s\n", conn_idx, sql);
 
-	/* Just for simplicity, here for different connect index,
-	 * call different API in the extended query protocol
+	/*
+	 * Just for simplicity, here for different connect index, call different
+	 * API in the extended query protocol
 	 */
-	switch (conn_idx){
+	switch (conn_idx)
+	{
 		case 0:
 			res1 = PQprepare(conn, "extend_query_cursor",
-			                 sql,
-			                 0, NULL);
+							 sql,
+							 0, NULL);
 
 			if (PQresultStatus(res1) != PGRES_TUPLES_OK && PQresultStatus(res1) != PGRES_COMMAND_OK)
 			{
@@ -118,7 +125,7 @@ exec_sql_with_resultset_in_extended_query_protocol(PGconn *conn, const char *sql
 				return 1;
 			}
 			res1 = PQexecPrepared(conn, "extend_query_cursor", 0,
-			                      paramValues, NULL, NULL, 0);
+								  paramValues, NULL, NULL, 0);
 
 			if (PQresultStatus(res1) != PGRES_TUPLES_OK)
 			{
@@ -129,13 +136,13 @@ exec_sql_with_resultset_in_extended_query_protocol(PGconn *conn, const char *sql
 			break;
 		case 1:
 			res1 = PQexecParams(conn,
-			                   sql,
-			                   0,       /* one param */
-			                   NULL,    /* let the backend deduce param type */
-			                   paramValues,
-			                   NULL,    /* don't need param lengths since text */
-			                   NULL,    /* default to all text params */
-			                   0);       /* ask for binary results */
+								sql,
+								0,		/* one param */
+								NULL,	/* let the backend deduce param type */
+								paramValues,
+								NULL,	/* don't need param lengths since text */
+								NULL,	/* default to all text params */
+								0);		/* ask for binary results */
 			if (PQresultStatus(res1) != PGRES_TUPLES_OK)
 			{
 				fprintf(stderr, "PQexecParams() didn't return tuples properly: \"%s\"\nfailed %s", sql, PQerrorMessage(conn));
@@ -180,9 +187,10 @@ exec_sql_with_resultset(PGconn *conn, const char *sql, int conn_idx)
 {
 	PGresult   *res1;
 	int			nFields;
-	int			i,j;
+	int			i,
+				j;
 
-	if(conn_idx == MASTER_CONNECT_INDEX)
+	if (conn_idx == MASTER_CONNECT_INDEX)
 		printf("\nExec SQL on Master:\n\t> %s\n", sql);
 	else
 		printf("\nExec SQL on EndPoint[%d]:\n\t> %s\n", conn_idx, sql);;
@@ -217,16 +225,19 @@ exec_sql_with_resultset(PGconn *conn, const char *sql, int conn_idx)
 static int
 exec_check_parallel_cursor(PGconn *master_conn, int isCheckFinish)
 {
-	int 	   result = 0;
+	int			result = 0;
 	PGresult   *res1;
 	const char *check_sql = "SELECT * FROM gp_check_parallel_retrieve_cursor('myportal');";
 
 
 	printf("\n------ Begin checking parallel retrieve cursor status ------\n");
 	/* call wait mode monitor UDF and it will wait for finish retrieving. */
-	if(!isCheckFinish){
+	if (!isCheckFinish)
+	{
 		result = exec_sql_with_resultset(master_conn, check_sql, MASTER_CONNECT_INDEX);
-	}else{
+	}
+	else
+	{
 		printf("\nExec SQL on Master:\n\t> %s\n", check_sql);
 		res1 = PQexec(master_conn, check_sql);
 		if (PQresultStatus(res1) != PGRES_TUPLES_OK)
@@ -246,7 +257,7 @@ exec_check_parallel_cursor(PGconn *master_conn, int isCheckFinish)
 
 		result = strcmp(PQgetvalue(res1, 0, 0), "t");
 		PQclear(res1);
-		if(result)
+		if (result)
 		{
 			fprintf(stderr, "\"%s\" doesn't return 'true'\n", check_sql);
 			return 1;
@@ -265,15 +276,16 @@ main(int argc, char **argv)
 			   *pgoptions,
 			   *pgoptions_retrieve_mode,
 			   *pgtty;
-	char	   *dbName, *dbUser;
+	char	   *dbName,
+			   *dbUser;
 	int			i;
-	int			retVal;  /* return value for this func */
+	int			retVal;			/* return value for this func */
 
 	PGconn	   *master_conn,
 			  **endpoint_conns = NULL;
 	size_t		endpoint_conns_num = 0;
-	char	   **tokens = NULL,
-			   **endpoint_names = NULL;
+	char	  **tokens = NULL,
+			  **endpoint_names = NULL;
 
 
 	/*
@@ -316,8 +328,8 @@ main(int argc, char **argv)
 		goto LABEL_ERR;
 
 	/*
-	 * start a transaction block because PARALLEL RETRIEVE CURSOR only support WITHOUT
-	 * HOLD option
+	 * start a transaction block because PARALLEL RETRIEVE CURSOR only support
+	 * WITHOUT HOLD option
 	 */
 	if (exec_sql_without_resultset(master_conn, "BEGIN;", MASTER_CONNECT_INDEX) != 0)
 		goto LABEL_ERR;
@@ -359,8 +371,8 @@ main(int argc, char **argv)
 	 */
 	for (i = 0; i < ntup; i++)
 	{
-		char* host = PQgetvalue(res1, i, 0);
-		char* port = PQgetvalue(res1, i, 1);
+		char	   *host = PQgetvalue(res1, i, 0);
+		char	   *port = PQgetvalue(res1, i, 1);
 
 		tokens[i] = strdup(PQgetvalue(res1, i, 2));
 		endpoint_names[i] = strdup(PQgetvalue(res1, i, 3));
@@ -373,30 +385,34 @@ main(int argc, char **argv)
 	PQclear(res1);
 
 	/*
-	 * Now the endpoint becomes 'READY' after "DECLARE ... PARALLEL RETRIEVE CURSOR" returns,
-	 * then we can retrieve the result of the endpoints in parallel. This section can be
-	 * executed parallely on different host or in different threads/processes on the same
-	 * host. For simplicity, here just use loop in one process.
+	 * Now the endpoint becomes 'READY' after "DECLARE ... PARALLEL RETRIEVE
+	 * CURSOR" returns, then we can retrieve the result of the endpoints in
+	 * parallel. This section can be executed parallely on different host or
+	 * in different threads/processes on the same host. For simplicity, here
+	 * just use loop in one process.
 	 */
 	for (i = 0; i < endpoint_conns_num; i++)
 	{
 		char		sql[256];
 
 		/*
-		* Run nowait mode monitor UDF to check the parallel retrieve cursor status
-		* at specific time in master connection, so that if any error occurs, it
-		* will detect ASAP.
-		*/
+		 * Run nowait mode monitor UDF to check the parallel retrieve cursor
+		 * status at specific time in master connection, so that if any error
+		 * occurs, it will detect ASAP.
+		 */
 		if (exec_check_parallel_cursor(master_conn, 0))
 		{
 			fprintf(stderr, "Error during check the PARALLEL RETRIEVE CURSOR\n");
 			goto LABEL_ERR;
 		}
 
-		/* the endpoint is ready to be retrieved when 'DECLARE PARALLEL RETRIEVE CURSOR returns, here begin to retrieve */
+		/*
+		 * the endpoint is ready to be retrieved when 'DECLARE PARALLEL
+		 * RETRIEVE CURSOR returns, here begin to retrieve
+		 */
 		printf("\n------ Begin retrieving data from Endpoint %d# ------\n", i);
 		snprintf(sql, sizeof(sql), "RETRIEVE ALL FROM ENDPOINT %s;", endpoint_names[i]);
-		if(exec_sql_with_resultset_in_extended_query_protocol(endpoint_conns[i], sql, i))
+		if (exec_sql_with_resultset_in_extended_query_protocol(endpoint_conns[i], sql, i))
 		{
 			fprintf(stderr, "Error during retrieving result on endpoint.\n");
 			goto LABEL_ERR;
@@ -434,10 +450,11 @@ LABEL_FINISH:
 
 	if (tokens)
 	{
-		int i;
+		int			i;
+
 		for (i = 0; i < endpoint_conns_num; i++)
 		{
-			if(tokens[i])
+			if (tokens[i])
 				free(tokens[i]);
 		}
 		free(tokens);
@@ -445,9 +462,9 @@ LABEL_FINISH:
 
 	if (endpoint_names)
 	{
-		for (i=0; i< endpoint_conns_num; i++)
+		for (i = 0; i < endpoint_conns_num; i++)
 		{
-			if(endpoint_names[i])
+			if (endpoint_names[i])
 				free(endpoint_names[i]);
 		}
 		free(endpoint_names);

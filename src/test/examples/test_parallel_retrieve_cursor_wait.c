@@ -142,7 +142,7 @@ exec_parallel_cursor_threadfunc(void *master_conn)
 		exit(1);
 	return NULL;
 }
-f
+
 int
 main(int argc, char **argv)
 {
