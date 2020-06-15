@@ -335,7 +335,7 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 				  endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole))));
 	}
 	Assert(endpointDesc->mqDsmHandle != DSM_HANDLE_INVALID);
-	if (endpointDesc->userID != GetUserId())
+	if (endpointDesc->userID != GetSessionUserId())
 	{
 		ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 						errmsg("the PARALLEL RETRIEVE CURSOR was created by "

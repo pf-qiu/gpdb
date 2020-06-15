@@ -86,7 +86,7 @@ gp_endpoints_info Columns:
 |-------------+-----------+------------------------------------------|
 | dbid        | integer   | The QE's segment id                      |
 |-------------+-----------+------------------------------------------|
-| userid      | oid       | The user who created this endpoint       |
+| userid      | oid       | The oid of the session user              |
 |-------------+-----------+------------------------------------------|
 | status      | text      | One of the following status for this     |
 |             |           | endpoint:                                |
@@ -125,14 +125,18 @@ postgres=# SELECT * from GP_ENDPOINTS;
  tk19030000313f450b16bcef3f196e7e47 | c1         |      5383 | mdw      | 25434 |    4 |     10 | READY  | c1_00001507_00000002
 (3 rows)
 
+The userid of the endpoint is the session user, not the current user. For example, 
+if login the database with "user1", then set role to another user "user2" and declare a parallel retrieve cursor.
+The userid of these endpoints is "user1" 's oid, not "user2". The session user should be used to start
+a retrieve connection. 
 
 Start A Retrieve Session
 ========================
 
 Once a parallel retrieve cursor has been declared, retrieve sessions can
 be started on each endpoint's host by using the endpoint's token as the
-session authentication password. The user of this retrieve session is the role who declares
-this parallel retrieve cursor. 
+session authentication password. The user of this retrieve session is the session user 
+who declares this parallel retrieve cursor. 
  
 Parameter "gp_session_role=retrieve" needs to be provided to start retrieve
 session.
@@ -151,6 +155,7 @@ needs login permission. Otherwise this role is not allowed to login, even with c
 
 Multiple parallel retrieve cursors can be retrieved from the same retrieve
 session as long as their token is the same.
+
 
 
 Retrieve From Endpoint

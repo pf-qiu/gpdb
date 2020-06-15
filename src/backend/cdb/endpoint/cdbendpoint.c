@@ -116,14 +116,9 @@ typedef struct SessionTokenTag
  *
  * The issue here is that there is no way to register clean function during
  * session exit on segments(QE exit does not mean session exit). So we
- * register transaction callback(session_info_clean_callback) to clean
+ * register transaction callback(clean_session_token_info) to clean
  * entries for each transaction exit callback instead. And create new entry
  * if not exists.
- *
- * Since in a transaction, user can 'SET ROLE' to a different user,
- * EndpointCtl.sender.sessionUserList is used to track userIDs.
- * When clean callback(session_info_clean_callback) executes, it removes
- * all entries for these users.
  */
 typedef struct SessionInfoEntry
 {
@@ -455,7 +450,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 				sharedEndpoints[i].databaseID = MyDatabaseId;
 				sharedEndpoints[i].mqDsmHandle = DSM_HANDLE_INVALID;
 				sharedEndpoints[i].sessionID = gp_session_id;
-				sharedEndpoints[i].userID = GetUserId();
+				sharedEndpoints[i].userID = GetSessionUserId();
 				sharedEndpoints[i].senderPid = InvalidPid;
 				sharedEndpoints[i].receiverPid = InvalidPid;
 				sharedEndpoints[i].empty = false;
@@ -496,7 +491,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	StrNCpy(sharedEndpoints[i].cursorName, cursorName, NAMEDATALEN);
 	sharedEndpoints[i].databaseID = MyDatabaseId;
 	sharedEndpoints[i].sessionID = gp_session_id;
-	sharedEndpoints[i].userID = GetUserId();
+	sharedEndpoints[i].userID = GetSessionUserId();
 	sharedEndpoints[i].senderPid = MyProcPid;
 	sharedEndpoints[i].receiverPid = InvalidPid;
 	sharedEndpoints[i].attachStatus = Status_Ready;
@@ -597,9 +592,9 @@ init_session_info_entry(void)
 	const int8 *token = NULL;
 
 	tag.sessionID = gp_session_id;
-	tag.userID = GetUserId();
+	tag.userID = GetSessionUserId();
 
-	/* track current session id for session_info_clean_callback  */
+	/* track current session id for clean_session_token_info  */
 	EndpointCtl.sessionID = gp_session_id;
 
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
@@ -618,7 +613,7 @@ init_session_info_entry(void)
 		MemoryContext oldMemoryCtx = MemoryContextSwitchTo(TopMemoryContext);
 
 		EndpointCtl.sender.sessionUserList = lappend_oid(
-							EndpointCtl.sender.sessionUserList, GetUserId());
+							EndpointCtl.sender.sessionUserList, GetSessionUserId());
 		MemoryContextSwitchTo(oldMemoryCtx);
 
 		token = get_or_create_token();
@@ -643,7 +638,7 @@ init_session_info_entry(void)
 	 * Overwrite exists token in case the wrapped session id entry not get
 	 * removed For example, 1 hours ago, a session 7 exists and have entry
 	 * with token 123. And for some reason the entry not get remove by
-	 * session_info_clean_callback. Now current session is session 7 again.
+	 * clean_session_token_info. Now current session is session 7 again.
 	 * Here need to overwrite the old token.
 	 */
 	LWLockRelease(ParallelCursorEndpointLock);
@@ -770,7 +765,7 @@ unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
 	SessionTokenTag tag;
 
 	tag.sessionID = gp_session_id;
-	tag.userID = GetUserId();
+	tag.userID = GetSessionUserId();
 
 	if (!endPointDesc || endPointDesc->empty)
 	{
@@ -1084,7 +1079,7 @@ static void
 clean_session_token_info()
 {
 	elog(DEBUG3,
-	  "CDB_ENDPOINT: session_info_clean_callback clean token for session %d",
+	  "CDB_ENDPOINT: clean_session_token_info clean token for session %d",
 		 EndpointCtl.sessionID);
 
 	if (EndpointCtl.sender.sessionUserList &&
