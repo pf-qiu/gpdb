@@ -609,13 +609,6 @@ init_session_info_entry(void)
 	 */
 	if (!found)
 	{
-		/* Track userID in current transaction */
-		MemoryContext oldMemoryCtx = MemoryContextSwitchTo(TopMemoryContext);
-
-		EndpointCtl.sender.sessionUserList = lappend_oid(
-							EndpointCtl.sender.sessionUserList, GetSessionUserId());
-		MemoryContextSwitchTo(oldMemoryCtx);
-
 		token = get_or_create_token();
 		memcpy(infoEntry->token, token, ENDPOINT_TOKEN_LEN);
 
@@ -1082,39 +1075,26 @@ clean_session_token_info()
 	  "CDB_ENDPOINT: clean_session_token_info clean token for session %d",
 		 EndpointCtl.sessionID);
 
-	if (EndpointCtl.sender.sessionUserList &&
-		EndpointCtl.sender.sessionUserList->length > 0)
+
+	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
+	SessionTokenTag tag;
+
+	tag.sessionID = EndpointCtl.sessionID;
+	tag.userID = GetSessionUserId();
+
+	SessionInfoEntry *infoEntry = (SessionInfoEntry *) hash_search(
+					   sharedSessionInfoHash, &tag, HASH_FIND, NULL);
+
+	if (infoEntry && infoEntry->endpointCounter == 0)
 	{
-		ListCell   *cell;
-
-		LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
-		foreach(cell, EndpointCtl.sender.sessionUserList)
-		{
-			SessionTokenTag tag;
-
-			/*
-			 * When proc exit, the gp_session_id is -1, so use our record
-			 * session id instead
-			 */
-			tag.sessionID = EndpointCtl.sessionID;
-			tag.userID = lfirst_oid(cell);
-
-			SessionInfoEntry *infoEntry = (SessionInfoEntry *) hash_search(
-							   sharedSessionInfoHash, &tag, HASH_FIND, NULL);
-
-			if (infoEntry && infoEntry->endpointCounter == 0)
-			{
-				hash_search(sharedSessionInfoHash, &tag, HASH_REMOVE, NULL);
-				elog(DEBUG3,
-					 "CDB_ENDPOINT: clean_session_token_info removes existing entry for "
-					 "user id: %u, session: %d",
-					 tag.userID, EndpointCtl.sessionID);
-			}
-		}
-		LWLockRelease(ParallelCursorEndpointLock);
-		list_free(EndpointCtl.sender.sessionUserList);
-		EndpointCtl.sender.sessionUserList = NULL;
+		hash_search(sharedSessionInfoHash, &tag, HASH_REMOVE, NULL);
+		elog(DEBUG3,
+			 "CDB_ENDPOINT: clean_session_token_info removes existing entry for "
+			 "user id: %u, session: %d",
+			 tag.userID, EndpointCtl.sessionID);
 	}
+
+	LWLockRelease(ParallelCursorEndpointLock);
 }
 
 /*

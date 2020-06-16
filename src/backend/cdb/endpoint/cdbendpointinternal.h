@@ -118,12 +118,6 @@ typedef struct EndpointControl
 	 */
 	int			sessionID;
 
-	struct sender
-	{
-		/* Track userIDs to clean up SessionInfoEntry when transaction exit */
-		List	   *sessionUserList;
-	}			sender;
-
 	struct receiver
 	{
 		/* Track current msg queue entry for running RETRIEVE statement */
