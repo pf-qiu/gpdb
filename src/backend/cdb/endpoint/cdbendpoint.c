@@ -395,6 +395,8 @@ DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	unset_endpoint_sender_pid(state->endpoint);
 	LWLockRelease(ParallelCursorEndpointLock);
+	/* Notify QD */
+	cdbdisp_sendAckMessageToQD(ENDPOINT_FINISHED_ACK);
 
 	/*
 	 * If all data get sent, hang the process and wait for QD to close it. The
@@ -775,14 +777,6 @@ unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
 	if (MyProcPid == endPointDesc->senderPid)
 	{
 		endPointDesc->senderPid = InvalidPid;
-		sessionInfoEntry =
-			hash_search(sharedSessionInfoHash, &tag, HASH_FIND, NULL);
-
-		/* sessionInfoEntry may get removed. This means xact finished. */
-		if (sessionInfoEntry)
-		{
-			cdbdisp_sendAckMessageToQD(ENDPOINT_FINISHED_ACK);
-		}
 	}
 }
 
@@ -795,7 +789,6 @@ abort_endpoint(struct ParallelRtrvCursorSenderState * state)
 	if (state->endpoint)
 	{
 		LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
-
 		/*
 		 * These two better be called in one lock section. So retriever abort
 		 * will not execute extra works.
@@ -803,6 +796,8 @@ abort_endpoint(struct ParallelRtrvCursorSenderState * state)
 		unset_endpoint_sender_pid(state->endpoint);
 		free_endpoint(state->endpoint);
 		LWLockRelease(ParallelCursorEndpointLock);
+		/* Notify QD */
+		cdbdisp_sendAckMessageToQD(ENDPOINT_FINISHED_ACK);
 		state->endpoint = NULL;
 	}
 
