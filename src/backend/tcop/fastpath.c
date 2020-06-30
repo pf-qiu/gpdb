@@ -35,6 +35,8 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 
+#include "cdb/cdbvars.h"
+
 
 /*
  * Formerly, this code attempted to cache the function and type info
@@ -270,6 +272,11 @@ HandleFunctionRequest(StringInfo msgBuf)
 	bool		callit;
 	bool		was_logged = false;
 	char		msec_str[32];
+
+	if (Gp_role == GP_ROLE_RETRIEVE)
+		ereport(ERROR,
+				(errcode(ERRCODE_GP_COMMAND_ERROR),
+				 errmsg("function call is not allowed in retrieve mode")));
 
 	/*
 	 * We only accept COMMIT/ABORT if we are in an aborted transaction, and

@@ -162,7 +162,6 @@ exec_sql_with_resultset_in_extended_query_protocol(PGconn *conn, const char *sql
 			break;
 	}
 
-
 	/* first, print out the attribute names */
 	nFields = PQnfields(res1);
 	for (i = 0; i < nFields; i++)
@@ -436,6 +435,82 @@ main(int argc, char **argv)
 	if (exec_sql_without_resultset(master_conn, "END;", MASTER_CONNECT_INDEX) != 0)
 		goto LABEL_ERR;
 
+	/*
+	 * Test the fast path(PQfn) is forbidden in retrieve mode.
+	 */
+	{
+		printf("\n------ Begin to test fast path(PQfn) in retrieve mode # ------.\n");
+		Oid			foid;
+		PQArgBlock	argv[2];
+		PGresult   *res;
+		int			ret;
+		int			result_len;
+		const char *query;
+
+		query = "SELECT oid FROM pg_catalog.pg_proc WHERE proname LIKE 'mod' "
+			"AND prosrc LIKE 'int4mod'";
+		res = PQexec(master_conn, query);
+		if (res == NULL)
+		{
+			printf("Failed in executing SQL: %s \n", query);
+			goto LABEL_ERR;
+		}
+
+		if (PQresultStatus(res) != PGRES_TUPLES_OK)
+		{
+			PQclear(res);
+			printf("Can not find the mod() function. \n");
+			goto LABEL_ERR;
+		}
+
+		foid = (Oid) atoi(PQgetvalue(res, 0, 0));
+		PQclear(res);
+
+		if (foid == InvalidOid)
+		{
+			goto LABEL_ERR;
+		}
+
+		/*
+		 * Calculate the mod of argv[0] and argv[1], mod(10, 3) via master
+		 * connection, can get the correct result.
+		 */
+		argv[0].isint = 1;
+		argv[0].len = 4;
+		argv[0].u.integer = 10;
+
+		argv[1].isint = 1;
+		argv[1].len = 4;
+		argv[1].u.integer = 3;
+
+		res = PQfn(master_conn, foid, &ret, &result_len, 1, argv, 2);
+		if (PQresultStatus(res) == PGRES_COMMAND_OK)
+		{
+			PQclear(res);
+			printf("Get the result of mod(10, 3) : %d \n", ret);
+		}
+		else
+		{
+			printf("test PQfn error: %s \n", PQresultErrorMessage(res));
+			PQclear(res);
+			goto LABEL_ERR;
+		}
+
+		/*
+		 * Call PQfn() via retrieve mode connection should be forbidden.
+		 */
+		res = PQfn(endpoint_conns[0], foid, &ret, &result_len, 1, argv, 2);
+		if (PQresultStatus(res) == PGRES_COMMAND_OK)
+		{
+			printf("Call PQfn() via retrieve mode connection should be forbidden: %d \n", PQresultStatus(res));
+			PQclear(res);
+			goto LABEL_ERR;
+		}
+		printf("Call PQfn() via retrieve mode connection: %s \n", PQresultErrorMessage(res));
+
+		PQclear(res);
+		printf("\n------ End of testing fast path(PQfn) in retrieve mode # ------.\n");
+	}
 
 	/* fclose(debug); */
 	retVal = 0;
