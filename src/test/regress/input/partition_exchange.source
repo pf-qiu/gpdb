@@ -1,0 +1,73 @@
+CREATE EXTERNAL WEB TABLE exttab1_gpfdist_start (x text)
+execute E'((gpfdist -p 7070 -d /tmp  </dev/null >/dev/null 2>&1 &); for i in `seq 1 10`; do curl 127.0.0.1:7070 >/dev/null 2>&1 && break; sleep 1; done; echo "starting...") '
+on SEGMENT 0
+FORMAT 'text' (delimiter '|');
+
+CREATE EXTERNAL WEB TABLE exttab1_gpfdist_stop (x text)
+execute E'(ps -A -o pid,comm |grep [g]pfdist |grep -v postgres: |awk \'{print $1;}\' |xargs kill) > /dev/null 2>&1; echo "stopping..."'
+on SEGMENT 0
+FORMAT 'text' (delimiter '|');
+
+-- start_ignore
+select * from exttab1_gpfdist_stop;
+select * from exttab1_gpfdist_start;
+-- end_ignore
+
+CREATE TEMP TABLE part_1_level_temp(a int);
+
+CREATE WRITABLE EXTERNAL TABLE ext_p1_w(a int, b int) LOCATION('gpfdist://127.0.0.1:7070/p1.csv') FORMAT 'csv';
+CREATE EXTERNAL TABLE ext_p1_r(a int, b int) LOCATION('gpfdist://127.0.0.1:7070/p1.csv') FORMAT 'csv';
+
+CREATE TABLE part_1_level(a int, b int) DISTRIBUTED BY(a)
+PARTITION BY RANGE (b)
+(START (1) END (21) EVERY (10));
+
+-- load data into every partition of part_1_level
+INSERT INTO part_1_level_temp SELECT generate_series(1,5);
+INSERT INTO part_1_level SELECT a, generate_series(1,20) FROM part_1_level_temp;
+SELECT count(*) FROM part_1_level;
+
+-- dump one partition of part_1_level, for exchange
+INSERT INTO ext_p1_w SELECT * FROM part_1_level_1_prt_1;
+
+-- exchange partition
+ALTER TABLE part_1_level
+EXCHANGE PARTITION "1"
+WITH TABLE ext_p1_r WITHOUT VALIDATION;
+
+-- check whether the partition is really exchanged
+\d part_1_level_1_prt_1
+
+-- check content, should be same with above result
+SELECT count(*) FROM part_1_level;
+
+CREATE WRITABLE EXTERNAL TABLE ext_2_level_p1_w(a int, b int, c int) LOCATION('gpfdist://127.0.0.1:7070/2level_p1.csv') FORMAT 'csv';
+CREATE EXTERNAL TABLE ext_2_level_p1_r(a int, b int, c int) LOCATION('gpfdist://127.0.0.1:7070/2level_p1.csv') FORMAT 'csv';
+
+CREATE TABLE part_2_level(a int, b int, c int) DISTRIBUTED BY(a)
+PARTITION BY RANGE (b)
+SUBPARTITION BY RANGE (c)
+SUBPARTITION TEMPLATE (START (1) END (21) EVERY (10))
+(START (1) END (21) EVERY (10));
+
+INSERT INTO part_2_level SELECT a, b, generate_series(1, 20) FROM part_1_level;
+SELECT count(*) FROM part_2_level;
+
+-- dump one partition of part_1_level, for exchange
+INSERT INTO ext_2_level_p1_w SELECT * FROM part_2_level_1_prt_1_2_prt_1;
+
+-- exchange partition
+ALTER TABLE part_2_level ALTER PARTITION "1"
+EXCHANGE PARTITION "1"
+WITH TABLE ext_2_level_p1_r WITHOUT VALIDATION;
+
+
+-- check whether the subpartition is really exchanged
+\d part_2_level_1_prt_1_2_prt_1
+
+-- check content, should be same with above result
+SELECT count(*) FROM part_2_level;
+
+-- start_ignore
+select * from exttab1_gpfdist_stop;
+-- end_ignore
