@@ -1,0 +1,5 @@
+# ext_fdw extension
+comment = 'foreign-data wrapper for flat file access'
+default_version = '1.0'
+module_pathname = '$libdir/ext_fdw'
+relocatable = true

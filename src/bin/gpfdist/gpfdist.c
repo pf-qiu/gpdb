@@ -3290,7 +3290,10 @@ static int request_parse_gp_headers(request_t *r, int opt_g)
 		else if (0 == strcasecmp("X-GP-SEGMENT-COUNT", r->in.req->hname[i]))
 			r->totalsegs = atoi(r->in.req->hvalue[i]);
 		else if (0 == strcasecmp("X-GP-SEGMENT-ID", r->in.req->hname[i]))
+		{
 			r->segid = atoi(r->in.req->hvalue[i]);
+			if (r->segid < 0) r->segid = 0;
+		}
 		else if (0 == strcasecmp("X-GP-LINE-DELIM-STR", r->in.req->hname[i]))
 		{
 			if (NULL == r->in.req->hvalue[i] ||  ((int)strlen(r->in.req->hvalue[i])) % 2 == 1 || !base16_decode(r->in.req->hvalue[i]))
