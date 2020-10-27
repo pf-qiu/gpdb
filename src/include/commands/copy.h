@@ -59,13 +59,6 @@ typedef enum CopyErrMode
 	SREH_LOG		/* Sreh - log errors */
 } CopyErrMode;
 
-typedef struct ProgramPipes
-{
-	char *shexec;
-	int pipes[2];
-	int pid;
-} ProgramPipes;
-
 /*
  *
  * COPY FROM modes (from file/client to table)
@@ -251,8 +244,6 @@ typedef struct CopyStateData
 	bool		on_segment; /* QE save data files locally */
 	bool		ignore_extra_line; /* Don't count CSV header or binary trailer in
 									  "processed" line number for on_segment mode*/
-	ProgramPipes	*program_pipes; /* COPY PROGRAM pipes for data and stderr */
-
 
 	/* Information on the connections to QEs. */
 	CdbCopy    *cdbCopy;

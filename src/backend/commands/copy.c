@@ -279,8 +279,7 @@ static GpDistributionData *InitDistributionData(CopyState cstate, EState *estate
 static void FreeDistributionData(GpDistributionData *distData);
 static void InitCopyFromDispatchSplit(CopyState cstate, GpDistributionData *distData, EState *estate);
 static unsigned int GetTargetSeg(GpDistributionData *distData, TupleTableSlot *slot);
-static ProgramPipes *open_program_pipes(char *command, bool forwrite);
-static void close_program_pipes(CopyState cstate, bool ifThrow);
+static void ClosePipeToProgram(CopyState cstate);
 CopyIntoClause*
 MakeCopyIntoClause(CopyStmt *stmt);
 static List *parse_joined_option_list(char *str, char *delimiter);
@@ -592,10 +591,10 @@ CopySendEndOfRow(CopyState cstate)
 						 * error message from the subprocess' exit code than
 						 * just "Broken Pipe"
 						 */
-						close_program_pipes(cstate, true);
+						ClosePipeToProgram(cstate);
 
 						/*
-						 * If close_program_pipes() didn't throw an error,
+						 * If ClosePipeToProgram() didn't throw an error,
 						 * the program terminated normally, but closed the
 						 * pipe first. Restore errno, and throw an error.
 						 */
@@ -674,10 +673,10 @@ CopyToDispatchFlush(CopyState cstate)
 						 * error message from the subprocess' exit code than
 						 * just "Broken Pipe"
 						 */
-						close_program_pipes(cstate, true);
+						ClosePipeToProgram(cstate);
 
 						/*
-						 * If close_program_pipes() didn't throw an error,
+						 * If ClosePipeToProgram() didn't throw an error,
 						 * the program terminated normally, but closed the
 						 * pipe first. Restore errno, and throw an error.
 						 */
@@ -745,10 +744,10 @@ CopyGetData(CopyState cstate, void *databuf, int datasize)
 				{
 					int olderrno = errno;
 
-					close_program_pipes(cstate, true);
+					ClosePipeToProgram(cstate);
 
 					/*
-					 * If close_program_pipes() didn't throw an error,
+					 * If ClosePipeToProgram() didn't throw an error,
 					 * the program terminated normally, but closed the
 					 * pipe first. Restore errno, and throw an error.
 					 */
@@ -2402,9 +2401,9 @@ MangleCopyFileName(CopyState cstate)
 static void
 EndCopy(CopyState cstate)
 {
-	if (cstate->is_program)
+	if (cstate->is_program && cstate->dispatch_mode != COPY_EXECUTOR)
 	{
-		close_program_pipes(cstate, true);
+		ClosePipeToProgram(cstate);
 	}
 	else
 	{
@@ -2472,8 +2471,7 @@ BeginCopyToOnSegment(QueryDesc *queryDesc)
 
 	if (cstate->is_program)
 	{
-		cstate->program_pipes = open_program_pipes(cstate->filename, true);
-		cstate->copy_file = fdopen(cstate->program_pipes->pipes[0], PG_BINARY_W);
+		cstate->copy_file = OpenPipeStream(filename, PG_BINARY_W);
 
 		if (cstate->copy_file == NULL)
 			ereport(ERROR,
@@ -2712,8 +2710,7 @@ BeginCopyTo(ParseState *pstate,
 
 		if (is_program)
 		{
-			cstate->program_pipes = open_program_pipes(cstate->filename, true);
-			cstate->copy_file = fdopen(cstate->program_pipes->pipes[0], PG_BINARY_W);
+			cstate->copy_file = OpenPipeStream(filename, PG_BINARY_W);
 
 			if (cstate->copy_file == NULL)
 				ereport(ERROR,
@@ -5025,8 +5022,8 @@ BeginCopyFrom(ParseState *pstate,
 
 		if (cstate->is_program)
 		{
-			cstate->program_pipes = open_program_pipes(cstate->filename, false);
-			cstate->copy_file = fdopen(cstate->program_pipes->pipes[0], PG_BINARY_R);
+			cstate->copy_file = OpenPipeStream(cstate->filename, PG_BINARY_R);
+
 			if (cstate->copy_file == NULL)
 				ereport(ERROR,
 						(errcode_for_file_access(),
@@ -7848,92 +7845,43 @@ GetTargetSeg(GpDistributionData *distData, TupleTableSlot *slot)
 	return target_seg;
 }
 
-static ProgramPipes*
-open_program_pipes(char *command, bool forwrite)
-{
-	int save_errno;
-	pqsigfunc save_SIGPIPE;
-	/* set up extvar */
-	extvar_t extvar;
-	memset(&extvar, 0, sizeof(extvar));
-
-	external_set_env_vars(&extvar, command, false, NULL, NULL, false, 0);
-
-	ProgramPipes *program_pipes = palloc(sizeof(ProgramPipes));
-	program_pipes->pid = -1;
-	program_pipes->pipes[0] = -1;
-	program_pipes->pipes[1] = -1;
-	program_pipes->shexec = make_command(command, &extvar);
-
-	/*
-	 * Preserve the SIGPIPE handler and set to default handling.  This
-	 * allows "normal" SIGPIPE handling in the command pipeline.  Normal
-	 * for PG is to *ignore* SIGPIPE.
-	 */
-	save_SIGPIPE = pqsignal(SIGPIPE, SIG_DFL);
-
-	program_pipes->pid = popen_with_stderr(program_pipes->pipes, program_pipes->shexec, forwrite);
-
-	save_errno = errno;
-
-	/* Restore the SIGPIPE handler */
-	pqsignal(SIGPIPE, save_SIGPIPE);
-
-	elog(DEBUG5, "COPY ... PROGRAM command: %s", program_pipes->shexec);
-	if (program_pipes->pid == -1)
-	{
-		errno = save_errno;
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_RESOURCES),
-				 errmsg("can not start command: %s", command)));
-	}
-
-	return program_pipes;
-}
-
+/*
+ * Closes the pipe to an external program, checking the pclose() return code.
+ */
 static void
-close_program_pipes(CopyState cstate, bool ifThrow)
+ClosePipeToProgram(CopyState cstate)
 {
+	int			pclose_rc;
+
 	Assert(cstate->is_program);
 
-	int ret = 0;
-	StringInfoData sinfo;
-	initStringInfo(&sinfo);
-
-	if (cstate->copy_file)
-	{
-		fclose(cstate->copy_file);
-		cstate->copy_file = NULL;
-	}
-
-	/* just return if pipes not created, like when relation does not exist */
-	if (!cstate->program_pipes)
-	{
+	if (cstate->copy_file == NULL)
 		return;
-	}
-	
-	ret = pclose_with_stderr(cstate->program_pipes->pid, cstate->program_pipes->pipes, &sinfo);
 
-	if (ret == 0 || !ifThrow)
-	{
-		return;
-	}
+	pclose_rc = ClosePipeStream(cstate->copy_file);
+	cstate->copy_file = NULL;
 
-	if (ret == -1)
-	{
-		/* pclose()/wait4() ended with an error; errno should be valid */
+	if (pclose_rc == -1)
 		ereport(ERROR,
 				(errcode_for_file_access(),
-				 errmsg("can not close pipe: %m")));
-	}
-	else if (!WIFSIGNALED(ret))
+				 errmsg("could not close pipe to external command: %m")));
+	else if (pclose_rc != 0)
 	{
 		/*
-		 * pclose() returned the process termination state.
+		 * If we ended a COPY FROM PROGRAM before reaching EOF, then it's
+		 * expectable for the called program to fail with SIGPIPE, and we
+		 * should not report that as an error.  Otherwise, SIGPIPE indicates a
+		 * problem.
 		 */
+		if (cstate->is_copy_from && !cstate->reached_eof &&
+			wait_result_is_signal(pclose_rc, SIGPIPE))
+			return;
+
 		ereport(ERROR,
-				(errcode(ERRCODE_SQL_ROUTINE_EXCEPTION),
-				 errmsg("command error message: %s", sinfo.data)));
+				(errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
+				 errmsg("program \"%s\" failed",
+						cstate->filename),
+				 errdetail_internal("%s", wait_result_to_str(pclose_rc))));
 	}
 }
 
