@@ -1342,39 +1342,6 @@ SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
      1
 (1 row)
 
--- Test for COPY PROGRAM ENVIROMENT VAR
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'echo $GP_SEGMENT_ID';
-SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
- count 
--------
-     2
-(1 row)
-
-\COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'echo $GP_SEGMENT_ID';
-ERROR:  invalid input syntax for type integer: ""
-CONTEXT:  COPY copy_from_program_error, line 1, column 
-SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
- count 
--------
-     2
-(1 row)
-
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'echo $GP_SEGMENT_I';
-ERROR:  invalid input syntax for type integer: ""
-CONTEXT:  COPY copy_from_program_error, line 1, column 
-SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
- count 
--------
-     2
-(1 row)
-
-SET gp_enable_segment_copy_checking=off;
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'printf "$GP_SEGMENT_ID\n<SEGID>"' on segment;
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'printf "$GP_SEGMENT_I\n<SEGID>"' on segment;
-ERROR:  invalid input syntax for type integer: ""  (seg0 172.17.0.2:40000 pid=27935)
-CONTEXT:  COPY copy_from_program_error, line 1, column 
-ALTER TABLE COPY_FROM_PROGRAM_ERROR SET DISTRIBUTED RANDOMLY;
-SET gp_enable_segment_copy_checking=on;
 -- Test that xlog records are generated for COPY in the same transaction as
 -- created table. The actual validation for this test will be performed once the
 -- gp_replica_check tool is enabled.
@@ -1649,16 +1616,3 @@ DROP DATABASE IF EXISTS "funny copy""db'with\\quotes";
 reset client_min_messages;
 CREATE DATABASE "funny copy""db'with\\quotes";
 \c "funny copy""db'with\\quotes"
--- echo will behave differently on different platforms, force to use bash with -E option
-COPY (SELECT 'data1') TO PROGRAM 'cat > /tmp/gpcopyenvtest; /usr/bin/env bash -c ''echo -E database in COPY TO: $GP_DATABASE >> /tmp/gpcopyenvtest '' ' ESCAPE 'OFF';
-CREATE TABLE foo (t text);
-COPY foo FROM PROGRAM 'cat /tmp/gpcopyenvtest' ESCAPE 'OFF';
-COPY foo FROM PROGRAM '/usr/bin/env bash -c ''echo -E database in COPY FROM: $GP_DATABASE''' ESCAPE 'OFF';
-select * from foo;
-                         t                         
----------------------------------------------------
- data1
- database in COPY FROM: funny copy"db'with\\quotes
- database in COPY TO: funny copy"db'with\\quotes
-(3 rows)
-

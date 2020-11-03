@@ -574,13 +574,10 @@ CTranslatorDXLToPlStmt::TranslateDXLTblScan(
 	Plan *plan_return = nullptr;
 	if (IMDRelation::ErelstorageExternal == md_rel->RetrieveRelStorageType())
 	{
-		OID oidRel = CMDIdGPDB::CastMdid(md_rel->MDId())->Oid();
-
-		// create foreign scan node
-		ForeignScan *foreign_scan = gpdb::CreateForeignScanForExternalTable(
-			oidRel, index, qual, targetlist);
-		plan = &(foreign_scan->scan.plan);
-		plan_return = (Plan *) foreign_scan;
+		// FIXME: Disable external table temporarily.
+		// External table is now an FDW extension outside of kernel.
+		// Fallback to planner for now.
+		return NULL;
 	}
 	else
 	{

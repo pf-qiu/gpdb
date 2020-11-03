@@ -177,11 +177,13 @@ CREATE TABLE heap_t1 (a int, b int) DISTRIBUTED BY (b);
 CREATE EXTERNAL TABLE ext_table_no_fallback (a int, b int) LOCATION ('gpfdist://myhost:8080/test.csv') FORMAT 'CSV';
 -- end_ignore
 EXPLAIN SELECT * FROM ext_table_no_fallback;
-                                      QUERY PLAN                                      
---------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..467.24 rows=1000000 width=8)
-   ->  Foreign Scan on ext_table_no_fallback  (cost=0.00..432.47 rows=333334 width=8)
- Optimizer: Pivotal Optimizer (GPORCA) version 3.88.0
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: External table disabled temporarily
+                                       QUERY PLAN                                        
+-----------------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..51000.00 rows=3000000 width=8)
+   ->  Foreign Scan on ext_table_no_fallback  (cost=0.00..11000.00 rows=1000000 width=8)
+ Optimizer: Postgres query optimizer
 (3 rows)
 
 EXPLAIN SELECT * FROM ONLY ext_table_no_fallback;

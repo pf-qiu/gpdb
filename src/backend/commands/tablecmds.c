@@ -121,7 +121,6 @@
 
 #include "access/appendonly_compaction.h"
 #include "access/bitmap_private.h"
-#include "access/external.h"
 #include "catalog/aocatalog.h"
 #include "catalog/oid_dispatch.h"
 #include "nodes/altertablenodes.h"
@@ -16262,22 +16261,10 @@ ATExecExpandTable(List **wqueue, Relation rel, AlterTableCmd *cmd)
 	}
 	else if (rel->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 	{
-		if (rel_is_external_table(relid))
+		/* Assume no policy if it's not PARTITIONED type. Update if it has one. */
+		if (newPolicy->ptype != POLICYTYPE_PARTITIONED)
 		{
-			ExtTableEntry *ext = GetExtTableEntry(relid);
-
-			if (!ext->iswritable)
-			{
-				/*
-				 * Skip expanding readable external table, since data is not
-				 * located inside gpdb
-				 */
-				return;
-			}
-		}
-		else
-		{
-			/* Skip expanding foreign table, since data is not located inside gpdb */
+			/* Skip expanding foreign table without distribution policy */
 			return;
 		}
 	}
