@@ -2044,31 +2044,6 @@ gpdb::GetRelation(Oid rel_oid)
 	GP_WRAP_END;
 }
 
-ExtTableEntry *
-gpdb::GetExternalTableEntry(Oid rel_oid)
-{
-	GP_WRAP_START;
-	{
-		return GetExtTableEntry(rel_oid);
-	}
-	GP_WRAP_END;
-	return nullptr;
-}
-
-
-ForeignScan *
-gpdb::CreateForeignScanForExternalTable(Oid rel_oid, Index scanrelid,
-										List *qual, List *targetlist)
-{
-	GP_WRAP_START;
-	{
-		return BuildForeignScanForExternalTable(rel_oid, scanrelid, qual,
-												targetlist);
-	}
-	GP_WRAP_END;
-	return nullptr;
-}
-
 // GPDB_12_MERGE_FIXME: Change signature to take in Expr instead of Node
 TargetEntry *
 gpdb::FindFirstMatchingMemberInTargetList(Node *node, List *targetlist)

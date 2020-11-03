@@ -1118,19 +1118,6 @@ COPY COPY_FROM_PROGRAM_ERROR TO '/tmp/program_error_<SEGID>.csv' ON SEGMENT;
 COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'cat /tmp/program_error_<SEGID>.csv && echo "error" >&2 && exit 255' ON SEGMENT;
 SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
 
--- Test for COPY PROGRAM ENVIROMENT VAR
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'echo $GP_SEGMENT_ID';
-SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
-\COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'echo $GP_SEGMENT_ID';
-SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'echo $GP_SEGMENT_I';
-SELECT COUNT(*) FROM COPY_FROM_PROGRAM_ERROR;
-SET gp_enable_segment_copy_checking=off;
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'printf "$GP_SEGMENT_ID\n<SEGID>"' on segment;
-COPY COPY_FROM_PROGRAM_ERROR FROM PROGRAM 'printf "$GP_SEGMENT_I\n<SEGID>"' on segment;
-ALTER TABLE COPY_FROM_PROGRAM_ERROR SET DISTRIBUTED RANDOMLY;
-SET gp_enable_segment_copy_checking=on;
-
 -- Test that xlog records are generated for COPY in the same transaction as
 -- created table. The actual validation for this test will be performed once the
 -- gp_replica_check tool is enabled.
@@ -1329,11 +1316,3 @@ reset client_min_messages;
 CREATE DATABASE "funny copy""db'with\\quotes";
 
 \c "funny copy""db'with\\quotes"
--- echo will behave differently on different platforms, force to use bash with -E option
-COPY (SELECT 'data1') TO PROGRAM 'cat > /tmp/gpcopyenvtest; /usr/bin/env bash -c ''echo -E database in COPY TO: $GP_DATABASE >> /tmp/gpcopyenvtest '' ' ESCAPE 'OFF';
-
-CREATE TABLE foo (t text);
-COPY foo FROM PROGRAM 'cat /tmp/gpcopyenvtest' ESCAPE 'OFF';
-COPY foo FROM PROGRAM '/usr/bin/env bash -c ''echo -E database in COPY FROM: $GP_DATABASE''' ESCAPE 'OFF';
-
-select * from foo;

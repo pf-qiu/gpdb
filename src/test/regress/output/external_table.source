@@ -2604,7 +2604,7 @@ SELECT COUNT(*) FROM gp_read_error_log('exttab_heap_join_1');
 \! rm @abs_srcdir@/data/tableless.csv
 -- start_ignore
 DROP EXTERNAL TABLE IF EXISTS exttab_with_on_coordinator;
-NOTICE:  table "exttab_with_on_coordinator" does not exist, skipping
+NOTICE:  foreign table "exttab_with_on_coordinator" does not exist, skipping
 -- end_ignore
 -- Create external table with on clause
 CREATE EXTERNAL TABLE exttab_with_on_coordinator( i int, j text )

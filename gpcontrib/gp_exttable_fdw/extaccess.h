@@ -124,4 +124,6 @@ extern void external_insert_finish(ExternalInsertDesc extInsertDesc);
 
 extern List *appendCopyEncodingOption(List *copyFmtOpts, int encoding);
 
+extern List * TokenizeLocationUris(char *locations);
+
 #endif   /* EXT_ACCESS_H */
