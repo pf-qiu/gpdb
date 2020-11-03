@@ -410,6 +410,8 @@ bool		gp_enable_segment_copy_checking = true;
  */
 char	   *gp_default_storage_options = NULL;
 
+int			readable_external_table_timeout = 0;
+int			write_to_gpfdist_timeout = 300;
 int			writable_external_table_bufsize = 64;
 
 bool		gp_external_enable_filter_pushdown = true;

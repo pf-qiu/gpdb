@@ -549,7 +549,15 @@ exttable_GetForeignPaths(PlannerInfo *root,
 									   NULL,		/* no outer rel either */
 									   NULL,		/* no extra plan */
 									   list_make1(externalscan_info));
-	pathnode->path.locus = cdbpathlocus_from_baserel(root, baserel);
+	char *on_clause = (char *)strVal(linitial(extEntry->execlocations));
+	if (strcmp(on_clause, "MASTER_ONLY") == 0)
+	{
+		CdbPathLocus_MakeEntry(&pathnode->path.locus);
+	}
+	else
+	{
+		CdbPathLocus_MakeStrewn(&pathnode->path.locus, getgpsegmentCount());
+	}
 	pathnode->path.motionHazard = false;
 
 	/*

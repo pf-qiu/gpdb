@@ -317,42 +317,13 @@ GpPolicyFetch(Oid tbloid)
 	GpPolicy   *policy = NULL;	/* The result */
 	HeapTuple	gp_policy_tuple = NULL;
 
-	/*
-	 * EXECUTE-type external tables have an "ON ..." specification.
-	 * See if it's "MASTER_ONLY". Other types of external tables have a
-	 * gp_distribution_policy row, like normal tables.
-	 */
-	if (rel_is_external_table(tbloid))
+	if (!rel_is_external_table(tbloid) && get_rel_relkind(tbloid) == RELKIND_FOREIGN_TABLE)
 	{
 		/*
-		 * An external table really should have a catalog entry, but
-		 * there's currently a transient state during creation of an external
-		 * table, where the pg_class entry has been created, and its loaded
-		 * into the relcache, before the catalog entry has been created.
-		 * Silently ignore missing catalog rows to cope with that.
-		 */
-		ExtTableEntry *e = GetExtTableEntryIfExists(tbloid);
-
-		/*
-		 * Writeable external tables have gp_distribution_policy entries, like
-		 * regular tables. Readable external tables are implicitly randomly
-		 * distributed, except for "EXECUTE ... ON MASTER" ones.
-		 */
-		if (e && !e->iswritable)
-		{
-			char	   *on_clause = (char *) strVal(linitial(e->execlocations));
-
-			if (strcmp(on_clause, "MASTER_ONLY") == 0)
-			{
-				return makeGpPolicy(POLICYTYPE_ENTRY, 0, -1);
-			}
-
-			return createRandomPartitionedPolicy(getgpsegmentCount());
-		}
-	}
-	else if (get_rel_relkind(tbloid) == RELKIND_FOREIGN_TABLE)
-	{
-		/*
+		 * Distribution policy will be set by external table fdw directly when
+		 * creating ForeignScan node. No need to apply exec_location condition
+		 * to external table here.
+		 * 
 		 * Similar to the external table creation, there is a transient state
 		 * during creation of a foreign table, where the pg_class entry has
 		 * been created, before the pg_foreign_table entry has been created.

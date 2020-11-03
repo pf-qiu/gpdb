@@ -27,10 +27,6 @@
 #include "utils/guc.h"
 #include "utils/uri.h"
 
-/* GUC */
-int readable_external_table_timeout = 0;
-int write_to_gpfdist_timeout = 300;
-
 static void base16_encode(char *raw, int len, char *encoded);
 static char *get_eol_delimiter(List *params);
 

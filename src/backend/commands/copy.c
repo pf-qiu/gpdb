@@ -63,7 +63,6 @@
 #include "utils/rls.h"
 #include "utils/snapmgr.h"
 
-#include "access/external.h"
 #include "access/url.h"
 #include "catalog/catalog.h"
 #include "catalog/namespace.h"
@@ -7796,17 +7795,12 @@ open_program_pipes(char *command, bool forwrite)
 {
 	int save_errno;
 	pqsigfunc save_SIGPIPE;
-	/* set up extvar */
-	extvar_t extvar;
-	memset(&extvar, 0, sizeof(extvar));
-
-	external_set_env_vars(&extvar, command, false, NULL, NULL, false, 0);
 
 	ProgramPipes *program_pipes = palloc(sizeof(ProgramPipes));
 	program_pipes->pid = -1;
 	program_pipes->pipes[0] = -1;
 	program_pipes->pipes[1] = -1;
-	program_pipes->shexec = make_command(command, &extvar);
+	program_pipes->shexec = command;
 
 	/*
 	 * Preserve the SIGPIPE handler and set to default handling.  This
