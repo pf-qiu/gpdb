@@ -39,6 +39,9 @@ extern "C" {
 #include "parser/parse_agg.h"
 #include "utils/fmgroids.h"
 #include "utils/memutils.h"
+#include "catalog/pg_foreign_server.h"
+#include "foreign/foreign.h"
+#include "foreign/fdwapi.h"
 }
 #define GP_WRAP_START                                            \
 	sigjmp_buf local_sigjmp_buf;                                 \
@@ -2070,15 +2073,75 @@ gpdb::GetRelation(Oid rel_oid)
 	GP_WRAP_END;
 }
 
-ExtTableEntry *
-gpdb::GetExternalTableEntry(Oid rel_oid)
+List *
+GetExternalTableFdwPrivate(Oid relid)
 {
-	GP_WRAP_START;
+	FdwRoutine *routine = GetFdwRoutineByRelId(relid);
+	RelOptInfo *rel = (RelOptInfo *)palloc0(sizeof(RelOptInfo));
+	rel->rtekind = RTE_RELATION;
+	rel->exec_location = FTEXECLOCATION_ALL_SEGMENTS;
+	routine->GetForeignPaths(NULL, rel, relid);
+	ForeignPath *fp = (ForeignPath *)linitial(rel->pathlist);
+	return fp->fdw_private;
+}
+/*
+ * entry point from ORCA, to create a ForeignScan plan for an external table.
+ *
+ * Note: the caller is responsible for filling the cost information.
+ */
+ForeignScan *
+BuildForeignScanForExternalTable(Oid relid, Index scanrelid,
+								 List *qual, List *targetlist)
+{
+	ForeignScan *fscan;
+
+	fscan = makeNode(ForeignScan);
+	fscan->scan.scanrelid = scanrelid;
+	fscan->scan.plan.qual = qual;
+	fscan->scan.plan.targetlist = targetlist;
+
+	/* cost will be filled in by create_foreignscan_plan */
+	fscan->operation = CMD_SELECT;
+	/* fs_server will be filled in by create_foreignscan_plan */
+	fscan->fs_server = get_foreign_server_oid(GP_EXTTABLE_SERVER_NAME, false);
+	fscan->fdw_exprs = NIL;
+	fscan->fdw_private = GetExternalTableFdwPrivate(relid);
+	fscan->fdw_scan_tlist = NIL;
+	fscan->fdw_recheck_quals = NIL;
+
+	fscan->fs_relids = bms_make_singleton(scanrelid);
+
+	/*
+	 * Like in create_foreign_plan(), if rel is a base relation, detect
+	 * whether any system columns are requested from the rel.
+	 */
+	fscan->fsSystemCol = false;
+	if (scanrelid > 0)
 	{
-		return GetExtTableEntry(rel_oid);
+		Bitmapset  *attrs_used = NULL;
+		int			i;
+
+		/*
+		 * First, examine all the attributes needed for joins or final output.
+		 * Note: we must look at rel's targetlist, not the attr_needed data,
+		 * because attr_needed isn't computed for inheritance child rels.
+		 */
+		pull_varattnos((Node *) targetlist, scanrelid, &attrs_used);
+
+		/* Now, are any system columns requested from rel? */
+		for (i = FirstLowInvalidHeapAttributeNumber + 1; i < 0; i++)
+		{
+			if (bms_is_member(i - FirstLowInvalidHeapAttributeNumber, attrs_used))
+			{
+				fscan->fsSystemCol = true;
+				break;
+			}
+		}
+
+		bms_free(attrs_used);
 	}
-	GP_WRAP_END;
-	return NULL;
+
+	return fscan;
 }
 
 

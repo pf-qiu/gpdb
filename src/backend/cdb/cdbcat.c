@@ -317,7 +317,13 @@ GpPolicyFetch(Oid tbloid)
 	GpPolicy   *policy = NULL;	/* The result */
 	HeapTuple	gp_policy_tuple = NULL;
 
-	if (!rel_is_external_table(tbloid) && get_rel_relkind(tbloid) == RELKIND_FOREIGN_TABLE)
+	/* Ugly hack to make ORCA work for external table */
+	if (rel_is_external_table(tbloid))
+	{
+		return createRandomPartitionedPolicy(getgpsegmentCount());
+	}
+
+	if (get_rel_relkind(tbloid) == RELKIND_FOREIGN_TABLE)
 	{
 		/*
 		 * Distribution policy will be set by external table fdw directly when
