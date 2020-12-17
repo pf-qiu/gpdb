@@ -139,12 +139,6 @@ extern char *quote_literal_cstr(const char *rawstr);
 /* query_metrics.c */
 extern Datum gp_instrument_shmem_summary(PG_FUNCTION_ARGS);
 
-/* cdbendpoint.c */
-extern Datum gp_endpoints_info(PG_FUNCTION_ARGS);
-extern Datum gp_endpoints_status_info(PG_FUNCTION_ARGS);
-extern Datum gp_check_parallel_retrieve_cursor(PG_FUNCTION_ARGS);
-extern Datum gp_wait_parallel_retrieve_cursor(PG_FUNCTION_ARGS);
-
 /* utils/gp/segadmin.c */
 extern bool gp_activate_standby(void);
 

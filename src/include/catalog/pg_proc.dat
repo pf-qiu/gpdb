@@ -10982,6 +10982,18 @@
 { oid => 7171, descr => 'show append only table compression ratio',
    proname => 'get_ao_compression_ratio', provolatile => 'v', proparallel => 'u', prorettype => 'float8', proargtypes => 'regclass', prosrc => 'get_ao_compression_ratio', prodataaccess => 'r' },
 
+{ oid => 7180, descr => 'get mpp endpoints information',
+   proname => 'gp_endpoints_info', proisstrict => 'f', provolatile => 'v', proparallel => 'u', proretset => 't', prorettype => 'record', proargtypes => 'bool', proallargtypes => '{text,text,int4,text,int4,int4,oid,text,text}', proargmodes => '{o,o,o,o,o,o,o,o,o}', prosrc => 'gp_endpoints_info' },
+
+{ oid => 7181, descr => 'get endpoints status information',
+   proname => 'gp_endpoints_status_info', provolatile => 'v', proparallel => 'u', proretset => 't', prorettype => 'record', proargtypes => '', proallargtypes => '{text,int4,int4,int4,text,int4,int4,oid,text,text}', prosrc => 'gp_endpoints_status_info' },
+
+{ oid => 7182, descr => 'check whether all endpoint of this parallel retrieve cursor has been retrieved finished',
+   proname => 'gp_check_parallel_retrieve_cursor', proisstrict => 'f', provolatile => 'v', proparallel => 'u', prorettype => 'bool', proargtypes => 'text', prosrc => 'gp_check_parallel_retrieve_cursor' },
+
+{ oid => 7183, descr => 'wait until all endpoint of this parallel retrieve cursor has been retrieved finished',
+   proname => 'gp_wait_parallel_retrieve_cursor', proisstrict => 'f', provolatile => 'v', proparallel => 'u', prorettype => 'bool', proargtypes => 'text', prosrc => 'gp_wait_parallel_retrieve_cursor' },
+
 { oid => 7050, oid_symbol => 'BITMAP_INDEXAM_HANDLER_OID', descr => 'bitmap(internal)',
    proname => 'bmhandler', provolatile => 'v', prorettype => 'index_am_handler', proargtypes => 'internal', prosrc => 'bmhandler' },
 
