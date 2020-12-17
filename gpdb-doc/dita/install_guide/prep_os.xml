@@ -37,19 +37,21 @@
     <p otherprops="pivotal">For information about running Greenplum Database in the cloud see
         <cite>Cloud Services</cite> in the <xref
         href="https://pivotal.io/pivotal-greenplum/greenplum-partner-marketplace" format="html"
-        scope="external">Pivotal Greenplum Partner Marketplace</xref>.</p>
-    <note type="important"> When data loss is not acceptable for a Pivotal Greenplum Database
-      system, Greenplum Database master and segment mirroring must be enabled<ph
-        otherprops="pivotal"> in order for the cluster to be supported by Pivotal</ph>. Without
-      mirroring, <ph otherprops="oss-only">a single segment instance failure stops the
-        cluster.</ph><ph otherprops="pivotal">system and data availability is not guaranteed.
-        Pivotal will make best efforts to restore a cluster in this case.</ph> For information about
-      master and segment mirroring, see <xref href="../admin_guide/intro/about_ha.xml" type="topic"
-        format="dita" scope="peer">About Redundancy and Failover</xref> in the <i>Greenplum Database
-        Administrator Guide</i>.</note>
+        scope="external">Tanzu Greenplum Partner Marketplace</xref>.</p>
+    <note type="important">When data loss is not acceptable for a Greenplum Database cluster,
+      Greenplum master and segment mirroring is recommended. If mirroring is not enabled then
+      Greenplum stores only one copy of the data, so the underlying storage media provides the only
+      guarantee for data availability and correctness in the event of a hardware failure.<p
+        otherprops="pivotal">Kubernetes enables quick recovery from both pod and host failures, and
+        Kubernetes storage services provide a high level of availability for the underlying data.
+        Furthermore, virtualized environments make it difficult to ensure the anti-affinity
+        guarantees required for Greenplum mirroring solutions. For these reasons, mirrorless
+        deployments are fully supported with Greenplum for Kubernetes. Other deployment environments
+        are generally not supported for production use unless both Greenplum master and segment
+        mirroring are enabled.</p></note>
     <!--Pivotal-->
-    <note type="note" otherprops="pivotal">For information about upgrading Pivotal Greenplum
-      Database from a previous version, see the <cite>Greenplum Database Release Notes</cite> for
+    <note type="note" otherprops="pivotal">For information about upgrading Tanzu Greenplum
+     from a previous version, see the <cite>Greenplum Database Release Notes</cite> for
       the release that you are installing.</note>
     <note type="note">Automating the configuration steps described in this topic and <xref
         href="install_gpdb.xml#topic1"/> with a system provisioning tool, such as Ansible, Chef, or
@@ -168,7 +170,7 @@ vm.overcommit_memory = 2 # <b>See <xref href="#topic3/segment_host_memory" forma
 vm.overcommit_ratio = 95 # <b>See <xref href="#topic3/segment_host_memory" format="dita">Segment Host Memory</xref></b>
 
 net.ipv4.ip_local_port_range = 10000 65535 # <b>See <xref href="#topic3/port_settings" format="dita">Port Settings</xref></b>
-kernel.sem = 500 2048000 200 40960
+kernel.sem = 500 2048000 200 4096
 kernel.sysrq = 1
 kernel.core_uses_pid = 1
 kernel.msgmnb = 65536

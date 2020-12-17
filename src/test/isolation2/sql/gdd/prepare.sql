@@ -1,5 +1,3 @@
-include: helpers/server_helpers.sql;
-
 -- t0r is the reference table to provide the data distribution info.
 DROP TABLE IF EXISTS t0p;
 CREATE TABLE t0p (id int, val int);
@@ -48,6 +46,8 @@ $$ LANGUAGE sql;
 SELECT segid(0,10) is not null;
 SELECT segid(1,10) is not null;
 SELECT segid(2,10) is not null;
+
+--enable GDD
 
 -- table to just store the master's data directory path on segment.
 CREATE TABLE datadir(a int, dir text);

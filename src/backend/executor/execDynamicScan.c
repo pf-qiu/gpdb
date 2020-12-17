@@ -3,7 +3,7 @@
  * execDynamicScan.c
  *	  Support routines for iterating through dynamically chosen partitions of a relation
  *
- * Portions Copyright (c) 2014-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2014-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -13,7 +13,6 @@
  */
 #include "postgres.h"
 
-#include "cdb/cdbpartition.h"
 #include "cdb/partitionselection.h"
 #include "executor/executor.h"
 #include "executor/execDynamicScan.h"

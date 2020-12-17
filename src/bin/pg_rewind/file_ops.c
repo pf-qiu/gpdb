@@ -8,20 +8,19 @@
  * do nothing if it's enabled. You should avoid accessing the target files
  * directly but if you do, make sure you honor the --dry-run mode!
  *
- * Portions Copyright (c) 2013-2016, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2013-2019, PostgreSQL Global Development Group
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres_fe.h"
 
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "common/file_perm.h"
 #include "file_ops.h"
 #include "filemap.h"
-#include "logging.h"
 #include "pg_rewind.h"
 
 /*
@@ -58,10 +57,10 @@ open_target_file(const char *path, bool trunc)
 	mode = O_WRONLY | O_CREAT | PG_BINARY;
 	if (trunc)
 		mode |= O_TRUNC;
-	dstfd = open(dstpath, mode, 0600);
+	dstfd = open(dstpath, mode, pg_file_create_mode);
 	if (dstfd < 0)
-		pg_fatal("could not open target file \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not open target file \"%s\": %m",
+				 dstpath);
 }
 
 /*
@@ -74,8 +73,8 @@ close_target_file(void)
 		return;
 
 	if (close(dstfd) != 0)
-		pg_fatal("could not close target file \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not close target file \"%s\": %m",
+				 dstpath);
 
 	dstfd = -1;
 }
@@ -94,8 +93,8 @@ write_target_range(char *buf, off_t begin, size_t size)
 		return;
 
 	if (lseek(dstfd, begin, SEEK_SET) == -1)
-		pg_fatal("could not seek in target file \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not seek in target file \"%s\": %m",
+				 dstpath);
 
 	writeleft = size;
 	p = buf;
@@ -110,8 +109,8 @@ write_target_range(char *buf, off_t begin, size_t size)
 			/* if write didn't set errno, assume problem is no disk space */
 			if (errno == 0)
 				errno = ENOSPC;
-			pg_fatal("could not write file \"%s\": %s\n",
-					 dstpath, strerror(errno));
+			pg_fatal("could not write file \"%s\": %m",
+					 dstpath);
 		}
 
 		p += writelen;
@@ -126,20 +125,28 @@ void
 remove_target(file_entry_t *entry)
 {
 	Assert(entry->action == FILE_ACTION_REMOVE);
+	Assert(entry->target_exists);
 
-	switch (entry->type)
+	switch (entry->target_type)
 	{
 		case FILE_TYPE_DIRECTORY:
 			remove_target_dir(entry->path);
 			break;
 
 		case FILE_TYPE_REGULAR:
+			remove_target_file(entry->path, false);
+			break;
+
 		case FILE_TYPE_FIFO:
 			remove_target_file(entry->path, false);
 			break;
 
 		case FILE_TYPE_SYMLINK:
 			remove_target_symlink(entry->path);
+			break;
+
+		case FILE_TYPE_UNDEFINED:
+			pg_fatal("undefined file type for \"%s\"", entry->path);
 			break;
 	}
 }
@@ -148,28 +155,33 @@ void
 create_target(file_entry_t *entry)
 {
 	Assert(entry->action == FILE_ACTION_CREATE);
+	Assert(!entry->target_exists);
 
-	switch (entry->type)
+	switch (entry->source_type)
 	{
 		case FILE_TYPE_DIRECTORY:
 			create_target_dir(entry->path);
 			break;
 
 		case FILE_TYPE_SYMLINK:
-			if(entry->is_gp_tablespace)
-				create_target_tablespace_layout(entry->path, entry->link_target);
+			if (entry->is_gp_tablespace)
+				create_target_tablespace_layout(entry->path, entry->source_link_target);
 			else
-				create_target_symlink(entry->path, entry->link_target);
+				create_target_symlink(entry->path, entry->source_link_target);
 			break;
 
 		case FILE_TYPE_REGULAR:
 			/* can't happen. Regular files are created with open_target_file. */
-			pg_fatal("invalid action (CREATE) for regular file\n");
+			pg_fatal("invalid action (CREATE) for regular file");
 			break;
 
 		case FILE_TYPE_FIFO:
 			/* Only pgsql_tmp files are FIFO and they are ignored from source target. */
-			pg_fatal("invalid action (CREATE) for fifo file\n");
+			pg_fatal("invalid action (CREATE) for fifo file");
+			break;
+
+		case FILE_TYPE_UNDEFINED:
+			pg_fatal("undefined file type for \"%s\"", entry->path);
 			break;
 	}
 }
@@ -192,8 +204,8 @@ remove_target_file(const char *path, bool missing_ok)
 		if (errno == ENOENT && missing_ok)
 			return;
 
-		pg_fatal("could not remove file \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not remove file \"%s\": %m",
+				 dstpath);
 	}
 }
 
@@ -208,14 +220,14 @@ truncate_target_file(const char *path, off_t newsize)
 
 	snprintf(dstpath, sizeof(dstpath), "%s/%s", datadir_target, path);
 
-	fd = open(dstpath, O_WRONLY, 0);
+	fd = open(dstpath, O_WRONLY, pg_file_create_mode);
 	if (fd < 0)
-		pg_fatal("could not open file \"%s\" for truncation: %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not open file \"%s\" for truncation: %m",
+				 dstpath);
 
 	if (ftruncate(fd, newsize) != 0)
-		pg_fatal("could not truncate file \"%s\" to %u: %s\n",
-				 dstpath, (unsigned int) newsize, strerror(errno));
+		pg_fatal("could not truncate file \"%s\" to %u: %m",
+				 dstpath, (unsigned int) newsize);
 
 	close(fd);
 }
@@ -229,9 +241,9 @@ create_target_dir(const char *path)
 		return;
 
 	snprintf(dstpath, sizeof(dstpath), "%s/%s", datadir_target, path);
-	if (mkdir(dstpath, S_IRWXU) != 0)
-		pg_fatal("could not create directory \"%s\": %s\n",
-				 dstpath, strerror(errno));
+	if (mkdir(dstpath, pg_dir_create_mode) != 0)
+		pg_fatal("could not create directory \"%s\": %m",
+				 dstpath);
 }
 
 static void
@@ -244,8 +256,8 @@ remove_target_dir(const char *path)
 
 	snprintf(dstpath, sizeof(dstpath), "%s/%s", datadir_target, path);
 	if (rmdir(dstpath) != 0)
-		pg_fatal("could not remove directory \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not remove directory \"%s\": %m",
+				 dstpath);
 }
 
 static void
@@ -258,8 +270,8 @@ create_target_symlink(const char *path, const char *link)
 
 	snprintf(dstpath, sizeof(dstpath), "%s/%s", datadir_target, path);
 	if (symlink(link, dstpath) != 0)
-		pg_fatal("could not create symbolic link at \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not create symbolic link at \"%s\": %m",
+				 dstpath);
 }
 
 static void
@@ -272,8 +284,8 @@ remove_target_symlink(const char *path)
 
 	snprintf(dstpath, sizeof(dstpath), "%s/%s", datadir_target, path);
 	if (unlink(dstpath) != 0)
-		pg_fatal("could not remove symbolic link \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not remove symbolic link \"%s\": %m",
+				 dstpath);
 }
 
 /* Create symlink for tablespace, create tablespace target dir */
@@ -291,18 +303,16 @@ create_target_tablespace_layout(const char *path, const char *link)
 
 	snprintf(dstpath, sizeof(dstpath), "%s/%s", datadir_target, path);
 	if (symlink(newlink, dstpath) != 0)
-		pg_fatal("could not create symbolic link at \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not create symbolic link at \"%s\": %m",
+				 dstpath);
 
 	/* We need to create the directory at the symlink target. */
 	if (mkdir(newlink, S_IRWXU) != 0)
-		pg_fatal("could not create directory \"%s\": %s\n",
-				 dstpath, strerror(errno));
+		pg_fatal("could not create directory \"%s\": %m",
+				 newlink);
 
 	pfree(newlink);
 }
-
-
 
 /*
  * Read a file into memory. The file to be read is <datadir>/<path>.
@@ -325,24 +335,32 @@ slurpFile(const char *datadir, const char *path, size_t *filesize)
 	struct stat statbuf;
 	char		fullpath[MAXPGPATH];
 	int			len;
+	int			r;
 
 	snprintf(fullpath, sizeof(fullpath), "%s/%s", datadir, path);
 
 	if ((fd = open(fullpath, O_RDONLY | PG_BINARY, 0)) == -1)
-		pg_fatal("could not open file \"%s\" for reading: %s\n",
-				 fullpath, strerror(errno));
+		pg_fatal("could not open file \"%s\" for reading: %m",
+				 fullpath);
 
 	if (fstat(fd, &statbuf) < 0)
-		pg_fatal("could not open file \"%s\" for reading: %s\n",
-				 fullpath, strerror(errno));
+		pg_fatal("could not open file \"%s\" for reading: %m",
+				 fullpath);
 
 	len = statbuf.st_size;
 
 	buffer = pg_malloc(len + 1);
 
-	if (read(fd, buffer, len) != len)
-		pg_fatal("could not read file \"%s\": %s\n",
-				 fullpath, strerror(errno));
+	r = read(fd, buffer, len);
+	if (r != len)
+	{
+		if (r < 0)
+			pg_fatal("could not read file \"%s\": %m",
+					 fullpath);
+		else
+			pg_fatal("could not read file \"%s\": read %d of %zu",
+					 fullpath, r, (Size) len);
+	}
 	close(fd);
 
 	/* Zero-terminate the buffer. */

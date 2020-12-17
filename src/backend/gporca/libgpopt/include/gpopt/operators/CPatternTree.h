@@ -16,66 +16,56 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CPatternTree
-	//
-	//	@doc:
-	//		Pattern that matches entire expression trees, e.g. scalar expressions
-	//
-	//---------------------------------------------------------------------------
-	class CPatternTree : public CPattern
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CPatternTree
+//
+//	@doc:
+//		Pattern that matches entire expression trees, e.g. scalar expressions
+//
+//---------------------------------------------------------------------------
+class CPatternTree : public CPattern
+{
+private:
+public:
+	CPatternTree(const CPatternTree &) = delete;
+
+	// ctor
+	explicit CPatternTree(CMemoryPool *mp) : CPattern(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CPatternTree() override = default;
 
-			// private copy ctor
-			CPatternTree(const CPatternTree &);
+	// check if operator is a pattern leaf
+	BOOL
+	FLeaf() const override
+	{
+		return false;
+	}
 
-		public:
-		
-			// ctor
-			explicit
-			CPatternTree
-				(
-				CMemoryPool *mp
-				)
-				: 
-				CPattern(mp)
-			{}
+	// ident accessors
+	EOperatorId
+	Eopid() const override
+	{
+		return EopPatternTree;
+	}
 
-			// dtor
-			virtual 
-			~CPatternTree() {}
-			
-			// check if operator is a pattern leaf
-			virtual
-			BOOL FLeaf() const
-			{
-				return false;
-			}
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CPatternTree";
+	}
 
-			// ident accessors
-			virtual 
-			EOperatorId Eopid() const
-			{
-				return EopPatternTree;
-			}
-			
-			// return a string for operator name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CPatternTree";
-			}		
+};	// class CPatternTree
 
-	}; // class CPatternTree
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CPatternTree_H
+#endif	// !GPOPT_CPatternTree_H
 
 // EOF

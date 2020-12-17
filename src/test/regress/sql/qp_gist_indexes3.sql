@@ -15,7 +15,7 @@ set search_path to qp_gist_indexes3;
 ------------------------------------------------------------------------------
 -- start_ignore
 -- Portions Copyright (c) 2010, Greenplum, Inc.  All rights reserved.
--- Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+-- Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
 -- PURPOSE:
 --     Test VACUUM on GiST indexes.
 --     Also test somewhat larger data sets than most of my other GiST index 
@@ -245,7 +245,7 @@ CREATE INDEX ShouldNotExist ON gisttable_pktest USING GiST (id, property);
 ------------------------------------------------------------------------------
 -- PURPOSE:
 --     Test that you get a reasonable error message when you try to create a
---     HASH index (we no longer support those).
+--     HASH index ('box' datatype doesn't have a hash opclass).
 ------------------------------------------------------------------------------
 
 CREATE TABLE GistTable14 (

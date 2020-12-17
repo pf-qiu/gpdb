@@ -4,7 +4,7 @@
  *	  definitions for cdbmutate.c utilities
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -16,26 +16,23 @@
 #define CDBMUTATE_H
 
 #include "nodes/execnodes.h"
+#include "nodes/pathnodes.h"
 #include "nodes/plannodes.h"
-#include "nodes/relation.h"
 #include "optimizer/walkers.h"
 
-
-extern Motion *make_union_motion(Plan *lefttree, int numsegments);
+extern Motion *make_union_motion(Plan *lefttree);
 extern Motion *make_sorted_union_motion(PlannerInfo *root, Plan *lefttree, int numSortCols, AttrNumber *sortColIdx, Oid *sortOperators,
-										Oid *collations, bool *nullsFirst, int numsegments);
+										Oid *collations, bool *nullsFirst);
 extern Motion *make_hashed_motion(Plan *lefttree,
 								  List *hashExpr,
 								  List *hashOpfamilies,
-								  int numsegments);
+								  int numHashSegments);
 
-extern Motion *make_broadcast_motion(Plan *lefttree,
-									 int numsegments);
+extern Motion *make_broadcast_motion(Plan *lefttree);
 
 extern Plan *make_explicit_motion(PlannerInfo *root,
 								  Plan *lefttree,
-								  AttrNumber segidColIdx,
-								  int numsegments);
+								  AttrNumber segidColIdx);
 
 void 
 cdbmutate_warn_ctid_without_segid(struct PlannerInfo *root, struct RelOptInfo *rel);
@@ -43,7 +40,7 @@ cdbmutate_warn_ctid_without_segid(struct PlannerInfo *root, struct RelOptInfo *r
 extern Plan *apply_shareinput_dag_to_tree(PlannerInfo *root, Plan *plan);
 extern void collect_shareinput_producers(PlannerInfo *root, Plan *plan);
 extern Plan *replace_shareinput_targetlists(PlannerInfo *root, Plan *plan);
-extern Plan *apply_shareinput_xslice(Plan *plan, PlannerInfo *root, PlanSlice *sliceTable);
+extern Plan *apply_shareinput_xslice(Plan *plan, PlannerInfo *root);
 
 extern List *getExprListFromTargetList(List *tlist, int numCols, AttrNumber *colIdx);
 extern void remove_unused_initplans(Plan *plan, PlannerInfo *root);

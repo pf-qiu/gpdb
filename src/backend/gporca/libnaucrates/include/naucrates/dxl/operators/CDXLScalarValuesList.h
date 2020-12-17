@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2017 Pivotal Software, Inc.
+//	Copyright (C) 2017 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLScalarValuesList.h
@@ -18,53 +18,48 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
-	using namespace gpmd;
+using namespace gpos;
+using namespace gpmd;
 
 
-	// class for representing DXL value list operator
-	class CDXLScalarValuesList : public CDXLScalar
-	{
-		private:
+// class for representing DXL value list operator
+class CDXLScalarValuesList : public CDXLScalar
+{
+private:
+public:
+	CDXLScalarValuesList(CDXLScalarValuesList &) = delete;
 
-			// private copy ctor
-			CDXLScalarValuesList(CDXLScalarValuesList&);
+	// ctor
+	CDXLScalarValuesList(CMemoryPool *mp);
 
-		public:
+	// dtor
+	~CDXLScalarValuesList() override;
 
-			// ctor
-			CDXLScalarValuesList(CMemoryPool *mp);
+	// ident accessors
+	Edxlopid GetDXLOperator() const override;
 
-			// dtor
-			virtual
-			~CDXLScalarValuesList();
+	// name of the DXL operator
+	const CWStringConst *GetOpNameStr() const override;
 
-			// ident accessors
-			Edxlopid GetDXLOperator() const;
+	// serialize operator in DXL format
+	void SerializeToDXL(CXMLSerializer *xml_serializer,
+						const CDXLNode *dxlnode) const override;
 
-			// name of the DXL operator
-			const CWStringConst *GetOpNameStr() const;
+	// conversion function
+	static CDXLScalarValuesList *Cast(CDXLOperator *dxl_op);
 
-			// serialize operator in DXL format
-			virtual
-			void SerializeToDXL(CXMLSerializer *xml_serializer, const CDXLNode *dxlnode) const;
-
-			// conversion function
-			static
-			CDXLScalarValuesList *Cast(CDXLOperator *dxl_op);
-
-			// does the operator return a boolean result
-			virtual
-			BOOL HasBoolResult(CMDAccessor * /*md_accessor*/) const;
+	// does the operator return a boolean result
+	BOOL HasBoolResult(CMDAccessor * /*md_accessor*/) const override;
 
 #ifdef GPOS_DEBUG
-			// checks whether the operator has valid structure, i.e. number and
-			// types of child nodes
-			void AssertValid(const CDXLNode *dxlnode, BOOL validate_children) const;
-#endif // GPOS_DEBUG
-	};
-}
+	// checks whether the operator has valid structure, i.e. number and
+	// types of child nodes
+	void AssertValid(const CDXLNode *dxlnode,
+					 BOOL validate_children) const override;
+#endif	// GPOS_DEBUG
+};
+}  // namespace gpdxl
 
-#endif // !GPDXL_CDXLScalarValuesList_H
+#endif	// !GPDXL_CDXLScalarValuesList_H
 
 // EOF

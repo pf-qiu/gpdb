@@ -36,10 +36,8 @@ using namespace gpos;
 GPOS_RESULT
 CMiniDumperTest::EresUnittest()
 {
-	CUnittest rgut[] =
-		{
-		GPOS_UNITTEST_FUNC(CMiniDumperTest::EresUnittest_Basic)
-		};
+	CUnittest rgut[] = {
+		GPOS_UNITTEST_FUNC(CMiniDumperTest::EresUnittest_Basic)};
 
 	return CUnittest::EresExecute(rgut, GPOS_ARRAY_SIZE(rgut));
 }
@@ -59,7 +57,7 @@ CMiniDumperTest::EresUnittest_Basic()
 	CAutoMemoryPool amp;
 	CMemoryPool *mp = amp.Pmp();
 
-	CMiniDumperStream mdrs(mp);
+	CMiniDumperStream mdrs;
 
 	CWStringDynamic wstrMinidump(mp);
 	COstreamString oss(&wstrMinidump);
@@ -92,10 +90,8 @@ CMiniDumperTest::EresUnittest_Basic()
 //
 //---------------------------------------------------------------------------
 void *
-CMiniDumperTest::PvRaise
-	(
-	void * // pv
-	)
+CMiniDumperTest::PvRaise(void *	 // pv
+)
 {
 	// register stack serializer with error context
 	CSerializableStack ss;
@@ -117,13 +113,9 @@ CMiniDumperTest::PvRaise
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CMiniDumperTest::CMiniDumperStream::CMiniDumperStream
-	(
-	CMemoryPool *mp
-	)
-	:
-	CMiniDumper(mp)
-{}
+CMiniDumperTest::CMiniDumperStream::CMiniDumperStream() : CMiniDumper()
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -134,8 +126,7 @@ CMiniDumperTest::CMiniDumperStream::CMiniDumperStream
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CMiniDumperTest::CMiniDumperStream::~CMiniDumperStream()
-{}
+CMiniDumperTest::CMiniDumperStream::~CMiniDumperStream() = default;
 
 
 //---------------------------------------------------------------------------
@@ -181,11 +172,7 @@ CMiniDumperTest::CMiniDumperStream::SerializeEntryHeader()
 {
 	WCHAR wszBuffer[GPOS_MINIDUMP_BUF_SIZE];
 	CWStringStatic wstr(wszBuffer, GPOS_ARRAY_SIZE(wszBuffer));
-	wstr.AppendFormat
-		(
-		GPOS_WSZ_LIT("<THREAD ID=%d>\n"),
-		0
-		);
+	wstr.AppendFormat(GPOS_WSZ_LIT("<THREAD ID=%d>\n"), 0);
 
 	*m_oos << wstr.GetBuffer();
 }
@@ -200,9 +187,7 @@ CMiniDumperTest::CMiniDumperStream::SerializeEntryHeader()
 //
 //---------------------------------------------------------------------------
 void
-CMiniDumperTest::CMiniDumperStream::SerializeEntryFooter
-	(
-	)
+CMiniDumperTest::CMiniDumperStream::SerializeEntryFooter()
 {
 	*m_oos << "</THREAD>\n";
 }
@@ -216,10 +201,9 @@ CMiniDumperTest::CMiniDumperStream::SerializeEntryFooter
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CMiniDumperTest::CSerializableStack::CSerializableStack()
-	:
-	CSerializable()
-{}
+CMiniDumperTest::CSerializableStack::CSerializableStack() : CSerializable()
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -231,8 +215,7 @@ CMiniDumperTest::CSerializableStack::CSerializableStack()
 //
 //---------------------------------------------------------------------------
 
-CMiniDumperTest::CSerializableStack::~CSerializableStack()
-{}
+CMiniDumperTest::CSerializableStack::~CSerializableStack() = default;
 
 
 //---------------------------------------------------------------------------
@@ -244,10 +227,7 @@ CMiniDumperTest::CSerializableStack::~CSerializableStack()
 //
 //---------------------------------------------------------------------------
 void
-CMiniDumperTest::CSerializableStack::Serialize
-	(
-	COstream& oos
-	)
+CMiniDumperTest::CSerializableStack::Serialize(COstream &oos)
 {
 	WCHAR wszStackBuffer[GPOS_MINIDUMP_BUF_SIZE];
 	CWStringStatic wstr(wszStackBuffer, GPOS_ARRAY_SIZE(wszStackBuffer));

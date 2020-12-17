@@ -13,73 +13,63 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalLeftAntiSemiJoinNotIn.h"
 #include "gpopt/xforms/CXformJoinSwap.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformAntiSemiJoinNotInInnerJoinSwap
-	//
-	//	@doc:
-	//		Swap cascaded anti semi-join (NotIn) and inner join
-	//
-	//---------------------------------------------------------------------------
-	class CXformAntiSemiJoinNotInInnerJoinSwap : public CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn, CLogicalInnerJoin>
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformAntiSemiJoinNotInInnerJoinSwap
+//
+//	@doc:
+//		Swap cascaded anti semi-join (NotIn) and inner join
+//
+//---------------------------------------------------------------------------
+class CXformAntiSemiJoinNotInInnerJoinSwap
+	: public CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn, CLogicalInnerJoin>
+{
+private:
+public:
+	CXformAntiSemiJoinNotInInnerJoinSwap(
+		const CXformAntiSemiJoinNotInInnerJoinSwap &) = delete;
+
+	// ctor
+	explicit CXformAntiSemiJoinNotInInnerJoinSwap(CMemoryPool *mp)
+		: CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn, CLogicalInnerJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformAntiSemiJoinNotInInnerJoinSwap() override = default;
 
-			// private copy ctor
-			CXformAntiSemiJoinNotInInnerJoinSwap(const CXformAntiSemiJoinNotInInnerJoinSwap &);
+	// Compatibility function
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return ExfInnerJoinAntiSemiJoinNotInSwap != exfid;
+	}
 
-		public:
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfAntiSemiJoinNotInInnerJoinSwap;
+	}
 
-			// ctor
-			explicit
-			CXformAntiSemiJoinNotInInnerJoinSwap
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn, CLogicalInnerJoin>(mp)
-			{}
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformAntiSemiJoinNotInInnerJoinSwap";
+	}
 
-			// dtor
-			virtual
-			~CXformAntiSemiJoinNotInInnerJoinSwap()
-			{}
+};	// class CXformAntiSemiJoinNotInInnerJoinSwap
 
-			// Compatibility function
-			virtual
-			BOOL FCompatible
-				(
-				CXform::EXformId exfid
-				)
-			{
-				return ExfInnerJoinAntiSemiJoinNotInSwap != exfid;
-			}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfAntiSemiJoinNotInInnerJoinSwap;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformAntiSemiJoinNotInInnerJoinSwap";
-			}
-
-	}; // class CXformAntiSemiJoinNotInInnerJoinSwap
-
-}
-
-#endif // !GPOPT_CXformAntiSemiJoinNotInInnerJoinSwap_H
+#endif	// !GPOPT_CXformAntiSemiJoinNotInInnerJoinSwap_H
 
 // EOF

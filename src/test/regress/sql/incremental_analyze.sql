@@ -1,3 +1,7 @@
+-- start_matchsubs
+-- m/^LOG.*PartitionSelector/
+-- s/^LOG.*PartitionSelector/PartitionSelector/
+-- end_matchsubs
 -- start_ignore
 DROP DATABASE IF EXISTS incrementalanalyze;
 CREATE DATABASE incrementalanalyze;
@@ -780,7 +784,7 @@ CREATE TABLE incr_analyze_test (
     b character varying,
     c date
 )
-WITH (appendonly=true, compresslevel=5, orientation=row, compresstype=zlib) DISTRIBUTED BY (a) PARTITION BY RANGE(c)
+WITH (appendonly=true, orientation=row) DISTRIBUTED BY (a) PARTITION BY RANGE(c)
           (
           START ('2018-01-01'::date) END ('2018-01-02'::date) EVERY ('1 day'::interval) WITH (tablename='incr_analyze_test_1_prt_1', appendonly=true, compresslevel=3, orientation=column, compresstype=ZLIB ),
           START ('2018-01-02'::date) END ('2018-01-03'::date) EVERY ('1 day'::interval) WITH (tablename='incr_analyze_test_1_prt_2', appendonly=true, compresslevel=1, orientation=column, compresstype=RLE_TYPE ),
@@ -811,3 +815,13 @@ analyze verbose rootpartition foo;
 -- ensure relpages is correctly set after analyzing
 analyze foo_1_prt_2;
 select reltuples, relpages from pg_class where relname ='foo_1_prt_2';
+-- Test application of column-wise statistics setting to the number of MCVs and histogram bounds on partitioned table
+DROP TABLE IF EXISTS foo;
+CREATE TABLE foo (a int) PARTITION BY RANGE (a) (START (0) END (10) EVERY (5));
+-- fill foo with even numbers twice as large than odd ones to avoid fully even distribution of 'a' attribute and hence empty MCV/MCF
+INSERT INTO foo SELECT i%10 FROM generate_series(0, 100) i;
+INSERT INTO foo SELECT i%10 FROM generate_series(0, 100) i WHERE i%2 = 0;
+-- default_statistics_target is 4
+ALTER TABLE foo ALTER COLUMN a SET STATISTICS 5;
+ANALYZE foo;
+SELECT array_length(most_common_vals, 1), array_length(most_common_freqs, 1), array_length(histogram_bounds, 1) FROM pg_stats WHERE tablename = 'foo' AND attname = 'a';

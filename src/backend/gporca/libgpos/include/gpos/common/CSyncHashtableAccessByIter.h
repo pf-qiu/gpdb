@@ -19,80 +19,73 @@
 
 namespace gpos
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CSyncHashtableAccessByIter<T, K, S>
+//
+//	@doc:
+//		Accessor class to provide access to the element pointed to by a
+//		hash table iterator
+//
+//---------------------------------------------------------------------------
+template <class T, class K>
+class CSyncHashtableAccessByIter : public CSyncHashtableAccessorBase<T, K>
+{
+	// iterator class is a friend
+	friend class CSyncHashtableIter<T, K>;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CSyncHashtableAccessByIter<T, K, S>
-	//
-	//	@doc:
-	//		Accessor class to provide access to the element pointed to by a
-	//		hash table iterator
-	//
-	//---------------------------------------------------------------------------
-	template <class T, class K>
-	class CSyncHashtableAccessByIter : public CSyncHashtableAccessorBase<T, K>
+private:
+	// shorthand for base class
+	typedef class CSyncHashtableAccessorBase<T, K> Base;
+
+	// target iterator
+	CSyncHashtableIter<T, K> &m_iter;
+
+	// returns the first valid element starting from the given element
+	T *
+	FirstValid(T *value) const
 	{
+		GPOS_ASSERT(NULL != value);
 
-		// iterator class is a friend
-		friend class CSyncHashtableIter<T, K>;
+		T *curr = value;
+		while (NULL != curr &&
+			   !Base::GetHashTable().IsValid(Base::GetHashTable().Key(curr)))
+		{
+			curr = Base::Next(curr);
+		}
 
-		private:
+		return curr;
+	}
 
-			// shorthand for base class
-			typedef class CSyncHashtableAccessorBase<T, K> Base;
+public:
+	CSyncHashtableAccessByIter<T, K>(const CSyncHashtableAccessByIter<T, K> &) =
+		delete;
 
-			// target iterator
-			CSyncHashtableIter<T, K> &m_iter;
+	// ctor
+	explicit CSyncHashtableAccessByIter<T, K>(CSyncHashtableIter<T, K> &iter)
+		: Base(iter.m_ht, iter.m_bucket_idx), m_iter(iter)
+	{
+	}
 
-			// no copy ctor
-			CSyncHashtableAccessByIter<T, K>
-				(const CSyncHashtableAccessByIter<T, K>&);
+	// returns the element pointed to by iterator
+	T *
+	Value() const
+	{
+		GPOS_ASSERT(m_iter.m_invalid_elem_inserted &&
+					"Iterator's advance is not called");
 
-			// returns the first valid element starting from the given element
-			T *FirstValid(T *value) const
-            {
-                GPOS_ASSERT(NULL != value);
+		// advance in the current bucket until finding a valid element;
+		// this is needed because the next valid element pointed to by
+		// iterator might have been deleted by another client just before
+		// using the accessor
 
-                T *curr = value;
-                while (NULL != curr &&
-                       !Base::GetHashTable().IsValid(Base::GetHashTable().Key(curr)))
-                {
-                    curr = Base::Next(curr);
-                }
+		return FirstValid(m_iter.m_invalid_elem);
+	}
 
-                return curr;
-            }
+};	// class CSyncHashtableAccessByIter
 
-		public:
+}  // namespace gpos
 
-			// ctor
-			explicit
-			CSyncHashtableAccessByIter<T, K>
-				(CSyncHashtableIter<T, K> &iter)
-            :
-            Base(iter.m_ht, iter.m_bucket_idx),
-            m_iter(iter)
-            {
-            }
-
-			// returns the element pointed to by iterator
-			T *Value() const
-            {
-                GPOS_ASSERT(m_iter.m_invalid_elem_inserted &&
-                            "Iterator's advance is not called");
-
-                // advance in the current bucket until finding a valid element;
-                // this is needed because the next valid element pointed to by
-                // iterator might have been deleted by another client just before
-                // using the accessor
-
-                return FirstValid(m_iter.m_invalid_elem);
-            }
-
-	}; // class CSyncHashtableAccessByIter
-
-}
-
-#endif // !GPOS_CSyncHashtableAccessByIter_H
+#endif	// !GPOS_CSyncHashtableAccessByIter_H
 
 // EOF

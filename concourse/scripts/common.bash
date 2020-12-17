@@ -27,15 +27,11 @@ function setup_configure_vars() {
 }
 
 function configure() {
-  if [ -f /opt/gcc_env.sh ]; then
-    # ubuntu uses the system compiler
-    source /opt/gcc_env.sh
-  fi
   pushd gpdb_src
       # The full set of configure options which were used for building the
       # tree must be used here as well since the toplevel Makefile depends
       # on these options for deciding what to test. Since we don't ship
-      ./configure --prefix=/usr/local/greenplum-db-devel --with-perl --with-python --with-libxml --enable-mapreduce --enable-orafce --enable-tap-tests --disable-orca --with-openssl ${CONFIGURE_FLAGS}
+      ./configure --prefix=/usr/local/greenplum-db-devel --with-perl --with-python PYTHON=python3 --enable-gpcloud --with-libxml --enable-mapreduce --enable-orafce --enable-tap-tests --disable-orca --with-openssl ${CONFIGURE_FLAGS}
 
   popd
 }
@@ -52,89 +48,60 @@ function make_cluster() {
   export STATEMENT_MEM=250MB
   pushd gpdb_src/gpAux/gpdemo
   su gpadmin -c "source /usr/local/greenplum-db-devel/greenplum_path.sh; make create-demo-cluster"
+
+  if [[ "$MAKE_TEST_COMMAND" =~ gp_interconnect_type=proxy ]]; then
+    # generate the addresses for proxy mode
+    su gpadmin -c bash -- -e <<EOF
+      source /usr/local/greenplum-db-devel/greenplum_path.sh
+      source $PWD/gpdemo-env.sh
+
+      delta=-3000
+
+      psql -tqA -d postgres -P pager=off -F: -R, \
+          -c "select dbid, content, address, port+\$delta as port
+                from gp_segment_configuration
+               order by 1" \
+      | xargs -rI'{}' \
+        gpconfig --skipvalidation -c gp_interconnect_proxy_addresses -v "'{}'"
+
+      # also have to enlarge gp_interconnect_tcp_listener_backlog
+      gpconfig -c gp_interconnect_tcp_listener_backlog -v 1024
+
+      gpstop -u
+EOF
+  fi
+
   popd
 }
 
 function run_test() {
-  # is this particular python version giving us trouble?
-  ln -s "$(pwd)/gpdb_src/gpAux/ext/rhel6_x86_64/python-2.7.12" /opt
   su gpadmin -c "bash /opt/run_test.sh $(pwd)"
 }
 
-function install_python_hacks() {
-    # Our Python installation doesn't run standalone; it requires
-    # LD_LIBRARY_PATH which causes virtualenv to fail (because the system and
-    # vendored libpythons collide). We'll try our best to install patchelf to
-    # fix this later, but it's not available on all platforms.
-    if which yum > /dev/null; then
-        yum install -y patchelf
-    elif which apt > /dev/null; then
-        apt update
-        apt install patchelf
-    else
-        set +x
-        echo "ERROR: install_python_hacks() doesn't support the current platform and should be modified"
-        exit 1
-    fi
-}
-
-function _install_python_requirements() {
-    # virtualenv 16.0 and greater does not support python2.6, which is
-    # used on centos6
-    pip install --user virtualenv~=15.0
-    export PATH=$PATH:~/.local/bin
-
-    # create virtualenv before sourcing greenplum_path since greenplum_path
-    # modifies PYTHONHOME and PYTHONPATH
-    #
-    # XXX Patch up the vendored Python's RPATH so we can successfully run
-    # virtualenv. If we instead set LD_LIBRARY_PATH (as greenplum_path.sh
-    # does), the system Python and the vendored Python will collide and
-    # virtualenv will fail. This step requires patchelf.
-    if which patchelf > /dev/null; then
-        patchelf \
-            --set-rpath /usr/local/greenplum-db-devel/ext/python/lib \
-            /usr/local/greenplum-db-devel/ext/python/bin/python
-
-        virtualenv \
-            --python /usr/local/greenplum-db-devel/ext/python/bin/python /tmp/venv
-    else
-        # We don't have patchelf on this environment. The only workaround we
-        # currently have is to set both PYTHONHOME and LD_LIBRARY_PATH and
-        # pray that the resulting libpython collision doesn't break
-        # something too badly.
-        echo 'WARNING: about to execute a cross-linked virtualenv; here there be dragons'
-        LD_LIBRARY_PATH=/usr/local/greenplum-db-devel/ext/python/lib \
-        PYTHONHOME=/usr/local/greenplum-db-devel/ext/python \
-        virtualenv \
-            --python /usr/local/greenplum-db-devel/ext/python/bin/python /tmp/venv
-    fi
-}
-
 function install_python_requirements_on_single_host() {
+    # installing python requirements on single host only happens for demo cluster tests,
+    # and is run by root user. Therefore, pip install as root user to make items globally
+    # available
     local requirements_txt="$1"
-    _install_python_requirements
 
-    # Install requirements into the vendored Python stack
-    mkdir -p /tmp/py-requirements
-    source /tmp/venv/bin/activate
-        pip install --prefix /tmp/py-requirements -r ${requirements_txt}
-        cp -r /tmp/py-requirements/* /usr/local/greenplum-db-devel/ext/python/
-    deactivate
+    export PIP_CACHE_DIR=${PWD}/pip-cache-dir
+    pip3 --retries 10 install -r ${requirements_txt}
 }
 
 function install_python_requirements_on_multi_host() {
+    # installing python requirements on multi host happens exclusively as gpadmin user.
+    # Therefore, add the --user flag and add the user path to the path in run_behave_test.sh
+    # the user flag is required for centos 7
     local requirements_txt="$1"
-    _install_python_requirements
 
-    # Install requirements into the vendored Python stack on all hosts.
-    mkdir -p /tmp/py-requirements
-    source /tmp/venv/bin/activate
-        pip install --prefix /tmp/py-requirements -r ${requirements_txt}
-        while read -r host; do
-            rsync -rz /tmp/py-requirements/ "$host":/usr/local/greenplum-db-devel/ext/python/
-        done < /tmp/hostfile_all
-    deactivate
+    # Set PIP Download cache directory
+    export PIP_CACHE_DIR=/home/gpadmin/pip-cache-dir
+
+    pip3 --retries 10 install --user -r ${requirements_txt}
+    while read -r host; do
+       scp ${requirements_txt} "$host":/tmp/requirements.txt
+       ssh $host PIP_CACHE_DIR=${PIP_CACHE_DIR} pip3 --retries 10 install --user -r /tmp/requirements.txt
+    done < /tmp/hostfile_all
 }
 
 function setup_coverage() {

@@ -16,55 +16,48 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformSequenceProject2Apply
-	//
-	//	@doc:
-	//		Transform Sequence Project to Apply; this transformation is only
-	//		applicable to Sequence Project expression with window functions that
-	//		have subquery arguments
-	//
-	//---------------------------------------------------------------------------
-	class CXformSequenceProject2Apply : public CXformSubqueryUnnest
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformSequenceProject2Apply
+//
+//	@doc:
+//		Transform Sequence Project to Apply; this transformation is only
+//		applicable to Sequence Project expression with window functions that
+//		have subquery arguments
+//
+//---------------------------------------------------------------------------
+class CXformSequenceProject2Apply : public CXformSubqueryUnnest
+{
+private:
+public:
+	CXformSequenceProject2Apply(const CXformSequenceProject2Apply &) = delete;
+
+	// ctor
+	explicit CXformSequenceProject2Apply(CMemoryPool *mp);
+
+	// dtor
+	~CXformSequenceProject2Apply() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfSequenceProject2Apply;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformSequenceProject2Apply";
+	}
 
-			// private copy ctor
-			CXformSequenceProject2Apply(const CXformSequenceProject2Apply &);
+};	// class CXformSequenceProject2Apply
 
-		public:
+}  // namespace gpopt
 
-			// ctor
-			explicit
-			CXformSequenceProject2Apply(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformSequenceProject2Apply()
-			{}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfSequenceProject2Apply;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformSequenceProject2Apply";
-			}
-
-	}; // class CXformSequenceProject2Apply
-
-}
-
-#endif // !GPOPT_CXformSequenceProject2Apply_H
+#endif	// !GPOPT_CXformSequenceProject2Apply_H
 
 // EOF

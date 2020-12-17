@@ -19,78 +19,66 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
-	using namespace gpmd;
+using namespace gpos;
+using namespace gpmd;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLScalarSwitchCase
-	//
-	//	@doc:
-	//		Class for representing DXL Switch Case
-	//
-	//---------------------------------------------------------------------------
-	class CDXLScalarSwitchCase : public CDXLScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLScalarSwitchCase
+//
+//	@doc:
+//		Class for representing DXL Switch Case
+//
+//---------------------------------------------------------------------------
+class CDXLScalarSwitchCase : public CDXLScalar
+{
+private:
+public:
+	CDXLScalarSwitchCase(const CDXLScalarSwitchCase &) = delete;
+
+	// ctor
+	explicit CDXLScalarSwitchCase(CMemoryPool *mp);
+
+	//dtor
+	~CDXLScalarSwitchCase() override = default;
+
+	// name of the operator
+	const CWStringConst *GetOpNameStr() const override;
+
+	// DXL Operator ID
+	Edxlopid GetDXLOperator() const override;
+
+	// serialize operator in DXL format
+	void SerializeToDXL(CXMLSerializer *xml_serializer,
+						const CDXLNode *dxlnode) const override;
+
+	// conversion function
+	static CDXLScalarSwitchCase *
+	Cast(CDXLOperator *dxl_op)
 	{
-		private:
-			// private copy ctor
-			CDXLScalarSwitchCase(const CDXLScalarSwitchCase&);
+		GPOS_ASSERT(NULL != dxl_op);
+		GPOS_ASSERT(EdxlopScalarSwitchCase == dxl_op->GetDXLOperator());
 
-		public:
+		return dynamic_cast<CDXLScalarSwitchCase *>(dxl_op);
+	}
 
-			// ctor
-			explicit
-			CDXLScalarSwitchCase(CMemoryPool *mp);
-
-			//dtor
-			virtual
-			~CDXLScalarSwitchCase()
-			{}
-
-			// name of the operator
-			virtual
-			const CWStringConst *GetOpNameStr() const;
-
-			// DXL Operator ID
-			virtual
-			Edxlopid GetDXLOperator() const;
-
-			// serialize operator in DXL format
-			virtual
-			void SerializeToDXL(CXMLSerializer *xml_serializer, const CDXLNode *dxlnode) const;
-
-			// conversion function
-			static
-			CDXLScalarSwitchCase *Cast
-				(
-				CDXLOperator *dxl_op
-				)
-			{
-				GPOS_ASSERT(NULL != dxl_op);
-				GPOS_ASSERT(EdxlopScalarSwitchCase == dxl_op->GetDXLOperator());
-
-				return dynamic_cast<CDXLScalarSwitchCase*>(dxl_op);
-			}
-
-			// does the operator return a boolean result
-			virtual
-			BOOL HasBoolResult
-					(
-					CMDAccessor *//md_accessor
-					)
-					const
-			{
-				GPOS_ASSERT(!"Invalid function call for a container operator");
-				return false;
-			}
+	// does the operator return a boolean result
+	BOOL
+	HasBoolResult(CMDAccessor *	 //md_accessor
+	) const override
+	{
+		GPOS_ASSERT(!"Invalid function call for a container operator");
+		return false;
+	}
 
 #ifdef GPOS_DEBUG
-			// checks whether the operator has valid structure, i.e. number and
-			// types of child nodes
-			void AssertValid(const CDXLNode *dxlnode, BOOL validate_children) const;
-#endif // GPOS_DEBUG
-	};
-}
-#endif // !GPDXL_CDXLScalarSwitchCase_H
+	// checks whether the operator has valid structure, i.e. number and
+	// types of child nodes
+	void AssertValid(const CDXLNode *dxlnode,
+					 BOOL validate_children) const override;
+#endif	// GPOS_DEBUG
+};
+}  // namespace gpdxl
+#endif	// !GPDXL_CDXLScalarSwitchCase_H
 
 // EOF

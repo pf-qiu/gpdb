@@ -1,12 +1,11 @@
 platform: linux
 image_resource:
-  type: docker-image
+  type: registry-image
 inputs:
   - name: gpdb_src
   - name: libquicklz-installer
   - name: libquicklz-devel-installer
     optional: true
-  - name: python-tarball
 outputs:
   - name: gpdb_artifacts
 run:
@@ -18,3 +17,4 @@ params:
   OUTPUT_ARTIFACT_DIR: gpdb_artifacts
   CONFIGURE_FLAGS:
   RC_BUILD_TYPE_GCS:
+  SKIP_UNITTESTS:

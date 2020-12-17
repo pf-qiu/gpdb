@@ -2,6 +2,7 @@
 #include "fmgr.h"
 #include "funcapi.h"
 
+#include "access/external.h"
 #include "access/extprotocol.h"
 #include "catalog/pg_proc.h"
 #include "commands/defrem.h"
@@ -9,7 +10,6 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
-#include "catalog/pg_exttable.h"
 
 
 typedef struct DemoUri
@@ -53,7 +53,7 @@ static void check_ext_options(const FunctionCallInfo fcinfo)
 			char *value = defGetString(def);
 
 			if (key && strcasestr(key, "database") && !strcasestr(value, "greenplum")) {
-					ereport(ERROR, (0, errmsg("This is greenplum.")));
+					ereport(ERROR, errmsg("This is greenplum."));
 			}
         }
 }

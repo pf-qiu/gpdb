@@ -20,8 +20,6 @@
 !\retcode gpconfig -c gp_gang_creation_retry_timer -v 1000 --skipvalidation --masteronly;
 !\retcode gpstop -u;
 
-include: helpers/server_helpers.sql;
-
 -- Helper function
 CREATE or REPLACE FUNCTION wait_until_segments_are_down(num_segs int)
 RETURNS bool AS
@@ -128,30 +126,12 @@ where c.role='m' and c.content=0), 'stop');
 !\retcode gprecoverseg -aF --no-progress;
 
 -- loop while segments come in sync
-do $$
-begin /* in func */
-  for i in 1..120 loop /* in func */
-    if (select count(*) = 2 from gp_segment_configuration where content in (0, 1) and mode = 's' and role = 'p') then /* in func */ 
-      return; /* in func */
-    end if; /* in func */
-    perform gp_request_fts_probe_scan(); /* in func */
-  end loop; /* in func */
-end; /* in func */
-$$;
+select wait_until_all_segments_synchronized();
 
 !\retcode gprecoverseg -ar;
 
 -- loop while segments come in sync
-do $$
-begin /* in func */
-  for i in 1..120 loop /* in func */
-    if (select count(*) = 2 from gp_segment_configuration where content in (0, 1) and mode = 's' and role = 'p') then /* in func */ 
-      return; /* in func */
-    end if; /* in func */
-    perform gp_request_fts_probe_scan(); /* in func */
-  end loop; /* in func */
-end; /* in func */
-$$;
+select wait_until_all_segments_synchronized();
 
 -- verify no segment is down after recovery
 select count(*) from gp_segment_configuration where status = 'd';

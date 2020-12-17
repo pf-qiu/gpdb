@@ -5,7 +5,7 @@
  *		and executing queries with initPlans
  *
  * Portions Copyright (c) 2003-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -22,6 +22,7 @@
 #include "cdb/cdbllize.h"
 #include "cdb/cdbsubplan.h"
 #include "cdb/cdbvars.h"		/* currentSliceId */
+#include "utils/tuplestore.h"
 
 static bool isParamExecutableNow(SubPlanState *spstate, ParamExecData *prmList);
 
@@ -59,12 +60,14 @@ static bool isParamExecutableNow(SubPlanState *spstate, ParamExecData *prmList);
 void
 preprocess_initplans(QueryDesc *queryDesc)
 {
+	int			nParamExec;
 	int			i;
 	EState	   *estate = queryDesc->estate;
 	int			originalSlice,
 				rootIndex;
 
-	if (queryDesc->plannedstmt->nParamExec == 0)
+	nParamExec = list_length(queryDesc->plannedstmt->paramExecTypes);
+	if (nParamExec == 0)
 		return;
 
 	originalSlice = LocallyExecutingSliceIndex(queryDesc->estate);
@@ -77,7 +80,7 @@ preprocess_initplans(QueryDesc *queryDesc)
 	 * order, i.e. if a subplan x has a sublan y, then y will come before x in
 	 * the es_param_exec_vals array.
 	 */
-	for (i = 0; i < queryDesc->plannedstmt->nParamExec; i++)
+	for (i = 0; i < nParamExec; i++)
 	{
 		ParamExecData *prm;
 		SubPlanState *sps;
@@ -87,7 +90,7 @@ preprocess_initplans(QueryDesc *queryDesc)
 
 		if (isParamExecutableNow(sps, estate->es_param_exec_vals))
 		{
-			SubPlan    *subplan = (SubPlan *) sps->xprstate.expr;
+			SubPlan    *subplan = sps->subplan;
 			int			qDispSliceId;
 
 			Assert(IsA(subplan, SubPlan));
@@ -134,17 +137,47 @@ preprocess_initplans(QueryDesc *queryDesc)
 				 * later Init plans can depend on previous ones.
 				 */
 				ExecSetParamPlan(sps, sps->planstate->ps_ExprContext, queryDesc);
-
-				/*
-				 * We dispatched, and have returned. We may have used the
-				 * interconnect; so let's bump the interconnect-id.
-				 */
-				queryDesc->estate->es_sliceTable->ic_instance_id = ++gp_interconnect_id;
 			}
 		}
 
 		queryDesc->estate->es_sliceTable->localSlice = originalSlice;
 		currentSliceId = originalSlice;
+	}
+}
+
+/*
+ * CDB: Post processing INITPLAN to clean up resource with long life cycle
+ * 
+ * INITPLAN usually communicate with main plan through scalar PARAM, but in some case,
+ * the main plan need to get more data from INITPLAN which long life cycle resource like
+ * temp file will be used.
+ * Take INITPLAN function case as an example, INITPLAN will store its result into
+ * tuplestore, which will be read by entryDB in main plan. Tuplestore and corresponding
+ * files should not be cleaned before the main plan finished.
+ *
+ * postprocess_initplans is used to clean these resources in ExecutorEnd of main plan.
+ */
+void
+postprocess_initplans(QueryDesc *queryDesc)
+{
+	EState	   *estate = queryDesc->estate;
+	int			nParamExec;
+	ParamExecData *prm;
+	SubPlanState *sps;
+	int			i;
+
+	nParamExec = list_length(queryDesc->plannedstmt->paramExecTypes);
+
+	/* clean ntuplestore used by INITPLAN function */
+	for (i = 0; i < nParamExec; i++)
+	{
+		prm = &estate->es_param_exec_vals[i];
+		sps = (SubPlanState *) prm->execPlan;
+		if (sps && sps->ts_state)
+		{
+			tuplestore_end(sps->ts_state);
+			sps->ts_state = NULL;
+		}
 	}
 }
 
@@ -155,7 +188,7 @@ isParamExecutableNow(SubPlanState *spstate, ParamExecData *prmList)
 	if (!spstate)
 		return false;
 
-	List	   *extParam = ((SubPlan *) spstate->xprstate.expr)->extParam;
+	List	   *extParam = spstate->subplan->extParam;
 
 	if (extParam == NIL)
 		return true;

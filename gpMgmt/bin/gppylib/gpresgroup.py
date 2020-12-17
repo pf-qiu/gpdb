@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
-# Copyright (c) 2017, Pivotal Software Inc.
+# Copyright (c) 2017, VMware, Inc. or its affiliates.
 #
 
 from gppylib.commands import base
@@ -8,7 +8,6 @@ from gppylib.commands.unix import *
 from gppylib.commands.gp import *
 from gppylib.gparray import GpArray
 from gppylib.gplog import get_default_logger
-from gppylib.gphostcache import *
 
 class GpResGroup(object):
 

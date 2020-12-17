@@ -18,67 +18,55 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformInlineCTEConsumerUnderSelect
-	//
-	//	@doc:
-	//		Transform logical Select on top of a CTE consumer to a select on top of
-	//		a copy of the expression under its corresponding producer then attempt
-	//		push the selection down
-	//
-	//---------------------------------------------------------------------------
-	class CXformInlineCTEConsumerUnderSelect : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformInlineCTEConsumerUnderSelect
+//
+//	@doc:
+//		Transform logical Select on top of a CTE consumer to a select on top of
+//		a copy of the expression under its corresponding producer then attempt
+//		push the selection down
+//
+//---------------------------------------------------------------------------
+class CXformInlineCTEConsumerUnderSelect : public CXformExploration
+{
+private:
+public:
+	CXformInlineCTEConsumerUnderSelect(
+		const CXformInlineCTEConsumerUnderSelect &) = delete;
+
+	// ctor
+	explicit CXformInlineCTEConsumerUnderSelect(CMemoryPool *mp);
+
+	// dtor
+	~CXformInlineCTEConsumerUnderSelect() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfInlineCTEConsumerUnderSelect;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformInlineCTEConsumerUnderSelect";
+	}
 
-			// private copy ctor
-			CXformInlineCTEConsumerUnderSelect(const CXformInlineCTEConsumerUnderSelect &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformInlineCTEConsumerUnderSelect(CMemoryPool *mp);
+};	// class CXformInlineCTEConsumerUnderSelect
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformInlineCTEConsumerUnderSelect() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfInlineCTEConsumerUnderSelect;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformInlineCTEConsumerUnderSelect";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformInlineCTEConsumerUnderSelect
-}
-
-#endif // !GPOPT_CXformInlineCTEConsumerUnderSelect_H
+#endif	// !GPOPT_CXformInlineCTEConsumerUnderSelect_H
 
 // EOF

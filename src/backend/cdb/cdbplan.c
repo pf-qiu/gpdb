@@ -4,7 +4,7 @@
  *	  Provides routines supporting plan tree manipulation.
  *
  * Portions Copyright (c) 2004-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -184,6 +184,17 @@ plan_tree_mutator(Node *node,
 			}
 			break;
 
+		case T_ProjectSet:
+			{
+				ProjectSet *ps = (ProjectSet *) node;
+				ProjectSet *newps;
+
+				FLATCOPY(newps, ps, ProjectSet);
+				PLANMUTATE(newps, ps);
+				return (Node *) newps;
+			}
+			break;
+
 		case T_ModifyTable:
 			{
 				ModifyTable *mt = (ModifyTable *) node;
@@ -275,19 +286,6 @@ plan_tree_mutator(Node *node,
 
 				FLATCOPY(newPartsel, partsel, PartitionSelector);
 				PLANMUTATE(newPartsel, partsel);
-				MUTATE(newPartsel->levelEqExpressions, partsel->levelEqExpressions, List *);
-				MUTATE(newPartsel->levelExpressions, partsel->levelExpressions, List *);
-				MUTATE(newPartsel->residualPredicate, partsel->residualPredicate, Node *);
-				MUTATE(newPartsel->propagationExpression, partsel->propagationExpression, Node *);
-				MUTATE(newPartsel->printablePredicate, partsel->printablePredicate, Node *);
-				MUTATE(newPartsel->partTabTargetlist, partsel->partTabTargetlist, List *);
-				MUTATE(newPartsel->staticPartOids, partsel->staticPartOids, List *);
-				MUTATE(newPartsel->staticScanIds, partsel->staticScanIds, List *);
-				newPartsel->nLevels = partsel->nLevels;
-				newPartsel->scanId = partsel->scanId;
-				newPartsel->selectorId = partsel->selectorId;
-				newPartsel->relid = partsel->relid;
-				newPartsel->staticSelection = partsel->staticSelection;
 
 				return (Node *) newPartsel;
 			}
@@ -511,6 +509,18 @@ plan_tree_mutator(Node *node,
 			}
 			break;
 
+		case T_TableFuncScan:
+			{
+				TableFuncScan *scan = (TableFuncScan *) node;
+				TableFuncScan *newscan;
+
+				FLATCOPY(newscan, scan, TableFuncScan);
+				MUTATE(newscan->tablefunc, scan->tablefunc, TableFunc *);
+				SCANMUTATE(newscan, scan);
+				return (Node *) newscan;
+			}
+			break;
+
 		case T_WorkTableScan:
 			{
 				WorkTableScan *wts = (WorkTableScan *) node;
@@ -521,6 +531,17 @@ plan_tree_mutator(Node *node,
 
 				return (Node *) newwts;
 			}
+
+		case T_NamedTuplestoreScan:
+			{
+				NamedTuplestoreScan *ntscan = (NamedTuplestoreScan *) node;
+				NamedTuplestoreScan *newntscan;
+
+				FLATCOPY(newntscan, ntscan, NamedTuplestoreScan);
+				SCANMUTATE(newntscan, ntscan);
+				return (Node *) newntscan;
+			}
+			break;
 
 		case T_Join:
 			/* Abstract: Should see only subclasses. */
@@ -620,10 +641,7 @@ plan_tree_mutator(Node *node,
 				FLATCOPY(new_tup_split, tup_split, TupleSplit);
 				PLANMUTATE(new_tup_split, tup_split);
 				COPYARRAY(new_tup_split, tup_split, numCols, grpColIdx);
-
-				new_tup_split->dqa_args_id_bms = palloc0(sizeof(Bitmapset *) * tup_split->numDisDQAs);
-				for (int i = 0; i < tup_split->numDisDQAs; i++)
-					new_tup_split->dqa_args_id_bms[i] = bms_copy(tup_split->dqa_args_id_bms[i]);
+				MUTATE(new_tup_split->dqa_expr_lst, tup_split->dqa_expr_lst, List *);
 
 				return (Node *) new_tup_split;
 			}
@@ -819,6 +837,8 @@ plan_tree_mutator(Node *node,
 				{
 					case RTE_RELATION:	/* ordinary relation reference */
 					case RTE_VOID:	/* deleted entry */
+					case RTE_RESULT:
+					case RTE_NAMEDTUPLESTORE:
 						/* No extras. */
 						break;
 
@@ -830,8 +850,8 @@ plan_tree_mutator(Node *node,
 						newrte->ctename = pstrdup(rte->ctename);
 						newrte->ctelevelsup = rte->ctelevelsup;
 						newrte->self_reference = rte->self_reference;
-						MUTATE(newrte->ctecoltypes, rte->ctecoltypes, List *);
-						MUTATE(newrte->ctecoltypmods, rte->ctecoltypmods, List *);
+						MUTATE(newrte->coltypes, rte->coltypes, List *);
+						MUTATE(newrte->coltypmods, rte->coltypmods, List *);
 						break;
 
 					case RTE_JOIN:	/* join */
@@ -845,6 +865,11 @@ plan_tree_mutator(Node *node,
 					case RTE_TABLEFUNCTION:
 						newrte->subquery = copyObject(rte->subquery);
 						MUTATE(newrte->functions, rte->functions, List *);
+						break;
+
+					case RTE_TABLEFUNC:
+						newrte->tablefunc = copyObject(rte->tablefunc);
+						MUTATE(newrte->tablefunc, rte->tablefunc, TableFunc *);
 						break;
 
 					case RTE_VALUES:
@@ -920,7 +945,7 @@ plan_tree_mutator(Node *node,
 		case T_RangeTblRef:
 		case T_Aggref:
 		case T_WindowFunc:
-		case T_ArrayRef:
+		case T_SubscriptingRef:
 		case T_FuncExpr:
 		case T_OpExpr:
 		case T_DistinctExpr:

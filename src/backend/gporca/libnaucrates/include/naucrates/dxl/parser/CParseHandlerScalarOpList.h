@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CParseHandlerScalarOpList.h
@@ -18,59 +18,53 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerScalarOpList
-	//
-	//	@doc:
-	//		Parse handler class for parsing a list of scalar operators
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerScalarOpList : public CParseHandlerScalarOp
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerScalarOpList
+//
+//	@doc:
+//		Parse handler class for parsing a list of scalar operators
+//
+//---------------------------------------------------------------------------
+class CParseHandlerScalarOpList : public CParseHandlerScalarOp
+{
+private:
+	// op list type
+	CDXLScalarOpList::EdxlOpListType m_dxl_op_list_type;
 
-			// op list type
-			CDXLScalarOpList::EdxlOpListType m_dxl_op_list_type;
+	// return the op list type corresponding to the given operator name
+	CDXLScalarOpList::EdxlOpListType GetDXLOpListType(
+		const XMLCh *const element_local_name);
 
-			// private copy ctor
-			CParseHandlerScalarOpList(const CParseHandlerScalarOpList&);
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-			// return the op list type corresponding to the given operator name
-			CDXLScalarOpList::EdxlOpListType GetDXLOpListType(const XMLCh* const element_local_name);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-			// process the start of an element
-			void StartElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
- 					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname,		// element's qname
-					const Attributes& attr				// element's attributes
-				);
+public:
+	CParseHandlerScalarOpList(const CParseHandlerScalarOpList &) = delete;
 
-			// process the end of an element
-			void EndElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
-					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname		// element's qname
-				);
+	// ctor
+	CParseHandlerScalarOpList(CMemoryPool *mp,
+							  CParseHandlerManager *parse_handler_mgr,
+							  CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
 
-		public:
-			// ctor
-			CParseHandlerScalarOpList
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
-	};
-}
-
-#endif // !GPDXL_CParseHandlerScalarScalarOpList_H
+#endif	// !GPDXL_CParseHandlerScalarScalarOpList_H
 
 // EOF

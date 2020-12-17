@@ -4,7 +4,7 @@
  *    header file for nodeSequence.c.
  *
  * Portions Copyright (c) 2012 - present, EMC/Greenplum
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -19,7 +19,7 @@
 #include "nodes/execnodes.h"
 
 extern SequenceState *ExecInitSequence(Sequence *node, EState *estate, int eflags);
-extern TupleTableSlot *ExecSequence(SequenceState *node);
+extern TupleTableSlot *ExecSequence(PlanState *pstate);
 extern void ExecReScanSequence(SequenceState *node);
 extern void ExecEndSequence(SequenceState *node);
 extern void ExecSquelchSequence(SequenceState *node);

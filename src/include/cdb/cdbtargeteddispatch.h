@@ -11,7 +11,7 @@
  * See MPP-6939 for more information.
  *
  * Portions Copyright (c) 2009, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -22,8 +22,8 @@
 #ifndef CDBTARGETEDDISPATCH_H
 #define CDBTARGETEDDISPATCH_H
 
+#include "nodes/pathnodes.h"
 #include "nodes/plannodes.h"
-#include "nodes/relation.h"
 
 extern void FinalizeDirectDispatchDataForSlice(PlanSlice *slice);
 extern void DirectDispatchUpdateContentIdsFromPlan(PlannerInfo *root, Plan *plan);

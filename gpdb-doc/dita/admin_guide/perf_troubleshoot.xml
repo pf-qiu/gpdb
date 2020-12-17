@@ -139,14 +139,14 @@ a.query
     <topic id="topic8" xml:lang="en">
         <title id="jc155511">Investigating Error Messages</title>
         <body>
-            <p>Greenplum Database log messages are written to files in the <codeph>pg_log</codeph>
+            <p>Greenplum Database log messages are written to files in the <codeph>log</codeph>
                 directory within the master's or segment's data directory. Because the master log
                 file contains the most information, you should always check it first. Log files roll
                 over daily and use the naming convention:
                         <codeph>gpdb-</codeph><i><codeph>YYYY</codeph></i><codeph>-</codeph><i><codeph>MM</codeph></i><codeph>-</codeph><i><codeph>DD_hhmmss.csv</codeph></i>.
                 To locate the log files on the master host:</p>
             <p>
-                <codeblock>$ cd $MASTER_DATA_DIRECTORY/pg_log
+                <codeblock>$ cd $MASTER_DATA_DIRECTORY/log
 </codeblock>
             </p>
             <p>Log lines have the format of:</p>
@@ -173,22 +173,23 @@ a.query
             <p>
                 <codeblock>gpssh -f seg_hosts_file -e 'source 
 /usr/local/greenplum-db/greenplum_path.sh ; gplogfilter -f 
-con6 /gpdata/*/pg_log/gpdb*.csv' &gt; seglog.out
+con6 /gpdata/*/log/gpdb*.csv' &gt; seglog.out
 </codeblock>
             </p>
         </body>
         <topic id="topic9" xml:lang="en" otherprops="pivotal">
-            <title id="jc155267">Gathering Information for Pivotal Customer Support</title>
+            <title id="jc155267">Gathering Information for VMware Customer Support</title>
             <body>
-                <p>The Greenplum Magic Tool (GPMT) utility can run diagnostics and collect
+                <p>The Greenplum Magic Tool (GPMT) can run diagnostics and collect
                     information from a Greenplum Database system. You can then send the information
-                    to Pivotal Customer Support to aid the diagnosis of Greenplum Database errors or
-                    system failures.</p>
-                <p>The GPMT utility is available from the <xref
-                        href="https://discuss.pivotal.io/hc/en-us/categories/200072608-Pivotal-Greenplum-Knowledge-Base"
-                        format="html" scope="external">Pivotal Knowledge Base</xref> on the <xref
-                        href="https://discuss.pivotal.io/hc/en-us/articles/217546277-Greenplum-Magic-Tool-GPMT-"
-                        format="html" scope="external">GPMT</xref> page.</p>
+                    to VMware Customer Support to aid in the diagnosis of Greenplum Database errors
+                    or system failures.</p>
+                <p>The <codeph>gpmt</codeph> utility command is available in the <codeph>bin</codeph>
+                  directory of your Greenplum Database installation. You can find usage information
+                  for this utility on the
+                  <xref href="https://community.pivotal.io/s/article/Greenplum-Magic-Tool-GPMT"
+                     format="html" scope="external">Greenplum Magic Tool (GPMT)</xref> page located
+                  in the VMware Tanzu Community Knowledge Base.</p>
             </body>
         </topic>
     </topic>

@@ -10,7 +10,7 @@
  * when the function is called.
  *
  * Portions Copyright (c) 2010, Greenplum
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -23,6 +23,7 @@
 #include "funcapi.h"
 
 #include "utils/builtins.h"
+#include "utils/regproc.h"
 
 Datum
 gp_deprecated(PG_FUNCTION_ARGS)

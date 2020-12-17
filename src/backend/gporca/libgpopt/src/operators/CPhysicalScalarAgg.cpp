@@ -11,7 +11,6 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/base/CUtils.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CDistributionSpecSingleton.h"
@@ -29,34 +28,16 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CPhysicalScalarAgg::CPhysicalScalarAgg
-	(
-	CMemoryPool *mp,
-	CColRefArray *colref_array,
-	CColRefArray *pdrgpcrMinimal,
-	COperator::EGbAggType egbaggtype,
-	BOOL fGeneratesDuplicates,
-	CColRefArray *pdrgpcrArgDQA,
-	BOOL fMultiStage,
-	BOOL isAggFromSplitDQA,
-	CLogicalGbAgg::EAggStage aggStage,
-	BOOL should_enforce_distribution
-	)
-	:
-	CPhysicalAgg
-	(
-	mp,
-	colref_array,
-	pdrgpcrMinimal,
-	egbaggtype,
-	fGeneratesDuplicates,
-	pdrgpcrArgDQA,
-	fMultiStage,
-	isAggFromSplitDQA,
-	aggStage,
-	should_enforce_distribution
-	)
-{}
+CPhysicalScalarAgg::CPhysicalScalarAgg(
+	CMemoryPool *mp, CColRefArray *colref_array, CColRefArray *pdrgpcrMinimal,
+	COperator::EGbAggType egbaggtype, BOOL fGeneratesDuplicates,
+	CColRefArray *pdrgpcrArgDQA, BOOL fMultiStage, BOOL isAggFromSplitDQA,
+	CLogicalGbAgg::EAggStage aggStage, BOOL should_enforce_distribution)
+	: CPhysicalAgg(mp, colref_array, pdrgpcrMinimal, egbaggtype,
+				   fGeneratesDuplicates, pdrgpcrArgDQA, fMultiStage,
+				   isAggFromSplitDQA, aggStage, should_enforce_distribution)
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -67,8 +48,7 @@ CPhysicalScalarAgg::CPhysicalScalarAgg
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CPhysicalScalarAgg::~CPhysicalScalarAgg()
-{}
+CPhysicalScalarAgg::~CPhysicalScalarAgg() = default;
 
 
 //---------------------------------------------------------------------------
@@ -80,20 +60,17 @@ CPhysicalScalarAgg::~CPhysicalScalarAgg()
 //
 //---------------------------------------------------------------------------
 COrderSpec *
-CPhysicalScalarAgg::PosRequired
-	(
-	CMemoryPool *mp,
-	CExpressionHandle &, // exprhdl
-	COrderSpec *, // posRequired
-	ULONG
+CPhysicalScalarAgg::PosRequired(CMemoryPool *mp,
+								CExpressionHandle &,  // exprhdl
+								COrderSpec *,		  // posRequired
+								ULONG
 #ifdef GPOS_DEBUG
-	child_index
-#endif // GPOS_DEBUG
-	,
-	CDrvdPropArray *, // pdrgpdpCtxt
-	ULONG // ulOptReq
-	)
-	const
+									child_index
+#endif	// GPOS_DEBUG
+								,
+								CDrvdPropArray *,  // pdrgpdpCtxt
+								ULONG			   // ulOptReq
+) const
 {
 	GPOS_ASSERT(0 == child_index);
 
@@ -111,12 +88,9 @@ CPhysicalScalarAgg::PosRequired
 //
 //---------------------------------------------------------------------------
 COrderSpec *
-CPhysicalScalarAgg::PosDerive
-	(
-	CMemoryPool *mp,
-	CExpressionHandle & // exprhdl
-	)
-	const
+CPhysicalScalarAgg::PosDerive(CMemoryPool *mp,
+							  CExpressionHandle &  // exprhdl
+) const
 {
 	// return empty sort order
 	return GPOS_NEW(mp) COrderSpec(mp);
@@ -132,15 +106,12 @@ CPhysicalScalarAgg::PosDerive
 //
 //---------------------------------------------------------------------------
 CEnfdProp::EPropEnforcingType
-CPhysicalScalarAgg::EpetOrder
-	(
-	CExpressionHandle &, // exprhdl
-	const CEnfdOrder *
+CPhysicalScalarAgg::EpetOrder(CExpressionHandle &,	// exprhdl
+							  const CEnfdOrder *
 #ifdef GPOS_DEBUG
-	peo
-#endif // GPOS_DEBUG
-	)
-	const
+								  peo
+#endif	// GPOS_DEBUG
+) const
 {
 	GPOS_ASSERT(NULL != peo);
 	GPOS_ASSERT(!peo->PosRequired()->IsEmpty());

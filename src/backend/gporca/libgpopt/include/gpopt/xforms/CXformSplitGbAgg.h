@@ -16,97 +16,81 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformSplitGbAgg
-	//
-	//	@doc:
-	//		Split an aggregate operator into pair of local and global aggregate
-	//
-	//---------------------------------------------------------------------------
-	class CXformSplitGbAgg : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformSplitGbAgg
+//
+//	@doc:
+//		Split an aggregate operator into pair of local and global aggregate
+//
+//---------------------------------------------------------------------------
+class CXformSplitGbAgg : public CXformExploration
+{
+private:
+protected:
+	// check if the transformation is applicable;
+	static BOOL FApplicable(CExpression *pexpr);
+
+	// generate a project lists for the local and global aggregates
+	// from the original aggregate
+	static void PopulateLocalGlobalProjectList(
+		CMemoryPool *mp,  // memory pool
+		CExpression *
+			pexprProjListOrig,	// project list of the original global aggregate
+		CExpression *
+			*ppexprProjListLocal,  // project list of the new local aggregate
+		CExpression *
+			*ppexprProjListGlobal  // project list of the new global aggregate
+	);
+
+public:
+	CXformSplitGbAgg(const CXformSplitGbAgg &) = delete;
+
+	// ctor
+	explicit CXformSplitGbAgg(CMemoryPool *mp);
+
+	// ctor
+	explicit CXformSplitGbAgg(CExpression *pexprPattern);
+
+	// dtor
+	~CXformSplitGbAgg() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfSplitGbAgg;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformSplitGbAgg";
+	}
 
-			// private copy ctor
-			CXformSplitGbAgg(const CXformSplitGbAgg &);
+	// Compatibility function for splitting aggregates
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return ((CXform::ExfSplitDQA != exfid) &&
+				(CXform::ExfSplitGbAgg != exfid) &&
+				(CXform::ExfEagerAgg != exfid));
+	}
 
-		protected:
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// check if the transformation is applicable;
-			static
-			BOOL FApplicable(CExpression *pexpr);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// generate a project lists for the local and global aggregates
-			// from the original aggregate
-			static
-			void PopulateLocalGlobalProjectList
-					(
-					CMemoryPool *mp, // memory pool
-					CExpression *pexprProjListOrig, // project list of the original global aggregate
-					CExpression **ppexprProjListLocal, // project list of the new local aggregate
-					CExpression **ppexprProjListGlobal // project list of the new global aggregate
-					);
+};	// class CXformSplitGbAgg
 
-		public:
+}  // namespace gpopt
 
-			// ctor
-			explicit
-			CXformSplitGbAgg(CMemoryPool *mp);
-
-			// ctor
-			explicit
-			CXformSplitGbAgg(CExpression *pexprPattern);
-
-			// dtor
-			virtual
-			~CXformSplitGbAgg()
-			{}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfSplitGbAgg;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformSplitGbAgg";
-			}
-
-			// Compatibility function for splitting aggregates
-			virtual
-			BOOL FCompatible(CXform::EXformId exfid)
-			{
-				return ((CXform::ExfSplitDQA != exfid) &&
-						(CXform::ExfSplitGbAgg != exfid) &&
-						(CXform::ExfEagerAgg != exfid));
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp (CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformSplitGbAgg
-
-}
-
-#endif // !GPOPT_CXformSplitGbAgg_H
+#endif	// !GPOPT_CXformSplitGbAgg_H
 
 // EOF

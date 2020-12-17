@@ -1,105 +1,44 @@
 #!/usr/bin/env bash
 
-if [ x$1 != x ] ; then
-    GPHOME_PATH=$1
+cat <<"EOF"
+if test -n "${ZSH_VERSION:-}"; then
+    # zsh
+    SCRIPT_PATH="${(%):-%x}"
+elif test -n "${BASH_VERSION:-}"; then
+    # bash
+    SCRIPT_PATH="${BASH_SOURCE[0]}"
 else
-    GPHOME_PATH="\`pwd\`"
+    # Unknown shell, hope below works.
+    # Tested with dash
+    result=$(lsof -p $$ -Fn | tail --lines=1 | xargs --max-args=2 | cut --delimiter=' ' --fields=2)
+    SCRIPT_PATH=${result#n}
 fi
 
-if [ "$2" = "ISO" ] ; then
-	cat <<-EOF
-		if [ "\${BASH_SOURCE:0:1}" == "/" ]
-		then
-		    GPHOME=\`dirname "\$BASH_SOURCE"\`
-		else
-		    GPHOME=\`pwd\`/\`dirname "\$BASH_SOURCE"\`
-		fi
-	EOF
+if test -z "$SCRIPT_PATH"; then
+    echo "The shell cannot be identified. \$GPHOME may not be set correctly." >&2
+fi
+SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" >/dev/null 2>&1 && pwd)"
+
+if [ ! -L "${SCRIPT_DIR}" ]; then
+	GPDB_DIR=$(basename "${SCRIPT_DIR}")
 else
-	cat <<-EOF
-		GPHOME=${GPHOME_PATH}
-	EOF
+	GPDB_DIR=$(basename "$(readlink "${SCRIPT_DIR}")")
 fi
-
-
-PLAT=`uname -s`
-if [ $? -ne 0 ] ; then
-    echo "Error executing uname -s"
-    exit 1
-fi
-
-cat << EOF
-
-# Replace with symlink path if it is present and correct
-if [ -h \${GPHOME}/../greenplum-db ]; then
-    GPHOME_BY_SYMLINK=\`(cd \${GPHOME}/../greenplum-db/ && pwd -P)\`
-    if [ x"\${GPHOME_BY_SYMLINK}" = x"\${GPHOME}" ]; then
-        GPHOME=\`(cd \${GPHOME}/../greenplum-db/ && pwd -L)\`/.
-    fi
-    unset GPHOME_BY_SYMLINK
-fi
+GPHOME=$(dirname "${SCRIPT_DIR}")/"${GPDB_DIR}"
 EOF
 
-cat <<EOF
-#setup PYTHONHOME
-if [ -x \$GPHOME/ext/python/bin/python ]; then
-    PYTHONHOME="\$GPHOME/ext/python"
-    export PYTHONHOME
-fi
-EOF
+cat <<"EOF"
+PYTHONPATH="${GPHOME}/lib/python"
+PATH="${GPHOME}/bin:${PATH}"
+LD_LIBRARY_PATH="${GPHOME}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-#setup PYTHONPATH
-if [ "x${PYTHONPATH}" == "x" ]; then
-    PYTHONPATH="\$GPHOME/lib/python"
-else
-    PYTHONPATH="\$GPHOME/lib/python:${PYTHONPATH}"
-fi
-cat <<EOF
-PYTHONPATH=${PYTHONPATH}
-EOF
-
-GP_BIN_PATH=\$GPHOME/bin
-GP_LIB_PATH=\$GPHOME/lib
-
-if [ -n "$PYTHONHOME" ]; then
-    GP_BIN_PATH=${GP_BIN_PATH}:\$PYTHONHOME/bin
-    GP_LIB_PATH=${GP_LIB_PATH}:\$PYTHONHOME/lib
-fi
-cat <<EOF
-PATH=${GP_BIN_PATH}:\$PATH
-EOF
-
-cat <<EOF
-LD_LIBRARY_PATH=${GP_LIB_PATH}:\${LD_LIBRARY_PATH-}
-export LD_LIBRARY_PATH
-EOF
-
-# AIX uses yet another library path variable
-# Also, Python on AIX requires special copies of some libraries.  Hence, lib/pware.
-if [ "${PLAT}" = "AIX" ]; then
-cat <<EOF
-PYTHONPATH=\${GPHOME}/ext/python/lib/python2.7:\${PYTHONPATH}
-LIBPATH=\${GPHOME}/lib/pware:\${GPHOME}/lib:\${GPHOME}/ext/python/lib:/usr/lib/threads:\${LIBPATH}
-export LIBPATH
-GP_LIBPATH_FOR_PYTHON=\${GPHOME}/lib/pware
-export GP_LIBPATH_FOR_PYTHON
-EOF
+if [ -e "${GPHOME}/etc/openssl.cnf" ]; then
+	OPENSSL_CONF="${GPHOME}/etc/openssl.cnf"
 fi
 
-# openssl configuration file path
-cat <<EOF
-if [ -e \$GPHOME/etc/openssl.cnf ]; then
-OPENSSL_CONF=\$GPHOME/etc/openssl.cnf
-export OPENSSL_CONF
-fi
-EOF
-
-cat <<EOF
 export GPHOME
 export PATH
-EOF
-
-cat <<EOF
 export PYTHONPATH
+export LD_LIBRARY_PATH
+export OPENSSL_CONF
 EOF
-

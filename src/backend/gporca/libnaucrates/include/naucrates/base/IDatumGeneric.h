@@ -19,45 +19,38 @@
 
 namespace gpnaucrates
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		IDatumGeneric
+//
+//	@doc:
+//		Base abstract class for generic datum representation
+//
+//---------------------------------------------------------------------------
+class IDatumGeneric : public IDatum
+{
+private:
+public:
+	IDatumGeneric(const IDatumGeneric &) = delete;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		IDatumGeneric
-	//
-	//	@doc:
-	//		Base abstract class for generic datum representation
-	//
-	//---------------------------------------------------------------------------
-	class IDatumGeneric : public IDatum
+	// ctor
+	IDatumGeneric() = default;
+
+	// dtor
+	~IDatumGeneric() override = default;
+
+	// accessor for datum type
+	IMDType::ETypeInfo
+	GetDatumType() override
 	{
+		return IMDType::EtiGeneric;
+	}
 
-		private:
+};	// class IDatumGeneric
 
-			// private copy ctor
-			IDatumGeneric(const IDatumGeneric &);
-
-		public:
-
-			// ctor
-			IDatumGeneric()
-			{};
-
-			// dtor
-			virtual
-			~IDatumGeneric()
-			{};
-
-			// accessor for datum type
-			virtual IMDType::ETypeInfo GetDatumType()
-			{
-				return IMDType::EtiGeneric;
-			}
-
-	}; // class IDatumGeneric
-
-}
+}  // namespace gpnaucrates
 
 
-#endif // !GPNAUCRATES_IDatumGeneric_H
+#endif	// !GPNAUCRATES_IDatumGeneric_H
 
 // EOF

@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CParseHandlerScalarPartBound.h
@@ -17,53 +17,46 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerScalarPartBound
-	//
-	//	@doc:
-	//		Parse handler class for parsing scalar part bound
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerScalarPartBound : public CParseHandlerScalarOp
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerScalarPartBound
+//
+//	@doc:
+//		Parse handler class for parsing scalar part bound
+//
+//---------------------------------------------------------------------------
+class CParseHandlerScalarPartBound : public CParseHandlerScalarOp
+{
+private:
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-			// private copy ctor
-			CParseHandlerScalarPartBound(const CParseHandlerScalarPartBound&);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-			// process the start of an element
-			void StartElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
- 					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname,		// element's qname
-					const Attributes& attr				// element's attributes
-				);
+public:
+	CParseHandlerScalarPartBound(const CParseHandlerScalarPartBound &) = delete;
 
-			// process the end of an element
-			void EndElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
-					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname		// element's qname
-				);
+	// ctor
+	CParseHandlerScalarPartBound(CMemoryPool *mp,
+								 CParseHandlerManager *parse_handler_mgr,
+								 CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
 
-		public:
-			// ctor
-			CParseHandlerScalarPartBound
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
-	};
-}
-
-#endif // !GPDXL_CParseHandlerScalarScalarPartBound_H
+#endif	// !GPDXL_CParseHandlerScalarScalarPartBound_H
 
 // EOF

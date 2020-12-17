@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc..
+//	Copyright (C) 2014 VMware, Inc. or its affiliates..
 //
 //	@filename:
 //		CXformImplementLeftSemiCorrelatedApplyIn.h
@@ -13,64 +13,60 @@
 #define GPOPT_CXformImplementLeftSemiCorrelatedApplyIn_H
 
 #include "gpos/base.h"
+#include "gpopt/operators/CLogicalLeftSemiCorrelatedApplyIn.h"
+#include "gpopt/operators/CPhysicalCorrelatedInLeftSemiNLJoin.h"
 #include "gpopt/xforms/CXformImplementCorrelatedApply.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//-------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementLeftSemiCorrelatedApplyIn
-	//
-	//	@doc:
-	//		Transform left semi correlated apply with IN/ANY semantics
-	//		to physical left semi correlated join
-	//
-	//-------------------------------------------------------------------------
-	class CXformImplementLeftSemiCorrelatedApplyIn :
-		public CXformImplementCorrelatedApply<CLogicalLeftSemiCorrelatedApplyIn, CPhysicalCorrelatedInLeftSemiNLJoin>
+//-------------------------------------------------------------------------
+//	@class:
+//		CXformImplementLeftSemiCorrelatedApplyIn
+//
+//	@doc:
+//		Transform left semi correlated apply with IN/ANY semantics
+//		to physical left semi correlated join
+//
+//-------------------------------------------------------------------------
+class CXformImplementLeftSemiCorrelatedApplyIn
+	: public CXformImplementCorrelatedApply<CLogicalLeftSemiCorrelatedApplyIn,
+											CPhysicalCorrelatedInLeftSemiNLJoin>
+{
+private:
+public:
+	CXformImplementLeftSemiCorrelatedApplyIn(
+		const CXformImplementLeftSemiCorrelatedApplyIn &) = delete;
+
+	// ctor
+	explicit CXformImplementLeftSemiCorrelatedApplyIn(CMemoryPool *mp)
+		: CXformImplementCorrelatedApply<CLogicalLeftSemiCorrelatedApplyIn,
+										 CPhysicalCorrelatedInLeftSemiNLJoin>(
+			  mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformImplementLeftSemiCorrelatedApplyIn() override = default;
 
-			// private copy ctor
-			CXformImplementLeftSemiCorrelatedApplyIn(const CXformImplementLeftSemiCorrelatedApplyIn &);
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfImplementLeftSemiCorrelatedApplyIn;
+	}
 
-		public:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementLeftSemiCorrelatedApplyIn";
+	}
 
-			// ctor
-			explicit
-			CXformImplementLeftSemiCorrelatedApplyIn
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformImplementCorrelatedApply<CLogicalLeftSemiCorrelatedApplyIn, CPhysicalCorrelatedInLeftSemiNLJoin>(mp)
-			{}
+};	// class CXformImplementLeftSemiCorrelatedApplyIn
 
-			// dtor
-			virtual
-			~CXformImplementLeftSemiCorrelatedApplyIn()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementLeftSemiCorrelatedApplyIn;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementLeftSemiCorrelatedApplyIn";
-			}
-
-	}; // class CXformImplementLeftSemiCorrelatedApplyIn
-
-}
-
-#endif // !GPOPT_CXformImplementLeftSemiCorrelatedApplyIn_H
+#endif	// !GPOPT_CXformImplementLeftSemiCorrelatedApplyIn_H
 
 // EOF

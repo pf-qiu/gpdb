@@ -16,57 +16,46 @@
 
 namespace gpos
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		COstreamString
-	//
-	//	@doc:
-	//		Implements an output stream writing to a string
-	//
-	//---------------------------------------------------------------------------
-	class COstreamString : public COstream
-	{
-		private:
-			
-			// underlying string
-			CWString *m_string;
+//---------------------------------------------------------------------------
+//	@class:
+//		COstreamString
+//
+//	@doc:
+//		Implements an output stream writing to a string
+//
+//---------------------------------------------------------------------------
+class COstreamString : public COstream
+{
+private:
+	// underlying string
+	CWString *m_string;
 
-			// private copy ctor
-			COstreamString(const COstreamString &);
-			
-		public:
+public:
+	COstreamString(const COstreamString &) = delete;
 
-			// please see comments in COstream.h for an explanation
-			using COstream::operator <<;
-			
-			// ctor
-			explicit
-			COstreamString(CWString*);
+	// please see comments in COstream.h for an explanation
+	using COstream::operator<<;
 
-			virtual
-			~COstreamString() {}
+	// ctor
+	explicit COstreamString(CWString *);
 
-			// implement << operator on wide char array
-			virtual
-			IOstream& operator<< (const WCHAR * wc_array);
+	~COstreamString() override = default;
 
-			// implement << operator on char array
-			virtual
-			IOstream& operator<< (const CHAR *c_array);
+	// implement << operator on wide char array
+	IOstream &operator<<(const WCHAR *wc_array) override;
 
-			// implement << operator on wide char
-			virtual
-			IOstream& operator<< (const WCHAR wc);
+	// implement << operator on char array
+	IOstream &operator<<(const CHAR *c_array) override;
 
-			// implement << operator on char
-			virtual
-			IOstream& operator<< (const CHAR c);
+	// implement << operator on wide char
+	IOstream &operator<<(const WCHAR wc) override;
 
-	};
+	// implement << operator on char
+	IOstream &operator<<(const CHAR c) override;
+};
 
-}
+}  // namespace gpos
 
-#endif // !GPOS_COstreamString_H
+#endif	// !GPOS_COstreamString_H
 
 // EOF
-

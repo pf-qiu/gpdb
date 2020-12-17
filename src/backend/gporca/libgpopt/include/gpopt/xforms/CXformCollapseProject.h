@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformCollapseProject.h
@@ -16,60 +16,53 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformCollapseProject
-	//
-	//	@doc:
-	//		Transform that collapses two cascaded project nodes
-	//
-	//---------------------------------------------------------------------------
-	class CXformCollapseProject : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformCollapseProject
+//
+//	@doc:
+//		Transform that collapses two cascaded project nodes
+//
+//---------------------------------------------------------------------------
+class CXformCollapseProject : public CXformExploration
+{
+private:
+public:
+	CXformCollapseProject(const CXformCollapseProject &) = delete;
+
+	// ctor
+	explicit CXformCollapseProject(CMemoryPool *mp);
+
+	// dtor
+	~CXformCollapseProject() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfCollapseProject;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformCollapseProject";
+	}
 
-			// private copy ctor
-			CXformCollapseProject(const CXformCollapseProject &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *, CXformResult *,
+				   CExpression *) const override;
 
-			// ctor
-			explicit
-			CXformCollapseProject(CMemoryPool *mp);
+};	// class CXformCollapseProject
 
-			// dtor
-			virtual
-			~CXformCollapseProject()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfCollapseProject;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformCollapseProject";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp (CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform(CXformContext *, CXformResult *, CExpression *) const;
-
-	}; // class CXformCollapseProject
-
-}
-
-#endif // !GPOPT_CXformCollapseProject_H
+#endif	// !GPOPT_CXformCollapseProject_H
 
 // EOF

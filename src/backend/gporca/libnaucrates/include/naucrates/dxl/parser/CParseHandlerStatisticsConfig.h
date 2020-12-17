@@ -17,67 +17,59 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerStatisticsConfig
-	//
-	//	@doc:
-	//		SAX parse handler class for parsing statistics configuration options
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerStatisticsConfig : public CParseHandlerBase
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerStatisticsConfig
+//
+//	@doc:
+//		SAX parse handler class for parsing statistics configuration options
+//
+//---------------------------------------------------------------------------
+class CParseHandlerStatisticsConfig : public CParseHandlerBase
+{
+private:
+	// statistics configuration
+	CStatisticsConfig *m_stats_conf;
 
-			// statistics configuration
-			CStatisticsConfig *m_stats_conf;
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-			// private copy ctor
-			CParseHandlerStatisticsConfig(const CParseHandlerStatisticsConfig&);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-			// process the start of an element
-			void StartElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
- 					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname,		// element's qname
-					const Attributes& attr				// element's attributes
-				);
+public:
+	CParseHandlerStatisticsConfig(const CParseHandlerStatisticsConfig &) =
+		delete;
 
-			// process the end of an element
-			void EndElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
-					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname		// element's qname
-				);
+	// ctor
+	CParseHandlerStatisticsConfig(CMemoryPool *mp,
+								  CParseHandlerManager *parse_handler_mgr,
+								  CParseHandlerBase *parse_handler_root);
 
-		public:
-			// ctor
-			CParseHandlerStatisticsConfig
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
+	// dtor
+	~CParseHandlerStatisticsConfig() override;
 
-			// dtor
-			virtual
-			~CParseHandlerStatisticsConfig();
+	// type of the parse handler
+	EDxlParseHandlerType GetParseHandlerType() const override;
 
-			// type of the parse handler
-			virtual
-			EDxlParseHandlerType GetParseHandlerType() const;
+	// enumerator configuration
+	CStatisticsConfig *GetStatsConf() const;
+};
+}  // namespace gpdxl
 
-			// enumerator configuration
-			CStatisticsConfig *GetStatsConf() const;
-	};
-}
-
-#endif // !GPDXL_CParseHandlerStatisticsConfig_H
+#endif	// !GPDXL_CParseHandlerStatisticsConfig_H
 
 // EOF

@@ -1,5 +1,5 @@
 //	Greenplum Database
-//	Copyright (C) 2018 Pivotal Software, Inc.
+//	Copyright (C) 2018 VMware, Inc. or its affiliates.
 
 #ifndef GPDXL_CCostModelConfigSerializer_H
 #define GPDXL_CCostModelConfigSerializer_H
@@ -11,15 +11,16 @@
 
 namespace gpdxl
 {
-	class CXMLSerializer;
-	class CCostModelConfigSerializer
-	{
-		private:
-			const gpopt::ICostModel *m_cost_model;
-		public:
-			CCostModelConfigSerializer(const gpopt::ICostModel *cost_model);
+class CXMLSerializer;
+class CCostModelConfigSerializer
+{
+private:
+	const gpopt::ICostModel *m_cost_model;
 
-			void Serialize(CXMLSerializer &xml_serializer) const;
-	};
-}
+public:
+	CCostModelConfigSerializer(const gpopt::ICostModel *cost_model);
+
+	void Serialize(CXMLSerializer &xml_serializer) const;
+};
+}  // namespace gpdxl
 #endif

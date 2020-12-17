@@ -11,10 +11,11 @@ extern "C" {
 #pragma clang diagnostic ignored "-Wdeprecated-register"
 #endif
 
+#include "access/external.h"
 #include "access/extprotocol.h"
 #include "access/xact.h"
-#include "catalog/pg_exttable.h"
 #include "catalog/pg_proc.h"
+#include "commands/defrem.h"
 #include "fmgr.h"
 #include "funcapi.h"
 #include "utils/array.h"
@@ -128,44 +129,41 @@ static void parseFormatOpts(FunctionCallInfo fcinfo) {
     ExtTableEntry *exttbl = GetExtTableEntry(rel->rd_id);
 
     const char fmtcode = exttbl->fmtcode;
-    const char *fmtopts = exttbl->fmtopts;
+    const List *fmtopts = exttbl->options;
+    char *newline_str = NULL;
 
     // only TEXT and CSV have detailed options
     if (fmttype_is_csv(fmtcode) || fmttype_is_text(fmtcode)) {
-        if (strstr(fmtopts, "header") != NULL) {
-            hasHeader = true;
-        } else {
-            hasHeader = false;
+        ListCell *option;
+
+        foreach (option, fmtopts) {
+            DefElem *defel = (DefElem *)lfirst(option);
+            if (strcmp(defel->defname, "header") == 0) {
+                hasHeader = defGetBoolean(defel);
+            } else if (strcmp(defel->defname, "newline") == 0) {
+                newline_str = defGetString(defel);
+            }
         }
 
-        // detect end-of-line terminator
-        const char *newline_str = strstr(fmtopts, "newline");
+        // default end-of-line terminator
         eolString[0] = '\n';
         eolString[1] = '\0';
 
         if (newline_str != NULL) {
-            const char *first = strchr(newline_str, '\'');
-            const char *second = strchr(first + 1, '\'');
-            size_t len = second - first - 1;
-            char newline[EOL_STRING_MAX_LEN + 1];
-            len = len > EOL_STRING_MAX_LEN ? EOL_STRING_MAX_LEN : len;  // defensive line
-
-            strncpy(newline, first + 1, len);
-            newline[len] = '\0';
-            if (pg_strcasecmp(newline, "crlf") == 0) {
+            if (pg_strcasecmp(newline_str, "crlf") == 0) {
                 eolString[0] = '\r';
                 eolString[1] = '\n';
                 eolString[2] = '\0';
-            } else if (pg_strcasecmp(newline, "cr") == 0) {
+            } else if (pg_strcasecmp(newline_str, "cr") == 0) {
                 eolString[0] = '\r';
                 eolString[1] = '\0';
-            } else if (pg_strcasecmp(newline, "lf") == 0) {
+            } else if (pg_strcasecmp(newline_str, "lf") == 0) {
                 eolString[0] = '\n';
                 eolString[1] = '\0';
             } else {  // should never come here
-                ereport(ERROR, (0, errmsg("invalid value for NEWLINE (%s), "
-                                          "valid options are: 'LF', 'CRLF', 'CR'",
-                                          newline)));
+	      ereport(ERROR, errmsg("invalid value for NEWLINE (%s), "
+				    "valid options are: 'LF', 'CRLF', 'CR'",
+				    newline_str));
             }
         }
     }
@@ -298,10 +296,10 @@ Datum s3_import(PG_FUNCTION_ARGS) {
 
         resHandle->gpreader = reader_init(url_with_options);
         if (!resHandle->gpreader) {
-            ereport(ERROR, (0, errmsg("Failed to init gpcloud extension (segid = %d, "
-                                      "segnum = %d), please check your "
-                                      "configurations and network connection: %s",
-                                      s3ext_segid, s3ext_segnum, s3extErrorMessage.c_str())));
+            ereport(ERROR, errmsg("Failed to init gpcloud extension (segid = %d, "
+				  "segnum = %d), please check your "
+				  "configurations and network connection: %s",
+				  s3ext_segid, s3ext_segnum, s3extErrorMessage.c_str()));
         }
 
         EXTPROTOCOL_SET_USER_CTX(fcinfo, resHandle);
@@ -312,7 +310,7 @@ Datum s3_import(PG_FUNCTION_ARGS) {
 
     if (!reader_transfer_data(resHandle->gpreader, data_buf, data_len)) {
         ereport(ERROR,
-                (0, errmsg("s3_import: could not read data: %s", s3extErrorMessage.c_str())));
+                errmsg("s3_import: could not read data: %s", s3extErrorMessage.c_str()));
     }
     PG_RETURN_INT32(data_len);
 }
@@ -353,10 +351,10 @@ Datum s3_export(PG_FUNCTION_ARGS) {
 
         resHandle->gpwriter = writer_init(url_with_options, format);
         if (!resHandle->gpwriter) {
-            ereport(ERROR, (0, errmsg("Failed to init gpcloud extension (segid = %d, "
-                                      "segnum = %d), please check your "
-                                      "configurations and network connection: %s",
-                                      s3ext_segid, s3ext_segnum, s3extErrorMessage.c_str())));
+	  ereport(ERROR, errmsg("Failed to init gpcloud extension (segid = %d, "
+				"segnum = %d), please check your "
+				"configurations and network connection: %s",
+				s3ext_segid, s3ext_segnum, s3extErrorMessage.c_str()));
         }
 
         EXTPROTOCOL_SET_USER_CTX(fcinfo, resHandle);
@@ -367,7 +365,7 @@ Datum s3_export(PG_FUNCTION_ARGS) {
 
     if (!writer_transfer_data(resHandle->gpwriter, data_buf, data_len)) {
         ereport(ERROR,
-                (0, errmsg("s3_export: could not write data: %s", s3extErrorMessage.c_str())));
+                errmsg("s3_export: could not write data: %s", s3extErrorMessage.c_str()));
     }
 
     PG_RETURN_INT32(data_len);

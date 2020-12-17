@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformMaxOneRow2Assert.h
@@ -16,65 +16,52 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformMaxOneRow2Assert
-	//
-	//	@doc:
-	//		Transform MaxOneRow into LogicalAssert
-	//
-	//---------------------------------------------------------------------------
-	class CXformMaxOneRow2Assert : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformMaxOneRow2Assert
+//
+//	@doc:
+//		Transform MaxOneRow into LogicalAssert
+//
+//---------------------------------------------------------------------------
+class CXformMaxOneRow2Assert : public CXformExploration
+{
+private:
+public:
+	CXformMaxOneRow2Assert(const CXformMaxOneRow2Assert &) = delete;
+
+	// ctor
+	explicit CXformMaxOneRow2Assert(CMemoryPool *mp);
+
+	// dtor
+	~CXformMaxOneRow2Assert() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfMaxOneRow2Assert;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformMaxOneRow2Assert";
+	}
 
-			// private copy ctor
-			CXformMaxOneRow2Assert(const CXformMaxOneRow2Assert &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformMaxOneRow2Assert(CMemoryPool *mp);
+};	// class CXformMaxOneRow2Assert
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformMaxOneRow2Assert() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfMaxOneRow2Assert;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformMaxOneRow2Assert";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformMaxOneRow2Assert
-}
-
-#endif // !GPOPT_CXformMaxOneRow2Assert_H
+#endif	// !GPOPT_CXformMaxOneRow2Assert_H
 
 // EOF

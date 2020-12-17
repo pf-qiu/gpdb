@@ -2,7 +2,7 @@
 platform: linux
 
 image_resource:
-  type: docker-image
+  type: registry-image
   source:
     repository: pivotaldata/ccp
     tag: "7"
@@ -12,12 +12,12 @@ inputs:
 - name: ccp_src
 - name: cluster_env_files
 - name: gpdb_src
-- name: bin_gpdb_centos6
+- name: bin_gpdb_centos7
 - name: sqldump
 
 run:
   path: gpdb_src/concourse/scripts/test_upgrade.bash
-  args: [ '-c', '-t', 'bin_gpdb_centos6', '-s', 'sqldump/dump.sql.xz' ]
+  args: [ '-c', '-t', 'bin_gpdb_centos7', '-s', 'sqldump/dump.sql.xz' ]
 
 params:
   DEBUG_UPGRADE: ""

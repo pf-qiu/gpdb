@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLScalarArrayRefIndexList.h
@@ -18,98 +18,85 @@
 
 namespace gpdxl
 {
-	using namespace gpmd;
+using namespace gpmd;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLScalarArrayRefIndexList
-	//
-	//	@doc:
-	//		Class for representing DXL scalar arrayref index list
-	//
-	//---------------------------------------------------------------------------
-	class CDXLScalarArrayRefIndexList : public CDXLScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLScalarArrayRefIndexList
+//
+//	@doc:
+//		Class for representing DXL scalar arrayref index list
+//
+//---------------------------------------------------------------------------
+class CDXLScalarArrayRefIndexList : public CDXLScalar
+{
+public:
+	enum EIndexListBound
 	{
-		public:
+		EilbLower,	// lower index
+		EilbUpper,	// upper index
+		EilbSentinel
+	};
 
-			enum EIndexListBound
-			{
-				EilbLower,		// lower index
-				EilbUpper,		// upper index
-				EilbSentinel
-			};
+private:
+	// index list bound
+	EIndexListBound m_index_list_bound;
 
-		private:
+	// string representation of index list bound
+	static const CWStringConst *GetDXLIndexListBoundStr(
+		EIndexListBound index_list_bound);
 
-			// index list bound
-			EIndexListBound m_index_list_bound;
+public:
+	CDXLScalarArrayRefIndexList(const CDXLScalarArrayRefIndexList &) = delete;
 
-			// private copy ctor
-			CDXLScalarArrayRefIndexList(const CDXLScalarArrayRefIndexList&);
+	// ctor
+	CDXLScalarArrayRefIndexList(CMemoryPool *mp,
+								EIndexListBound index_list_bound);
 
-			// string representation of index list bound
-			static
-			const CWStringConst *GetDXLIndexListBoundStr(EIndexListBound index_list_bound);
+	// ident accessors
+	Edxlopid GetDXLOperator() const override;
 
-		public:
-			// ctor
-			CDXLScalarArrayRefIndexList
-				(
-				CMemoryPool *mp,
-				EIndexListBound index_list_bound
-				);
+	// operator name
+	const CWStringConst *GetOpNameStr() const override;
 
-			// ident accessors
-			virtual
-			Edxlopid GetDXLOperator() const;
+	// index list bound
+	EIndexListBound
+	GetDXLIndexListBound() const
+	{
+		return m_index_list_bound;
+	}
 
-			// operator name
-			virtual
-			const CWStringConst *GetOpNameStr() const;
+	// serialize operator in DXL format
+	void SerializeToDXL(CXMLSerializer *xml_serializer,
+						const CDXLNode *dxlnode) const override;
 
-			// index list bound
-			EIndexListBound GetDXLIndexListBound() const
-			{
-				return m_index_list_bound;
-			}
-
-			// serialize operator in DXL format
-			virtual
-			void SerializeToDXL(CXMLSerializer *xml_serializer, const CDXLNode *dxlnode) const;
-
-			// does the operator return a boolean result
-			virtual
-			BOOL HasBoolResult
-				(
-				CMDAccessor * //md_accessor
-				)
-				const
-			{
-				return false;
-			}
+	// does the operator return a boolean result
+	BOOL
+	HasBoolResult(CMDAccessor *	 //md_accessor
+	) const override
+	{
+		return false;
+	}
 
 #ifdef GPOS_DEBUG
-			// checks whether the operator has valid structure, i.e. number and
-			// types of child nodes
-			virtual
-			void AssertValid(const CDXLNode *dxlnode, BOOL validate_children) const;
-#endif // GPOS_DEBUG
+	// checks whether the operator has valid structure, i.e. number and
+	// types of child nodes
+	void AssertValid(const CDXLNode *dxlnode,
+					 BOOL validate_children) const override;
+#endif	// GPOS_DEBUG
 
-			// conversion function
-			static
-			CDXLScalarArrayRefIndexList *Cast
-				(
-				CDXLOperator *dxl_op
-				)
-			{
-				GPOS_ASSERT(NULL != dxl_op);
-				GPOS_ASSERT(EdxlopScalarArrayRefIndexList == dxl_op->GetDXLOperator());
+	// conversion function
+	static CDXLScalarArrayRefIndexList *
+	Cast(CDXLOperator *dxl_op)
+	{
+		GPOS_ASSERT(NULL != dxl_op);
+		GPOS_ASSERT(EdxlopScalarArrayRefIndexList == dxl_op->GetDXLOperator());
 
-				return dynamic_cast<CDXLScalarArrayRefIndexList*>(dxl_op);
-			}
-	};
-}
+		return dynamic_cast<CDXLScalarArrayRefIndexList *>(dxl_op);
+	}
+};
+}  // namespace gpdxl
 
-#endif // !GPDXL_CDXLScalarArrayRefIndexList_H
+#endif	// !GPDXL_CDXLScalarArrayRefIndexList_H
 
 // EOF

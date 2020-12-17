@@ -16,59 +16,53 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformPushGbWithHavingBelowJoin
-	//
-	//	@doc:
-	//		Push group by with having clause below join transform
-	//
-	//---------------------------------------------------------------------------
-	class CXformPushGbWithHavingBelowJoin : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformPushGbWithHavingBelowJoin
+//
+//	@doc:
+//		Push group by with having clause below join transform
+//
+//---------------------------------------------------------------------------
+class CXformPushGbWithHavingBelowJoin : public CXformExploration
+{
+private:
+public:
+	CXformPushGbWithHavingBelowJoin(const CXformPushGbWithHavingBelowJoin &) =
+		delete;
+
+	// ctor
+	explicit CXformPushGbWithHavingBelowJoin(CMemoryPool *mp);
+
+	// dtor
+	~CXformPushGbWithHavingBelowJoin() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfPushGbWithHavingBelowJoin;
+	}
 
-		private:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformPushGbWithHavingBelowJoin";
+	}
 
-			// private copy ctor
-			CXformPushGbWithHavingBelowJoin(const CXformPushGbWithHavingBelowJoin &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformPushGbWithHavingBelowJoin(CMemoryPool *mp);
+};	// class CXformPushGbWithHavingBelowJoin
 
-			// dtor
-			virtual
-			~CXformPushGbWithHavingBelowJoin()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfPushGbWithHavingBelowJoin;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformPushGbWithHavingBelowJoin";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	}; // class CXformPushGbWithHavingBelowJoin
-
-}
-
-#endif // !GPOPT_CXformPushGbWithHavingBelowJoin_H
+#endif	// !GPOPT_CXformPushGbWithHavingBelowJoin_H
 
 // EOF

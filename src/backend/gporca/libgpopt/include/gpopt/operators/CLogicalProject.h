@@ -18,126 +18,101 @@
 
 namespace gpopt
 {
-	// fwd declaration
-	class CColRefSet;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalProject
-	//
-	//	@doc:
-	//		Project operator
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalProject : public CLogicalUnary
+// fwd declaration
+class CColRefSet;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalProject
+//
+//	@doc:
+//		Project operator
+//
+//---------------------------------------------------------------------------
+class CLogicalProject : public CLogicalUnary
+{
+private:
+	// return equivalence class from scalar ident project element
+	static CColRefSetArray *PdrgpcrsEquivClassFromScIdent(
+		CMemoryPool *mp, CExpression *pexprPrEl, CColRefSet *not_null_columns);
+
+	// extract constraint from scalar constant project element
+	static void ExtractConstraintFromScConst(CMemoryPool *mp,
+											 CExpression *pexprPrEl,
+											 CConstraintArray *pdrgpcnstr,
+											 CColRefSetArray *pdrgpcrs);
+
+public:
+	CLogicalProject(const CLogicalProject &) = delete;
+
+	// ctor
+	explicit CLogicalProject(CMemoryPool *mp);
+
+	// dtor
+	~CLogicalProject() override = default;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
-		private:
+		return EopLogicalProject;
+	}
 
-			// private copy ctor
-			CLogicalProject(const CLogicalProject &);
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalProject";
+	}
 
-			// return equivalence class from scalar ident project element
-			static
-			CColRefSetArray *PdrgpcrsEquivClassFromScIdent
-								(
-								CMemoryPool *mp,
-								CExpression *pexprPrEl,
-								CColRefSet *not_null_columns
-								);
+	//-------------------------------------------------------------------------------------
+	// Derived Relational Properties
+	//-------------------------------------------------------------------------------------
 
-			// extract constraint from scalar constant project element
-			static
-			void ExtractConstraintFromScConst
-					(
-					CMemoryPool *mp,
-					CExpression *pexprPrEl,
-					CConstraintArray *pdrgpcnstr,
-					CColRefSetArray *pdrgpcrs
-					);
+	// derive output columns
+	CColRefSet *DeriveOutputColumns(CMemoryPool *mp,
+									CExpressionHandle &exprhdl) override;
 
-		public:
+	// dervive keys
+	CKeyCollection *DeriveKeyCollection(
+		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
 
-			// ctor
-			explicit
-			CLogicalProject(CMemoryPool *mp);
+	// derive max card
+	CMaxCard DeriveMaxCard(CMemoryPool *mp,
+						   CExpressionHandle &exprhdl) const override;
 
-			// dtor
-			virtual
-			~CLogicalProject()
-			{}
+	// derive constraint property
+	CPropConstraint *DerivePropertyConstraint(
+		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
 
-			// ident accessors
-			virtual 
-			EOperatorId Eopid() const
-			{
-				return EopLogicalProject;
-			}
-			
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CLogicalProject";
-			}
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			//-------------------------------------------------------------------------------------
-			// Derived Relational Properties
-			//-------------------------------------------------------------------------------------
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *mp) const override;
 
-			// derive output columns
-			virtual
-			CColRefSet *DeriveOutputColumns(CMemoryPool *mp, CExpressionHandle &exprhdl);
-			
-			// dervive keys
-			virtual 
-			CKeyCollection *DeriveKeyCollection(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
-					
-			// derive max card
-			virtual
-			CMaxCard DeriveMaxCard(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// derive statistics
+	IStatistics *PstatsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							  IStatisticsArray *stats_ctxt) const override;
 
-			// derive constraint property
-			virtual
-			CPropConstraint *DerivePropertyConstraint(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
+	// conversion function
+	static CLogicalProject *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalProject == pop->Eopid());
 
-			// candidate set of xforms
-			virtual
-			CXformSet *PxfsCandidates(CMemoryPool *mp) const;
+		return dynamic_cast<CLogicalProject *>(pop);
+	}
 
-			// derive statistics
-			virtual
-			IStatistics *PstatsDerive
-						(
-						CMemoryPool *mp,
-						CExpressionHandle &exprhdl,
-						IStatisticsArray *stats_ctxt
-						)
-						const;
+};	// class CLogicalProject
 
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
+}  // namespace gpopt
 
-			// conversion function
-			static
-			CLogicalProject *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalProject == pop->Eopid());
-				
-				return dynamic_cast<CLogicalProject*>(pop);
-			}
-
-	}; // class CLogicalProject
-
-}
-
-#endif // !GPOS_CLogicalProject_H
+#endif	// !GPOS_CLogicalProject_H
 
 // EOF

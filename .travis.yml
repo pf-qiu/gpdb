@@ -2,11 +2,11 @@
 ## Travis CI build script for Greenplum Database Open Source Project.
 ## ----------------------------------------------------------------------
 
-language: c
-sudo: false
+language: cpp
+cache: ccache
 
 git:
-  submodules: false
+  submodules: true
 
 addons:
     apt:
@@ -18,16 +18,25 @@ addons:
             - gcc-8
             - libxml2
             - libxml2-dev
+            - libxerces-c-dev
             - libevent-dev
             - libperl-dev
+            - libuv1-dev
             - g++-8
+            - python3
+            - python3-dev
             - python-dev
             - python-yaml
             - libapr1-dev
             - libzstd1
             - libzstd1-dev
+            - net-tools
+            - ssh
 
 matrix:
+    allow_failures:
+        - arch: arm64
+    fast_finish: true
     include:
         # OS and Compiler variations
         # ----------------------------------------------------------------
@@ -65,6 +74,11 @@ matrix:
           compiler: clang
           osx_image: xcode11
           env: T=macos
+          addons:
+            homebrew:
+              packages:
+                - ccache
+                - xerces-c
         #
         # Configuration variations
         # ----------------------------------------------------------------
@@ -80,6 +94,78 @@ matrix:
               apt:
                   sources: *common_sources
                   packages: *common_packages
+        # ARM64, Ubuntu Bionic, gcc 8, unit tests
+        # For arm64, disable orca to avoid job timeouts
+        - os: linux
+          arch: arm64
+          dist: bionic
+          compiler: gcc
+          env:
+              - tests=unit T=debug C="--disable-orca"
+              - OVERRIDE_CC="CC=gcc-8" OVERRIDE_CXX="CXX=g++-8"
+          addons:
+              apt:
+                  sources: *common_sources
+                  packages: *common_packages
+        # ARM64, Ubuntu Bionic, gcc 8, installcheck
+        - os: linux
+          arch: arm64
+          dist: bionic
+          compiler: gcc
+          env:
+              - tests=installcheck T=debug C="--disable-orca"
+              - OVERRIDE_CC="CC=gcc-8" OVERRIDE_CXX="CXX=g++-8"
+          addons:
+              apt:
+                  sources: *common_sources
+                  packages: *common_packages
+
+        - name: check-format
+          stage: lint
+          os: linux
+          dist: focal
+          addons:
+            apt:
+              packages:
+                - clang-format-10
+                - parallel
+          before_install: ~
+          install: ~
+          before_script: ~
+          after_script: ~
+          script:
+            - env CLANG_FORMAT=clang-format-10 src/tools/fmt gen
+            - git diff --exit-code
+            - env CLANG_FORMAT=clang-format-10 src/tools/fmt chk
+
+        - name: clang-tidy
+          stage: lint
+          os: linux
+          dist: focal
+          addons:
+            apt:
+              sources:
+                - sourceline: 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+                  key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+              packages:
+                - ninja-build
+                - clang-10
+                - clang-tidy-11
+                - parallel
+                - libxerces-c-dev
+          before_install: ~
+          install: ~
+          before_script: ~
+          after_script: ~
+          script:
+            - CXX=clang++-10 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -GNinja -DCMAKE_BUILD_TYPE=Debug -Hsrc/backend/gporca -Bbuild.debug
+            - CLANG_TIDY=clang-tidy-11 src/tools/tidy chk build.debug
+            - CXX=clang++-10 cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -Hsrc/backend/gporca -Bbuild.relwithdebinfo
+            - CLANG_TIDY=clang-tidy-11 src/tools/tidy chk build.relwithdebinfo
+
+stages:
+  - lint
+  - test
 
 ## ----------------------------------------------------------------------
 ## Build tools
@@ -87,20 +173,48 @@ matrix:
 
 python:
     - "2.7"
+    - "3.6"
+
+# For linux, to prevent a possible crash in gpstop, disable RemoveIPC. See:
+# https://www.postgresql.org/docs/current/kernel-resources.html#SYSTEMD-REMOVEIPC
 
 before_install:
     - eval "${OVERRIDE_CC}"
     - eval "${OVERRIDE_CXX}"
+    - ccache --max-size 4G
+    # ccache 3.2 (from Ubuntu Xenial) has CCACHE_CPP2 default to off (this
+    # setting defaults to on starting from ccache 3.3). That default leads to
+    # unlegible compiler warning outputs because GCC and Clang will emit
+    # warnings using the preprocessed output...
+    - |
+      if [ "${TRAVIS_DIST}" = xenial ]; then
+        ccache --set-config run_second_cpp=true
+      fi
+    - |
+      if [ "${TRAVIS_COMPILER}" = clang ]; then
+        case "${TRAVIS_OS_NAME}" in
+          linux)
+            sudo ln -sv ../../bin/ccache /usr/lib/ccache/${CC}
+            sudo ln -sv ../../bin/ccache /usr/lib/ccache/${CXX}
+            ;;
+          osx)
+            PATH=/usr/local/opt/ccache/libexec:$PATH
+            ;;
+        esac
+      fi
+      if [ "${TRAVIS_OS_NAME}" = linux ]; then
+        echo "RemoveIPC=no" | sudo tee -a /etc/systemd/logind.conf
+        sudo systemctl daemon-reload
+        sudo systemctl restart systemd-logind
+      fi
 
 ## ----------------------------------------------------------------------
 ## Install supporting Python modules
 ## ----------------------------------------------------------------------
 
 install:
-    - pip install --user --upgrade pip
-    - pip install --user --pre psutil
-    - pip install --user lockfile
-    - pip install --user setuptools
+    - python -m pip install --user --upgrade pip
+    - python -m pip install --user setuptools
 
 ## ----------------------------------------------------------------------
 ## Perform build:
@@ -108,7 +222,9 @@ install:
 
 before_script:
     - ssh-keygen -t "rsa" -f ~/.ssh/id_rsa -N ""
+    - ssh-keyscan $(hostname) >> ~/.ssh/known_hosts
     - cp ~/.ssh/{id_rsa.pub,authorized_keys}
+    - ccache --zero-stats
 
 script:
   - |
@@ -121,20 +237,26 @@ script:
             --enable-debug-extensions \
             --with-perl \
             --with-python \
-            --disable-orca \
+            --enable-orca \
             --with-openssl \
             --with-ldap \
             --with-libcurl \
             --with-libxml \
             --enable-mapreduce \
             --enable-orafce \
+            --enable-ic-proxy \
             $C
+        travis_wait 50 make -s
         make -s install
         source ${TRAVIS_BUILD_DIR}/gpsql/greenplum_path.sh
-        make -s unittest-check
-        make -C gpAux/gpdemo cluster
-        source gpAux/gpdemo/gpdemo-env.sh
-        make -C src/test/regress installcheck-small
+        if [ -z "$tests" ] || [ "$tests" = "unit" ]; then
+            make -s unittest-check
+        fi
+        if [ -z "$tests" ] || [ "$tests" = "installcheck" ]; then
+            make -C gpAux/gpdemo cluster
+            source gpAux/gpdemo/gpdemo-env.sh
+            make -C src/test/regress installcheck-small
+        fi
       fi
   - |
       set -eo pipefail
@@ -143,14 +265,16 @@ script:
             --prefix=${TRAVIS_BUILD_DIR}/gpsql \
             --with-perl \
             --with-python \
-            --disable-orca \
+            --enable-orca \
             --with-openssl \
             --with-ldap \
             --with-libcurl \
             --with-libxml \
             --enable-mapreduce \
             --enable-orafce \
+            --enable-ic-proxy \
             $C
+        travis_wait 50 make -s
         make -s install
         source ${TRAVIS_BUILD_DIR}/gpsql/greenplum_path.sh
         make -s unittest-check
@@ -165,19 +289,24 @@ script:
             --prefix=${TRAVIS_BUILD_DIR}/gpsql \
             --with-perl \
             --with-python \
-            --disable-orca \
+            --enable-orca \
             --enable-orafce \
             --disable-gpfdist \
             --disable-pxf \
             --disable-gpcloud \
             --without-zstd \
+            --with-includes=$(brew --prefix xerces-c)/include \
+            --with-libs=$(brew --prefix xerces-c)/lib \
+            CFLAGS='-O0' CXXFLAGS='-O0' \
             $C
+        travis_wait 40 make -s
         make -s install
         source ${TRAVIS_BUILD_DIR}/gpsql/greenplum_path.sh
         make -s unittest-check
       fi
 
 after_script:
+  - ccache --show-stats
   - source ${TRAVIS_BUILD_DIR}/gpsql/greenplum_path.sh
   - postgres --version
   - gpssh --version

@@ -19,130 +19,100 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	// fwd declarations
-	class CDrvdPropCtxt;
-	class CDrvdProp;
+// fwd declarations
+class CDrvdPropCtxt;
+class CDrvdProp;
 
-	// dynamic array for properties
-	typedef CDynamicPtrArray<CDrvdPropCtxt, CleanupRelease> CDrvdPropCtxtArray;
+// dynamic array for properties
+typedef CDynamicPtrArray<CDrvdPropCtxt, CleanupRelease> CDrvdPropCtxtArray;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDrvdPropCtxt
-	//
-	//	@doc:
-	//		Container of information passed among expression nodes during
-	//		property derivation
-	//
-	//---------------------------------------------------------------------------
-	class CDrvdPropCtxt : public CRefCount
+//---------------------------------------------------------------------------
+//	@class:
+//		CDrvdPropCtxt
+//
+//	@doc:
+//		Container of information passed among expression nodes during
+//		property derivation
+//
+//---------------------------------------------------------------------------
+class CDrvdPropCtxt : public CRefCount
+{
+private:
+protected:
+	// memory pool
+	CMemoryPool *m_mp;
+
+	// copy function
+	virtual CDrvdPropCtxt *PdpctxtCopy(CMemoryPool *mp) const = 0;
+
+	// add props to context
+	virtual void AddProps(CDrvdProp *pdp) = 0;
+
+public:
+	CDrvdPropCtxt(const CDrvdPropCtxt &) = delete;
+
+	// ctor
+	CDrvdPropCtxt(CMemoryPool *mp) : m_mp(mp)
 	{
+	}
 
-		private:
-
-			// private copy ctor
-			CDrvdPropCtxt(const CDrvdPropCtxt &);
-
-		protected:
-
-			// memory pool
-			CMemoryPool *m_mp;
-
-			// copy function
-			virtual
-			CDrvdPropCtxt *PdpctxtCopy(CMemoryPool *mp) const = 0;
-
-			// add props to context
-			virtual
-			void AddProps(CDrvdProp *pdp) = 0;
-
-		public:
-
-			// ctor
-			CDrvdPropCtxt
-				(
-				CMemoryPool *mp
-				)
-				:
-				m_mp(mp)
-			{}
-
-			// dtor
-			virtual
-			~CDrvdPropCtxt() {}
+	// dtor
+	~CDrvdPropCtxt() override = default;
 
 #ifdef GPOS_DEBUG
 
-			// is it a relational property context?
-			virtual
-			BOOL FRelational() const
-			{
-				return false;
-			}
+	// is it a relational property context?
+	virtual BOOL
+	FRelational() const
+	{
+		return false;
+	}
 
-			// is it a plan property context?
-			virtual
-			BOOL FPlan() const
-			{
-				return false;
-			}
+	// is it a plan property context?
+	virtual BOOL
+	FPlan() const
+	{
+		return false;
+	}
 
-			// is it a scalar property context?
-			virtual
-			BOOL FScalar()const
-			{
-				return false;
-			}
+	// is it a scalar property context?
+	virtual BOOL
+	FScalar() const
+	{
+		return false;
+	}
 
-			// debug print for interactive debugging sessions only
-			void DbgPrint() const;
+#endif	// GPOS_DEBUG
 
-#endif // GPOS_DEBUG
+	// copy function
+	static CDrvdPropCtxt *
+	PdpctxtCopy(CMemoryPool *mp, CDrvdPropCtxt *pdpctxt)
+	{
+		if (NULL == pdpctxt)
+		{
+			return NULL;
+		}
 
-			// print
-			virtual
-			IOstream &OsPrint(IOstream &os) const = 0;
+		return pdpctxt->PdpctxtCopy(mp);
+	}
 
-			// copy function
-			static
-			CDrvdPropCtxt *PdpctxtCopy
-				(
-				CMemoryPool *mp,
-				CDrvdPropCtxt *pdpctxt
-				)
-			{
-				if (NULL == pdpctxt)
-				{
-					return NULL;
-				}
+	// add derived props to context
+	static void
+	AddDerivedProps(CDrvdProp *pdp, CDrvdPropCtxt *pdpctxt)
+	{
+		if (NULL != pdpctxt)
+		{
+			pdpctxt->AddProps(pdp);
+		}
+	}
 
-				return pdpctxt->PdpctxtCopy(mp);
-			}
+};	// class CDrvdPropCtxt
 
-			// add derived props to context
-			static
-			void AddDerivedProps
-				(
-				CDrvdProp *pdp,
-				CDrvdPropCtxt *pdpctxt
-				)
-			{
-				if (NULL != pdpctxt)
-				{
-					pdpctxt->AddProps(pdp);
-				}
-			}
-
-	}; // class CDrvdPropCtxt
-
- 	// shorthand for printing
-	IOstream &operator << (IOstream &os, CDrvdPropCtxt &drvdpropctxt);
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CDrvdPropCtxt_H
+#endif	// !GPOPT_CDrvdPropCtxt_H
 
 // EOF

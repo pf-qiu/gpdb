@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (c) 2004-2015 Pivotal Software, Inc.
+//	Copyright (c) 2004-2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		main.cpp
@@ -13,7 +13,6 @@
 #include "gpos/types.h"
 
 #include "gpos/common/CMainArgs.h"
-#include "gpos/test/CFSimulatorTestExt.h"
 #include "gpos/test/CUnittest.h"
 
 
@@ -40,7 +39,6 @@
 
 #include "unittest/gpos/error/CErrorHandlerTest.h"
 #include "unittest/gpos/error/CExceptionTest.h"
-#include "unittest/gpos/error/CFSimulatorTest.h"
 #include "unittest/gpos/error/CLoggerTest.h"
 #include "unittest/gpos/error/CMessageTest.h"
 #include "unittest/gpos/error/CMessageTableTest.h"
@@ -48,7 +46,6 @@
 #include "unittest/gpos/error/CMiniDumperTest.h"
 
 #include "unittest/gpos/io/COstreamBasicTest.h"
-#include "unittest/gpos/io/COstreamFileTest.h"
 #include "unittest/gpos/io/COstreamStringTest.h"
 #include "unittest/gpos/io/CFileTest.h"
 
@@ -66,8 +63,7 @@
 using namespace gpos;
 
 // static array of all known unittest routines
-static gpos::CUnittest rgut[] =
-{
+static gpos::CUnittest rgut[] = {
 	// common
 	GPOS_UNITTEST_STD(CAutoPTest),
 	GPOS_UNITTEST_STD(CAutoRefTest),
@@ -100,7 +96,6 @@ static gpos::CUnittest rgut[] =
 	// io
 	GPOS_UNITTEST_STD(COstreamBasicTest),
 	GPOS_UNITTEST_STD(COstreamStringTest),
-	GPOS_UNITTEST_STD(COstreamFileTest),
 	GPOS_UNITTEST_STD(CFileTest),
 
 	// memory
@@ -118,13 +113,6 @@ static gpos::CUnittest rgut[] =
 	GPOS_UNITTEST_STD_SUBTEST(CUnittestTest, 0),
 	GPOS_UNITTEST_STD_SUBTEST(CUnittestTest, 1),
 	GPOS_UNITTEST_STD_SUBTEST(CUnittestTest, 2),
-
-
-#ifdef GPOS_FPSIMULATOR
-	// simulation
-	GPOS_UNITTEST_STD(CFSimulatorTest),
-	GPOS_UNITTEST_EXT(CFSimulatorTestExt),
-#endif // GPOS_FPSIMULATOR
 };
 
 // static variable counting the number of failed tests; PvExec overwrites with
@@ -140,12 +128,9 @@ static ULONG tests_failed = 0;
 //
 //---------------------------------------------------------------------------
 static void *
-PvExec
-	(
-	void *pv
-	)
+PvExec(void *pv)
 {
-	CMainArgs *pma = (CMainArgs*) pv;
+	CMainArgs *pma = (CMainArgs *) pv;
 	tests_failed = CUnittest::Driver(pma);
 
 	return NULL;
@@ -160,16 +145,13 @@ PvExec
 //		time being
 //
 //---------------------------------------------------------------------------
-INT main
-	(
-	INT iArgs,
-	const CHAR **rgszArgs
-	)
-{	
+INT
+main(INT iArgs, const CHAR **rgszArgs)
+{
 	// setup args for unittest params
 	CMainArgs ma(iArgs, rgszArgs, "cuU:xT:");
 
-	struct gpos_init_params init_params = { NULL };
+	struct gpos_init_params init_params = {NULL};
 	gpos_init(&init_params);
 
 	GPOS_ASSERT(iArgs >= 0);
@@ -198,4 +180,3 @@ INT main
 
 
 // EOF
-

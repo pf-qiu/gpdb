@@ -17,100 +17,82 @@
 
 namespace gpopt
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalLeftAntiSemiApplyNotIn
+//
+//	@doc:
+//		Logical Apply operator used in NOT IN/ALL subqueries
+//
+//---------------------------------------------------------------------------
+class CLogicalLeftAntiSemiApplyNotIn : public CLogicalLeftAntiSemiApply
+{
+private:
+public:
+	CLogicalLeftAntiSemiApplyNotIn(const CLogicalLeftAntiSemiApplyNotIn &) =
+		delete;
 
-
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalLeftAntiSemiApplyNotIn
-	//
-	//	@doc:
-	//		Logical Apply operator used in NOT IN/ALL subqueries
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalLeftAntiSemiApplyNotIn : public CLogicalLeftAntiSemiApply
+	// ctor
+	explicit CLogicalLeftAntiSemiApplyNotIn(CMemoryPool *mp)
+		: CLogicalLeftAntiSemiApply(mp)
 	{
+	}
 
-		private:
+	// ctor
+	CLogicalLeftAntiSemiApplyNotIn(CMemoryPool *mp, CColRefArray *pdrgpcrInner,
+								   EOperatorId eopidOriginSubq)
+		: CLogicalLeftAntiSemiApply(mp, pdrgpcrInner, eopidOriginSubq)
+	{
+	}
 
-			// private copy ctor
-			CLogicalLeftAntiSemiApplyNotIn(const CLogicalLeftAntiSemiApplyNotIn &);
+	// dtor
+	~CLogicalLeftAntiSemiApplyNotIn() override = default;
 
-		public:
+	// ident accessors
+	EOperatorId
+	Eopid() const override
+	{
+		return EopLogicalLeftAntiSemiApplyNotIn;
+	}
 
-			// ctor
-			explicit
-			CLogicalLeftAntiSemiApplyNotIn
-				(
-				CMemoryPool *mp
-				)
-				:
-				CLogicalLeftAntiSemiApply(mp)
-			{}
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalLeftAntiSemiApplyNotIn";
+	}
 
-			// ctor
-			CLogicalLeftAntiSemiApplyNotIn
-				(
-				CMemoryPool *mp,
-				CColRefArray *pdrgpcrInner,
-				EOperatorId eopidOriginSubq
-				)
-				:
-				CLogicalLeftAntiSemiApply(mp, pdrgpcrInner, eopidOriginSubq)
-			{}
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			// dtor
-			virtual
-			~CLogicalLeftAntiSemiApplyNotIn()
-			{}
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *mp) const override;
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopLogicalLeftAntiSemiApplyNotIn;
-			}
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CLogicalLeftAntiSemiApplyNotIn";
-			}
+	// return a copy of the operator with remapped columns
+	COperator *PopCopyWithRemappedColumns(CMemoryPool *mp,
+										  UlongToColRefMap *colref_mapping,
+										  BOOL must_exist) override;
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
+	// conversion function
+	static CLogicalLeftAntiSemiApplyNotIn *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalLeftAntiSemiApplyNotIn == pop->Eopid());
 
-			// candidate set of xforms
-			virtual
-			CXformSet *PxfsCandidates(CMemoryPool *mp) const;
+		return dynamic_cast<CLogicalLeftAntiSemiApplyNotIn *>(pop);
+	}
 
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
+};	// class CLogicalLeftAntiSemiApplyNotIn
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns(CMemoryPool *mp, UlongToColRefMap *colref_mapping, BOOL must_exist);
-
-			// conversion function
-			static
-			CLogicalLeftAntiSemiApplyNotIn *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalLeftAntiSemiApplyNotIn == pop->Eopid());
-
-				return dynamic_cast<CLogicalLeftAntiSemiApplyNotIn*>(pop);
-			}
-
-	}; // class CLogicalLeftAntiSemiApplyNotIn
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CLogicalLeftAntiSemiApplyNotIn_H
+#endif	// !GPOPT_CLogicalLeftAntiSemiApplyNotIn_H
 
 // EOF

@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CCostModelParamsGPDBLegacy.h
@@ -22,136 +22,113 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CCostModelParamsGPDBLegacy
-	//
-	//	@doc:
-	//		Parameters in GPDB's legacy cost model
-	//
-	//---------------------------------------------------------------------------
-	class CCostModelParamsGPDBLegacy : public ICostModelParams
+//---------------------------------------------------------------------------
+//	@class:
+//		CCostModelParamsGPDBLegacy
+//
+//	@doc:
+//		Parameters in GPDB's legacy cost model
+//
+//---------------------------------------------------------------------------
+class CCostModelParamsGPDBLegacy : public ICostModelParams
+{
+public:
+	// enumeration of cost model params
+	enum ECostParam
 	{
+		EcpSeqIOBandwidth = 0,	// sequential i/o bandwidth
+		EcpRandomIOBandwidth,	// random i/o bandwidth
+		EcpTupProcBandwidth,	// tuple processing bandwidth
+		EcpTupUpdateBandwith,	// tuple update bandwidth
+		EcpNetBandwidth,		// network bandwidth
+		EcpSegments,			// number of segments
+		EcpNLJOuterFactor,		// factor for nested loop outer child
+		EcpNLJFactor,			// factor for nested loop
+		EcpHJFactor,			// hash join factor - to represent spilling cost
+		EcpHashFactor,			// hash building factor
+		EcpDefaultCost,			// default cost
 
-		public:
+		EcpSentinel
+	};
 
-			// enumeration of cost model params
-			enum ECostParam
-			{
-				EcpSeqIOBandwidth = 0,		// sequential i/o bandwidth
-				EcpRandomIOBandwidth,		// random i/o bandwidth
-				EcpTupProcBandwidth,		// tuple processing bandwidth
-				EcpTupUpdateBandwith,		// tuple update bandwidth
-				EcpNetBandwidth,			// network bandwidth
-				EcpSegments,				// number of segments
-				EcpNLJOuterFactor,			// factor for nested loop outer child
-				EcpNLJFactor,				// factor for nested loop
-				EcpHJFactor,				// hash join factor - to represent spilling cost
-				EcpHashFactor,				// hash building factor
-				EcpDefaultCost,				// default cost
+private:
+	// memory pool
+	CMemoryPool *m_mp;
 
-				EcpSentinel
-			};
+	// array of parameters
+	// cost param enum is used as index in this array
+	SCostParam *m_rgpcp[EcpSentinel];
 
-		private:
+	// default value of sequential i/o bandwidth
+	static const CDouble DSeqIOBandwidthVal;
 
-			// memory pool
-			CMemoryPool *m_mp;
+	// default value of random i/o bandwidth
+	static const CDouble DRandomIOBandwidthVal;
 
-			// array of parameters
-			// cost param enum is used as index in this array
-			SCostParam* m_rgpcp[EcpSentinel];
+	// default value of tuple processing bandwidth
+	static const CDouble DTupProcBandwidthVal;
 
-			// default value of sequential i/o bandwidth
-			static
-			const CDouble DSeqIOBandwidthVal;
+	// default value of tuple update bandwidth
+	static const CDouble DTupUpdateBandwidthVal;
 
-			// default value of random i/o bandwidth
-			static
-			const CDouble DRandomIOBandwidthVal;
+	// default value of network bandwidth
+	static const CDouble DNetBandwidthVal;
 
-			// default value of tuple processing bandwidth
-			static
-			const CDouble DTupProcBandwidthVal;
+	// default value of number of segments
+	static const CDouble DSegmentsVal;
 
-			// default value of tuple update bandwidth
-			static
-			const CDouble DTupUpdateBandwidthVal;
+	// default value of nested loop outer child factor
+	static const CDouble DNLJOuterFactorVal;
 
-			// default value of network bandwidth
-			static
-			const CDouble DNetBandwidthVal;
+	// default value of nested loop factor
+	static const CDouble DNLJFactorVal;
 
-			// default value of number of segments
-			static
-			const CDouble DSegmentsVal;
+	// default value of hash join factor
+	static const CDouble DHJFactorVal;
 
-			// default value of nested loop outer child factor
-			static
-			const CDouble DNLJOuterFactorVal;
+	// default value of hash building factor
+	static const CDouble DHashFactorVal;
 
-			// default value of nested loop factor
-			static
-			const CDouble DNLJFactorVal;
+	// default cost value when one is not computed
+	static const CDouble DDefaultCostVal;
 
-			// default value of hash join factor
-			static
-			const CDouble DHJFactorVal;
+public:
+	CCostModelParamsGPDBLegacy(CCostModelParamsGPDBLegacy &) = delete;
 
-			// default value of hash building factor
-			static
-			const CDouble DHashFactorVal;
+	// ctor
+	explicit CCostModelParamsGPDBLegacy(CMemoryPool *mp);
 
-			// default cost value when one is not computed
-			static
-			const CDouble DDefaultCostVal;
+	// dtor
+	~CCostModelParamsGPDBLegacy() override;
 
-			// private copy ctor
-			CCostModelParamsGPDBLegacy(CCostModelParamsGPDBLegacy &);
+	// lookup param by id
+	SCostParam *PcpLookup(ULONG id) const override;
 
-		public:
+	// lookup param by name
+	SCostParam *PcpLookup(const CHAR *szName) const override;
 
-			// ctor
-			explicit
-			CCostModelParamsGPDBLegacy(CMemoryPool *mp);
+	// set param by id
+	void SetParam(ULONG id, CDouble dVal, CDouble dLowerBound,
+				  CDouble dUpperBound) override;
 
-			// dtor
-			virtual
-			~CCostModelParamsGPDBLegacy();
+	// set param by name
+	void SetParam(const CHAR *szName, CDouble dVal, CDouble dLowerBound,
+				  CDouble dUpperBound) override;
 
-			// lookup param by id
-			virtual
-			SCostParam *PcpLookup(ULONG id) const;
+	// print function
+	IOstream &OsPrint(IOstream &os) const override;
 
-			// lookup param by name
-			virtual
-			SCostParam *PcpLookup(const CHAR *szName) const;
+	BOOL Equals(ICostModelParams *pcm) const override;
 
-			// set param by id
-			virtual
-			void SetParam(ULONG id, CDouble dVal, CDouble dLowerBound, CDouble dUpperBound);
+	const CHAR *SzNameLookup(ULONG id) const override;
 
-			// set param by name
-			virtual
-			void SetParam(const CHAR *szName, CDouble dVal, CDouble dLowerBound, CDouble dUpperBound);
+};	// class CCostModelParamsGPDBLegacy
 
-			// print function
-			virtual
-			IOstream &OsPrint(IOstream &os) const;
+}  // namespace gpopt
 
-			virtual BOOL
-			Equals(ICostModelParams *pcm) const;
-
-			virtual const CHAR *
-			SzNameLookup(ULONG id) const;
-
-	}; // class CCostModelParamsGPDBLegacy
-
-}
-
-#endif // !GPDBCOST_CCostModelParamsGPDBLegacy_H
+#endif	// !GPDBCOST_CCostModelParamsGPDBLegacy_H
 
 // EOF

@@ -3,7 +3,7 @@
 // funcs.h
 //    API for invoking optimizer using GPDB udfs
 //
-// Copyright (c) 2019-Present Pivotal Software, Inc.
+// Copyright (c) 2019-Present VMware, Inc. or its affiliates.
 //
 //---------------------------------------------------------------------------
 
@@ -11,8 +11,7 @@
 #define GPOPT_funcs_H
 
 
-extern "C"
-{
+extern "C" {
 
 #include "postgres.h"
 #include "fmgr.h"
@@ -21,7 +20,6 @@ extern "C"
 extern Datum DisableXform(PG_FUNCTION_ARGS);
 extern Datum EnableXform(PG_FUNCTION_ARGS);
 extern Datum LibraryVersion();
-
 }
 
-#endif // GPOPT_funcs_H
+#endif	// GPOPT_funcs_H

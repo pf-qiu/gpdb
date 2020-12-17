@@ -3,7 +3,7 @@
  * datumstream.c
  *
  * Portions Copyright (c) 2009, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -371,7 +371,8 @@ init_datumstream_info(
 	/*
 	 * Adjust maxsz for Append-Only Storage.
 	 */
-	Assert(maxsz <= MAX_APPENDONLY_BLOCK_SIZE);
+	if (maxsz <= 0 || maxsz > MAX_APPENDONLY_BLOCK_SIZE)
+		elog(ERROR, "invalid AO block size %d", maxsz);
 	*maxAoBlockSize = maxsz;
 
 	/*
@@ -532,7 +533,7 @@ create_datumstreamwrite(
 		compressionFunctions = get_funcs_for_compression(acc->ao_attr.compressType);
 		if (compressionFunctions != NULL)
 		{
-			TupleDesc	td = CreateTupleDesc(1, false, &attr);
+			TupleDesc	td = CreateTupleDesc(1, &attr);
 			StorageAttributes sa;
 
 			sa.comptype = acc->ao_attr.compressType;

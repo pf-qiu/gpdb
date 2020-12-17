@@ -17,140 +17,121 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarBoolOp
-	//
-	//	@doc:
-	//		Scalar boolean operator
-	//
-	//---------------------------------------------------------------------------
-	class CScalarBoolOp : public CScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarBoolOp
+//
+//	@doc:
+//		Scalar boolean operator
+//
+//---------------------------------------------------------------------------
+class CScalarBoolOp : public CScalar
+{
+public:
+	// enum of boolean operators
+	enum EBoolOperator
 	{
+		EboolopAnd,	 // AND
+		EboolopOr,	 // OR
+		EboolopNot,	 // NOT
 
-		public:
+		EboolopSentinel
+	};
 
-			// enum of boolean operators
-			enum EBoolOperator
-			{
-				EboolopAnd,		// AND
-				EboolopOr,		// OR
-				EboolopNot,		// NOT
+private:
+	static const WCHAR m_rgwszBool[EboolopSentinel][30];
 
-				EboolopSentinel
-			};
+	// boolean operator
+	EBoolOperator m_eboolop;
 
-		private:
+public:
+	CScalarBoolOp(const CScalarBoolOp &) = delete;
 
-			static
-			const WCHAR m_rgwszBool[EboolopSentinel][30];
+	// ctor
+	CScalarBoolOp(CMemoryPool *mp, EBoolOperator eboolop)
+		: CScalar(mp), m_eboolop(eboolop)
+	{
+		GPOS_ASSERT(0 <= eboolop && EboolopSentinel > eboolop);
+	}
 
-			// boolean operator
-			EBoolOperator m_eboolop;
-
-			// private copy ctor
-			CScalarBoolOp(const CScalarBoolOp &);
-
-		public:
-
-			// ctor
-			CScalarBoolOp
-				(
-				CMemoryPool *mp,
-				EBoolOperator eboolop
-				)
-				:
-				CScalar(mp),
-				m_eboolop(eboolop)
-			{
-				GPOS_ASSERT(0 <= eboolop && EboolopSentinel > eboolop);
-			}
-
-			// dtor
-			virtual
-			~CScalarBoolOp() {}
+	// dtor
+	~CScalarBoolOp() override = default;
 
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopScalarBoolOp;
-			}
+	// ident accessors
+	EOperatorId
+	Eopid() const override
+	{
+		return EopScalarBoolOp;
+	}
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CScalarBoolOp";
-			}
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarBoolOp";
+	}
 
-			// accessor
-			EBoolOperator Eboolop() const
-			{
-				return m_eboolop;
-			}
+	// accessor
+	EBoolOperator
+	Eboolop() const
+	{
+		return m_eboolop;
+	}
 
-			// operator specific hash function
-			ULONG HashValue() const;
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-			// match function
-			BOOL Matches(COperator *) const;
+	// match function
+	BOOL Matches(COperator *) const override;
 
-			// sensitivity to order of inputs
-			BOOL FInputOrderSensitive() const
-			{
-				return !FCommutative(Eboolop());
-			}
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return !FCommutative(Eboolop());
+	}
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns
-						(
-						CMemoryPool *, //mp,
-						UlongToColRefMap *, //colref_mapping,
-						BOOL //must_exist
-						)
-			{
-				return PopCopyDefault();
-			}
+	// return a copy of the operator with remapped columns
+	COperator *
+	PopCopyWithRemappedColumns(CMemoryPool *,		//mp,
+							   UlongToColRefMap *,	//colref_mapping,
+							   BOOL					//must_exist
+							   ) override
+	{
+		return PopCopyDefault();
+	}
 
-			// conversion function
-			static
-			CScalarBoolOp *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarBoolOp == pop->Eopid());
+	// conversion function
+	static CScalarBoolOp *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarBoolOp == pop->Eopid());
 
-				return reinterpret_cast<CScalarBoolOp*>(pop);
-			}
+		return reinterpret_cast<CScalarBoolOp *>(pop);
+	}
 
-			// boolean expression evaluation
-			virtual
-			EBoolEvalResult Eber(ULongPtrArray *pdrgpulChildren) const;
+	// boolean expression evaluation
+	EBoolEvalResult Eber(ULongPtrArray *pdrgpulChildren) const override;
 
-			// decide boolean operator commutativity
-			static BOOL FCommutative(EBoolOperator eboolop);
-			
-			// the type of the scalar expression
-			virtual 
-			IMDId *MdidType() const;
+	// decide boolean operator commutativity
+	static BOOL FCommutative(EBoolOperator eboolop);
 
-			// print
-			virtual
-			IOstream &OsPrint(IOstream &os) const;
+	// the type of the scalar expression
+	IMDId *MdidType() const override;
+
+	// print
+	IOstream &OsPrint(IOstream &os) const override;
 
 
-	}; // class CScalarBoolOp
+};	// class CScalarBoolOp
 
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CScalarBoolOp_H
+#endif	// !GPOPT_CScalarBoolOp_H
 
 // EOF

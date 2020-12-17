@@ -4,7 +4,7 @@
  *	  Debugging tools and routines
  * 
  * Portions Copyright (c) 2007-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -16,6 +16,7 @@
 #ifndef _DEBUGUTILS_H_
 #define _DEBUGUTILS_H_
 
+#include "access/memtup.h"
 #include "executor/tuptable.h"
 
 extern void dotnode(void *, const char*);

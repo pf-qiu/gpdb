@@ -5,7 +5,7 @@
  *
  *
  * Portions Copyright (c) 2006-2009, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 1996-2016, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -47,7 +47,6 @@ extern Relids pull_upper_varnos(Node *node);
 
 extern void pull_varattnos(Node *node, Index varno, Bitmapset **varattnos);
 extern List *pull_vars_of_level(Node *node, int levelsup);
-extern bool contain_ctid_var_reference(Scan *scan);
 extern bool contain_var_clause(Node *node);
 extern bool contain_vars_of_level(Node *node, int levelsup);
 extern bool contain_vars_of_level_or_above(Node *node, int levelsup);

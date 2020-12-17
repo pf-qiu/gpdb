@@ -17,65 +17,58 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
-	using namespace gpmd;
-	using namespace gpnaucrates;
+using namespace gpos;
+using namespace gpmd;
+using namespace gpnaucrates;
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerMDGPDBCheckConstraint
-	//
-	//	@doc:
-	//		Parse handler class for parsing an MD check constraint
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerMDGPDBCheckConstraint : public CParseHandlerMetadataObject
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerMDGPDBCheckConstraint
+//
+//	@doc:
+//		Parse handler class for parsing an MD check constraint
+//
+//---------------------------------------------------------------------------
+class CParseHandlerMDGPDBCheckConstraint : public CParseHandlerMetadataObject
+{
+private:
+	// mdid of the check constraint
+	IMDId *m_mdid;
 
-			// mdid of the check constraint
-			IMDId *m_mdid;
+	// name of the check constraint
+	CMDName *m_mdname;
 
-			// name of the check constraint
-			CMDName *m_mdname;
+	// mdid of the relation
+	IMDId *m_rel_mdid;
 
-			// mdid of the relation
-			IMDId *m_rel_mdid;
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-			// private copy ctor
-			CParseHandlerMDGPDBCheckConstraint(const CParseHandlerMDGPDBCheckConstraint&);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-			// process the start of an element
-			void StartElement
-				(
-				const XMLCh* const element_uri, 		// URI of element's namespace
- 				const XMLCh* const element_local_name,	// local part of element's name
-				const XMLCh* const element_qname,		// element's qname
-				const Attributes& attr				// element's attributes
-				);
+public:
+	CParseHandlerMDGPDBCheckConstraint(
+		const CParseHandlerMDGPDBCheckConstraint &) = delete;
 
-			// process the end of an element
-			void EndElement
-				(
-				const XMLCh* const element_uri, 		// URI of element's namespace
-				const XMLCh* const element_local_name,	// local part of element's name
-				const XMLCh* const element_qname		// element's qname
-				);
+	// ctor
+	CParseHandlerMDGPDBCheckConstraint(CMemoryPool *mp,
+									   CParseHandlerManager *parse_handler_mgr,
+									   CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
 
-		public:
-
-			// ctor
-			CParseHandlerMDGPDBCheckConstraint
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
-	};
-}
-
-#endif // !GPDXL_CParseHandlerMDGPDBCheckConstraint_H
+#endif	// !GPDXL_CParseHandlerMDGPDBCheckConstraint_H
 
 // EOF

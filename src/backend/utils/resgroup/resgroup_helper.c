@@ -3,21 +3,24 @@
  * Gp_resgroup_helper.c
  *	  Helper functions for resource group.
  *
- * Copyright (c) 2017-Present Pivotal Software, Inc.
+ * Copyright (c) 2017-Present VMware, Inc. or its affiliates.
  *
  *
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
 
+#include "access/genam.h"
+#include "access/table.h"
 #include "funcapi.h"
 #include "libpq-fe.h"
 #include "miscadmin.h"
-#include "access/genam.h"
 #include "catalog/pg_resgroup.h"
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbdispatchresult.h"
 #include "cdb/cdbvars.h"
+#include "commands/resgroupcmds.h"
+#include "storage/procarray.h"
 #include "utils/builtins.h"
 #include "utils/datetime.h"
 #include "utils/resgroup.h"
@@ -213,7 +216,7 @@ pg_resgroup_get_status(PG_FUNCTION_ARGS)
 
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
-		tupdesc = CreateTemplateTupleDesc(nattr, false);
+		tupdesc = CreateTemplateTupleDesc(nattr);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "groupid", OIDOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "num_running", INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 3, "num_queueing", INT4OID, -1, 0);
@@ -245,13 +248,13 @@ pg_resgroup_get_status(PG_FUNCTION_ARGS)
 			 * block until creating/dropping finish to avoid inconsistent
 			 * resource group metadata
 			 */
-			pg_resgroup_rel = heap_open(ResGroupRelationId, ExclusiveLock);
+			pg_resgroup_rel = table_open(ResGroupRelationId, ExclusiveLock);
 
 			sscan = systable_beginscan(pg_resgroup_rel, InvalidOid, false,
 									   NULL, 0, NULL);
 			while (HeapTupleIsValid(tuple = systable_getnext(sscan)))
 			{
-				Oid oid = ObjectIdGetDatum(HeapTupleGetOid(tuple));
+				Oid			oid = ((Form_pg_resgroup) GETSTRUCT(tuple))->oid;
 
 				if (inGroupId == InvalidOid || inGroupId == oid)
 				{
@@ -272,7 +275,7 @@ pg_resgroup_get_status(PG_FUNCTION_ARGS)
 			if (ctx->nGroups > 0)
 				getResUsage(ctx, inGroupId);
 
-			heap_close(pg_resgroup_rel, ExclusiveLock);
+			table_close(pg_resgroup_rel, ExclusiveLock);
 		}
 
 		MemoryContextSwitchTo(oldcontext);
@@ -299,21 +302,21 @@ pg_resgroup_get_status(PG_FUNCTION_ARGS)
 		values[0] = row->groupId;
 		groupId = DatumGetObjectId(values[0]);
 
-		if (Gp_role == GP_ROLE_DISPATCH)
-		{
-			values[1] = ResGroupGetStat(groupId, RES_GROUP_STAT_NRUNNING);
-			values[2] = ResGroupGetStat(groupId, RES_GROUP_STAT_NQUEUEING);
-			values[3] = ResGroupGetStat(groupId, RES_GROUP_STAT_TOTAL_QUEUED);
-			values[4] = ResGroupGetStat(groupId, RES_GROUP_STAT_TOTAL_EXECUTED);
-			values[5] = ResGroupGetStat(groupId, RES_GROUP_STAT_TOTAL_QUEUE_TIME);
-		}
-		else
+		if (Gp_role == GP_ROLE_UTILITY)
 		{
 			nulls[1] = true;
 			nulls[2] = true;
 			nulls[3] = true;
 			nulls[4] = true;
 			nulls[5] = true;
+		}
+		else
+		{
+			values[1] = ResGroupGetStat(groupId, RES_GROUP_STAT_NRUNNING);
+			values[2] = ResGroupGetStat(groupId, RES_GROUP_STAT_NQUEUEING);
+			values[3] = ResGroupGetStat(groupId, RES_GROUP_STAT_TOTAL_QUEUED);
+			values[4] = ResGroupGetStat(groupId, RES_GROUP_STAT_TOTAL_EXECUTED);
+			values[5] = ResGroupGetStat(groupId, RES_GROUP_STAT_TOTAL_QUEUE_TIME);
 		}
 
 		values[6] = CStringGetTextDatum(row->cpuUsage->data);
@@ -367,7 +370,7 @@ pg_resgroup_get_status_kv(PG_FUNCTION_ARGS)
 
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
-		tupdesc = CreateTemplateTupleDesc(nattr, false);
+		tupdesc = CreateTemplateTupleDesc(nattr);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "groupid", OIDOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "prop", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 3, "value", TEXTOID, -1, 0);
@@ -460,4 +463,82 @@ dumpResGroupInfo(StringInfo str)
 		ResGroupDumpInfo(str);
 		LWLockRelease(ResGroupLock);
 	}
+}
+
+Datum
+pg_resgroup_check_move_query(PG_FUNCTION_ARGS)
+{
+	TupleDesc	tupdesc;
+	Datum		values[2];
+	bool		nulls[2];
+	HeapTuple	htup;
+	int sessionId = PG_GETARG_INT32(0);
+	Oid groupId = PG_GETARG_OID(1);
+	int32 sessionMem = ResGroupGetSessionMemUsage(sessionId);
+	int32 availMem = ResGroupGetGroupAvailableMem(groupId);
+
+	if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
+		elog(ERROR, "return type must be a row type");
+	tupdesc = BlessTupleDesc(tupdesc);
+
+	MemSet(nulls, 0, sizeof(nulls));
+	values[0] = Int32GetDatum(sessionMem);
+	values[1] = Int32GetDatum(availMem);
+	htup = heap_form_tuple(tupdesc, values, nulls);
+
+	PG_RETURN_DATUM(HeapTupleGetDatum(htup));
+}
+
+/*
+ * move a query to a resource group
+ */
+Datum
+pg_resgroup_move_query(PG_FUNCTION_ARGS)
+{
+	int sessionId;
+	Oid groupId;
+	const char *groupName;
+
+	if (!IsResGroupEnabled())
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 (errmsg("resource group is not enabled"))));
+
+	if (!superuser())
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 (errmsg("must be superuser to move query"))));
+
+	if (Gp_role == GP_ROLE_DISPATCH)
+	{
+		Oid currentGroupId;
+		pid_t pid = PG_GETARG_INT32(0);
+		groupName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+
+		groupId = get_resgroup_oid(groupName, false);
+		sessionId = GetSessionIdByPid(pid);
+		if (sessionId == -1)
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_OBJECT),
+					 (errmsg("cannot find process: %d", pid))));
+
+		currentGroupId = ResGroupGetGroupIdBySessionId(sessionId);
+		if (currentGroupId == InvalidOid)
+			ereport(ERROR,
+					(errcode(ERRCODE_UNDEFINED_OBJECT),
+					 (errmsg("process %d is in IDLE state", pid))));
+		if (currentGroupId == groupId)
+			PG_RETURN_BOOL(true);
+
+		ResGroupMoveQuery(sessionId, groupId, groupName);
+	}
+	else if (Gp_role == GP_ROLE_EXECUTE)
+	{
+		sessionId = PG_GETARG_INT32(0);
+		groupName = text_to_cstring(PG_GETARG_TEXT_PP(1));
+		groupId = get_resgroup_oid(groupName, false);
+		ResGroupSignalMoveQuery(sessionId, NULL, groupId);
+	}
+
+	PG_RETURN_BOOL(true);
 }

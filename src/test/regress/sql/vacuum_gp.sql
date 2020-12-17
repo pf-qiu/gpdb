@@ -121,7 +121,7 @@ vacuum ao_age_test;
 -- each of the three tables.
 -- AO/CO tables should have relfrozenxid = 0.
 select relname, relfrozenxid from pg_class
-where relname like 'ao_age_test%' and relkind = 'r' order by 1;
+where relname like 'ao_age_test%' and relkind in ('r','p') order by 1;
 
 -- Vacuum the other two empty tables and verify the age of auxiliary tables is
 -- updated correctly.
@@ -141,6 +141,7 @@ where c.oid = a.segrelid and
 	   (a.relid = 'ao_empty'::regclass or
 	    a.relid = 'aocs_empty'::regclass);
 -- Verify that age of toast table is updated by vacuum.
+-- AOCS doesn't have a valid reltoastrelid from Greenplum 7.
 select 0 < age(relfrozenxid) as age_positive,
        age(relfrozenxid) < 100 as age_within_limit
 from pg_class where oid in (select reltoastrelid from pg_class
@@ -232,3 +233,50 @@ DROP TABLE vac_acl_heap;
 DROP TABLE vac_acl_ao;
 DROP TABLE vac_acl_aocs;
 DROP ROLE non_super_user_vacuum;
+
+
+-- Vacuum freeze for database with toast attribute in pg_database tuple cause
+-- heap_inplace_update raise error "wrong tuple length". This is because system
+-- cache flatten toast tuple.
+DROP DATABASE IF EXISTS vacuum_freeze_test;
+CREATE DATABASE vacuum_freeze_test;
+-- start_ignore
+create or replace function toast_pg_database_datacl() returns text as $body$
+declare
+	mycounter int;
+begin
+	for mycounter in select i from generate_series(1, 2800) i loop
+		execute 'create role aaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' || mycounter;
+		execute 'grant ALL on database vacuum_freeze_test to aaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' || mycounter;
+	end loop;
+	return 'ok';
+end;
+$body$ language plpgsql volatile strict;
+
+create or replace function clean_roles() returns text as $body$
+declare
+	mycounter int;
+begin
+	for mycounter in select i from generate_series(1, 2800) i loop
+		execute 'drop role aaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' || mycounter;
+	end loop;
+	return 'ok';
+end;
+$body$ language plpgsql volatile strict;
+
+select toast_pg_database_datacl();
+-- end_ignore
+\c vacuum_freeze_test
+create temp table before_vacuum as select datname, pg_column_size(datacl) > 8192 as datacl_size, age(datfrozenxid) from pg_database where datname='vacuum_freeze_test';
+select datname, datacl_size from before_vacuum;
+vacuum freeze;
+select datname, pg_column_size(datacl) > 8192 as datacl_size, age(datfrozenxid) != (select age from before_vacuum) as age_changed from pg_database where datname='vacuum_freeze_test';
+\c regression
+DROP DATABASE vacuum_freeze_test;
+-- start_ignore
+select clean_roles();
+drop function toast_pg_database_datacl();
+drop function clean_roles();
+-- end_ignore
+-- free pg_global space, otherwise it fails db_size_functions
+VACUUM FULL pg_authid, pg_database;

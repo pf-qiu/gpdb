@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Software, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDrvdPropCtxt.cpp
@@ -15,24 +15,10 @@
 
 #ifdef GPOS_DEBUG
 #include "gpos/error/CAutoTrace.h"
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
-namespace gpopt {
-
-	IOstream &operator << (IOstream &os, CDrvdPropCtxt &drvdpropctxt)
-	{
-		return drvdpropctxt.OsPrint(os);
-	}
-
-#ifdef GPOS_DEBUG
-	void
-	CDrvdPropCtxt::DbgPrint() const
-	{
-		CAutoTrace at(m_mp);
-		(void) this->OsPrint(at.Os());
-	}
-#endif // GPOS_DEBUG
-
-}
+namespace gpopt
+{
+}  // namespace gpopt
 
 // EOF

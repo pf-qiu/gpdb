@@ -4,7 +4,7 @@
  *	  Routines to manipulation and retrieve column encoding information.
  *
  * Portions Copyright (c) EMC, 2011
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -34,7 +34,6 @@
 #include "utils/rel.h"
 #include "utils/relcache.h"
 #include "utils/syscache.h"
-#include "utils/tqual.h"
 
 /*
  * Add a single attribute encoding entry.
@@ -47,7 +46,7 @@ add_attribute_encoding_entry(Oid relid, AttrNumber attnum, Datum attoptions)
 	bool nulls[Natts_pg_attribute_encoding];
 	HeapTuple tuple;
 	
-	Insist(attnum != InvalidAttrNumber);
+	Assert(attnum != InvalidAttrNumber);
 
 	rel = heap_open(AttributeEncodingRelationId, RowExclusiveLock);
 
@@ -59,8 +58,7 @@ add_attribute_encoding_entry(Oid relid, AttrNumber attnum, Datum attoptions)
 	tuple = heap_form_tuple(RelationGetDescr(rel), values, nulls);
 
 	/* insert a new tuple */
-	simple_heap_insert(rel, tuple);
-	CatalogUpdateIndexes(rel, tuple);
+	CatalogTupleInsert(rel, tuple);
 
 	heap_freetuple(tuple);
 
@@ -88,7 +86,7 @@ get_funcs_for_compression(char *compresstype)
 	{
 		func = GetCompressionImplementation(compresstype);
 
-		Insist(PointerIsValid(func));
+		Assert(PointerIsValid(func));
 	}
 	return func;
 }
@@ -109,7 +107,7 @@ get_rel_attoptions(Oid relid, AttrNumber max_attno)
 									 AccessShareLock);
 
 	/* used for attbyval and len below */
-	attform = pgae->rd_att->attrs[Anum_pg_attribute_encoding_attoptions - 1];
+	attform = TupleDescAttr(pgae->rd_att, Anum_pg_attribute_encoding_attoptions - 1);
 
 	dats = palloc0(max_attno * sizeof(Datum));
 
@@ -128,11 +126,11 @@ get_rel_attoptions(Oid relid, AttrNumber max_attno)
 		Datum attoptions;
 		bool isnull;
 
-		Insist(attnum > 0 && attnum <= max_attno);
+		Assert(attnum > 0 && attnum <= max_attno);
 
 		attoptions = heap_getattr(tuple, Anum_pg_attribute_encoding_attoptions,
 								  RelationGetDescr(pgae), &isnull);
-		Insist(!isnull);
+		Assert(!isnull);
 
 		dats[attnum - 1] = datumCopy(attoptions,
 									 attform->attbyval,
@@ -204,45 +202,15 @@ RelationGetAttributeOptions(Relation rel)
 	{
 		if (DatumGetPointer(dats[i]) != NULL)
 		{
-			opts[i] = (StdRdOptions *)heap_reloptions(
-					RELKIND_RELATION, dats[i], false);
+			opts[i] = (StdRdOptions *) default_reloptions(
+					dats[i], false,
+					RELOPT_KIND_APPENDOPTIMIZED);
 			pfree(DatumGetPointer(dats[i]));
 		}
 	}
 	pfree(dats);
 
 	return opts;
-}
-
-/*
- * Given a WITH(...) clause and no other column encoding directives -- such as
- * in the case of CREATE TABLE WITH () AS SELECT -- fill in the column encoding
- * catalog entries for that relation.
- */
-void
-AddDefaultRelationAttributeOptions(Relation rel, List *options)
-{
-	Datum opts;
-	AttrNumber attno;
-	List *ce;
-
-	/* only supported on AOCO at this stage */
-	if (!RelationIsAoCols(rel))
-		return;
-
-	ce = form_default_storage_directive(options);
-	if (!ce)
-		ce = default_column_encoding_clause();
-
-	ce = transformStorageEncodingClause(ce);
-
-	opts = transformRelOptions(PointerGetDatum(NULL), ce, NULL, NULL, true, false);
-
-	for (attno = 1; attno <= RelationGetNumberOfAttributes(rel); attno++)
-		add_attribute_encoding_entry(RelationGetRelid(rel),
-									 attno,
-									 opts);
-	CommandCounterIncrement();
 }
 
 /*
@@ -264,7 +232,7 @@ AddRelationAttributeEncodings(Relation rel, List *attr_encodings)
 		List *encoding;
 		AttrNumber attnum;
 
-		Insist(IsA(c, ColumnReferenceStorageDirective));
+		Assert(IsA(c, ColumnReferenceStorageDirective));
 
 		attnum = get_attnum(relid, c->column);
 

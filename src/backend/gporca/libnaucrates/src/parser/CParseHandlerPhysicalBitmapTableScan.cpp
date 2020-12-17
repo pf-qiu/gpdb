@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CParseHandlerPhysicalBitmapTableScan.cpp
@@ -24,13 +24,12 @@ using namespace gpdxl;
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerPhysicalBitmapTableScan::StartElement
-	(
-	const XMLCh* const,  // element_uri
- 	const XMLCh* const element_local_name,
-	const XMLCh* const,  // element_qname
-	const Attributes&  // attrs
-	)
+CParseHandlerPhysicalBitmapTableScan::StartElement(
+	const XMLCh *const,	 // element_uri
+	const XMLCh *const element_local_name,
+	const XMLCh *const,	 // element_qname
+	const Attributes &	 // attrs
+)
 {
 	StartElementHelper(element_local_name, EdxltokenPhysicalBitmapTableScan);
 }
@@ -44,13 +43,11 @@ CParseHandlerPhysicalBitmapTableScan::StartElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerPhysicalBitmapTableScan::EndElement
-	(
-	const XMLCh* const,  // element_uri
-	const XMLCh* const element_local_name,
-	const XMLCh* const  // element_qname
-	)
+CParseHandlerPhysicalBitmapTableScan::EndElement(
+	const XMLCh *const,	 // element_uri
+	const XMLCh *const element_local_name,
+	const XMLCh *const	// element_qname
+)
 {
 	EndElementHelper(element_local_name, EdxltokenPhysicalBitmapTableScan);
 }
-

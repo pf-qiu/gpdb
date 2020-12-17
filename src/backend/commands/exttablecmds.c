@@ -4,7 +4,7 @@
  *	  Commands for creating and altering external tables
  *
  * Portions Copyright (c) 2005-2010, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -16,11 +16,10 @@
  */
 #include "postgres.h"
 
+#include "access/external.h"
 #include "access/extprotocol.h"
-#include "access/reloptions.h"
 #include "catalog/namespace.h"
 #include "catalog/oid_dispatch.h"
-#include "catalog/pg_exttable.h"
 #include "catalog/pg_extprotocol.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_authid.h"
@@ -39,12 +38,23 @@
 #include "cdb/cdbvars.h"
 #include "cdb/cdbsreh.h"
 
-static Datum transformLocationUris(List *locs, bool isweb, bool iswritable);
-static Datum transformExecOnClause(List *on_clause);
+static char* transformLocationUris(List *locs, bool isweb, bool iswritable);
+static char* transformExecOnClause(List *on_clause);
 static char transformFormatType(char *formatname);
-static Datum transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswritable);
+static List * transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswritable);
 static void InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *locs);
-static Datum optionsListToArray(List *options);
+static bool ExtractErrorLogPersistent(List **options);
+static List * GenerateExtTableEntryOptions(Oid tbloid,
+										   bool iswritable,
+										   bool issreh,
+										   char formattype,
+										   char rejectlimittype,
+										   char* commandString,
+										   int rejectlimit,
+										   char logerrors,
+										   int encoding,
+										   char* locationExec,
+										   char* locationUris);
 
 /* ----------------------------------------------------------------
 *		DefineExternalRelation
@@ -53,7 +63,7 @@ static Datum optionsListToArray(List *options);
 * In here we first dispatch a normal DefineRelation() (with relstorage
 * external) in order to create the external relation entries in pg_class
 * pg_type etc. Then once this is done we dispatch ourselves (DefineExternalRelation)
-* in order to create the pg_exttable entry across the gp array.
+* in order to create the pg_foreign_table entry across the gp array.
 *
 * Why don't we just do all of this in one dispatch run? Because that
 * involves duplicating the DefineRelation() code or severely modifying it
@@ -73,12 +83,11 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	ObjectAddress objAddr;
 	Oid			userid;
 	Oid			reloid = 0;
-	Datum		formatOptStr;
-	Datum		optionsStr;
-	Datum		locationUris = 0;
-	Datum		locationExec = 0;
+	List	   *formatOpts = NIL;
+	List	   *entryOptions = NIL;
+	char	   *locationUris = NULL;
+	char	   *locationExec = NULL;
 	char	   *commandString = NULL;
-	char	   *customProtName = NULL;
 	char		rejectlimittype = '\0';
 	char		formattype;
 	int			rejectlimit = -1;
@@ -104,7 +113,6 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	createStmt->tableElts = createExtStmt->tableElts;
 	createStmt->inhRelations = NIL;
 	createStmt->constraints = NIL;
-	createStmt->options = NIL;
 	createStmt->oncommit = ONCOMMIT_NOOP;
 	createStmt->tablespacename = NULL;
 	createStmt->distributedBy = createExtStmt->distributedBy; /* policy was set in transform */
@@ -113,7 +121,6 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	switch (exttypeDesc->exttabletype)
 	{
 		case EXTTBL_TYPE_LOCATION:
-
 			/* Parse and validate URI strings (LOCATION clause) */
 			locationExec = transformExecOnClause(exttypeDesc->on_clause);
 			locationUris = transformLocationUris(exttypeDesc->location_list,
@@ -135,138 +142,12 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 				 exttypeDesc->exttabletype);
 	}
 
-	/*----------
-	 * check permissions to create this external table.
-	 *
-	 * - Always allow if superuser.
-	 * - Never allow EXECUTE or 'file' exttables if not superuser.
-	 * - Allow http, gpfdist or gpfdists tables if pg_auth has the right
-	 *	 permissions for this role and for this type of table
-	 *----------
-	 */
-	if (!superuser() && Gp_role == GP_ROLE_DISPATCH)
-	{
-		if (exttypeDesc->exttabletype == EXTTBL_TYPE_EXECUTE)
-		{
-			ereport(ERROR,
-					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-					 errmsg("must be superuser to create an EXECUTE external web table")));
-		}
-		else
-		{
-			ListCell   *first_uri = list_head(exttypeDesc->location_list);
-			Value	   *v = lfirst(first_uri);
-			char	   *uri_str = pstrdup(v->val.str);
-			Uri		   *uri = ParseExternalTableUri(uri_str);
-
-			Assert(exttypeDesc->exttabletype == EXTTBL_TYPE_LOCATION);
-
-			if (uri->protocol == URI_FILE)
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-						 errmsg("must be superuser to create an external table with a file protocol")));
-			}
-			else
-			{
-				/*
-				 * Check if this role has the proper 'gpfdist', 'gpfdists' or
-				 * 'http' permissions in pg_auth for creating this table.
-				 */
-
-				bool		isnull;
-				HeapTuple	tuple;
-
-				tuple = SearchSysCache1(AUTHOID, ObjectIdGetDatum(userid));
-				if (!HeapTupleIsValid(tuple))
-					ereport(ERROR,
-							(errcode(ERRCODE_UNDEFINED_OBJECT),
-							 errmsg("role \"%s\" does not exist (in DefineExternalRelation)",
-									GetUserNameFromId(userid, false))));
-
-				if ((uri->protocol == URI_GPFDIST || uri->protocol == URI_GPFDISTS) && iswritable)
-				{
-					Datum	 	d_wextgpfd;
-					bool		createwextgpfd;
-
-					d_wextgpfd = SysCacheGetAttr(AUTHOID, tuple,
-												 Anum_pg_authid_rolcreatewextgpfd,
-												 &isnull);
-					createwextgpfd = (isnull ? false : DatumGetBool(d_wextgpfd));
-
-					if (!createwextgpfd)
-						ereport(ERROR,
-								(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-								 errmsg("permission denied: no privilege to create a writable gpfdist(s) external table")));
-				}
-				else if ((uri->protocol == URI_GPFDIST || uri->protocol == URI_GPFDISTS) && !iswritable)
-				{
-					Datum		d_rextgpfd;
-					bool		createrextgpfd;
-
-					d_rextgpfd = SysCacheGetAttr(AUTHOID, tuple,
-												 Anum_pg_authid_rolcreaterextgpfd,
-												 &isnull);
-					createrextgpfd = (isnull ? false : DatumGetBool(d_rextgpfd));
-
-					if (!createrextgpfd)
-						ereport(ERROR,
-								(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-								 errmsg("permission denied: no privilege to create a readable gpfdist(s) external table")));
-				}
-				else if (uri->protocol == URI_HTTP && !iswritable)
-				{
-					Datum		d_exthttp;
-					bool		createrexthttp;
-
-					d_exthttp = SysCacheGetAttr(AUTHOID, tuple,
-												Anum_pg_authid_rolcreaterexthttp,
-												&isnull);
-					createrexthttp = (isnull ? false : DatumGetBool(d_exthttp));
-
-					if (!createrexthttp)
-						ereport(ERROR,
-								(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-								 errmsg("permission denied: no privilege to create an http external table")));
-				}
-				else if (uri->protocol == URI_CUSTOM)
-				{
-					Oid			ownerId = GetUserId();
-					char	   *protname = uri->customprotocol;
-					Oid			ptcId = get_extprotocol_oid(protname, false);
-					AclResult	aclresult;
-
-					/* Check we have the right permissions on this protocol */
-					if (!pg_extprotocol_ownercheck(ptcId, ownerId))
-					{
-						AclMode		mode = (iswritable ? ACL_INSERT : ACL_SELECT);
-
-						aclresult = pg_extprotocol_aclcheck(ptcId, ownerId, mode);
-
-						if (aclresult != ACLCHECK_OK)
-							aclcheck_error(aclresult, ACL_KIND_EXTPROTOCOL, protname);
-					}
-				}
-				else
-					ereport(ERROR,
-							(errcode(ERRCODE_INTERNAL_ERROR),
-							 errmsg("internal error in DefineExternalRelation"),
-							 errdetail("Protocol is %d, writable is %d.",
-									   uri->protocol, iswritable)));
-
-				ReleaseSysCache(tuple);
-			}
-			FreeExternalTableUri(uri);
-			pfree(uri_str);
-		}
-	}
-
 	/*
 	 * Parse and validate FORMAT clause.
 	 */
 	formattype = transformFormatType(createExtStmt->format);
 
-	formatOptStr = transformFormatOpts(formattype,
+	formatOpts = transformFormatOpts(formattype,
 									   createExtStmt->formatOpts,
 									   list_length(createExtStmt->tableElts),
 									   iswritable);
@@ -274,13 +155,14 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	/*
 	 * Parse and validate OPTION clause.
 	 */
-	ValidateExtTableOptions(createExtStmt->extOptions);
 	log_persistent_option = ExtractErrorLogPersistent(&createExtStmt->extOptions);
-	optionsStr = optionsListToArray(createExtStmt->extOptions);
-	if (DatumGetPointer(optionsStr) == NULL)
-	{
-		optionsStr = PointerGetDatum(construct_empty_array(TEXTOID));
-	}
+
+	/*
+	 * createExtStmt->extOptions is in a temporary context, duplicate it,
+	 * checkout transformCreateExternalStmt() for the details.
+	 */
+	formatOpts = list_concat(formatOpts, list_copy(createExtStmt->extOptions));
+
 	/*
 	 * Parse single row error handling info if available
 	 */
@@ -389,14 +271,14 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 							 RELKIND_FOREIGN_TABLE,
 							 InvalidOid,
 							 NULL,
-							 RELSTORAGE_FOREIGN,
+							 NULL,
 							 false, /* dispatch */
 							 true,
 							 NULL);
 	reloid = objAddr.objectId;
 
 	/*
-	 * Now add pg_foreign_table and pg_exttable entries.
+	 * Now add pg_foreign_table entries.
 	 *
 	 * get our pg_class external rel OID. If we're the QD we just created it
 	 * above. If we're a QE DefineRelation() was already dispatched to us and
@@ -407,30 +289,28 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	else
 		reloid = RangeVarGetRelid(createExtStmt->relation, NoLock, true);
 
-	createForeignTableStmt->servername = PG_EXTTABLE_SERVER_NAME;
-	createForeignTableStmt->options = NIL;
+	entryOptions = GenerateExtTableEntryOptions(reloid,
+										   iswritable,
+										   issreh,
+										   formattype,
+										   rejectlimittype,
+										   commandString,
+										   rejectlimit,
+										   logerrors,
+										   encoding,
+										   locationExec,
+										   locationUris);
+
+	createForeignTableStmt->servername = GP_EXTTABLE_SERVER_NAME;
+	createForeignTableStmt->options = list_concat(formatOpts, entryOptions);
 	CreateForeignTable(createForeignTableStmt, reloid,
 					   true /* skip permission checks, we checked them ourselves */);
-
-	InsertExtTableEntry(reloid,
-						iswritable,
-						issreh,
-						formattype,
-						rejectlimittype,
-						commandString,
-						rejectlimit,
-						logerrors,
-						encoding,
-						formatOptStr,
-						optionsStr,
-						locationExec,
-						locationUris);
 
 	/*
 	 * DefineRelation loaded the new relation into relcache, but the relcache
 	 * contains the distribution policy, which in turn depends on the contents
-	 * of pg_exttable, for EXECUTE-type external tables (see GpPolicyFetch()).
-	 * Now that we have created the pg_exttable entry, invalidate the
+	 * of pg_foreign_table, for EXECUTE-type external tables (see GpPolicyFetch()).
+	 * Now that we have created the pg_foreign_table entry, invalidate the
 	 * relcache, so that it gets loaded with the correct information.
 	 */
 	CacheInvalidateRelcacheByRelid(reloid);
@@ -448,37 +328,27 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 									GetAssignedOidsForDispatch(),
 									NULL);
 	}
-
-	if (customProtName)
-		pfree(customProtName);
 }
 
-
 /*
- * Transform the URI string list into a text array (the form that is
- * used in the catalog table pg_exttable). While at it we validate
- * the URI strings.
- *
- * The result is a text array but we declare it as Datum to avoid
- * including array.h in analyze.h.
+ * Transform the URI string list into a string. While at it we validate the URI
+ * strings.
  */
-static Datum
+static char*
 transformLocationUris(List *locs, bool isweb, bool iswritable)
 {
 	ListCell   *cell;
-	ArrayBuildState *astate;
-	Datum		result;
+	StringInfoData buf;
 	UriProtocol first_protocol = URI_FILE;		/* initialize to keep gcc
 												 * quiet */
 	bool		first_uri = true;
 
 #define FDIST_DEF_PORT 8080
 
+	initStringInfo(&buf);
+
 	/* Parser should not let this happen */
 	Assert(locs != NIL);
-
-	/* We build new array using accumArrayResult */
-	astate = NULL;
 
 	/*
 	 * iterate through the user supplied URI list from LOCATION clause.
@@ -550,7 +420,6 @@ transformLocationUris(List *locs, bool isweb, bool iswritable)
 		if (first_uri)
 		{
 			first_protocol = uri->protocol;
-			first_uri = false;
 		}
 
 		if (uri->protocol != first_protocol)
@@ -595,30 +464,26 @@ transformLocationUris(List *locs, bool isweb, bool iswritable)
 							uri_str_final),
 					 errhint("Specify the explicit path and file name to write into.")));
 
-		astate = accumArrayResult(astate,
-								  CStringGetTextDatum(uri_str_final), false,
-								  TEXTOID,
-								  CurrentMemoryContext);
+		if (first_uri)
+		{
+			appendStringInfo(&buf, "%s", uri_str_final);
+			first_uri = false;
+		}
+		else
+		{
+			appendStringInfo(&buf, "|%s", uri_str_final);
+		}
 
 		FreeExternalTableUri(uri);
 		pfree(uri_str_final);
 	}
 
-	if (astate)
-		result = makeArrayResult(astate, CurrentMemoryContext);
-	else
-		result = (Datum) 0;
-
-	return result;
-
+	return buf.data;
 }
 
-static Datum
+static char*
 transformExecOnClause(List *on_clause)
 {
-	ArrayBuildState *astate;
-	Datum		result;
-
 	ListCell   *exec_location_opt;
 	char	   *exec_location_str = NULL;
 
@@ -680,14 +545,7 @@ transformExecOnClause(List *on_clause)
 		}
 	}
 
-	/* convert to text[] */
-	astate = accumArrayResult(NULL,
-							  CStringGetTextDatum(exec_location_str), false,
-							  TEXTOID,
-							  CurrentMemoryContext);
-	result = makeArrayResult(astate, CurrentMemoryContext);
-
-	return result;
+	return exec_location_str;
 }
 
 /*
@@ -715,53 +573,54 @@ transformFormatType(char *formatname)
 }
 
 /*
- * Transform the external table options into a text array format.
- *
- * The result is an array that includes the format string.
- *
- * This method is a backported FDW's function from upstream .
+ * Join the elements of the list separated by the specified delimiter and
+ * return as a string. There will be no whitespace added for prettyprinting,
+ * this is more intended for serializing. The caller is responsible for
+ * managing the returned memory.
  */
-static Datum
-optionsListToArray(List *options)
+static char *
+list_join(List *list, char delimiter)
 {
-	ArrayBuildState *astate = NULL;
-	ListCell   *option;
+	ListCell	   *cell;
+	StringInfoData	buf;
 
-	foreach(option, options)
+	if (list_length(list) == 0)
+		return pstrdup("");
+
+	initStringInfo(&buf);
+
+	foreach(cell, list)
 	{
-		DefElem    *defel = (DefElem *) lfirst(option);
-		char       *key = defel->defname;
-		char       *val = defGetString(defel);
-		char	   *s;
+		const char *cellval;
 
-		s = psprintf("%s=%s", key, val);
-		astate = accumArrayResult(astate,
-								  CStringGetTextDatum(s), false,
-				                  TEXTOID, CurrentMemoryContext);
+		cellval = strVal(lfirst(cell));
+		appendStringInfo(&buf, "%s%c", quote_identifier(cellval), delimiter);
 	}
 
-	if (astate)
-		return makeArrayResult(astate, CurrentMemoryContext);
+	/*
+	 * Rather than keeping track of when we're adding the last element, trim
+	 * the final delimiter to keep it simple.
+	 */
+	buf.data[buf.len - 1] = '\0';
 
-	return PointerGetDatum(NULL);
+	return buf.data;
 }
 
 /*
- * Transform the FORMAT options into a text field. Parse the
- * options and validate them for their respective format type.
- *
- * The result is a text field that includes the format string.
+ * Transform the FORMAT options List into a new List suitable for storing in
+ * pg_foreigntable.ftoptions.
  */
-static Datum
+static List *
 transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswritable)
 {
+	List 	   *cslist = NIL;
 	ListCell   *option;
-	Datum		result;
-	char	   *format_str;
-	char	   *formatter = NULL;
-	StringInfoData cfbuf;
+	ParseState *pstate;
 
 	CopyState cstate = palloc0(sizeof(CopyStateData));
+
+	pstate = make_parsestate(NULL);
+	pstate->p_sourcetext = NULL;
 
 	Assert(fmttype_is_custom(formattype) ||
 		   fmttype_is_text(formattype) ||
@@ -787,11 +646,9 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 				/* ok */
 			}
 			else if (strcmp(defel->defname, "formatter") == 0)
-			{
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
 						 errmsg("formatter option only valid for custom formatters")));
-			}
 			else
 				elog(ERROR, "option \"%s\" not recognized",
 					 defel->defname);
@@ -801,139 +658,100 @@ transformFormatOpts(char formattype, List *formatOpts, int numcols, bool iswrita
 		if (fmttype_is_csv(formattype))
 		{
 			formatOpts = list_copy(formatOpts);
-			formatOpts = lappend(formatOpts, makeDefElem("format", (Node *)makeString("csv")));
+			formatOpts = lappend(formatOpts, makeDefElem("format", (Node *) makeString("csv"), -1));
+
+			cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("csv"), -1));
 		}
+		else
+			cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("text"), -1));
 
 		/* verify all user supplied control char combinations are legal */
-		ProcessCopyOptions(cstate,
+		ProcessCopyOptions(pstate,
+						   cstate,
 						   !iswritable, /* is_from */
-						   formatOpts,
-						   numcols,
-						   false /* is_copy */);
+						   formatOpts);
 
-		/*
-		 * Build the format option string that will get stored in the catalog.
-		 *
-		 * NOTE: These are intentionally not escaped "correctly"! For
-		 * historical reasons, these options are stored in a weird format
-		 * that looks like they're SQL literals, but the escaping is
-		 * different. See comments in escape_fmtopts_string(), in
-		 * src/bin/pg_dump/dumputils.c.
-		 */
-		initStringInfo(&cfbuf);
-		appendStringInfo(&cfbuf, "delimiter '%s'", cstate->delim);
-		appendStringInfo(&cfbuf, " null '%s'", cstate->null_print);
-		appendStringInfo(&cfbuf, " escape '%s'", cstate->escape);
-		if (fmttype_is_csv(formattype))
-			appendStringInfo(&cfbuf, " quote '%s'", cstate->quote);
+		if (cstate->delim_off)
+		{
+			if (numcols != 1)
+				ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("using no delimiter is only possible for a single column table")));
+		}
+
 		if (cstate->header_line)
-			appendStringInfo(&cfbuf, " header");
+		{
+			if (Gp_role == GP_ROLE_DISPATCH)
+			{
+				if (!iswritable)
+				{
+					/* RET */
+					ereport(NOTICE,
+							(errmsg("HEADER means that each one of the data files has a header row")));
+				}
+				else
+				{
+					/* WET */
+					ereport(ERROR,
+							(errcode(ERRCODE_GP_FEATURE_NOT_YET),
+							errmsg("HEADER is not yet supported for writable external tables")));
+				}
+			}
+		}
+
+		/* keep the same order with the original pg_exttable catalog's fmtopt field */
+		cslist = lappend(cslist, makeDefElem("delimiter", (Node *) makeString(cstate->delim), -1));
+		cslist = lappend(cslist, makeDefElem("null", (Node *) makeString(cstate->null_print), -1));
+		cslist = lappend(cslist, makeDefElem("escape", (Node *) makeString(cstate->escape), -1));
+		if (fmttype_is_csv(formattype))
+			cslist = lappend(cslist, makeDefElem("quote", (Node *) makeString(cstate->quote), -1));
+		if (cstate->header_line)
+			cslist = lappend(cslist, makeDefElem("header", (Node *) makeString("true"), -1));
 		if (cstate->fill_missing)
-			appendStringInfo(&cfbuf, " fill missing fields");
+			cslist = lappend(cslist, makeDefElem("fill_missing_fields", (Node *) makeString("true"), -1));
 
-		/*
-		 * re-construct the FORCE NOT NULL list string. TODO: is there no
-		 * existing util function that does this? can't find.
-		 */
+		/* Re-construct the FORCE NOT NULL list string */
 		if (cstate->force_notnull)
-		{
-			ListCell   *l;
-			bool		is_first_col = true;
+			cslist = lappend(cslist, makeDefElem("force_not_null", (Node *) makeString(list_join(cstate->force_notnull, ',')), -1));
 
-			appendStringInfo(&cfbuf, " force not null");
-
-			foreach(l, cstate->force_notnull)
-			{
-				const char *col_name = strVal(lfirst(l));
-
-				appendStringInfo(&cfbuf, (is_first_col ? " %s" : ",%s"),
-								 quote_identifier(col_name));
-				is_first_col = false;
-			}
-		}
-
-		/*
-		 * re-construct the FORCE QUOTE list string.
-		 */
+		/* Re-construct the FORCE QUOTE list string */
 		if (cstate->force_quote)
-		{
-			ListCell   *l;
-			bool		is_first_col = true;
-
-			appendStringInfo(&cfbuf, " force quote");
-
-			foreach(l, cstate->force_quote)
-			{
-				const char *col_name = strVal(lfirst(l));
-
-				appendStringInfo(&cfbuf, (is_first_col ? " %s" : ",%s"),
-								 quote_identifier(col_name));
-				is_first_col = false;
-			}
-		}
-
-		if (cstate->force_quote_all)
-			appendStringInfo(&cfbuf, " force quote *");
+			cslist = lappend(cslist, makeDefElem("force_quote", (Node *) makeString(list_join(cstate->force_quote, ',')), -1));
+		else if (cstate->force_quote_all)
+			cslist = lappend(cslist, makeDefElem("force_quote", (Node *) makeString("*"), -1));
 
 		if (cstate->eol_str)
-			appendStringInfo(&cfbuf, " newline '%s'", cstate->eol_str);
-
-		format_str = cfbuf.data;
+			cslist = lappend(cslist, makeDefElem("newline", (Node *) makeString(cstate->eol_str), -1));
 	}
 	else
 	{
-		/* custom format */
-		StringInfoData cfbuf;
-
-		initStringInfo(&cfbuf);
+		bool		found = false;
 
 		foreach(option, formatOpts)
 		{
 			DefElem    *defel = (DefElem *) lfirst(option);
-			char	   *key = defel->defname;
-			char	   *val = defGetString(defel);
 
-			if (strcmp(key, "formatter") == 0)
+			if (strcmp(defel->defname, "formatter") == 0)
 			{
-				if (formatter)
+				if (found)
 					ereport(ERROR,
 							(errcode(ERRCODE_SYNTAX_ERROR),
-							 errmsg("conflicting or redundant options")));
+							 errmsg("redundant formatter option")));
 
-				formatter = strVal(defel->arg);
+				found = true;
 			}
-
-			/*
-			 * Output "<key> '<val>' ", but replace any space chars in the key
-			 * with meta char (MPP-14467)
-			 */
-			while (*key)
-			{
-				if (*key == ' ')
-					appendStringInfoString(&cfbuf, "<gpx20>");
-				else
-					appendStringInfoChar(&cfbuf, *key);
-				key++;
-			}
-			appendStringInfo(&cfbuf, " '%s' ", val);
 		}
 
-		if (!formatter)
+		if (!found)
 			ereport(ERROR,
 					(errcode(ERRCODE_SYNTAX_ERROR),
 					 errmsg("no formatter function specified")));
 
-		format_str = cfbuf.data;
+		cslist = list_copy(formatOpts);
+		cslist = lappend(cslist, makeDefElem("format", (Node *) makeString("custom"), -1));
 	}
 
-	/* convert c string to text datum */
-	result = CStringGetTextDatum(format_str);
-
-	/* clean up */
-	pfree(format_str);
-
-	return result;
-
+	return cslist;
 }
 
 static void
@@ -941,7 +759,7 @@ InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *loc
 {
 	ExtProtocolValidatorData *validator_data;
 	FmgrInfo   *validator_udf;
-	FunctionCallInfoData fcinfo;
+	LOCAL_FCINFO(fcinfo, FUNC_MAX_ARGS);
 
 	validator_data = (ExtProtocolValidatorData *) palloc0(sizeof(ExtProtocolValidatorData));
 	validator_udf = palloc(sizeof(FmgrInfo));
@@ -953,7 +771,7 @@ InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *loc
 	validator_data->direction = (iswritable ? EXT_VALIDATE_WRITE :
 								 EXT_VALIDATE_READ);
 
-	InitFunctionCallInfoData( /* FunctionCallInfoData */ fcinfo,
+	InitFunctionCallInfoData( /* FunctionCallInfoData */ *fcinfo,
 							  /* FmgrInfo */ validator_udf,
 							  /* nArgs */ 0,
 							  /* Collation */ InvalidOid, 
@@ -961,13 +779,118 @@ InvokeProtocolValidation(Oid procOid, char *procName, bool iswritable, List *loc
 							  /* ResultSetInfo */ NULL);
 
 	/* invoke validator. if this function returns - validation passed */
-	FunctionCallInvoke(&fcinfo);
+	FunctionCallInvoke(fcinfo);
 
 	/* We do not expect a null result */
-	if (fcinfo.isnull)
+	if (fcinfo->isnull)
 		elog(ERROR, "validator function %u returned NULL",
-			 fcinfo.flinfo->fn_oid);
+			 fcinfo->flinfo->fn_oid);
 
 	pfree(validator_data);
 	pfree(validator_udf);
+}
+
+/*
+ * ExtractErrorLogPersistent - load LOG ERRORS PERSISTENTLY from options.
+ */
+static bool
+ExtractErrorLogPersistent(List **options)
+{
+	ListCell   *cell;
+	ListCell *prev = NULL;
+
+	foreach(cell, *options)
+	{
+		DefElem    *def = (DefElem *) lfirst(cell);
+		if (pg_strcasecmp(def->defname, "error_log_persistent") == 0)
+		{
+			*options = list_delete_cell(*options, cell, prev);
+			/* these accept only boolean values */
+			return defGetBoolean(def);
+		}
+		prev = cell;
+	}
+	return false;
+}
+
+/*
+ * Generate a list of ExtTableEntry options
+ */
+static List*
+GenerateExtTableEntryOptions(Oid 	tbloid,
+							 bool 	iswritable,
+							 bool	issreh,
+							 char	formattype,
+							 char	rejectlimittype,
+							 char*	commandString,
+							 int	rejectlimit,
+							 char	logerrors,
+							 int	encoding,
+							 char*	locationExec,
+							 char*	locationUris)
+{
+	List		*entryOptions = NIL;
+
+	entryOptions = lappend(entryOptions, makeDefElem("format_type", (Node *) makeString(psprintf("%c", formattype)), -1));
+
+	if (commandString)
+	{
+		/* EXECUTE type table - store command and command location */
+		entryOptions = lappend(entryOptions, makeDefElem("command", (Node *) makeString(pstrdup(commandString)), -1));
+		entryOptions = lappend(entryOptions, makeDefElem("execute_on", (Node *) makeString(pstrdup(locationExec)), -1));
+	}
+	else
+	{
+		/* LOCATION type table - store uri locations. command is NULL */
+		entryOptions = lappend(entryOptions, makeDefElem("location_uris", (Node *) makeString(pstrdup(locationUris)), -1));
+		entryOptions = lappend(entryOptions, makeDefElem("execute_on", (Node *) makeString(pstrdup(locationExec)), -1));
+	}
+
+	if (issreh)
+	{
+		entryOptions = lappend(entryOptions, makeDefElem("reject_limit", (Node *) makeString(psprintf("%d", rejectlimit)), -1));
+		entryOptions = lappend(entryOptions, makeDefElem("reject_limit_type", (Node *) makeString(psprintf("%c", rejectlimittype)), -1));
+	}
+
+	entryOptions = lappend(entryOptions, makeDefElem("log_errors", (Node *) makeString(psprintf("%c", logerrors)), -1));
+	entryOptions = lappend(entryOptions, makeDefElem("encoding", (Node *) makeString(psprintf("%d", encoding)), -1));
+	entryOptions = lappend(entryOptions, makeDefElem("is_writable", (Node *) makeString(iswritable ? pstrdup("true") : pstrdup("false")), -1));
+
+	/*
+	 * Add the dependency of custom external table
+	 */
+	if (locationUris)
+	{
+		List *locationUris_list = TokenizeLocationUris(locationUris);
+		ListCell *lc;
+
+		foreach(lc, locationUris_list)
+		{
+			ObjectAddress	myself, referenced;
+			char	   *location;
+			char	   *protocol;
+			Size		position;
+
+			location = strVal(lfirst(lc));
+			position = strchr(location, ':') - location;
+			protocol = pnstrdup(location, position);
+
+			myself.classId = RelationRelationId;
+			myself.objectId = tbloid;
+			myself.objectSubId = 0;
+
+			referenced.classId = ExtprotocolRelationId;
+			referenced.objectId = get_extprotocol_oid(protocol, true);
+			referenced.objectSubId = 0;
+
+			/*
+			 * Only tables with custom protocol should create dependency, for
+			 * internal protocols will get referenced.objectId as 0.
+			 */
+			if (referenced.objectId)
+				recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+		}
+	}
+
+	return entryOptions;
 }

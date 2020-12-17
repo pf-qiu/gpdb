@@ -18,7 +18,7 @@ CREATE TABLE toolkit_aopart (
             N_COMMENT VARCHAR(152)
             )
 partition by range (n_nationkey)
-subpartition by range (n_regionkey) subpartition template (start('0') end('1') inclusive,start('1') exclusive
+subpartition by range (n_regionkey) subpartition template (start('0') end('2') exclusive,start('2') inclusive
 )
 (
 partition p1 start('0') end('10') WITH (appendonly=true,checksum=true,compresslevel=9), partition p2 start('10') end('25') WITH (checksum=false,appendonly=true,compresslevel=7)
@@ -49,17 +49,6 @@ select aunnspname from gp_toolkit.__gp_user_namespaces where aunnspname='tktest'
 drop schema tktest;
 
 select aunnspname from gp_toolkit.__gp_user_namespaces where aunnspname='tktest';
-select  autnspname, autrelname, autrelkind, autreltuples, autrelpages, autrelacl from gp_toolkit.__gp_user_data_tables where autrelname like 'toolkit%' order by 2;
-
-create table toolkit_a (a int);
-create table toolkit_b (b int);
-
-select  autnspname, autrelname, autrelkind, autreltuples, autrelpages, autrelacl from gp_toolkit.__gp_user_data_tables where autrelname like 'toolkit%' order by 2;
-
-drop table toolkit_a;
-drop table toolkit_b;
-
-select  autnspname, autrelname, autrelkind, autreltuples, autrelpages, autrelacl from gp_toolkit.__gp_user_data_tables where autrelname like 'toolkit%' order by 2;
 
 -- Test log reading functions
 
@@ -159,9 +148,37 @@ select count(*) from gp_toolkit.gp_bloat_expected_pages where btdrelid = 'do_not
 -- Check that gp_bloat_diag can deal with big numbers. (This used to provoke an
 -- integer overflow error, before the view was fixed to use numerics for all the
 -- calculations.)
-create table wide_width_test as select * from pg_attribute;
-set allow_system_table_mods=true ;
-update pg_statistic set stawidth=2034567890 where starelid = (select oid from pg_class where relname='test');
+create table wide_width_test(
+  c01 text, c02 text, c03 text, c04 text, c05 text,
+  c06 text, c07 text, c08 text, c09 text, c10 text,
+  c11 text, c12 text, c13 text, c14 text, c15 text,
+  c16 text, c17 text, c18 text, c19 text, c20 text,
+  c21 text, c22 text, c23 text, c24 text, c25 text,
+  c26 text, c27 text, c28 text, c29 text, c30 text,
+  c31 text, c32 text, c33 text, c34 text, c35 text,
+  c36 text, c37 text, c38 text, c39 text, c40 text,
+  c41 text, c42 text, c43 text, c44 text, c45 text,
+  c46 text, c47 text, c48 text, c49 text, c50 text);
+
+insert into wide_width_test
+select 'foo01', 'foo02', 'foo03', 'foo04', 'foo05',
+       'foo06', 'foo07', 'foo08', 'foo09', 'foo10',
+       'foo11', 'foo12', 'foo13', 'foo14', 'foo15',
+       'foo16', 'foo17', 'foo18', 'foo19', 'foo20',
+       'foo21', 'foo22', 'foo23', 'foo24', 'foo25',
+       'foo26', 'foo27', 'foo28', 'foo29', 'foo30',
+       'foo31', 'foo32', 'foo33', 'foo34', 'foo35',
+       'foo36', 'foo37', 'foo38', 'foo39', 'foo40',
+       'foo41', 'foo42', 'foo43', 'foo44', 'foo45',
+       'foo46', 'foo47', 'foo48', 'foo49', 'foo50'
+from generate_series(1, 1000);
+
+analyze wide_width_test;
+
+set allow_system_table_mods=true;
+update pg_statistic set stawidth=2034567890 where starelid = 'wide_width_test'::regclass;
+
+select btdrelpages, btdexppages from gp_toolkit.gp_bloat_expected_pages where btdrelid='wide_width_test'::regclass;
 
 select * from gp_toolkit.gp_bloat_diag WHERE bdinspname <> 'pg_catalog';
 
@@ -206,7 +223,7 @@ create table gptoolkit_user_table_ao (
             N_COMMENT VARCHAR(152)
             )
 partition by range (n_nationkey)
-subpartition by range (n_regionkey) subpartition template (start('0') end('1') inclusive,start('1') exclusive
+subpartition by range (n_regionkey) subpartition template (start('0') end('2') exclusive,start('2') inclusive
 )
 (
 partition p1 start('0') end('10') WITH (appendonly=true,checksum=true,compresslevel=9), partition p2 start('10') end('25') WITH (checksum=false,appendonly=true,compresslevel=7)
@@ -317,14 +334,6 @@ select sodddatname,
        sodddatsize > 30000000 as "db size over 30MB",
        sodddatsize < 5000000000 as "db size below 5 GB"
 from gp_toolkit.gp_size_of_database where sodddatname='regression';
-
--- gp_size_of_partition_and_indexes_disk
-select pg.relname,
-       sopaidpartitiontablesize > 50000 as tblsz_over50k,
-       sopaidpartitiontablesize < 5000000 as tblsz_under5mb,
-       sopaidpartitionindexessize
-from pg_class pg,gp_toolkit.gp_size_of_partition_and_indexes_disk gsopai
-where pg.oid=gsopai.sopaidpartitionoid and pg.relname like 'gptoolkit_user_table_ao%';
 
 -- This also depends on the number of segments
 select count(*) > 0 from gp_toolkit.__gp_number_of_segments;

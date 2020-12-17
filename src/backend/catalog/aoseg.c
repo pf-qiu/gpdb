@@ -8,7 +8,7 @@
  *    (pg_aoseg_<reloid>).
  *
  * Portions Copyright (c) 2008-2010, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -19,6 +19,8 @@
  */
 #include "postgres.h"
 
+#include "access/table.h"
+#include "access/heapam.h"
 #include "catalog/aoseg.h"
 #include "catalog/pg_opclass.h"
 #include "catalog/aocatalog.h"
@@ -28,7 +30,7 @@
 
 
 void
-AlterTableCreateAoSegTable(Oid relOid, bool is_part_child, bool is_part_parent)
+AlterTableCreateAoSegTable(Oid relOid)
 {
 	TupleDesc	tupdesc;
 	Relation	rel;
@@ -41,17 +43,14 @@ AlterTableCreateAoSegTable(Oid relOid, bool is_part_child, bool is_part_parent)
 	 * until end of transaction.  (This is probably redundant in all present
 	 * uses...)
 	 */
-	if (is_part_child)
-		rel = heap_open(relOid, NoLock);
-	else
-		rel = heap_open(relOid, AccessExclusiveLock);
+	rel = table_open(relOid, AccessExclusiveLock);
 
 	if(RelationIsAoRows(rel))
 	{
 		prefix = "pg_aoseg";
 
 		/* this is pretty painful...  need a tuple descriptor */
-		tupdesc = CreateTemplateTupleDesc(8, false);
+		tupdesc = CreateTemplateTupleDesc(8);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1,
 						"segno",
 						INT4OID,
@@ -119,7 +118,7 @@ AlterTableCreateAoSegTable(Oid relOid, bool is_part_child, bool is_part_parent)
 		 * state (smallint)         -- state of the segment file
 		 */
 
-		tupdesc = CreateTemplateTupleDesc(7, false);
+		tupdesc = CreateTemplateTupleDesc(7);
 
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1,
 						   "segno",
@@ -152,18 +151,18 @@ AlterTableCreateAoSegTable(Oid relOid, bool is_part_child, bool is_part_parent)
 	}
 	else
 	{
-		heap_close(rel, NoLock);
+		table_close(rel, NoLock);
 		return;
 	}
 
 	(void) CreateAOAuxiliaryTable(rel, prefix, RELKIND_AOSEGMENTS,
 								  tupdesc,
-								  NULL, NIL, NULL, NULL, is_part_parent);
+								  NULL, NIL, NULL, NULL);
 
 	/*
 	 * Store the toast table's OID in the parent relation's pg_class row
 	 */
-	class_rel = heap_open(RelationRelationId, RowExclusiveLock);
+	class_rel = table_open(RelationRelationId, RowExclusiveLock);
 
 	reltup = SearchSysCacheCopy(RELOID,
 								ObjectIdGetDatum(relOid),
@@ -174,10 +173,7 @@ AlterTableCreateAoSegTable(Oid relOid, bool is_part_child, bool is_part_parent)
 	if (!IsBootstrapProcessingMode())
 	{
 		/* normal case, use a transactional update */
-		simple_heap_update(class_rel, &reltup->t_self, reltup);
-
-		/* Keep catalog indexes current */
-		CatalogUpdateIndexes(class_rel, reltup);
+		CatalogTupleUpdate(class_rel, &reltup->t_self, reltup);
 	}
 	else
 	{
@@ -187,7 +183,7 @@ AlterTableCreateAoSegTable(Oid relOid, bool is_part_child, bool is_part_parent)
 
 	heap_freetuple(reltup);
 
-	heap_close(class_rel, RowExclusiveLock);
+	table_close(class_rel, RowExclusiveLock);
 
-	heap_close(rel, NoLock);
+	table_close(rel, NoLock);
 }

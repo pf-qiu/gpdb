@@ -18,134 +18,111 @@
 #include "naucrates/base/IDatum.h"
 #include "gpopt/operators/CScalar.h"
 
-#include "naucrates/md/CMDTypeBoolGPDB.h"
-
 namespace gpopt
 {
-	using namespace gpos;
-	using namespace gpnaucrates;
+using namespace gpos;
+using namespace gpnaucrates;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarConst
-	//
-	//	@doc:
-	//		A wrapper operator for scalar constants
-	//
-	//---------------------------------------------------------------------------
-	class CScalarConst : public CScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarConst
+//
+//	@doc:
+//		A wrapper operator for scalar constants
+//
+//---------------------------------------------------------------------------
+class CScalarConst : public CScalar
+{
+private:
+	// constant
+	IDatum *m_pdatum;
+
+public:
+	CScalarConst(const CScalarConst &) = delete;
+
+	// ctor
+	CScalarConst(CMemoryPool *mp, IDatum *datum);
+
+	// dtor
+	~CScalarConst() override;
+
+	// identity accessor
+	EOperatorId
+	Eopid() const override
 	{
+		return EopScalarConst;
+	}
 
-		private:
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarConst";
+	}
 
-			// constant
-			IDatum *m_pdatum;
+	// accessor of contained constant
+	IDatum *
+	GetDatum() const
+	{
+		return m_pdatum;
+	}
 
-			// private copy ctor
-			CScalarConst(const CScalarConst &);
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-		public:
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// ctor
-			CScalarConst
-				(
-				CMemoryPool *mp,
-				IDatum *datum
-				);
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// dtor
-			virtual
-			~CScalarConst();
+	// return a copy of the operator with remapped columns
+	COperator *
+	PopCopyWithRemappedColumns(CMemoryPool *,		//mp,
+							   UlongToColRefMap *,	//colref_mapping,
+							   BOOL					//must_exist
+							   ) override
+	{
+		return PopCopyDefault();
+	}
 
-			// identity accessor
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopScalarConst;
-			}
+	// conversion function
+	static CScalarConst *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarConst == pop->Eopid());
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CScalarConst";
-			}
+		return reinterpret_cast<CScalarConst *>(pop);
+	}
 
-			// accessor of contained constant
-			IDatum *GetDatum() const
-			{
-				return m_pdatum;
-			}
+	// the type of the scalar expression
+	IMDId *MdidType() const override;
 
-			// operator specific hash function
-			virtual
-			ULONG HashValue() const;
+	INT TypeModifier() const override;
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// boolean expression evaluation
+	EBoolEvalResult Eber(ULongPtrArray *pdrgpulChildren) const override;
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
+	// print
+	IOstream &OsPrint(IOstream &) const override;
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns
-						(
-						CMemoryPool *, //mp,
-						UlongToColRefMap *, //colref_mapping,
-						BOOL //must_exist
-						)
-			{
-				return PopCopyDefault();
-			}
+	// is the given expression a scalar cast of a constant
+	static BOOL FCastedConst(CExpression *pexpr);
 
-			// conversion function
-			static
-			CScalarConst *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarConst == pop->Eopid());
+	// extract the constant from the given constant expression or a casted constant expression.
+	// Else return NULL.
+	static CScalarConst *PopExtractFromConstOrCastConst(CExpression *pexpr);
 
-				return reinterpret_cast<CScalarConst*>(pop);
-			}
+};	// class CScalarConst
 
-			// the type of the scalar expression
-			virtual 
-			IMDId *MdidType() const;
-
-			virtual
-			INT TypeModifier() const;
-
-			// boolean expression evaluation
-			virtual
-			EBoolEvalResult Eber(ULongPtrArray *pdrgpulChildren) const;
-
-			// print
-			virtual
-			IOstream &OsPrint(IOstream &) const;
-
-			// is the given expression a scalar cast of a constant
-			static
-			BOOL FCastedConst(CExpression *pexpr);
-
-			// extract the constant from the given constant expression or a casted constant expression.
-			// Else return NULL.
-			static
-			CScalarConst *PopExtractFromConstOrCastConst(CExpression *pexpr);
-
-	}; // class CScalarConst
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CScalarConst_H
+#endif	// !GPOPT_CScalarConst_H
 
 // EOF

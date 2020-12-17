@@ -11,6 +11,8 @@
 
 #include "gpos/error/CAutoTrace.h"
 
+#include "gpos/task/ITask.h"
+
 using namespace gpos;
 
 //---------------------------------------------------------------------------
@@ -21,14 +23,9 @@ using namespace gpos;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CAutoTrace::CAutoTrace
-	(
-	CMemoryPool*mp
-	)
-	:
-	m_wstr(mp),
-	m_os(&m_wstr)
-{}
+CAutoTrace::CAutoTrace(CMemoryPool *mp) : m_wstr(mp), m_os(&m_wstr)
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -48,4 +45,3 @@ CAutoTrace::~CAutoTrace()
 }
 
 // EOF
-

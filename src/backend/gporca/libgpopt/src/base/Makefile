@@ -8,7 +8,7 @@ subdir = src/backend/gporca/libgpopt/src/base
 top_builddir = ../../../../../..
 include $(top_builddir)/src/Makefile.global
 
-include $(top_builddir)/src/backend/gporca/gporca.mk
+include $(top_srcdir)/src/backend/gporca/gporca.mk
 
 OBJS        = CAutoOptCtxt.o \
               CCTEInfo.o \
@@ -68,7 +68,6 @@ OBJS        = CAutoOptCtxt.o \
               CPartitionPropagationSpec.o \
               CPrintPrefix.o \
               CPropConstraint.o \
-              CPropSpec.o \
               CQueryContext.o \
               CRange.o \
               CReqdProp.o \

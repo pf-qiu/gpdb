@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------
 
 //  Greenplum Database
-//  Copyright (C) 2018 Pivotal Inc.
+//  Copyright (C) 2018 VMware, Inc. or its affiliates.
 //
 //  @filename:
 //      CXformEagerAgg.h
@@ -17,118 +17,106 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformEagerAgg
-	//
-	//	@doc:
-	//		Eagerly push aggregates below join
-	//
-	//---------------------------------------------------------------------------
-	class CXformEagerAgg : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformEagerAgg
+//
+//	@doc:
+//		Eagerly push aggregates below join
+//
+//---------------------------------------------------------------------------
+class CXformEagerAgg : public CXformExploration
+{
+public:
+	CXformEagerAgg(const CXformEagerAgg &) = delete;
+
+	// ctor
+	explicit CXformEagerAgg(CMemoryPool *mp);
+
+	// ctor
+	explicit CXformEagerAgg(CExpression *exprPattern);
+
+	// dtor
+	~CXformEagerAgg() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
-		public:
-			// ctor
-			explicit
-			CXformEagerAgg(CMemoryPool *mp);
+		return ExfEagerAgg;
+	}
 
-			// ctor
-			explicit
-			CXformEagerAgg(CExpression *exprPattern);
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformEagerAgg";
+	}
 
-			// dtor
-			virtual
-			~CXformEagerAgg()
-			{}
+	// compatibility function for eager aggregation
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return (CXform::ExfEagerAgg != exfid) &&
+			   (CXform::ExfSplitGbAgg != exfid) &&
+			   (CXform::ExfSplitDQA != exfid);
+	}
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfEagerAgg;
-			}
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformEagerAgg";
-			}
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *expr) const override;
 
-			// compatibility function for eager aggregation
-			virtual
-			BOOL FCompatible(CXform::EXformId exfid)
-			{
-				return (CXform::ExfEagerAgg != exfid) &&
-					(CXform::ExfSplitGbAgg != exfid) &&
-					(CXform::ExfSplitDQA != exfid);
-			}
+	// return true if xform should be applied only once
+	BOOL
+	IsApplyOnce() override
+	{
+		return true;
+	};
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
+private:
+	// check if transform can be applied
+	BOOL CanApplyTransform(CExpression *agg_expr) const;
 
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *expr
-				) const;
+	// is this aggregate supported for push down?
+	BOOL CanPushAggBelowJoin(CExpression *scalar_agg_func_expr) const;
 
-			// return true if xform should be applied only once
-			virtual
-			BOOL IsApplyOnce()
-			{
-				return true;
-			};
+	// generate project lists for the lower and upper aggregates
+	// from all the original aggregates
+	void PopulateLowerUpperProjectList(
+		CMemoryPool *mp,			  // memory pool
+		CExpression *orig_proj_list,  // project list of the original aggregate
+		CExpression *
+			*lower_proj_list,  // output project list of the new lower aggregate
+		CExpression *
+			*upper_proj_list  // output project list of the new upper aggregate
+	) const;
 
-	private:
-		// private copy ctor
-		CXformEagerAgg(const CXformEagerAgg &);
+	// generate project element for lower aggregate for a single original aggregate
+	void PopulateLowerProjectElement(
+		CMemoryPool *mp,  // memory pool
+		IMDId *agg_mdid,  // original global aggregate function
+		CWStringConst *agg_name, CExpressionArray *agg_arg_array,
+		BOOL is_distinct,
+		CExpression **lower_proj_elem_expr	// output project element of the new
+											// lower aggregate
+	) const;
 
-		// check if transform can be applied
-		BOOL CanApplyTransform(CExpression *agg_expr) const;
+	// generate project element for upper aggregate
+	void PopulateUpperProjectElement(
+		CMemoryPool *mp,  // memory pool
+		IMDId *agg_mdid,  // aggregate mdid to create
+		CWStringConst *agg_name, CColRef *lower_colref, CColRef *output_colref,
+		BOOL is_distinct,
+		CExpression **upper_proj_elem_expr	// output project element of the new
+											// upper aggregate
+	) const;
+};	// class CXformEagerAgg
+}  // namespace gpopt
 
-		// is this aggregate supported for push down?
-		BOOL CanPushAggBelowJoin(CExpression *scalar_agg_func_expr) const;
-
-		// generate project lists for the lower and upper aggregates
-		// from all the original aggregates
-		void PopulateLowerUpperProjectList
-			(
-			CMemoryPool *mp,               // memory pool
-			CExpression *orig_proj_list,   // project list of the original aggregate
-			CExpression **lower_proj_list, // output project list of the new lower aggregate
-			CExpression **upper_proj_list  // output project list of the new upper aggregate
-			) const;
-
-		// generate project element for lower aggregate for a single original aggregate
-		void PopulateLowerProjectElement
-			(
-			CMemoryPool *mp,	// memory pool
-			IMDId *agg_mdid,	// original global aggregate function
-			CWStringConst *agg_name,
-			CExpressionArray *agg_arg_array,
-			BOOL is_distinct,
-			CExpression **lower_proj_elem_expr  // output project element of the new lower aggregate
-			) const;
-
-		// generate project element for upper aggregate
-		void PopulateUpperProjectElement
-			(
-			CMemoryPool *mp,	// memory pool
-			IMDId *agg_mdid,	// aggregate mdid to create
-			CWStringConst *agg_name,
-			CColRef *lower_colref,
-			CColRef *output_colref,
-			BOOL is_distinct,
-			CExpression **upper_proj_elem_expr  // output project element of the new upper aggregate
-			) const;
-	}; // class CXformEagerAgg
-}
-
-#endif // !GPOPT_CXformEagerAgg_H
+#endif	// !GPOPT_CXformEagerAgg_H
 
 // EOF

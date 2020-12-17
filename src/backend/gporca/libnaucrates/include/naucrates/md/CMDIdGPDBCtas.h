@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CMDIdGPDBCtas.h
@@ -20,80 +20,73 @@
 
 namespace gpmd
 {
-	using namespace gpos;
+using namespace gpos;
 
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CMDIdGPDBCtas
-	//
-	//	@doc:
-	//		Class for representing ids of GPDB CTAS metadata objects
-	//
-	//---------------------------------------------------------------------------
-	class CMDIdGPDBCtas : public CMDIdGPDB
+//---------------------------------------------------------------------------
+//	@class:
+//		CMDIdGPDBCtas
+//
+//	@doc:
+//		Class for representing ids of GPDB CTAS metadata objects
+//
+//---------------------------------------------------------------------------
+class CMDIdGPDBCtas : public CMDIdGPDB
+{
+public:
+	// ctor
+	explicit CMDIdGPDBCtas(OID oid);
+
+	// copy ctor
+	explicit CMDIdGPDBCtas(const CMDIdGPDBCtas &mdid_source);
+
+	// mdid type
+	EMDIdType
+	MdidType() const override
 	{
-			
-		public:
-			// ctor
-			explicit 
-			CMDIdGPDBCtas(OID oid);
-			
-			// copy ctor
-			explicit
-			CMDIdGPDBCtas(const CMDIdGPDBCtas &mdid_source);
+		return EmdidGPDBCtas;
+	}
 
-			// mdid type
-			virtual
-			EMDIdType MdidType() const
-			{
-				return EmdidGPDBCtas;
-			}
-			
-			// source system id
-			virtual
-			CSystemId Sysid() const
-			{
-				return m_sysid;
-			}
+	// source system id
+	CSystemId
+	Sysid() const override
+	{
+		return m_sysid;
+	}
 
-			// equality check
-			virtual
-			BOOL Equals(const IMDId *mdid) const;
-			
-			// is the mdid valid
-			virtual
-			BOOL IsValid() const;
-						
-			// debug print of the metadata id
-			virtual
-			IOstream &OsPrint(IOstream &os) const;
-			
-			// invalid mdid
-			static 
-			CMDIdGPDBCtas m_mdid_invalid_key;
-			
-			// const converter
-			static
-			const CMDIdGPDBCtas *CastMdid(const IMDId *mdid)
-			{
-				GPOS_ASSERT(NULL != mdid && EmdidGPDBCtas == mdid->MdidType());
+	// equality check
+	BOOL Equals(const IMDId *mdid) const override;
 
-				return dynamic_cast<const CMDIdGPDBCtas *>(mdid);
-			}
-			
-			// non-const converter
-			static
-			CMDIdGPDBCtas *CastMdid(IMDId *mdid)
-			{
-				GPOS_ASSERT(NULL != mdid && EmdidGPDBCtas == mdid->MdidType());
+	// is the mdid valid
+	BOOL IsValid() const override;
 
-				return dynamic_cast<CMDIdGPDBCtas *>(mdid);
-			}
-	};
+	// debug print of the metadata id
+	IOstream &OsPrint(IOstream &os) const override;
 
-}
+	// invalid mdid
+	static CMDIdGPDBCtas m_mdid_invalid_key;
 
-#endif // !GPMD_CMDIdGPDBCTAS_H
+	// const converter
+	static const CMDIdGPDBCtas *
+	CastMdid(const IMDId *mdid)
+	{
+		GPOS_ASSERT(NULL != mdid && EmdidGPDBCtas == mdid->MdidType());
+
+		return dynamic_cast<const CMDIdGPDBCtas *>(mdid);
+	}
+
+	// non-const converter
+	static CMDIdGPDBCtas *
+	CastMdid(IMDId *mdid)
+	{
+		GPOS_ASSERT(NULL != mdid && EmdidGPDBCtas == mdid->MdidType());
+
+		return dynamic_cast<CMDIdGPDBCtas *>(mdid);
+	}
+};
+
+}  // namespace gpmd
+
+#endif	// !GPMD_CMDIdGPDBCTAS_H
 
 // EOF

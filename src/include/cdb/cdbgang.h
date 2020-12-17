@@ -3,7 +3,7 @@
  * cdbgang.h
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -122,6 +122,7 @@ typedef struct CdbProcess
 	int pid; /* Backend PID of the process. */
 
 	int contentid;
+	int dbid;
 } CdbProcess;
 
 typedef Gang *(*CreateGangFunc)(List *segments, SegmentType segmentType);

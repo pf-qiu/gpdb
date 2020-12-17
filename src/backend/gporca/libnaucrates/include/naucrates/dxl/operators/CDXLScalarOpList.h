@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLScalarOpList.h
@@ -17,86 +17,76 @@
 
 namespace gpdxl
 {
-	using namespace gpmd;
+using namespace gpmd;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLScalarOpList
-	//
-	//	@doc:
-	//		Class for representing DXL list of scalar expressions
-	//
-	//---------------------------------------------------------------------------
-	class CDXLScalarOpList : public CDXLScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLScalarOpList
+//
+//	@doc:
+//		Class for representing DXL list of scalar expressions
+//
+//---------------------------------------------------------------------------
+class CDXLScalarOpList : public CDXLScalar
+{
+public:
+	// type of the operator list
+	enum EdxlOpListType
 	{
-		public:
+		EdxloplistEqFilterList,
+		EdxloplistFilterList,
+		EdxloplistGeneral,
+		EdxloplistSentinel
+	};
 
-			// type of the operator list
-			enum EdxlOpListType
-				{
-					EdxloplistEqFilterList,
-					EdxloplistFilterList,
-					EdxloplistGeneral,
-					EdxloplistSentinel
-				};
+private:
+	// operator list type
+	EdxlOpListType m_dxl_op_list_type;
 
-		private:
+public:
+	CDXLScalarOpList(const CDXLScalarOpList &) = delete;
 
-			// operator list type
-			EdxlOpListType m_dxl_op_list_type;
+	// ctor
+	CDXLScalarOpList(CMemoryPool *mp,
+					 EdxlOpListType dxl_op_list_type = EdxloplistGeneral);
 
-			// private copy ctor
-			CDXLScalarOpList(const CDXLScalarOpList&);
+	// operator type
+	Edxlopid GetDXLOperator() const override;
 
-		public:
-			// ctor
-			CDXLScalarOpList(CMemoryPool *mp, EdxlOpListType dxl_op_list_type = EdxloplistGeneral);
+	// operator name
+	const CWStringConst *GetOpNameStr() const override;
 
-			// operator type
-			virtual
-			Edxlopid GetDXLOperator() const;
+	// serialize operator in DXL format
+	void SerializeToDXL(CXMLSerializer *xml_serializer,
+						const CDXLNode *dxlnode) const override;
 
-			// operator name
-			virtual
-			const CWStringConst *GetOpNameStr() const;
-
-			// serialize operator in DXL format
-			virtual
-			void SerializeToDXL(CXMLSerializer *xml_serializer, const CDXLNode *dxlnode) const;
-
-			// does the operator return a boolean result
-			virtual
-			BOOL HasBoolResult
-				(
-				CMDAccessor * //md_accessor
-				)
-				const
-			{
-				return false;
-			}
+	// does the operator return a boolean result
+	BOOL
+	HasBoolResult(CMDAccessor *	 //md_accessor
+	) const override
+	{
+		return false;
+	}
 
 #ifdef GPOS_DEBUG
-			// checks whether the operator has valid structure, i.e. number and
-			// types of child nodes
-			virtual
-			void AssertValid(const CDXLNode *dxlnode, BOOL validate_children) const;
-#endif // GPOS_DEBUG
+	// checks whether the operator has valid structure, i.e. number and
+	// types of child nodes
+	void AssertValid(const CDXLNode *dxlnode,
+					 BOOL validate_children) const override;
+#endif	// GPOS_DEBUG
 
-			// conversion function
-			static
-			CDXLScalarOpList *Cast
-				(
-				CDXLOperator *dxl_op
-				)
-			{
-				GPOS_ASSERT(NULL != dxl_op);
-				GPOS_ASSERT(EdxlopScalarOpList == dxl_op->GetDXLOperator());
+	// conversion function
+	static CDXLScalarOpList *
+	Cast(CDXLOperator *dxl_op)
+	{
+		GPOS_ASSERT(NULL != dxl_op);
+		GPOS_ASSERT(EdxlopScalarOpList == dxl_op->GetDXLOperator());
 
-				return dynamic_cast<CDXLScalarOpList*>(dxl_op);
-			}
-	};
-}
+		return dynamic_cast<CDXLScalarOpList *>(dxl_op);
+	}
+};
+}  // namespace gpdxl
 
-#endif // !GPDXL_CDXLScalarOpList_H
+#endif	// !GPDXL_CDXLScalarOpList_H
 
 // EOF

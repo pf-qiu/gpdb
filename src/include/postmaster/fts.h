@@ -5,7 +5,7 @@
  *
  * Portions Copyright (c) 2005-2010, Greenplum Inc.
  * Portions Copyright (c) 2011, EMC Corp.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -147,7 +147,6 @@ extern void probeWalRepUpdateConfig(int16 dbid, int16 segindex, char role,
 
 extern bool FtsProbeStartRule(Datum main_arg);
 extern void FtsProbeMain (Datum main_arg);
-extern void FtsProbeShmemInit(void);
 extern pid_t FtsProbePID(void);
 
 #endif   /* FTS_H */

@@ -5,6 +5,8 @@ inputs:
  - name: cluster_env_files
 outputs:
  - name: coverage
+caches:
+  - path: pip-cache-dir
 run:
   path: bash
   args:
@@ -21,7 +23,6 @@ run:
     # cluster_env_files.
     ssh -t ccp-$(cat cluster_env_files/terraform/name)-0 "sudo bash -c '
         source /home/gpadmin/gpdb_src/concourse/scripts/common.bash
-        install_python_hacks
     '"
 
     # ensure cluster is stopped
@@ -48,7 +49,7 @@ run:
             #sysctl -w net.ipv4.ip_local_port_range=\"10000 65535\"
 
             # additional settings
-            sysctl -w kernel.sem=\"500 2048000 200 40960\"
+            sysctl -w kernel.sem=\"500 2048000 200 4096\"
             sysctl -w kernel.sysrq=1
             sysctl -w kernel.core_uses_pid=1
             sysctl -w kernel.msgmnb=65536
@@ -65,10 +66,8 @@ run:
             sysctl -w vm.zone_reclaim_mode=0
             sysctl -w vm.dirty_expire_centisecs=500
             sysctl -w vm.dirty_writeback_centisecs=100
-            sysctl -w vm.dirty_background_ratio=0
-            sysctl -w vm.dirty_ratio=0
-            sysctl -w vm.dirty_background_bytes=1610612736
-            sysctl -w vm.dirty_bytes=4294967296
+            sysctl -w vm.dirty_background_ratio=3
+            sysctl -w vm.dirty_ratio=10
         '"
     done <cluster_env_files/etc_hostfile
 
@@ -79,6 +78,9 @@ run:
         if [ -d \$MASTER_DATA_DIRECTORY ]; then gpstart -a; fi
     "
 
+    while read -r host; do
+        scp -qr "pip-cache-dir" $host:pip-cache-dir
+    done < cluster_env_files/hostfile_all
 
     ssh -t mdw "
         source /home/gpadmin/gpdb_src/concourse/scripts/common.bash
@@ -90,6 +92,12 @@ run:
 
         $CUSTOM_ENV bash /home/gpadmin/gpdb_src/concourse/scripts/run_behave_test.sh \"$BEHAVE_FLAGS\"
     "
+
+    # Refresh the Concourse container cache with the updated contents
+    # from the CCP mdw node.
+
+    rm -rf "pip-cache-dir/http"
+    scp -qr mdw:pip-cache-dir/http "pip-cache-dir"
 
     # collect coverage
     while read -r host; do

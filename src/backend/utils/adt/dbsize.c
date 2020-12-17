@@ -2,7 +2,7 @@
  * dbsize.c
  *		Database object size functions, and related inquiries
  *
- * Copyright (c) 2002-2016, PostgreSQL Global Development Group
+ * Copyright (c) 2002-2019, PostgreSQL Global Development Group
  *
  * IDENTIFICATION
  *	  src/backend/utils/adt/dbsize.c
@@ -11,18 +11,14 @@
 
 #include "postgres.h"
 
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <glob.h>
 
-#include "access/heapam.h"
-#include "access/appendonlywriter.h"
-#include "access/aocssegfiles.h"
-#include "access/heapam.h"
 #include "access/htup_details.h"
+#include "access/relation.h"
 #include "catalog/catalog.h"
 #include "catalog/namespace.h"
-#include "catalog/pg_appendonly_fn.h"
+#include "catalog/pg_authid.h"
 #include "catalog/pg_tablespace.h"
 #include "commands/dbcommands.h"
 #include "commands/tablespace.h"
@@ -42,6 +38,8 @@
 #include "utils/relmapper.h"
 #include "utils/syscache.h"
 
+#include "access/tableam.h"
+#include "catalog/pg_appendonly_fn.h"
 #include "libpq-fe.h"
 #include "foreign/fdwapi.h"
 #include "cdb/cdbdisp_query.h"
@@ -53,6 +51,16 @@
 #define half_rounded(x)   (((x) + ((x) < 0 ? 0 : 1)) / 2)
 
 static int64 calculate_total_relation_size(Relation rel);
+
+/**
+ * Some functions are peculiar in that they do their own dispatching.
+ * They do not work on entry db since we do not support dispatching
+ * from entry-db currently.
+ */
+#define ERROR_ON_ENTRY_DB()	\
+	if (Gp_role == GP_ROLE_EXECUTE && IS_QUERY_DISPATCHER())	\
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),	\
+						errmsg("This query is not currently supported by GPDB.")))
 
 /*
  * Helper function to dispatch a size-returning command.
@@ -156,14 +164,20 @@ calculate_database_size(Oid dbOid)
 	DIR		   *dirdesc;
 	struct dirent *direntry;
 	char		dirpath[MAXPGPATH];
-	char		pathname[MAXPGPATH + 13 + get_dbid_string_length() + 1 + sizeof(GP_TABLESPACE_VERSION_DIRECTORY)];
+	char		pathname[MAXPGPATH + 13 + MAX_DBID_STRING_LENGTH + 1 + sizeof(GP_TABLESPACE_VERSION_DIRECTORY)];
 	AclResult	aclresult;
 
-	/* User must have connect privilege for target database */
+	/*
+	 * User must have connect privilege for target database or be a member of
+	 * pg_read_all_stats
+	 */
 	aclresult = pg_database_aclcheck(dbOid, GetUserId(), ACL_CONNECT);
-	if (aclresult != ACLCHECK_OK)
-		aclcheck_error(aclresult, ACL_KIND_DATABASE,
+	if (aclresult != ACLCHECK_OK &&
+		!is_member_of_role(GetUserId(), DEFAULT_ROLE_READ_ALL_STATS))
+	{
+		aclcheck_error(aclresult, OBJECT_DATABASE,
 					   get_database_name(dbOid));
+	}
 
 	/* Shared storage in pg_global is not counted */
 
@@ -174,11 +188,6 @@ calculate_database_size(Oid dbOid)
 	/* Scan the non-default tablespaces */
 	snprintf(dirpath, MAXPGPATH, "pg_tblspc");
 	dirdesc = AllocateDir(dirpath);
-	if (!dirdesc)
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("could not open tablespace directory \"%s\": %m",
-						dirpath)));
 
 	while ((direntry = ReadDir(dirdesc, dirpath)) != NULL)
 	{
@@ -204,6 +213,8 @@ pg_database_size_oid(PG_FUNCTION_ARGS)
 	Oid			dbOid = PG_GETARG_OID(0);
 	int64		size;
 
+	ERROR_ON_ENTRY_DB();
+
 	size = calculate_database_size(dbOid);
 
 	if (Gp_role == GP_ROLE_DISPATCH)
@@ -227,6 +238,8 @@ pg_database_size_name(PG_FUNCTION_ARGS)
 	Name		dbName = PG_GETARG_NAME(0);
 	Oid			dbOid = get_database_oid(NameStr(*dbName), false);
 	int64		size;
+
+	ERROR_ON_ENTRY_DB();
 
 	size = calculate_database_size(dbOid);
 
@@ -262,15 +275,16 @@ calculate_tablespace_size(Oid tblspcOid)
 	AclResult	aclresult;
 
 	/*
-	 * User must have CREATE privilege for target tablespace, either
-	 * explicitly granted or implicitly because it is default for current
-	 * database.
+	 * User must be a member of pg_read_all_stats or have CREATE privilege for
+	 * target tablespace, either explicitly granted or implicitly because it
+	 * is default for current database.
 	 */
-	if (tblspcOid != MyDatabaseTableSpace)
+	if (tblspcOid != MyDatabaseTableSpace &&
+		!is_member_of_role(GetUserId(), DEFAULT_ROLE_READ_ALL_STATS))
 	{
 		aclresult = pg_tablespace_aclcheck(tblspcOid, GetUserId(), ACL_CREATE);
 		if (aclresult != ACLCHECK_OK)
-			aclcheck_error(aclresult, ACL_KIND_TABLESPACE,
+			aclcheck_error(aclresult, OBJECT_TABLESPACE,
 						   get_tablespace_name(tblspcOid));
 	}
 
@@ -326,6 +340,8 @@ pg_tablespace_size_oid(PG_FUNCTION_ARGS)
 	Oid			tblspcOid = PG_GETARG_OID(0);
 	int64		size;
 
+	ERROR_ON_ENTRY_DB();
+
 	size = calculate_tablespace_size(tblspcOid);
 
 	if (Gp_role == GP_ROLE_DISPATCH)
@@ -349,6 +365,8 @@ pg_tablespace_size_name(PG_FUNCTION_ARGS)
 	Name		tblspcName = PG_GETARG_NAME(0);
 	Oid			tblspcOid = get_tablespace_oid(NameStr(*tblspcName), false);
 	int64		size;
+
+	ERROR_ON_ENTRY_DB();
 
 	size = calculate_tablespace_size(tblspcOid);
 
@@ -388,10 +406,12 @@ calculate_relation_size(Relation rel, ForkNumber forknum)
 	char		pathname[MAXPGPATH];
 	unsigned int segcount = 0;
 
+	/* Call into the tableam api for AO/AOCO relations */
+	if (RelationIsAppendOptimized(rel))
+		return table_relation_size(rel, forknum);
+
 	relationpath = relpathbackend(rel->rd_node, rel->rd_backend, forknum);
 
-if (RelationIsHeap(rel))
-{
 	/* Ordinary relation, including heap and index.
 	 * They take form of relationpath, or relationpath.%d
 	 * There will be no holes, therefore, we can stop when
@@ -421,19 +441,6 @@ if (RelationIsHeap(rel))
 		}
 		totalsize += fst.st_size;
 	}
-}
-/* AO tables don't have any extra forks. */
-else if (forknum == MAIN_FORKNUM)
-{
-	if (RelationIsAoRows(rel))
-	{
-		totalsize = GetAOTotalBytes(rel, GetActiveSnapshot());
-	}
-	else if (RelationIsAoCols(rel))
-	{
-		totalsize = GetAOCSTotalBytes(rel, GetActiveSnapshot(), true);
-	}
-}
 
 	/* RELSTORAGE_VIRTUAL has no space usage */
 	return totalsize;
@@ -443,18 +450,12 @@ Datum
 pg_relation_size(PG_FUNCTION_ARGS)
 {
 	Oid			relOid = PG_GETARG_OID(0);
-	text	   *forkName = PG_GETARG_TEXT_P(1);
+	text	   *forkName = PG_GETARG_TEXT_PP(1);
 	ForkNumber	forkNumber;
 	Relation	rel;
 	int64		size = 0;
 
-	/**
-	 * This function is peculiar in that it does its own dispatching.
-	 * It does not work on entry db since we do not support dispatching
-	 * from entry-db currently.
-	 */
-	if (Gp_role == GP_ROLE_EXECUTE && IS_QUERY_DISPATCHER())
-		elog(ERROR, "This query is not currently supported by GPDB.");
+	ERROR_ON_ENTRY_DB();
 
 	rel = try_relation_open(relOid, AccessShareLock, false);
 
@@ -468,7 +469,8 @@ pg_relation_size(PG_FUNCTION_ARGS)
 	if (rel == NULL)
 		PG_RETURN_NULL();
 
-	if(RelationIsForeign(rel))
+	/* GPDB_12_MERGE_FIXME: Is this still needed? */
+	if (rel->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 	{
 		FdwRoutine *fdwroutine;
 		bool        ok = false;
@@ -491,6 +493,7 @@ pg_relation_size(PG_FUNCTION_ARGS)
 
 	forkNumber = forkname_to_number(text_to_cstring(forkName));
 
+	/* GPDB_12_MERGE_FIXME: Are these checks for 0 still needed? */
 	if (relOid == 0 || rel->rd_node.relNode == 0)
 		size = 0;
 	else
@@ -586,25 +589,21 @@ calculate_table_size(Relation rel)
 
 	if (RelationIsAppendOptimized(rel))
 	{
-		Relation ao_rel;
+		Oid	auxRelIds[3];
+		GetAppendOnlyEntryAuxOids(rel->rd_id, NULL, &auxRelIds[0],
+								 &auxRelIds[1], NULL,
+								 &auxRelIds[2], NULL);
 
-		Assert(OidIsValid(rel->rd_appendonly->segrelid));
-		ao_rel = try_relation_open(rel->rd_appendonly->segrelid, AccessShareLock, false);
-		size += calculate_total_relation_size(ao_rel);
-		relation_close(ao_rel, AccessShareLock);
-
-        /* block directory may not exist, post upgrade or new table that never has indexes */
-   		if (OidIsValid(rel->rd_appendonly->blkdirrelid))
-        {
-			ao_rel = try_relation_open(rel->rd_appendonly->blkdirrelid, AccessShareLock, false);
-     		size += calculate_total_relation_size(ao_rel);
-			relation_close(ao_rel, AccessShareLock);
-        }
-		if (OidIsValid(rel->rd_appendonly->visimaprelid))
+		for (int i = 0; i < 3; i++)
 		{
-			ao_rel = try_relation_open(rel->rd_appendonly->visimaprelid, AccessShareLock, false);
-			size += calculate_total_relation_size(ao_rel);
-			relation_close(ao_rel, AccessShareLock);
+			Relation auxRel;
+
+			if (!OidIsValid(auxRelIds[i]))
+				continue;
+
+			auxRel = try_relation_open(auxRelIds[i], AccessShareLock, false);
+			size += calculate_total_relation_size(auxRel);
+			relation_close(auxRel, AccessShareLock);
 		}
 	}
 
@@ -659,6 +658,8 @@ pg_table_size(PG_FUNCTION_ARGS)
 	Relation	rel;
 	int64		size;
 
+	ERROR_ON_ENTRY_DB();
+
 	rel = try_relation_open(relOid, AccessShareLock, false);
 
 	if (rel == NULL)
@@ -686,6 +687,8 @@ pg_indexes_size(PG_FUNCTION_ARGS)
 	Oid			relOid = PG_GETARG_OID(0);
 	Relation	rel;
 	int64		size;
+
+	ERROR_ON_ENTRY_DB();
 
 	rel = try_relation_open(relOid, AccessShareLock, false);
 
@@ -737,6 +740,8 @@ pg_total_relation_size(PG_FUNCTION_ARGS)
 	Oid			relOid = PG_GETARG_OID(0);
 	Relation	rel;
 	int64		size;
+
+	ERROR_ON_ENTRY_DB();
 
 	/*
 	 * While we scan pg_class with an MVCC snapshot,
@@ -1002,13 +1007,15 @@ pg_size_bytes(PG_FUNCTION_ARGS)
 	/* Part (4): optional exponent */
 	if (*endptr == 'e' || *endptr == 'E')
 	{
+		long		exponent;
 		char	   *cp;
 
 		/*
 		 * Note we might one day support EB units, so if what follows 'E'
 		 * isn't a number, just treat it all as a unit to be parsed.
 		 */
-		(void) strtol(endptr + 1, &cp, 10);
+		exponent = strtol(endptr + 1, &cp, 10);
+		(void) exponent;		/* Silence -Wunused-result warnings */
 		if (cp > endptr + 1)
 			endptr = cp;
 	}
@@ -1072,10 +1079,10 @@ pg_size_bytes(PG_FUNCTION_ARGS)
 			Numeric		mul_num;
 
 			mul_num = DatumGetNumeric(DirectFunctionCall1(int8_numeric,
-												 Int64GetDatum(multiplier)));
+														  Int64GetDatum(multiplier)));
 
 			num = DatumGetNumeric(DirectFunctionCall2(numeric_mul,
-													NumericGetDatum(mul_num),
+													  NumericGetDatum(mul_num),
 													  NumericGetDatum(num)));
 		}
 	}
@@ -1123,7 +1130,7 @@ pg_relation_filenode(PG_FUNCTION_ARGS)
 			/* okay, these have storage */
 			if (relform->relfilenode)
 				result = relform->relfilenode;
-			else	/* Consult the relation mapper */
+			else				/* Consult the relation mapper */
 				result = RelationMapOidToFilenode(relid,
 												  relform->relisshared);
 			break;
@@ -1213,9 +1220,9 @@ pg_relation_filepath(PG_FUNCTION_ARGS)
 				rnode.dbNode = MyDatabaseId;
 			if (relform->relfilenode)
 				rnode.relNode = relform->relfilenode;
-			else	/* Consult the relation mapper */
+			else				/* Consult the relation mapper */
 				rnode.relNode = RelationMapOidToFilenode(relid,
-													   relform->relisshared);
+														 relform->relisshared);
 			break;
 
 		default:

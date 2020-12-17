@@ -4,7 +4,7 @@
  *	  Implementation of segment probing interface
  *
  * Portions Copyright (c) 2006-2011, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -148,6 +148,7 @@ static bool
 ftsConnectStart(fts_segment_info *ftsInfo)
 {
 	char conninfo[1024];
+	char *hostip;
 
 	/*
 	 * No events should be pending on the connection that hasn't started
@@ -162,8 +163,9 @@ ftsConnectStart(fts_segment_info *ftsInfo)
 				ftsInfo->state == FTS_SYNCREP_OFF_SEGMENT,
 				SEGMENT_IS_ACTIVE_PRIMARY(ftsInfo->primary_cdbinfo));
 
+	hostip = ftsInfo->primary_cdbinfo->config->hostip;
 	snprintf(conninfo, 1024, "host=%s port=%d gpconntype=%s",
-			 ftsInfo->primary_cdbinfo->config->hostip, ftsInfo->primary_cdbinfo->config->port,
+			 hostip ? hostip : "", ftsInfo->primary_cdbinfo->config->port,
 			 GPCONN_TYPE_FTS);
 	ftsInfo->conn = PQconnectStart(conninfo);
 
@@ -200,7 +202,8 @@ ftsConnectStart(fts_segment_info *ftsInfo)
 static void
 checkIfFailedDueToRecoveryInProgress(fts_segment_info *ftsInfo)
 {
-	if (strstr(PQerrorMessage(ftsInfo->conn), _(POSTMASTER_IN_RECOVERY_MSG)))
+	if (strstr(PQerrorMessage(ftsInfo->conn), _(POSTMASTER_IN_RECOVERY_MSG)) ||
+		strstr(PQerrorMessage(ftsInfo->conn), _(POSTMASTER_IN_STARTUP_MSG)))
 	{
 		XLogRecPtr tmpptr;
 		char *ptr = strstr(PQerrorMessage(ftsInfo->conn),
@@ -1068,7 +1071,8 @@ processResponse(fts_context *context)
 				/* If primary is in recovery, do not mark it down and promote mirror */
 				if (ftsInfo->recovery_making_progress)
 				{
-					Assert(strstr(PQerrorMessage(ftsInfo->conn), _(POSTMASTER_IN_RECOVERY_MSG)));
+					Assert(strstr(PQerrorMessage(ftsInfo->conn), _(POSTMASTER_IN_RECOVERY_MSG)) ||
+						   strstr(PQerrorMessage(ftsInfo->conn), _(POSTMASTER_IN_STARTUP_MSG)));
 					elogif(gp_log_fts >= GPVARS_VERBOSITY_VERBOSE, LOG,
 						 "FTS: detected segment is in recovery mode and making "
 						 "progress (content=%d) primary dbid=%d, mirror dbid=%d",

@@ -48,45 +48,38 @@ using namespace gpopt;
 // |       estCompleted        |
 // +---------------------------+
 //
-const CJobGroupImplementation::EEvent rgeev[CJobGroupImplementation::estSentinel][CJobGroupImplementation::estSentinel] =
-{
-	{ // estInitialized
-		CJobGroupImplementation::eevExploring,
-		CJobGroupImplementation::eevExplored,
-		CJobGroupImplementation::eevSentinel
-	},
-	{ // estImplementingChildren
-		CJobGroupImplementation::eevSentinel,
-		CJobGroupImplementation::eevImplementing,
-		CJobGroupImplementation::eevImplemented
-	},
-	{ // estCompleted
-		CJobGroupImplementation::eevSentinel,
-		CJobGroupImplementation::eevSentinel,
-		CJobGroupImplementation::eevSentinel
-	},
+const CJobGroupImplementation::EEvent
+	rgeev[CJobGroupImplementation::estSentinel]
+		 [CJobGroupImplementation::estSentinel] = {
+			 {// estInitialized
+			  CJobGroupImplementation::eevExploring,
+			  CJobGroupImplementation::eevExplored,
+			  CJobGroupImplementation::eevSentinel},
+			 {// estImplementingChildren
+			  CJobGroupImplementation::eevSentinel,
+			  CJobGroupImplementation::eevImplementing,
+			  CJobGroupImplementation::eevImplemented},
+			 {// estCompleted
+			  CJobGroupImplementation::eevSentinel,
+			  CJobGroupImplementation::eevSentinel,
+			  CJobGroupImplementation::eevSentinel},
 };
 
 #ifdef GPOS_DEBUG
 
 // names for states
-const WCHAR rgwszStates[CJobGroupImplementation::estSentinel][GPOPT_FSM_NAME_LENGTH] =
-{
-	GPOS_WSZ_LIT("initialized"),
-	GPOS_WSZ_LIT("implementing children"),
-	GPOS_WSZ_LIT("completed")
-};
+const WCHAR
+	rgwszStates[CJobGroupImplementation::estSentinel][GPOPT_FSM_NAME_LENGTH] = {
+		GPOS_WSZ_LIT("initialized"), GPOS_WSZ_LIT("implementing children"),
+		GPOS_WSZ_LIT("completed")};
 
 // names for events
-const WCHAR rgwszEvents[CJobGroupImplementation::eevSentinel][GPOPT_FSM_NAME_LENGTH] =
-{
-	GPOS_WSZ_LIT("ongoing exploration"),
-	GPOS_WSZ_LIT("done exploration"),
-	GPOS_WSZ_LIT("ongoing implementation"),
-	GPOS_WSZ_LIT("finalizing")
-};
+const WCHAR
+	rgwszEvents[CJobGroupImplementation::eevSentinel][GPOPT_FSM_NAME_LENGTH] = {
+		GPOS_WSZ_LIT("ongoing exploration"), GPOS_WSZ_LIT("done exploration"),
+		GPOS_WSZ_LIT("ongoing implementation"), GPOS_WSZ_LIT("finalizing")};
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 
 //---------------------------------------------------------------------------
@@ -97,8 +90,7 @@ const WCHAR rgwszEvents[CJobGroupImplementation::eevSentinel][GPOPT_FSM_NAME_LEN
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CJobGroupImplementation::CJobGroupImplementation()
-{}
+CJobGroupImplementation::CJobGroupImplementation() = default;
 
 
 //---------------------------------------------------------------------------
@@ -109,8 +101,7 @@ CJobGroupImplementation::CJobGroupImplementation()
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CJobGroupImplementation::~CJobGroupImplementation()
-{}
+CJobGroupImplementation::~CJobGroupImplementation() = default;
 
 
 //---------------------------------------------------------------------------
@@ -122,22 +113,16 @@ CJobGroupImplementation::~CJobGroupImplementation()
 //
 //---------------------------------------------------------------------------
 void
-CJobGroupImplementation::Init
-	(
-	CGroup *pgroup
-	)
+CJobGroupImplementation::Init(CGroup *pgroup)
 {
 	CJobGroup::Init(pgroup);
 
-	m_jsm.Init
-			(
-			rgeev
+	m_jsm.Init(rgeev
 #ifdef GPOS_DEBUG
-			,
-			rgwszStates,
-			rgwszEvents
-#endif // GPOS_DEBUG
-			);
+			   ,
+			   rgwszStates, rgwszEvents
+#endif	// GPOS_DEBUG
+	);
 
 	// set job actions
 	m_jsm.SetAction(estInitialized, EevtStartImplementation);
@@ -159,10 +144,7 @@ CJobGroupImplementation::Init
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobGroupImplementation::FScheduleGroupExpressions
-	(
-	CSchedulerContext *psc
-	)
+CJobGroupImplementation::FScheduleGroupExpressions(CSchedulerContext *psc)
 {
 	CGroupExpression *pgexprLast = m_pgexprLastScheduled;
 
@@ -170,7 +152,8 @@ CJobGroupImplementation::FScheduleGroupExpressions
 	CGroupExpression *pgexpr = PgexprFirstUnsched();
 	while (NULL != pgexpr)
 	{
-		if (!pgexpr->FTransitioned(CGroupExpression::estImplemented) && !pgexpr->ContainsCircularDependencies())
+		if (!pgexpr->FTransitioned(CGroupExpression::estImplemented) &&
+			!pgexpr->ContainsCircularDependencies())
 		{
 			CJobGroupExpressionImplementation::ScheduleJob(psc, pgexpr, this);
 			pgexprLast = pgexpr;
@@ -201,11 +184,8 @@ CJobGroupImplementation::FScheduleGroupExpressions
 //
 //---------------------------------------------------------------------------
 CJobGroupImplementation::EEvent
-CJobGroupImplementation::EevtStartImplementation
-	(
-	CSchedulerContext *psc,
-	CJob *pjOwner
-	)
+CJobGroupImplementation::EevtStartImplementation(CSchedulerContext *psc,
+												 CJob *pjOwner)
 {
 	// get a job pointer
 	CJobGroupImplementation *pjgi = PjConvert(pjOwner);
@@ -246,11 +226,8 @@ CJobGroupImplementation::EevtStartImplementation
 //
 //---------------------------------------------------------------------------
 CJobGroupImplementation::EEvent
-CJobGroupImplementation::EevtImplementChildren
-	(
-	CSchedulerContext *psc,
-	CJob *pjOwner
-	)
+CJobGroupImplementation::EevtImplementChildren(CSchedulerContext *psc,
+											   CJob *pjOwner)
 {
 	// get a job pointer
 	CJobGroupImplementation *pjgi = PjConvert(pjOwner);
@@ -287,10 +264,7 @@ CJobGroupImplementation::EevtImplementChildren
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobGroupImplementation::FExecute
-	(
-	CSchedulerContext *psc
-	)
+CJobGroupImplementation::FExecute(CSchedulerContext *psc)
 {
 	GPOS_ASSERT(FInit());
 
@@ -307,12 +281,8 @@ CJobGroupImplementation::FExecute
 //
 //---------------------------------------------------------------------------
 void
-CJobGroupImplementation::ScheduleJob
-	(
-	CSchedulerContext *psc,
-	CGroup *pgroup,
-	CJob *pjParent
-	)
+CJobGroupImplementation::ScheduleJob(CSchedulerContext *psc, CGroup *pgroup,
+									 CJob *pjParent)
 {
 	CJob *pj = psc->Pjf()->PjCreate(CJob::EjtGroupImplementation);
 
@@ -334,15 +304,11 @@ CJobGroupImplementation::ScheduleJob
 //
 //---------------------------------------------------------------------------
 IOstream &
-CJobGroupImplementation::OsPrint
-	(
-	IOstream &os
-	)
+CJobGroupImplementation::OsPrint(IOstream &os) const
 {
 	return m_jsm.OsHistory(os);
 }
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF
-

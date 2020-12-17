@@ -8,8 +8,8 @@
 //	@doc:
 //		Class for representing DXL boolean datum
 //
-//	@owner: 
-//		
+//	@owner:
+//
 //
 //	@test:
 //
@@ -23,74 +23,64 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	// fwd decl
-	class CXMLSerializer;
+// fwd decl
+class CXMLSerializer;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLDatumBool
-	//
-	//	@doc:
-	//		Class for representing DXL boolean datums
-	//
-	//---------------------------------------------------------------------------
-	class CDXLDatumBool : public CDXLDatum
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLDatumBool
+//
+//	@doc:
+//		Class for representing DXL boolean datums
+//
+//---------------------------------------------------------------------------
+class CDXLDatumBool : public CDXLDatum
+{
+private:
+	// boolean value
+	BOOL m_value;
+
+public:
+	CDXLDatumBool(const CDXLDatumBool &) = delete;
+
+	// ctor
+	CDXLDatumBool(CMemoryPool *mp, IMDId *mdid_type, BOOL is_null, BOOL value);
+
+	// dtor
+	~CDXLDatumBool() override = default;
+
+	// serialize the datum as the given element
+	void Serialize(CXMLSerializer *xml_serializer) override;
+
+	// datum type
+	EdxldatumType
+	GetDatumType() const override
 	{
-		private:
-		// boolean value
-			BOOL m_value;
+		return CDXLDatum::EdxldatumBool;
+	}
 
-			// private copy ctor
-			CDXLDatumBool(const CDXLDatumBool &);
+	// accessor of boolean value
+	BOOL
+	GetValue() const
+	{
+		return m_value;
+	}
 
-		public:
-			// ctor
-			CDXLDatumBool
-				(
-				CMemoryPool *mp,
-				IMDId *mdid_type,
-				BOOL is_null,
-				BOOL value
-				);
+	// conversion function
+	static CDXLDatumBool *
+	Cast(CDXLDatum *dxl_datum)
+	{
+		GPOS_ASSERT(NULL != dxl_datum);
+		GPOS_ASSERT(CDXLDatum::CDXLDatum::EdxldatumBool ==
+					dxl_datum->GetDatumType());
 
-			// dtor
-			virtual
-			~CDXLDatumBool(){}
+		return dynamic_cast<CDXLDatumBool *>(dxl_datum);
+	}
+};
+}  // namespace gpdxl
 
-			// serialize the datum as the given element
-			virtual
-			void Serialize(CXMLSerializer *xml_serializer);
-
-			// datum type
-			virtual
-			EdxldatumType GetDatumType() const
-			{
-				return CDXLDatum::EdxldatumBool;
-			}
-
-			// accessor of boolean value
-			BOOL GetValue() const
-			{
-				return m_value;
-			}
-
-			// conversion function
-			static
-			CDXLDatumBool *Cast
-				(
-				CDXLDatum *dxl_datum
-				)
-			{
-			GPOS_ASSERT(NULL != dxl_datum);
-			GPOS_ASSERT(CDXLDatum::CDXLDatum::EdxldatumBool == dxl_datum->GetDatumType());
-
-				return dynamic_cast<CDXLDatumBool*>(dxl_datum);
-			}
-	};
-}
-
-#endif // !GPDXL_CDXLDatumBool_H
+#endif	// !GPDXL_CDXLDatumBool_H
 
 // EOF

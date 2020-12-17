@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformImplementPartitionSelector.h
@@ -16,68 +16,59 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementPartitionSelector
-	//
-	//	@doc:
-	//		Implement PartitionSelector
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementPartitionSelector : public CXformImplementation
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementPartitionSelector
+//
+//	@doc:
+//		Implement PartitionSelector
+//
+//---------------------------------------------------------------------------
+class CXformImplementPartitionSelector : public CXformImplementation
+{
+private:
+public:
+	CXformImplementPartitionSelector(const CXformImplementPartitionSelector &) =
+		delete;
+
+	// ctor
+	explicit CXformImplementPartitionSelector(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementPartitionSelector() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementPartitionSelector;
+	}
 
-		private:
+	// xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementPartitionSelector";
+	}
 
-			// private copy ctor
-			CXformImplementPartitionSelector(const CXformImplementPartitionSelector &);
+	// compute xform promise for a given expression handle
+	EXformPromise
+	Exfp(CExpressionHandle &  //exprhdl
+	) const override
+	{
+		return CXform::ExfpHigh;
+	}
 
-		public:
+	// actual transform
+	void Transform(CXformContext *, CXformResult *,
+				   CExpression *) const override;
 
-			// ctor
-			explicit
-			CXformImplementPartitionSelector(CMemoryPool *mp);
+};	// class CXformImplementPartitionSelector
 
-			// dtor
-			virtual
-			~CXformImplementPartitionSelector()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementPartitionSelector;
-			}
-
-			// xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementPartitionSelector";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp
-				(
-				CExpressionHandle & //exprhdl
-				)
-				const
-			{
-				return CXform::ExfpHigh;
-			}
-
-			// actual transform
-			virtual
-			void Transform(CXformContext *, CXformResult *, CExpression *) const;
-
-	}; // class CXformImplementPartitionSelector
-
-}
-
-#endif // !GPOPT_CXformImplementPartitionSelector_H
+#endif	// !GPOPT_CXformImplementPartitionSelector_H
 
 // EOF

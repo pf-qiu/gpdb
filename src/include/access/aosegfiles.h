@@ -5,7 +5,7 @@
  *	  list relation.
  *
  * Portions Copyright (c) 2008, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -151,8 +151,6 @@ extern void ClearFileSegInfo(Relation parentrel, int segno);
 extern void MarkFileSegInfoAwaitingDrop(Relation parentrel, int segno);
 extern void IncrementFileSegInfoModCount(Relation parentrel, int segno);
 extern FileSegTotals *GetSegFilesTotals(Relation parentrel, Snapshot appendOnlyMetaDataSnapshot);
-
-extern int64 GetAOTotalBytes(Relation parentrel, Snapshot appendOnlyMetaDataSnapshot);
 
 extern void FreeAllSegFileInfo(FileSegInfo **allSegInfo,
 				   int totalSegFiles);

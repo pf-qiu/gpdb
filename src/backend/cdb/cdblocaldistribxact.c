@@ -10,7 +10,7 @@
  * distributed log SLRU files too frequently.
  *
  * Portions Copyright (c) 2007-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -95,7 +95,8 @@ LocalDistribXact_ChangeState(int pgprocno,
 			break;
 
 		case LOCALDISTRIBXACT_STATE_ABORTED:
-			if (oldState != LOCALDISTRIBXACT_STATE_ACTIVE)
+			if (oldState != LOCALDISTRIBXACT_STATE_ACTIVE &&
+				oldState != LOCALDISTRIBXACT_STATE_ABORTED)
 				elog(PANIC,
 					 "Expected distributed transaction xid = %u to local element to be in state \"Active\" or \"Abort Delivery\" and "
 					 "found state \"%s\"",

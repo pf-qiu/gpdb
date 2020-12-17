@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Software, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CUnittestTest.h
@@ -17,25 +17,23 @@
 
 namespace gpos
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CUnittestTest
-	//
-	//	@doc:
-	//		Unit test with parameter denoting subtest
-	//
-	//---------------------------------------------------------------------------
-	class CUnittestTest
-	{
-		public:
+//---------------------------------------------------------------------------
+//	@class:
+//		CUnittestTest
+//
+//	@doc:
+//		Unit test with parameter denoting subtest
+//
+//---------------------------------------------------------------------------
+class CUnittestTest
+{
+public:
+	// unittests
+	static GPOS_RESULT EresSubtest(ULONG ulSubtest);
 
-			// unittests
-			static GPOS_RESULT EresSubtest(ULONG ulSubtest);
+};	// CAutoMutexTest
+}  // namespace gpos
 
-	}; // CAutoMutexTest
-}
-
-#endif // !GPOS_CUnittestTest_H
+#endif	// !GPOS_CUnittestTest_H
 
 // EOF
-

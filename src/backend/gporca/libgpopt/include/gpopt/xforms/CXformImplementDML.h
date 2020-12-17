@@ -16,64 +16,52 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementDML
-	//
-	//	@doc:
-	//		Transform Logical DML to Physical DML
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementDML : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementDML
+//
+//	@doc:
+//		Transform Logical DML to Physical DML
+//
+//---------------------------------------------------------------------------
+class CXformImplementDML : public CXformImplementation
+{
+private:
+public:
+	CXformImplementDML(const CXformImplementDML &) = delete;
+
+	// ctor
+	explicit CXformImplementDML(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementDML() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementDML;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementDML";
+	}
 
-			// private copy ctor
-			CXformImplementDML(const CXformImplementDML &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
-		
-			// ctor
-			explicit
-			CXformImplementDML(CMemoryPool *mp);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// dtor
-			virtual 
-			~CXformImplementDML() {}
+};	// class CXformImplementDML
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementDML;
-			}
-			
-			// return a string for xform name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformImplementDML";
-			}
-			
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-			
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				) 
-				const;
-		
-	}; // class CXformImplementDML
-}
-
-#endif // !GPOPT_CXformImplementDML_H
+#endif	// !GPOPT_CXformImplementDML_H
 
 // EOF

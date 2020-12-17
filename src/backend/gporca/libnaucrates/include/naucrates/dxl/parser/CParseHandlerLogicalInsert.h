@@ -7,7 +7,7 @@
 //
 //	@doc:
 //		Parse handler for parsing a logical insert operator
-//		
+//
 //---------------------------------------------------------------------------
 #ifndef GPDXL_CParseHandlerLogicalInsert_H
 #define GPDXL_CParseHandlerLogicalInsert_H
@@ -18,56 +18,49 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerLogicalInsert
-	//
-	//	@doc:
-	//		Parse handler for parsing a logical insert operator
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerLogicalInsert : public CParseHandlerLogicalOp
-	{
-		private:
-			
-			// source col ids
-			ULongPtrArray *m_pdrgpul;
-		
-			// private copy ctor
-			CParseHandlerLogicalInsert(const CParseHandlerLogicalInsert &);
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerLogicalInsert
+//
+//	@doc:
+//		Parse handler for parsing a logical insert operator
+//
+//---------------------------------------------------------------------------
+class CParseHandlerLogicalInsert : public CParseHandlerLogicalOp
+{
+private:
+	// source col ids
+	ULongPtrArray *m_pdrgpul;
 
-			// process the start of an element
-			void StartElement
-				(
-				const XMLCh* const element_uri, 		// URI of element's namespace
-				const XMLCh* const element_local_name,	// local part of element's name
-				const XMLCh* const element_qname,		// element's qname
-				const Attributes& attr				// element's attributes
-				);
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-			// process the end of an element
-			void EndElement
-				(
-				const XMLCh* const element_uri, 		// URI of element's namespace
-				const XMLCh* const element_local_name,	// local part of element's name
-				const XMLCh* const element_qname		// element's qname
-				);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-		public:
-			// ctor/dtor
-			CParseHandlerLogicalInsert
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
-	};
-}
+public:
+	CParseHandlerLogicalInsert(const CParseHandlerLogicalInsert &) = delete;
 
-#endif // !GPDXL_CParseHandlerLogicalInsert_H
+	// ctor/dtor
+	CParseHandlerLogicalInsert(CMemoryPool *mp,
+							   CParseHandlerManager *parse_handler_mgr,
+							   CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
+
+#endif	// !GPDXL_CParseHandlerLogicalInsert_H
 
 // EOF

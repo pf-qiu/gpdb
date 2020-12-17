@@ -5,7 +5,7 @@
  *
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -22,7 +22,6 @@
 #include "utils/guc.h"			/* log_min_messages */
 
 #include "cdb/cdbconn.h"		/* SegmentDatabaseDescriptor */
-#include "cdb/cdbpartition.h"
 #include "cdb/cdbvars.h"
 #include "cdb/cdbsreh.h"
 #include "cdb/cdbdispatchresult.h"
@@ -484,9 +483,12 @@ cdbdisp_dumpDispatchResult(CdbDispatchResult *dispatchResult)
 	if (dispatchResult->error_message &&
 		dispatchResult->error_message->len > 0)
 	{
-		if (errstart(ERROR, __FILE__, __LINE__, PG_FUNCNAME_MACRO, TEXTDOMAIN))
-			errdata = errfinish_and_return(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
-											errmsg("%s", dispatchResult->error_message->data));
+		if (errstart(ERROR, TEXTDOMAIN))
+		{
+			errcode(ERRCODE_GP_INTERCONNECTION_ERROR);
+			errmsg("%s", dispatchResult->error_message->data);
+			errdata = errfinish_and_return(__FILE__, __LINE__, PG_FUNCNAME_MACRO);
+		}
 		else
 			pg_unreachable();
 
@@ -559,7 +561,7 @@ cdbdisp_get_PQerror(PGresult *pgresult)
 	 * command failed. And if a QE disconnected with FATAL, or PANICed,
 	 * we don't want to do the same in the QD. So, always an ERROR.
 	 */
-	if (!errstart(ERROR, filename, lineno, funcname, TEXTDOMAIN))
+	if (!errstart(ERROR, TEXTDOMAIN))
 		pg_unreachable(); /* unexpected path. */
 
 	fld = PQresultErrorField(pgresult, PG_DIAG_SQLSTATE);
@@ -589,8 +591,30 @@ cdbdisp_get_PQerror(PGresult *pgresult)
 	if (fld)
 		errcontext("%s", fld);
 
+	fld = PQresultErrorField(pgresult, PG_DIAG_SCHEMA_NAME);
+	if (fld)
+		err_generic_string(PG_DIAG_SCHEMA_NAME, fld);
+
+	fld = PQresultErrorField(pgresult, PG_DIAG_TABLE_NAME);
+	if (fld)
+		err_generic_string(PG_DIAG_TABLE_NAME, fld);
+
+	fld = PQresultErrorField(pgresult, PG_DIAG_COLUMN_NAME);
+	if (fld)
+		err_generic_string(PG_DIAG_COLUMN_NAME, fld);
+
+	fld = PQresultErrorField(pgresult, PG_DIAG_DATATYPE_NAME);
+	if (fld)
+		err_generic_string(PG_DIAG_DATATYPE_NAME, fld);
+
+	fld = PQresultErrorField(pgresult, PG_DIAG_CONSTRAINT_NAME);
+	if (fld)
+		err_generic_string(PG_DIAG_CONSTRAINT_NAME, fld);
+
+	Assert(TopTransactionContext);
+
 	oldcontext = MemoryContextSwitchTo(TopTransactionContext);
-	ErrorData *edata = errfinish_and_return(0);
+	ErrorData *edata = errfinish_and_return(filename, lineno, funcname);
 	MemoryContextSwitchTo(oldcontext);
 	return edata;
 }
@@ -690,33 +714,6 @@ cdbdisp_sumRejectedRows(CdbDispatchResults *results)
 	if (totalRejected > 0)
 		ReportSrehResults(NULL, totalRejected);
 
-}
-
-/*
- * Find the max of the lastOid values returned from the QEs
- */
-Oid
-cdbdisp_maxLastOid(CdbDispatchResults *results, int sliceIndex)
-{
-	CdbDispatchResult *dispatchResult;
-	CdbDispatchResult *resultEnd = cdbdisp_resultEnd(results, sliceIndex);
-	PGresult   *pgresult;
-	Oid oid = InvalidOid;
-
-	for (dispatchResult = cdbdisp_resultBegin(results, sliceIndex);
-		 dispatchResult < resultEnd; ++dispatchResult)
-	{
-		pgresult = cdbdisp_getPGresult(dispatchResult, dispatchResult->okindex);
-		if (pgresult && !dispatchResult->errcode)
-		{
-			Oid			tmpoid = PQoidValue(pgresult);
-
-			if (tmpoid > oid)
-				oid = tmpoid;
-		}
-	}
-
-	return oid;
 }
 
 /*

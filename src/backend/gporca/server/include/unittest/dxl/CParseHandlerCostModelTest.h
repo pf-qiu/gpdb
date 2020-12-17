@@ -1,5 +1,5 @@
 //	Greenplum Database
-//	Copyright (C) 2018 Pivotal, Inc.
+//	Copyright (C) 2018 VMware, Inc. or its affiliates.
 
 #ifndef GPOPT_CParseHandlerCostModelTest_H
 #define GPOPT_CParseHandlerCostModelTest_H
@@ -8,10 +8,10 @@
 
 namespace gpdxl
 {
-	class CParseHandlerCostModelTest
-	{
-		public:
-			static gpos::GPOS_RESULT EresUnittest();
-	};
-}
-#endif  // GPOPT_CParseHandlerCostModelTest_H
+class CParseHandlerCostModelTest
+{
+public:
+	static gpos::GPOS_RESULT EresUnittest();
+};
+}  // namespace gpdxl
+#endif	// GPOPT_CParseHandlerCostModelTest_H

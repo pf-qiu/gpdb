@@ -16,75 +16,59 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformJoinAssociativity
-	//
-	//	@doc:
-	//		Associative transformation of left-deep join tree
-	//
-	//---------------------------------------------------------------------------
-	class CXformJoinAssociativity : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformJoinAssociativity
+//
+//	@doc:
+//		Associative transformation of left-deep join tree
+//
+//---------------------------------------------------------------------------
+class CXformJoinAssociativity : public CXformExploration
+{
+private:
+	// helper function for creating the new join predicate
+	void CreatePredicates(CMemoryPool *mp, CExpression *pexpr,
+						  CExpressionArray *pdrgpexprLower,
+						  CExpressionArray *pdrgpexprUpper) const;
+
+public:
+	CXformJoinAssociativity(const CXformJoinAssociativity &) = delete;
+
+	// ctor
+	explicit CXformJoinAssociativity(CMemoryPool *mp);
+
+	// dtor
+	~CXformJoinAssociativity() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfJoinAssociativity;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformJoinAssociativity";
+	}
 
-			// private copy ctor
-			CXformJoinAssociativity(const CXformJoinAssociativity &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// helper function for creating the new join predicate
-			void CreatePredicates
-				(
-				CMemoryPool *mp,
-				CExpression *pexpr,
-				CExpressionArray *pdrgpexprLower,
-				CExpressionArray *pdrgpexprUpper
-				) 
-				const;
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-		public:
+};	// class CXformJoinAssociativity
 
-			// ctor
-			explicit
-			CXformJoinAssociativity(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformJoinAssociativity() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfJoinAssociativity;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformJoinAssociativity";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp (CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform
-					(
-					CXformContext *pxfctxt,
-					CXformResult *pxfres,
-					CExpression *pexpr
-					) const;
-
-	}; // class CXformJoinAssociativity
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformJoinAssociativity_H
+#endif	// !GPOPT_CXformJoinAssociativity_H
 
 // EOF

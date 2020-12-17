@@ -16,295 +16,228 @@
 
 namespace gpopt
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CPhysicalRowTrigger
+//
+//	@doc:
+//		Physical row-level trigger operator
+//
+//---------------------------------------------------------------------------
+class CPhysicalRowTrigger : public CPhysical
+{
+private:
+	// relation id on which triggers are to be executed
+	IMDId *m_rel_mdid;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CPhysicalRowTrigger
-	//
-	//	@doc:
-	//		Physical row-level trigger operator
-	//
-	//---------------------------------------------------------------------------
-	class CPhysicalRowTrigger : public CPhysical
+	// trigger type
+	INT m_type;
+
+	// old columns
+	CColRefArray *m_pdrgpcrOld;
+
+	// new columns
+	CColRefArray *m_pdrgpcrNew;
+
+	// required columns by local members
+	CColRefSet *m_pcrsRequiredLocal;
+
+public:
+	CPhysicalRowTrigger(const CPhysicalRowTrigger &) = delete;
+
+	// ctor
+	CPhysicalRowTrigger(CMemoryPool *mp, IMDId *rel_mdid, INT type,
+						CColRefArray *pdrgpcrOld, CColRefArray *pdrgpcrNew);
+
+	// dtor
+	~CPhysicalRowTrigger() override;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
+		return EopPhysicalRowTrigger;
+	}
 
-		private:
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CPhysicalRowTrigger";
+	}
 
-			// relation id on which triggers are to be executed
-			IMDId *m_rel_mdid;
+	// relation id
+	IMDId *
+	GetRelMdId() const
+	{
+		return m_rel_mdid;
+	}
 
-			// trigger type
-			INT m_type;
+	// trigger type
+	INT
+	GetType() const
+	{
+		return m_type;
+	}
 
-			// old columns
-			CColRefArray *m_pdrgpcrOld;
+	// old columns
+	CColRefArray *
+	PdrgpcrOld() const
+	{
+		return m_pdrgpcrOld;
+	}
 
-			// new columns
-			CColRefArray *m_pdrgpcrNew;
+	// new columns
+	CColRefArray *
+	PdrgpcrNew() const
+	{
+		return m_pdrgpcrNew;
+	}
 
-			// required columns by local members
-			CColRefSet *m_pcrsRequiredLocal;
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-			// private copy ctor
-			CPhysicalRowTrigger(const CPhysicalRowTrigger &);
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-		public:
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// ctor
-			CPhysicalRowTrigger
-				(
-				CMemoryPool *mp,
-				IMDId *rel_mdid,
-				INT type,
-				CColRefArray *pdrgpcrOld,
-				CColRefArray *pdrgpcrNew
-				);
+	//-------------------------------------------------------------------------------------
+	// Required Plan Properties
+	//-------------------------------------------------------------------------------------
 
-			// dtor
-			virtual
-			~CPhysicalRowTrigger();
+	// compute required sort columns of the n-th child
+	COrderSpec *PosRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							COrderSpec *posRequired, ULONG child_index,
+							CDrvdPropArray *pdrgpdpCtxt,
+							ULONG ulOptReq) const override;
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopPhysicalRowTrigger;
-			}
+	//-------------------------------------------------------------------------------------
+	// Derived Plan Properties
+	//-------------------------------------------------------------------------------------
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CPhysicalRowTrigger";
-			}
+	// derive sort order
+	COrderSpec *PosDerive(CMemoryPool *mp,
+						  CExpressionHandle &exprhdl) const override;
 
-			// relation id
-			IMDId *GetRelMdId() const
-			{
-				return m_rel_mdid;
-			}
+	//-------------------------------------------------------------------------------------
+	// Enforced Properties
+	//-------------------------------------------------------------------------------------
 
-			// trigger type
-			INT GetType() const
-			{
-				return m_type;
-			}
+	// return order property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetOrder(
+		CExpressionHandle &exprhdl, const CEnfdOrder *peo) const override;
 
-			// old columns
-			CColRefArray *PdrgpcrOld() const
-			{
-				return m_pdrgpcrOld;
-			}
+	// compute required output columns of the n-th child
+	CColRefSet *PcrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							 CColRefSet *pcrsRequired, ULONG child_index,
+							 CDrvdPropArray *pdrgpdpCtxt,
+							 ULONG ulOptReq) override;
 
-			// new columns
-			CColRefArray *PdrgpcrNew() const
-			{
-				return m_pdrgpcrNew;
-			}
+	// compute required ctes of the n-th child
+	CCTEReq *PcteRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+						  CCTEReq *pcter, ULONG child_index,
+						  CDrvdPropArray *pdrgpdpCtxt,
+						  ULONG ulOptReq) const override;
 
-			// operator specific hash function
-			virtual
-			ULONG HashValue() const;
+	// compute required distribution of the n-th child
+	CDistributionSpec *PdsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+								   CDistributionSpec *pdsRequired,
+								   ULONG child_index,
+								   CDrvdPropArray *pdrgpdpCtxt,
+								   ULONG ulOptReq) const override;
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// compute required rewindability of the n-th child
+	CRewindabilitySpec *PrsRequired(CMemoryPool *mp, CExpressionHandle &exprhdl,
+									CRewindabilitySpec *prsRequired,
+									ULONG child_index,
+									CDrvdPropArray *pdrgpdpCtxt,
+									ULONG ulOptReq) const override;
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
-
-			//-------------------------------------------------------------------------------------
-			// Required Plan Properties
-			//-------------------------------------------------------------------------------------
-
-			// compute required sort columns of the n-th child
-			virtual
-			COrderSpec *PosRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				COrderSpec *posRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				)
-				const;
-
-			//-------------------------------------------------------------------------------------
-			// Derived Plan Properties
-			//-------------------------------------------------------------------------------------
-
-			// derive sort order
-			virtual
-			COrderSpec *PosDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
-
-			//-------------------------------------------------------------------------------------
-			// Enforced Properties
-			//-------------------------------------------------------------------------------------
-
-			// return order property enforcing type for this operator
-			virtual
-			CEnfdProp::EPropEnforcingType EpetOrder
-				(
-				CExpressionHandle &exprhdl,
-				const CEnfdOrder *peo
-				)
-				const;
-
-			// compute required output columns of the n-th child
-			virtual
-			CColRefSet *PcrsRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CColRefSet *pcrsRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				);
-
-			// compute required ctes of the n-th child
-			virtual
-			CCTEReq *PcteRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CCTEReq *pcter,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				)
-				const;
-
-			// compute required distribution of the n-th child
-			virtual
-			CDistributionSpec *PdsRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CDistributionSpec *pdsRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				)
-				const;
-
-			// compute required rewindability of the n-th child
-			virtual
-			CRewindabilitySpec *PrsRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CRewindabilitySpec *prsRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				)
-				const;
-
-			// check if required columns are included in output columns
-			virtual
-			BOOL FProvidesReqdCols(CExpressionHandle &exprhdl, CColRefSet *pcrsRequired, ULONG ulOptReq) const;
+	// check if required columns are included in output columns
+	BOOL FProvidesReqdCols(CExpressionHandle &exprhdl, CColRefSet *pcrsRequired,
+						   ULONG ulOptReq) const override;
 
 
-			// compute required partition propagation of the n-th child
-			virtual
-			CPartitionPropagationSpec *PppsRequired
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl,
-				CPartitionPropagationSpec *pppsRequired,
-				ULONG child_index,
-				CDrvdPropArray *pdrgpdpCtxt,
-				ULONG ulOptReq
-				);
+	// compute required partition propagation of the n-th child
+	CPartitionPropagationSpec *PppsRequired(
+		CMemoryPool *mp, CExpressionHandle &exprhdl,
+		CPartitionPropagationSpec *pppsRequired, ULONG child_index,
+		CDrvdPropArray *pdrgpdpCtxt, ULONG ulOptReq) override;
 
-			//-------------------------------------------------------------------------------------
-			// Derived Plan Properties
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	// Derived Plan Properties
+	//-------------------------------------------------------------------------------------
 
-			// derive distribution
-			virtual
-			CDistributionSpec *PdsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// derive distribution
+	CDistributionSpec *PdsDerive(CMemoryPool *mp,
+								 CExpressionHandle &exprhdl) const override;
 
-			// derive rewindability
-			virtual
-			CRewindabilitySpec *PrsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// derive rewindability
+	CRewindabilitySpec *PrsDerive(CMemoryPool *mp,
+								  CExpressionHandle &exprhdl) const override;
 
-			// derive partition index map
-			virtual
-			CPartIndexMap *PpimDerive
-				(
-				CMemoryPool *, // mp
-				CExpressionHandle &exprhdl,
-				CDrvdPropCtxt * //pdpctxt
-				)
-				const
-			{
-				return PpimPassThruOuter(exprhdl);
-			}
+	// derive partition index map
+	CPartIndexMap *
+	PpimDerive(CMemoryPool *,  // mp
+			   CExpressionHandle &exprhdl,
+			   CDrvdPropCtxt *	//pdpctxt
+	) const override
+	{
+		return PpimPassThruOuter(exprhdl);
+	}
 
-			// derive partition filter map
-			virtual
-			CPartFilterMap *PpfmDerive
-				(
-				CMemoryPool *, // mp
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PpfmPassThruOuter(exprhdl);
-			}
+	// derive partition filter map
+	CPartFilterMap *
+	PpfmDerive(CMemoryPool *,  // mp
+			   CExpressionHandle &exprhdl) const override
+	{
+		return PpfmPassThruOuter(exprhdl);
+	}
 
-			//-------------------------------------------------------------------------------------
-			// Enforced Properties
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	// Enforced Properties
+	//-------------------------------------------------------------------------------------
 
-			// return rewindability property enforcing type for this operator
-			virtual
-			CEnfdProp::EPropEnforcingType EpetRewindability
-				(
-				CExpressionHandle &, // exprhdl
-				const CEnfdRewindability * // per
-				)
-				const;
+	// return rewindability property enforcing type for this operator
+	CEnfdProp::EPropEnforcingType EpetRewindability(
+		CExpressionHandle &,		// exprhdl
+		const CEnfdRewindability *	// per
+	) const override;
 
-			// return true if operator passes through stats obtained from children,
-			// this is used when computing stats during costing
-			virtual
-			BOOL FPassThruStats() const
-			{
-				return true;
-			}
+	// return true if operator passes through stats obtained from children,
+	// this is used when computing stats during costing
+	BOOL
+	FPassThruStats() const override
+	{
+		return true;
+	}
 
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// conversion function
-			static
-			CPhysicalRowTrigger *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopPhysicalRowTrigger == pop->Eopid());
+	// conversion function
+	static CPhysicalRowTrigger *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopPhysicalRowTrigger == pop->Eopid());
 
-				return dynamic_cast<CPhysicalRowTrigger*>(pop);
-			}
+		return dynamic_cast<CPhysicalRowTrigger *>(pop);
+	}
 
-			// debug print
-			virtual
-			IOstream &OsPrint(IOstream &) const;
+	// debug print
+	IOstream &OsPrint(IOstream &) const override;
 
-	}; // class CPhysicalRowTrigger
-}
+};	// class CPhysicalRowTrigger
+}  // namespace gpopt
 
-#endif // !GPOPT_CPhysicalRowTrigger_H
+#endif	// !GPOPT_CPhysicalRowTrigger_H
 
 // EOF

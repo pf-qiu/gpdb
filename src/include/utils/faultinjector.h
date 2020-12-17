@@ -9,7 +9,7 @@
 #ifndef FAULTINJECTOR_H
 #define FAULTINJECTOR_H
 
-#include "pg_config_manual.h"
+#include "pg_config.h"
 
 #define FAULTINJECTOR_MAX_SLOTS	16
 
@@ -85,11 +85,24 @@ extern Size FaultInjector_ShmemSize(void);
 
 extern void FaultInjector_ShmemInit(void);
 
-extern FaultInjectorType_e FaultInjector_InjectFaultIfSet(
+/*
+ * To check if a fault has been injected, use FaultInjector_InjectFaultIfSet().
+ * It is designed to fall through as quickly as possible, when no faults are
+ * activated.
+ */
+extern FaultInjectorType_e FaultInjector_InjectFaultIfSet_out_of_line(
 							   const char*				 faultName,
 							   DDLStatement_e			 ddlStatement,
 							   const char*				 databaseName,
 							   const char*				 tableName);
+
+#define FaultInjector_InjectFaultIfSet(faultName, ddlStatement, databaseName, tableName) \
+	(((*numActiveFaults_ptr) > 0) ? \
+	 FaultInjector_InjectFaultIfSet_out_of_line(faultName, ddlStatement, databaseName, tableName) : \
+	 FaultInjectorTypeNotSpecified)
+
+extern int *numActiveFaults_ptr;
+
 
 extern char *InjectFault(
 	char *faultName, char *type, char *ddlStatement, char *databaseName,

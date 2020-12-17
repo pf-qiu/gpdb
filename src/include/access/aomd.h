@@ -4,7 +4,7 @@
  *	  Declarations and functions for supporting aomd.c
  *
  * Portions Copyright (c) 2008, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -37,7 +37,6 @@ extern void MakeAOSegmentFileName(
 
 extern File OpenAOSegmentFile(Relation rel,
 				  char *filepathname,
-				  int32 segmentFileNum,
 				  int64	logicalEof);
 
 extern void CloseAOSegmentFile(File fd);
@@ -51,7 +50,7 @@ TruncateAOSegmentFile(File fd,
 extern void ao_truncate_one_rel(Relation rel);
 
 extern void
-mdunlink_ao(const char *path, ForkNumber forkNumber);
+mdunlink_ao(RelFileNodeBackend rnode, ForkNumber forkNumber, bool isRedo);
 
 extern void
 copy_append_only_data(RelFileNode src, RelFileNode dst, BackendId backendid, char relpersistence);

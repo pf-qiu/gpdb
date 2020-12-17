@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarAssertConstraintList.cpp
@@ -26,12 +26,8 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CScalarAssertConstraintList::CScalarAssertConstraintList
-	(
-	CMemoryPool *mp
-	)
-	:
-	CScalar(mp)
+CScalarAssertConstraintList::CScalarAssertConstraintList(CMemoryPool *mp)
+	: CScalar(mp)
 {
 }
 
@@ -44,11 +40,7 @@ CScalarAssertConstraintList::CScalarAssertConstraintList
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarAssertConstraintList::Matches
-	(
-	COperator *pop
-	)
-	const
+CScalarAssertConstraintList::Matches(COperator *pop) const
 {
 	return pop->Eopid() == Eopid();
 }
@@ -71,4 +63,3 @@ CScalarAssertConstraintList::MdidType() const
 
 
 // EOF
-

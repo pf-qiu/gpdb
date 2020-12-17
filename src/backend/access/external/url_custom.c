@@ -4,7 +4,7 @@
  *	  Core support for opening external relations via a custom URL
  *
  * Portions Copyright (c) 2007-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  * IDENTIFICATION
  *	  src/backend/access/external/url_custom.c
@@ -15,7 +15,7 @@
 #include "postgres.h"
 
 #include "access/extprotocol.h"
-#include "access/fileam.h"
+#include "access/url.h"
 #include "catalog/pg_extprotocol.h"
 #include "commands/copy.h"
 #include "utils/memutils.h"
@@ -157,7 +157,7 @@ InvokeExtProtocol(void *ptr,
                   CopyState pstate,
                   bool last_call)
 {
-	FunctionCallInfoData fcinfo;
+	LOCAL_FCINFO(fcinfo, 0);
 	ExtProtocolData      *extprotocol     = file->extprotocol;
 	FmgrInfo             *extprotocol_udf = file->protocol_udf;
 	Datum                d;
@@ -173,7 +173,7 @@ InvokeExtProtocol(void *ptr,
 	extprotocol->prot_maxbytes  = nbytes;
 	extprotocol->prot_last_call = last_call;
 
-	InitFunctionCallInfoData(/* FunctionCallInfoData */ fcinfo,
+	InitFunctionCallInfoData(/* FunctionCallInfoData */ *fcinfo,
 							 /* FmgrInfo */ extprotocol_udf,
 							 /* nArgs */ 0,
 							 /* collation */ InvalidOid,
@@ -182,12 +182,12 @@ InvokeExtProtocol(void *ptr,
 
 	/* invoke the protocol within a designated memory context */
 	oldcontext = MemoryContextSwitchTo(file->protcxt);
-	d = FunctionCallInvoke(&fcinfo);
+	d = FunctionCallInvoke(fcinfo);
 	MemoryContextSwitchTo(oldcontext);
 
 	/* We do not expect a null result */
-	if (fcinfo.isnull)
-		elog(ERROR, "function %u returned NULL", fcinfo.flinfo->fn_oid);
+	if (fcinfo->isnull)
+		elog(ERROR, "function %u returned NULL", fcinfo->flinfo->fn_oid);
 
 	return DatumGetInt32(d);
 }

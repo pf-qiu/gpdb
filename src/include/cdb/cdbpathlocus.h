@@ -4,7 +4,7 @@
  *
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -21,7 +21,7 @@
 struct Path;                    /* defined in relation.h */
 struct RelOptInfo;              /* defined in relation.h */
 struct PlannerInfo;				/* defined in relation.h */
-struct GpPolicy;				/* defined in gp_policy.h */
+struct GpPolicy;				/* defined in gp_distribution_policy.h */
 struct PathTarget;
 
 
@@ -272,6 +272,7 @@ cdbpathlocus_from_baserel(struct PlannerInfo   *root,
                           struct RelOptInfo    *rel);
 CdbPathLocus
 cdbpathlocus_from_exprs(struct PlannerInfo     *root,
+						struct RelOptInfo *rel,
                         List                   *hash_on_exprs,
 						List *hash_opclasses,
 						List *hash_sortrefs,

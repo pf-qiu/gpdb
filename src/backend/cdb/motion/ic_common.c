@@ -3,7 +3,7 @@
  *	   Interconnect code shared between UDP, and TCP IPC Layers.
  *
  * Portions Copyright (c) 2005-2008, Greenplum
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -15,10 +15,10 @@
 
 #include "postgres.h"
 
+#include "common/ip.h"
 #include "nodes/execnodes.h"	/* ExecSlice, SliceTable */
 #include "miscadmin.h"
 #include "libpq/libpq-be.h"
-#include "libpq/ip.h"
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
@@ -72,7 +72,7 @@ static void destroy_interconnect_handle(interconnect_handle_t *h);
 static interconnect_handle_t *find_interconnect_handle(ChunkTransportState *icContext);
 
 static void
-logChunkParseDetails(MotionConn *conn)
+logChunkParseDetails(MotionConn *conn, uint32 ic_instance_id)
 {
 	struct icpkthdr *pkt;
 
@@ -82,7 +82,7 @@ logChunkParseDetails(MotionConn *conn)
 	pkt = (struct icpkthdr *) conn->pBuff;
 
 	elog(LOG, "Interconnect parse details: pkt->len %d pkt->seq %d pkt->flags 0x%x conn->active %d conn->stopRequest %d pkt->icId %d my_icId %d",
-		 pkt->len, pkt->seq, pkt->flags, conn->stillActive, conn->stopRequested, pkt->icId, gp_interconnect_id);
+		 pkt->len, pkt->seq, pkt->flags, conn->stillActive, conn->stopRequested, pkt->icId, ic_instance_id);
 
 	elog(LOG, "Interconnect parse details continued: peer: srcpid %d dstpid %d recvslice %d sendslice %d srccontent %d dstcontent %d",
 		 pkt->srcPid, pkt->dstPid, pkt->recvSliceIndex, pkt->sendSliceIndex, pkt->srcContentId, pkt->dstContentId);
@@ -97,7 +97,8 @@ RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates)
 	uint32		tcSize;
 	int			bytesProcessed = 0;
 
-	if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+	if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+		Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 	{
 		/* read the packet in from the network. */
 		readPacket(conn, transportStates);
@@ -120,7 +121,7 @@ RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates)
 	{
 		if (conn->msgSize - bytesProcessed < TUPLE_CHUNK_HEADER_SIZE)
 		{
-			logChunkParseDetails(conn);
+			logChunkParseDetails(conn, transportStates->sliceTable->ic_instance_id);
 
 			ereport(ERROR,
 					(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
@@ -148,7 +149,7 @@ RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates)
 			else
 				elog(LOG, "Interconnect error parsing message: no last item");
 
-			logChunkParseDetails(conn);
+			logChunkParseDetails(conn, transportStates->sliceTable->ic_instance_id);
 
 			ereport(ERROR,
 					(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
@@ -164,7 +165,8 @@ RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates)
 		 * we only check for interrupts here when we don't have a guaranteed
 		 * full-message
 		 */
-		if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+		if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+			Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 		{
 			if (tcSize >= conn->msgSize)
 			{
@@ -174,7 +176,7 @@ RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates)
 				 */
 				ML_CHECK_FOR_INTERRUPTS(transportStates->teardownActive);
 
-				logChunkParseDetails(conn);
+				logChunkParseDetails(conn, transportStates->sliceTable->ic_instance_id);
 
 				ereport(ERROR,
 						(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
@@ -195,7 +197,7 @@ RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates)
 		tcItem->chunk_length = tcSize;
 		tcItem->inplace = (char *) (conn->msgPos + bytesProcessed);
 
-		bytesProcessed += TYPEALIGN(TUPLE_CHUNK_ALIGN, tcSize);
+		bytesProcessed += tcSize;
 
 		if (firstTcItem == NULL)
 		{
@@ -236,7 +238,8 @@ InitMotionLayerIPC(void)
 
 	/* activated = false; */
 
-	if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+	if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+		Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 		InitMotionTCP(&TCP_listenerFd, &tcp_listener);
 	else if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
 		InitMotionUDPIFC(&UDP_listenerFd, &udp_listener);
@@ -253,7 +256,8 @@ CleanUpMotionLayerIPC(void)
 	if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
 		elog(DEBUG3, "Cleaning Up Motion Layer IPC...");
 
-	if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+	if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+		Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 		CleanupMotionTCP();
 	else if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
 		CleanupMotionUDPIFC();
@@ -533,7 +537,8 @@ SetupInterconnect(EState *estate)
 
 	if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
 		SetupUDPIFCInterconnect(estate);
-	else if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+	else if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+			 Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 		SetupTCPInterconnect(estate);
 	else
 		elog(ERROR, "unsupported expected interconnect type");
@@ -543,43 +548,24 @@ SetupInterconnect(EState *estate)
 	h->interconnect_context = estate->interconnect_context;
 }
 
-/*
- * Move this out to separate stack frame, so that we don't have to mark
- * tons of stuff volatile in TeardownInterconnect().
- */
-void
-forceEosToPeers(ChunkTransportState *transportStates,
-				int motNodeID)
-{
-	if (!transportStates)
-	{
-		elog(FATAL, "no transport-states.");
-	}
-
-	transportStates->teardownActive = true;
-
-	transportStates->SendEos(transportStates, motNodeID, get_eos_tuplechunklist());
-
-	transportStates->teardownActive = false;
-}
-
 /* TeardownInterconnect() function is used to cleanup interconnect resources that
  * were allocated during SetupInterconnect().  This function should ALWAYS be
  * called after SetupInterconnect to avoid leaking resources (like sockets)
  * even if SetupInterconnect did not complete correctly.
  */
 void
-TeardownInterconnect(ChunkTransportState *transportStates, bool forceEOS)
+TeardownInterconnect(ChunkTransportState *transportStates, bool hasErrors)
 {
 	interconnect_handle_t *h = find_interconnect_handle(transportStates);
 
 	if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
 	{
-		TeardownUDPIFCInterconnect(transportStates, forceEOS);
+		TeardownUDPIFCInterconnect(transportStates, hasErrors);
 	}
-	else if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+	else if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+			 Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 	{
-		TeardownTCPInterconnect(transportStates, forceEOS);
+		TeardownTCPInterconnect(transportStates, hasErrors);
 	}
 
 	if (h != NULL)
@@ -825,7 +811,7 @@ cleanup_interconnect_handle(interconnect_handle_t *h)
 		destroy_interconnect_handle(h);
 		return;
 	}
-	TeardownInterconnect(h->interconnect_context, true /* force EOS */);
+	TeardownInterconnect(h->interconnect_context, true);
 }
 
 static void

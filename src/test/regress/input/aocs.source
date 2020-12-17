@@ -225,8 +225,50 @@ SELECT count(*) FROM tenk_aocs3;
 SELECT count(*) FROM tenk_aocs4;
 
 -- INHERITS
--- This is not supported in aocs and should error out
-CREATE TABLE tenk_inherits_tenk_aocs1() INHERITS (tenk_aocs1);
+-- This used to be forbidden, but we allow it now.
+CREATE TABLE aocs_inh_parent (parent_t text,
+                              parent_t_8k text encoding (blocksize=8192))
+WITH (appendonly=true, orientation=column);
+
+-- The storage options are not inherited, but you can specify them explicitly.
+CREATE TABLE aocs_inh_child1 ()
+INHERITS (aocs_parent)
+WITH (appendonly=true, orientation=column);
+CREATE TABLE aocs_inh_child2 (parent_t text ENCODING (compresstype=zlib))
+INHERITS (aocs_inh_parent)
+WITH (appendonly=true, orientation=column);
+
+-- This syntax works even without explicitly listing the column.
+CREATE TABLE aocs_inh_child3 (COLUMN parent_t ENCODING (compresstype=zlib))
+INHERITS (aocs_inh_parent)
+WITH (appendonly=true, orientation=column);
+
+SELECT c.relname, ae.attnum, ae.attoptions FROM pg_class c, pg_attribute_encoding ae WHERE c.relname LIKE 'aocs_inh%' AND c.oid=ae.attrelid ORDER BY 1,2;
+
+-- Multiple inheritance
+-- The ENCODING of parent_t_8k column doesn't match that of the other parent table.
+-- That's OK, because we don't try to copy the compression options from the parents.
+CREATE TABLE aocs_inh_parent2 (parent_t text,
+                               parent_t_8k text encoding (blocksize=16384),
+                               otherparent_t_8k text encoding (blocksize=8192))
+WITH (appendonly=true, orientation=column);
+CREATE TABLE aocs_inh_multichild ()
+INHERITS (aocs_inh_parent, aocs_inh_parent2)
+WITH (appendonly=true, orientation=column);
+
+SELECT c.relname, ae.attnum, ae.attoptions FROM pg_class c, pg_attribute_encoding ae WHERE c.relname LIKE 'aocs_inh_multi%' AND c.oid=ae.attrelid ORDER BY 1,2;
+
+-- AOCO table inherits a heap table.
+CREATE TABLE aocs_inh2_parent_heap (parent_t text, parent_t2 text);
+CREATE TABLE aocs_inh2_child1 () INHERITS (aocs_inh2_parent_heap)
+WITH (appendonly=true, orientation=column);
+CREATE TABLE aocs_inh2_child2 (COLUMN parent_t ENCODING (compresstype=zlib)) INHERITS (aocs_inh2_parent_heap)
+WITH (appendonly=true, orientation=column);
+
+SELECT c.relname, ae.attnum, ae.attoptions FROM pg_class c, pg_attribute_encoding ae WHERE c.relname LIKE 'aocs_inh2_%' AND c.oid=ae.attrelid ORDER BY 1,2;
+
+-- don't drop the tables, to also test pg_dump & restore of them.
+
 
 -- NYI
 -- test get_ao_compression_ratio. use uncompressed table, so result is always 1.
@@ -250,7 +292,7 @@ SELECT count(*) FROM tenk_aocs4;
 -- LIKE
 -- Should not copy storage options if not specified
 CREATE TABLE tenk_like_nocopy_storage (LIKE tenk_aocs1);
-SELECT count(*) FROM pg_class WHERE relstorage = 'c' AND relname = 'tenk_like_nocopy_storage';
+SELECT count(*) FROM pg_class WHERE reloptions is not null AND relname = 'tenk_like_nocopy_storage';
 -- Check tables are truly decoupled
 CREATE TABLE tenk_truly_decoupled (LIKE tenk_aocs4);
 ALTER TABLE tenk_aocs4 DROP COLUMN two;
@@ -294,12 +336,6 @@ SELECT unique1 FROM tenk_heap_for_aocs EXCEPT SELECT unique1 FROM tenk_aocs3;
 -- TRUNCATE
 TRUNCATE tenk_aocs2;
 SELECT count(*) FROM tenk_aocs2;
-
--- OID with aocs NYI
--- OIDS
---
--- MPP-8058: should fail
-CREATE TABLE aocswithoids(a int, b int) WITH (appendonly=true, orientation=column, oids=true);
 
 -- INDEX
 CREATE INDEX tenk_aocs1_unique1 ON tenk_aocs1 USING btree(unique1 int4_ops);
@@ -381,8 +417,8 @@ insert into temp_tenk_aocs5(unique1, unique2) values (99998888, 99998888);
 update temp_tenk_aocs5 set unique2 = 99998889 where unique2 = 99998888;
 delete from temp_tenk_aocs5 where unique2 = 99998889;
 select count(*) from temp_tenk_aocs5;
-truncate table temp_tenk_aocs5;
 vacuum analyze temp_tenk_aocs5;
+truncate table temp_tenk_aocs5;
 \d temp_tenk_aocs5
 insert into temp_tenk_aocs5(unique1, unique2) values (99998888, 99998888);
 select unique1 from temp_tenk_aocs5;
@@ -471,7 +507,7 @@ DROP TABLE syscoltest;
 -- supported sql
 --------------------
 DROP TABLE tenk_heap_for_aocs;
-DROP TABLE tenk_aocs1;
+DROP TABLE tenk_aocs1 CASCADE;
 DROP TABLE tenk_aocs2;
 DROP TABLE tenk_aocs3;
 DROP TABLE tenk_aocs4;
@@ -501,18 +537,6 @@ COPY aocs_new (a,b,c,d,e,f) FROM stdin;
 
 select (case when b='13' then 'replacement' else d end) as d from aocs_new order by 1;
 select distinct (case when b='13' then 'replacement' else d end) as d from aocs_new where f='M' order by 1;
-
-create table aocs_unknown(
-    a int,
-    b unknown,
-    c unknown encoding (compresstype=rle_type)
-) with (appendonly=true, orientation=column)
-distributed by (a);
-
-insert into aocs_unknown
-select i, 'unknown' from generate_series(1, 10)i;
-
-select * from aocs_unknown;
 
 -- Check compression and distribution
 create table aocs_compress_table (id int, v varchar)

@@ -4,7 +4,7 @@
  *
  *	  implement hooks for transactions and tablespace storage
  *
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -12,7 +12,7 @@
  *
  *-------------------------------------------------------------------------
  */
-
+#include "postgres.h"
 
 #include "access/xact_storage_tablespace.h"
 #include "catalog/storage_tablespace.h"

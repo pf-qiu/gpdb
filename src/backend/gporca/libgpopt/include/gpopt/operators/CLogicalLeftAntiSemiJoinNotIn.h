@@ -24,75 +24,67 @@
 
 namespace gpopt
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalLeftAntiSemiJoinNotIn
-	//
-	//	@doc:
-	//		Left anti semi join operator with the NotIn semantics
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalLeftAntiSemiJoinNotIn : public CLogicalLeftAntiSemiJoin
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalLeftAntiSemiJoinNotIn
+//
+//	@doc:
+//		Left anti semi join operator with the NotIn semantics
+//
+//---------------------------------------------------------------------------
+class CLogicalLeftAntiSemiJoinNotIn : public CLogicalLeftAntiSemiJoin
+{
+private:
+public:
+	CLogicalLeftAntiSemiJoinNotIn(const CLogicalLeftAntiSemiJoinNotIn &) =
+		delete;
+
+	// ctor
+	explicit CLogicalLeftAntiSemiJoinNotIn(CMemoryPool *mp);
+
+	// dtor
+	~CLogicalLeftAntiSemiJoinNotIn() override = default;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
-		private:
+		return EopLogicalLeftAntiSemiJoinNotIn;
+	}
 
-			// private copy ctor
-			CLogicalLeftAntiSemiJoinNotIn(const CLogicalLeftAntiSemiJoinNotIn &);
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalLeftAntiSemiJoinNotIn";
+	}
 
-		public:
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			// ctor
-			explicit
-			CLogicalLeftAntiSemiJoinNotIn(CMemoryPool *mp);
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *mp) const override;
 
-			// dtor
-			virtual
-			~CLogicalLeftAntiSemiJoinNotIn()
-			{}
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopLogicalLeftAntiSemiJoinNotIn;
-			}
+	// conversion function
+	static CLogicalLeftAntiSemiJoinNotIn *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalLeftAntiSemiJoinNotIn == pop->Eopid());
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CLogicalLeftAntiSemiJoinNotIn";
-			}
+		return dynamic_cast<CLogicalLeftAntiSemiJoinNotIn *>(pop);
+	}
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
+};	// class CLogicalLeftAntiSemiJoinNotIn
 
-			// candidate set of xforms
-			CXformSet *PxfsCandidates(CMemoryPool *mp) const;
-
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-
-			// conversion function
-			static
-			CLogicalLeftAntiSemiJoinNotIn *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalLeftAntiSemiJoinNotIn == pop->Eopid());
-
-				return dynamic_cast<CLogicalLeftAntiSemiJoinNotIn*>(pop);
-			}
-
-	}; // class CLogicalLeftAntiSemiJoinNotIn
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOS_CLogicalLeftAntiSemiJoinNotIn_H
+#endif	// !GPOS_CLogicalLeftAntiSemiJoinNotIn_H
 
 // EOF

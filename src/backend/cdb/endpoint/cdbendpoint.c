@@ -74,6 +74,7 @@
 #include "cdbendpointinternal.h"
 #include "libpq-fe.h"
 #include "libpq/libpq.h"
+#include "pgstat.h"
 #include "storage/ipc.h"
 #include "storage/latch.h"
 #include "storage/procsignal.h"
@@ -292,7 +293,6 @@ WaitEndpointReady(EState *estate)
 static const int8 *
 get_or_create_token(void)
 {
-#ifdef HAVE_STRONG_RANDOM
 	static int	sessionId = InvalidSession;
 	static int8 currentToken[ENDPOINT_TOKEN_LEN] = {0};
 	const static int sessionIdLen = sizeof(sessionId);
@@ -309,9 +309,6 @@ get_or_create_token(void)
 		}
 	}
 	return currentToken;
-#else
-#error A strong random number source is needed.
-#endif
 }
 
 /*
@@ -702,7 +699,8 @@ wait_receiver(struct ParallelRtrvCursorSenderState * state)
 		wr = WaitLatchOrSocket(&state->endpoint->ackDone,
 		WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT | WL_SOCKET_READABLE,
 							   MyProcPort->sock,
-							   WAIT_NORMAL_TIMEOUT);
+							   WAIT_NORMAL_TIMEOUT,
+							   PG_WAIT_WAIT_RECEIVE);
 		if (wr & WL_TIMEOUT)
 			continue;
 
@@ -756,7 +754,6 @@ detach_mq(dsm_segment *dsmSeg)
 static void
 unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
 {
-	SessionInfoEntry *sessionInfoEntry;
 	SessionTokenTag tag;
 
 	tag.sessionID = gp_session_id;
@@ -840,9 +837,10 @@ wait_parallel_retrieve_close(void)
 
 		elog(DEBUG3, "CDB_ENDPOINT: wait for parallel retrieve cursor close");
 		wr = WaitLatchOrSocket(&MyProc->procLatch,
-		WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT | WL_SOCKET_READABLE,
+							   WL_LATCH_SET | WL_POSTMASTER_DEATH | WL_TIMEOUT | WL_SOCKET_READABLE,
 							   MyProcPort->sock,
-							   WAIT_NORMAL_TIMEOUT);
+							   WAIT_NORMAL_TIMEOUT,
+							   PG_WAIT_PARALLEL_RETRIEVE_CLOSE);
 		if (wr & WL_TIMEOUT)
 			continue;
 
@@ -1023,7 +1021,6 @@ generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 	 * reuse the previous endpoint name may cause unexpected behavior for the
 	 * retrieving session.
 	 */
-#ifdef HAVE_STRONG_RANDOM
 	int			len = 0;
 
 	/* part1:cursor name */
@@ -1055,9 +1052,6 @@ generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 	pfree(random);
 	len += ENDPOINT_NAME_RANDOM_LEN;
 	name[len] = '\0';
-#else
-#error A strong random number source is needed.
-#endif
 }
 
 /*

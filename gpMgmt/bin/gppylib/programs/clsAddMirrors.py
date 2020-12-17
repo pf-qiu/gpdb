@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Line too long            - pylint: disable=C0301
 # Invalid name             - pylint: disable=C0103
 #
@@ -9,7 +9,7 @@
 from gppylib.mainUtils import *
 
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, SUPPRESS_USAGE
-import os, sys, getopt, socket, StringIO, signal, copy
+import os, sys, getopt, socket, io, signal, copy
 
 from gppylib import gparray, gplog, pgconf, userinput, utils, heapchecksum
 from gppylib.commands.base import Command
@@ -19,13 +19,13 @@ from gppylib.db import catalog, dbconn
 from gppylib.gpparseopts import OptParser, OptChecker
 from gppylib.operations.startSegments import *
 from gppylib.operations.buildMirrorSegments import *
+from gppylib.operations.update_pg_hba_conf import config_primaries_for_replication
 from gppylib.programs import programIoUtils
 from gppylib.system import configurationInterface as configInterface
 from gppylib.system.environment import GpMasterEnvironment
 from gppylib.parseutils import line_reader, check_values, canonicalize_address
 from gppylib.utils import writeLinesToFile, readAllLinesFromFile, TableLogger, \
     PathNormalizationException, normalizeAndValidateInputPath
-from gppylib.gphostcache import GpInterfaceToHostNameCache
 from gppylib.userinput import *
 from gppylib.mainUtils import ExceptionNoStackTraceNeeded
 
@@ -51,17 +51,17 @@ class GpMirrorBuildCalculator:
         self.__nextDbId = max([seg.getSegmentDbId() for seg in gpArray.getDbList()]) + 1
         self.__minPrimaryPortOverall = min([seg.getSegmentPort() for seg in self.__primaries])
 
-        def comparePorts(left, right):
-            return cmp(left.getSegmentPort(), right.getSegmentPort())
+        def portKey(segment):
+            return segment.getSegmentPort()
 
         self.__mirrorsAddedByHost = {}  # map hostname to the # of mirrors that have been added to that host
         self.__primariesUpdatedToHaveMirrorsByHost = {}  # map hostname to the # of primaries that have been attached to mirrors for that host
         self.__primaryPortBaseByHost = {}  # map hostname to the lowest port number in-use by a primary on that host
-        for hostName, segments in self.__primariesByHost.iteritems():
+        for hostName, segments in self.__primariesByHost.items():
             self.__primaryPortBaseByHost[hostName] = min([seg.getSegmentPort() for seg in segments])
             self.__mirrorsAddedByHost[hostName] = 0
             self.__primariesUpdatedToHaveMirrorsByHost[hostName] = 0
-            segments.sort(comparePorts)
+            segments.sort(key = portKey)
 
         self.__mirrorPortOffset = options.mirrorOffset
         self.__mirrorDataDirs = mirrorDataDirs
@@ -213,7 +213,7 @@ class GpMirrorBuildCalculator:
          Side-effect: self.__gpArray and other fields are updated to contain the returned segments
         """
 
-        hosts = self.__primariesByHost.keys()
+        hosts = list(self.__primariesByHost.keys())
         hosts.sort()
 
         result = []
@@ -232,7 +232,7 @@ class GpMirrorBuildCalculator:
          Side-effect: self.__gpArray is updated to contain the returned segments
         """
 
-        hosts = self.__primariesByHost.keys()
+        hosts = list(self.__primariesByHost.keys())
         hosts.sort()
 
         result = []
@@ -292,8 +292,6 @@ class GpAddMirrorsProgram:
                 rows.append(self._getParsedRow(filename, lineno, line))
 
         allAddresses = [row["address"] for row in rows]
-        interfaceLookup = GpInterfaceToHostNameCache(self.__pool, allAddresses, [None]*len(allAddresses))
-
         #
         # build up the output now
         #
@@ -308,9 +306,8 @@ class GpAddMirrorsProgram:
             contentId = int(row['contentId'])
             address = row['address']
             dataDir = normalizeAndValidateInputPath(row['dataDirectory'], "in config file", row['lineno'])
-            hostName = interfaceLookup.getHostName(address)
-            if hostName is None:
-                raise Exception("Segment Host Address %s is unreachable" % address)
+            # FIXME: hostname probably should not be address, but to do so, "hostname" should be added to gpaddmirrors config file
+            hostName = address
 
             primary = segsByContentId[contentId]
             if primary is None:
@@ -374,13 +371,13 @@ class GpAddMirrorsProgram:
             # get from stdin
             #
             while len(dirs) < maxPrimariesPerHost:
-                print 'Enter mirror segment data directory location %d of %d >' % (len(dirs) + 1, maxPrimariesPerHost)
-                line = raw_input().strip()
+                print('Enter mirror segment data directory location %d of %d >' % (len(dirs) + 1, maxPrimariesPerHost))
+                line = input().strip()
                 if len(line) > 0:
                     try:
                         dirs.append(normalizeAndValidateInputPath(line))
-                    except PathNormalizationException, e:
-                        print "\n%s\n" % e
+                    except PathNormalizationException as e:
+                        print("\n%s\n" % e)
 
         return dirs
 
@@ -389,7 +386,7 @@ class GpAddMirrorsProgram:
 
         maxPrimariesPerHost = 0
         segments = [seg for seg in gpArray.getDbList() if seg.isSegmentPrimary(False)]
-        for hostName, hostSegments in GpArray.getSegmentsByHostName(segments).iteritems():
+        for hostName, hostSegments in GpArray.getSegmentsByHostName(segments).items():
             if len(hostSegments) > maxPrimariesPerHost:
                 maxPrimariesPerHost = len(hostSegments)
 
@@ -499,55 +496,6 @@ class GpAddMirrorsProgram:
         else:
             logger.info("Heap checksum setting consistent across cluster")
 
-    def config_primaries_for_replication(self, gpArray):
-        logger.info("Starting to modify pg_hba.conf on primary segments to allow replication connections")
-
-        try:
-            for segmentPair in gpArray.getSegmentList():
-                # Start with an empty string so that the later .join prepends a newline to the first entry
-                entries = ['']
-                # Add the samehost replication entry to support single-host development
-                entries.append('host  replication {username} samehost trust'.format(username=unix.getUserName()))
-                if self.__options.hba_hostnames:
-                    mirror_hostname, _, _ = socket.gethostbyaddr(segmentPair.mirrorDB.getSegmentHostName())
-                    entries.append("host all {username} {hostname} trust".format(username=unix.getUserName(), hostname=mirror_hostname))
-                    entries.append("host replication {username} {hostname} trust".format(username=unix.getUserName(), hostname=mirror_hostname))
-                    primary_hostname, _, _ = socket.gethostbyaddr(segmentPair.primaryDB.getSegmentHostName())
-                    if mirror_hostname != primary_hostname:
-                        entries.append("host replication {username} {hostname} trust".format(username=unix.getUserName(), hostname=primary_hostname))
-                else:
-                    mirror_ips = unix.InterfaceAddrs.remote('get mirror ips', segmentPair.mirrorDB.getSegmentHostName())
-                    for ip in mirror_ips:
-                        cidr_suffix = '/128' if ':' in ip else '/32'
-                        cidr = ip + cidr_suffix
-                        hba_line_entry = "host all {username} {cidr} trust".format(username=unix.getUserName(), cidr=cidr)
-                        entries.append(hba_line_entry)
-                    mirror_hostname = segmentPair.mirrorDB.getSegmentHostName()
-                    segment_pair_ips = gp.IfAddrs.list_addrs(mirror_hostname)
-                    primary_hostname = segmentPair.primaryDB.getSegmentHostName()
-                    if mirror_hostname != primary_hostname:
-                        segment_pair_ips.extend(gp.IfAddrs.list_addrs(primary_hostname))
-                    for ip in segment_pair_ips:
-                        cidr_suffix = '/128' if ':' in ip else '/32'
-                        cidr = ip + cidr_suffix
-                        hba_line_entry = "host replication {username} {cidr} trust".format(username=unix.getUserName(), cidr=cidr)
-                        entries.append(hba_line_entry)
-                cmdStr = ". {gphome}/greenplum_path.sh; echo '{entries}' >> {datadir}/pg_hba.conf; pg_ctl -D {datadir} reload".format(
-                    gphome=os.environ["GPHOME"],
-                    entries="\n".join(entries),
-                    datadir=segmentPair.primaryDB.datadir)
-                logger.debug(cmdStr)
-                cmd = Command(name="append to pg_hba.conf", cmdStr=cmdStr, ctxt=base.REMOTE, remoteHost=segmentPair.primaryDB.hostname)
-                cmd.run(validateAfter=True)
-
-        except Exception, e:
-            logger.error("Failed while modifying pg_hba.conf on primary segments to allow replication connections: %s" % str(e))
-            raise
-
-        else:
-            logger.info("Successfully modified pg_hba.conf on primary segments to allow replication connections")
-
-
     def run(self):
         if self.__options.parallelDegree < 1 or self.__options.parallelDegree > 64:
             raise ProgramArgumentValidationException(
@@ -563,7 +511,8 @@ class GpAddMirrorsProgram:
         # check that heap_checksums is consistent across cluster, fail immediately if not
         self.validate_heap_checksums(gpArray)
 
-        self.checkMirrorOffset(gpArray)
+        if self.__options.mirrorConfigFile is None:
+            self.checkMirrorOffset(gpArray)
         
         # check that we actually have mirrors
         if gpArray.hasMirrors:
@@ -584,7 +533,7 @@ class GpAddMirrorsProgram:
                 if not userinput.ask_yesno(None, "\nContinue with add mirrors procedure", 'N'):
                     raise UserAbortedException()
 
-            self.config_primaries_for_replication(gpArray)
+            config_primaries_for_replication(gpArray, self.__options.hba_hostnames)
             if not mirrorBuilder.buildMirrors("add", gpEnv, gpArray):
                 return 1
 

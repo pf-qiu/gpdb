@@ -18,54 +18,46 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerLimit
-	//
-	//	@doc:
-	//		Parse handler for limit operator
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerLimit : public CParseHandlerPhysicalOp
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerLimit
+//
+//	@doc:
+//		Parse handler for limit operator
+//
+//---------------------------------------------------------------------------
+class CParseHandlerLimit : public CParseHandlerPhysicalOp
+{
+private:
+	CDXLPhysicalLimit *m_dxl_op;
 
-				CDXLPhysicalLimit *m_dxl_op;
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-				// private copy ctor
-				CParseHandlerLimit(const CParseHandlerLimit &);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-				// process the start of an element
-				void StartElement
-					(
-						const XMLCh* const element_uri, 		// URI of element's namespace
-	 					const XMLCh* const element_local_name,	// local part of element's name
-						const XMLCh* const element_qname,		// element's qname
-						const Attributes& attr				// element's attributes
-					);
+public:
+	CParseHandlerLimit(const CParseHandlerLimit &) = delete;
 
-				// process the end of an element
-				void EndElement
-					(
-						const XMLCh* const element_uri, 		// URI of element's namespace
-						const XMLCh* const element_local_name,	// local part of element's name
-						const XMLCh* const element_qname		// element's qname
-					);
-
-			public:
-				// ctor/dtor
-				CParseHandlerLimit
-					(
-					CMemoryPool *mp,
-					CParseHandlerManager *parse_handler_mgr,
-					CParseHandlerBase *parse_handler_root
-					);
-	};
-}
-#endif // GPDXL_CParseHandlerLimit_H
+	// ctor/dtor
+	CParseHandlerLimit(CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+					   CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
+#endif	// GPDXL_CParseHandlerLimit_H
 
 // EOF

@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLScalarPartBoundInclusion.h
@@ -19,90 +19,82 @@
 
 namespace gpdxl
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLScalarPartBoundInclusion
+//
+//	@doc:
+//		Class for representing DXL Part boundary inclusion expressions
+//		These expressions are created and consumed by the PartitionSelector operator
+//
+//---------------------------------------------------------------------------
+class CDXLScalarPartBoundInclusion : public CDXLScalar
+{
+private:
+	// partitioning level
+	ULONG m_partitioning_level;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLScalarPartBoundInclusion
-	//
-	//	@doc:
-	//		Class for representing DXL Part boundary inclusion expressions
-	//		These expressions are created and consumed by the PartitionSelector operator
-	//
-	//---------------------------------------------------------------------------
-	class CDXLScalarPartBoundInclusion : public CDXLScalar
+	// whether this represents a lower or upper bound
+	BOOL m_is_lower_bound;
+
+public:
+	CDXLScalarPartBoundInclusion(const CDXLScalarPartBoundInclusion &) = delete;
+
+	// ctor
+	CDXLScalarPartBoundInclusion(CMemoryPool *mp, ULONG partitioning_level,
+								 BOOL is_lower_bound);
+
+	// operator type
+	Edxlopid GetDXLOperator() const override;
+
+	// operator name
+	const CWStringConst *GetOpNameStr() const override;
+
+	// partitioning level
+	ULONG
+	GetPartitioningLevel() const
 	{
-		private:
+		return m_partitioning_level;
+	}
 
-			// partitioning level
-			ULONG m_partitioning_level;
+	// is this a lower (or upper) bound
+	BOOL
+	IsLowerBound() const
+	{
+		return m_is_lower_bound;
+	}
 
-			// whether this represents a lower or upper bound
-			BOOL m_is_lower_bound;
+	// serialize operator in DXL format
+	void SerializeToDXL(CXMLSerializer *xml_serializer,
+						const CDXLNode *dxlnode) const override;
 
-			// private copy ctor
-			CDXLScalarPartBoundInclusion(const CDXLScalarPartBoundInclusion&);
-
-		public:
-			// ctor
-			CDXLScalarPartBoundInclusion(CMemoryPool *mp, ULONG partitioning_level, BOOL is_lower_bound);
-
-			// operator type
-			virtual
-			Edxlopid GetDXLOperator() const;
-
-			// operator name
-			virtual
-			const CWStringConst *GetOpNameStr() const;
-
-			// partitioning level
-			ULONG GetPartitioningLevel() const
-			{
-				return m_partitioning_level;
-			}
-
-			// is this a lower (or upper) bound
-			BOOL IsLowerBound() const
-			{
-				return m_is_lower_bound;
-			}
-
-			// serialize operator in DXL format
-			virtual
-			void SerializeToDXL(CXMLSerializer *xml_serializer, const CDXLNode *dxlnode) const;
-
-			// does the operator return a boolean result
-			virtual
-			BOOL HasBoolResult
-					(
-					CMDAccessor * //md_accessor
-					)
-					const
-			{
-				return true;
-			}
+	// does the operator return a boolean result
+	BOOL
+	HasBoolResult(CMDAccessor *	 //md_accessor
+	) const override
+	{
+		return true;
+	}
 
 #ifdef GPOS_DEBUG
-			// checks whether the operator has valid structure, i.e. number and
-			// types of child nodes
-			virtual
-			void AssertValid(const CDXLNode *dxlnode, BOOL validate_children) const;
-#endif // GPOS_DEBUG
+	// checks whether the operator has valid structure, i.e. number and
+	// types of child nodes
+	void AssertValid(const CDXLNode *dxlnode,
+					 BOOL validate_children) const override;
+#endif	// GPOS_DEBUG
 
-			// conversion function
-			static
-			CDXLScalarPartBoundInclusion *Cast
-				(
-				CDXLOperator *dxl_op
-				)
-			{
-				GPOS_ASSERT(NULL != dxl_op);
-				GPOS_ASSERT(EdxlopScalarPartBoundInclusion == dxl_op->GetDXLOperator());
+	// conversion function
+	static CDXLScalarPartBoundInclusion *
+	Cast(CDXLOperator *dxl_op)
+	{
+		GPOS_ASSERT(NULL != dxl_op);
+		GPOS_ASSERT(EdxlopScalarPartBoundInclusion == dxl_op->GetDXLOperator());
 
-				return dynamic_cast<CDXLScalarPartBoundInclusion*>(dxl_op);
-			}
-	};
-}
+		return dynamic_cast<CDXLScalarPartBoundInclusion *>(dxl_op);
+	}
+};
+}  // namespace gpdxl
 
-#endif // !GPDXL_CDXLScalarPartBoundInclusion_H
+#endif	// !GPDXL_CDXLScalarPartBoundInclusion_H
 
 // EOF

@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDXLPhysicalExternalScan.cpp
@@ -25,13 +25,10 @@ using namespace gpdxl;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CDXLPhysicalExternalScan::CDXLPhysicalExternalScan
-	(
-	CMemoryPool *mp
-	)
-	:
-	CDXLPhysicalTableScan(mp)
-{}
+CDXLPhysicalExternalScan::CDXLPhysicalExternalScan(CMemoryPool *mp)
+	: CDXLPhysicalTableScan(mp)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -41,14 +38,11 @@ CDXLPhysicalExternalScan::CDXLPhysicalExternalScan
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CDXLPhysicalExternalScan::CDXLPhysicalExternalScan
-	(
-	CMemoryPool *mp,
-	CDXLTableDescr *table_descr
-	)
-	:
-	CDXLPhysicalTableScan(mp, table_descr)
-{}
+CDXLPhysicalExternalScan::CDXLPhysicalExternalScan(CMemoryPool *mp,
+												   CDXLTableDescr *table_descr)
+	: CDXLPhysicalTableScan(mp, table_descr)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:

@@ -4,7 +4,7 @@
  *        Prototypes for nodeSplitUpdate.
  *
  * Portions Copyright (c) 2012, EMC Corp.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -16,7 +16,6 @@
 #ifndef NODESplitUpdate_H
 #define NODESplitUpdate_H
 
-extern TupleTableSlot* ExecSplitUpdate(SplitUpdateState *node);
 extern SplitUpdateState* ExecInitSplitUpdate(SplitUpdate *node, EState *estate, int eflags);
 extern void ExecEndSplitUpdate(SplitUpdateState *node);
 

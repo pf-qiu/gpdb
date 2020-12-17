@@ -16,65 +16,53 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformCTEAnchor2TrivialSelect
-	//
-	//	@doc:
-	//		Transform logical CTE anchor to select with "true" predicate
-	//
-	//---------------------------------------------------------------------------
-	class CXformCTEAnchor2TrivialSelect : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformCTEAnchor2TrivialSelect
+//
+//	@doc:
+//		Transform logical CTE anchor to select with "true" predicate
+//
+//---------------------------------------------------------------------------
+class CXformCTEAnchor2TrivialSelect : public CXformExploration
+{
+private:
+public:
+	CXformCTEAnchor2TrivialSelect(const CXformCTEAnchor2TrivialSelect &) =
+		delete;
+
+	// ctor
+	explicit CXformCTEAnchor2TrivialSelect(CMemoryPool *mp);
+
+	// dtor
+	~CXformCTEAnchor2TrivialSelect() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfCTEAnchor2TrivialSelect;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformCTEAnchor2TrivialSelect";
+	}
 
-			// private copy ctor
-			CXformCTEAnchor2TrivialSelect(const CXformCTEAnchor2TrivialSelect &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformCTEAnchor2TrivialSelect(CMemoryPool *mp);
+};	// class CXformCTEAnchor2TrivialSelect
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformCTEAnchor2TrivialSelect() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfCTEAnchor2TrivialSelect;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformCTEAnchor2TrivialSelect";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformCTEAnchor2TrivialSelect
-}
-
-#endif // !GPOPT_CXformCTEAnchor2TrivialSelect_H
+#endif	// !GPOPT_CXformCTEAnchor2TrivialSelect_H
 
 // EOF

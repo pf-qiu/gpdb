@@ -80,6 +80,31 @@ SELECT tableoid::regclass, * FROM partdisttest;
 DROP TABLE partdisttest;
 
 
+-- Similar case, where the columns are in different order
+CREATE TABLE partdisttest (a int, b int, c int)
+  DISTRIBUTED BY (a)
+  PARTITION BY RANGE (b);
+
+CREATE TABLE partdisttest_part0 (a int, b int, c int) DISTRIBUTED BY (a);
+ALTER TABLE partdisttest ATTACH PARTITION partdisttest_part0 FOR VALUES FROM (0) TO (50);
+
+CREATE TABLE partdisttest_part50 (c int, a int, b int) DISTRIBUTED BY (a);
+ALTER TABLE partdisttest ATTACH PARTITION partdisttest_part50 FOR VALUES FROM (50) TO (100);
+
+COPY partdisttest FROM stdin;
+1	0	3
+2	0	3
+3	0	3
+4	0	3
+1	50	3
+2	50	3
+3	50	3
+4	50	3
+\.
+
+SELECT gp_segment_id, tableoid::regclass, * from partdisttest;
+
+DROP TABLE partdisttest;
 
 -- Subpartitions
 CREATE TABLE partdisttest (a int, dropped int, b int, c int, d int)
@@ -132,3 +157,20 @@ COPY (
 COPY partdisttest FROM '/tmp/ten-thousand-and-one-lines.txt';
 
 SELECT tableoid::regclass, count(*) FROM partdisttest GROUP BY 1;
+DROP TABLE partdisttest;
+
+-- Log errors on QEs
+CREATE TABLE partdisttest(id INT, t TIMESTAMP, d VARCHAR(4))
+  DISTRIBUTED BY (id)
+  PARTITION BY RANGE (t)
+  (
+    PARTITION p2020 START ('2020-01-01'::TIMESTAMP) END ('2021-01-01'::TIMESTAMP),
+    DEFAULT PARTITION extra
+  );
+
+COPY partdisttest FROM STDIN LOG ERRORS SEGMENT REJECT LIMIT 2;
+1	'2020-04-15'	abcde
+1	'2020-04-15'	abc
+\.
+
+DROP TABLE partdisttest;

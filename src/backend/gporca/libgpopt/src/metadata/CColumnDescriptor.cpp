@@ -24,23 +24,16 @@ using namespace gpmd;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CColumnDescriptor::CColumnDescriptor
-	(
-	CMemoryPool *mp,
-	const IMDType *pmdtype,
-	INT type_modifier,
-	const CName &name,
-	INT attno,
-	BOOL is_nullable,
-	ULONG ulWidth
-	)
-	:
-	m_pmdtype(pmdtype),
-	m_type_modifier(type_modifier),
-	m_name(mp, name),
-	m_iAttno(attno),
-	m_is_nullable(is_nullable),
-	m_width(ulWidth)
+CColumnDescriptor::CColumnDescriptor(CMemoryPool *mp, const IMDType *pmdtype,
+									 INT type_modifier, const CName &name,
+									 INT attno, BOOL is_nullable, ULONG ulWidth)
+	: m_pmdtype(pmdtype),
+	  m_type_modifier(type_modifier),
+	  m_name(mp, name),
+	  m_iAttno(attno),
+	  m_is_nullable(is_nullable),
+	  m_width(ulWidth),
+	  m_is_dist_col(false)
 {
 	GPOS_ASSERT(NULL != pmdtype);
 	GPOS_ASSERT(pmdtype->MDId()->IsValid());
@@ -59,10 +52,8 @@ CColumnDescriptor::CColumnDescriptor
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CColumnDescriptor::~CColumnDescriptor()
-{}
+CColumnDescriptor::~CColumnDescriptor() = default;
 
-#ifdef GPOS_DEBUG
 //---------------------------------------------------------------------------
 //	@function:
 //		CColumnDescriptor::OsPrint
@@ -72,16 +63,10 @@ CColumnDescriptor::~CColumnDescriptor()
 //
 //---------------------------------------------------------------------------
 IOstream &
-CColumnDescriptor::OsPrint
-	(
-	IOstream &os
-	)
-	const
+CColumnDescriptor::OsPrint(IOstream &os) const
 {
 	return m_name.OsPrint(os);
 }
 
-#endif // GPOS_DEBUG
 
 // EOF
-

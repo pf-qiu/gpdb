@@ -20,7 +20,7 @@
 using namespace gpopt;
 using namespace gpos;
 
-#define GPOPT_JOB_TEST_DUMMY_CONST	45
+#define GPOPT_JOB_TEST_DUMMY_CONST 45
 
 // initialization of static members
 ULONG_PTR CJobTest::m_ulpCnt;
@@ -34,13 +34,13 @@ ULONG_PTR CJobTest::m_ulpCnt;
 //
 //---------------------------------------------------------------------------
 CJobTest::CJobTest()
-	:
-	CJob(),
-	m_ett(EttSpawn),
-	m_ulRounds(gpos::ulong_max),
-	m_ulFanout(gpos::ulong_max),
-	m_ulIters(gpos::ulong_max)
-{}
+	: CJob(),
+	  m_ett(EttSpawn),
+	  m_ulRounds(gpos::ulong_max),
+	  m_ulFanout(gpos::ulong_max),
+	  m_ulIters(gpos::ulong_max)
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -51,8 +51,7 @@ CJobTest::CJobTest()
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CJobTest::~CJobTest()
-{}
+CJobTest::~CJobTest() = default;
 
 
 //---------------------------------------------------------------------------
@@ -64,14 +63,11 @@ CJobTest::~CJobTest()
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobTest::FExecute
-	(
-	CSchedulerContext *psc
-	)
+CJobTest::FExecute(CSchedulerContext *psc)
 {
 	BOOL fRes = false;
 
-	switch(m_ett)
+	switch (m_ett)
 	{
 		case EttSpawn:
 			fRes = FSpawn(psc);
@@ -99,10 +95,7 @@ CJobTest::FExecute
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobTest::FSpawn
-	(
-	CSchedulerContext *psc
-	)
+CJobTest::FSpawn(CSchedulerContext *psc)
 {
 	ULONG_PTR ulpOffset = m_ulpCnt++;
 
@@ -116,7 +109,7 @@ CJobTest::FSpawn
 
 		GPOS_TRACE(str.GetBuffer());
 	}
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 	if (m_ulRounds > ulpOffset)
 	{
@@ -155,10 +148,7 @@ CJobTest::FSpawn
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobTest::FStartQueue
-	(
-	CSchedulerContext *psc
-	)
+CJobTest::FStartQueue(CSchedulerContext *psc)
 {
 	ULONG_PTR ulpOffset = m_ulpCnt++;
 
@@ -171,7 +161,8 @@ CJobTest::FStartQueue
 
 			// initialize test job
 			CJobTest *pjt = PjConvert(pj);
-			pjt->Init(CJobTest::EttQueueu, m_ulRounds, m_ulFanout, m_ulIters, m_pjq);
+			pjt->Init(CJobTest::EttQueueu, m_ulRounds, m_ulFanout, m_ulIters,
+					  m_pjq);
 
 			// schedule new job for execution as child
 			psc->Psched()->Add(pj, this);
@@ -195,10 +186,7 @@ CJobTest::FStartQueue
 //
 //---------------------------------------------------------------------------
 BOOL
-CJobTest::FQueue
-	(
-	CSchedulerContext *psc
-	)
+CJobTest::FQueue(CSchedulerContext *psc)
 {
 	BOOL fCompleted = true;
 
@@ -219,9 +207,10 @@ CJobTest::FQueue
 
 				GPOS_TRACE(str.GetBuffer());
 			}
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 			m_pjq->NotifyCompleted(psc);
-			break;;
+			break;
+			;
 
 		case CJobQueue::EjqrQueued:
 			if (10 > m_ulFanout)
@@ -282,16 +271,12 @@ CJobTest::Loop()
 //
 //---------------------------------------------------------------------------
 IOstream &
-CJobTest::OsPrint
-	(
-	IOstream &os
-	)
+CJobTest::OsPrint(IOstream &os) const
 {
 	os << "Test job, ";
 	return CJob::OsPrint(os);
 }
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
 // EOF
-

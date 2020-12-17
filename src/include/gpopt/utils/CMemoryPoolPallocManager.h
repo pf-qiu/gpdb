@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2019 Pivotal, Inc.
+//	Copyright (C) 2019 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CMemoryPoolPallocManager.h
@@ -20,34 +20,31 @@
 
 namespace gpos
 {
-	// memory pool manager that uses GPDB memory contexts
-	class CMemoryPoolPallocManager : public CMemoryPoolManager
-	{
-		private:
+// memory pool manager that uses GPDB memory contexts
+class CMemoryPoolPallocManager : public CMemoryPoolManager
+{
+private:
+public:
+	CMemoryPoolPallocManager(const CMemoryPoolPallocManager &) = delete;
 
-			// private no copy ctor
-			CMemoryPoolPallocManager(const CMemoryPoolPallocManager&);
+	// ctor
+	CMemoryPoolPallocManager(CMemoryPool *internal,
+							 EMemoryPoolType memory_pool_type);
 
-		public:
+	// allocate new memorypool
+	CMemoryPool *NewMemoryPool() override;
 
-			// ctor
-			CMemoryPoolPallocManager(CMemoryPool *internal, EMemoryPoolType memory_pool_type);
+	// free allocation
+	void DeleteImpl(void *ptr, CMemoryPool::EAllocationType eat) override;
 
-			// allocate new memorypool
-			virtual CMemoryPool *NewMemoryPool();
-
-			// free allocation
-			void DeleteImpl(void* ptr, CMemoryPool::EAllocationType eat);
-
-			// get user requested size of allocation
-			ULONG UserSizeOfAlloc(const void* ptr);
+	// get user requested size of allocation
+	ULONG UserSizeOfAlloc(const void *ptr) override;
 
 
-			static
-			GPOS_RESULT Init();
-	};
-}
+	static GPOS_RESULT Init();
+};
+}  // namespace gpos
 
-#endif // !GPDXL_CMemoryPoolPallocManager_H
+#endif	// !GPDXL_CMemoryPoolPallocManager_H
 
 // EOF

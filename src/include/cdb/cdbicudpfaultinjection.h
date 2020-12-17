@@ -5,7 +5,7 @@
  *
  * Portions Copyright (c) 2005-2011, Greenplum Inc.
  * Portions Copyright (c) 2011-2012, EMC Corporation
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -212,7 +212,7 @@ testmode_sendto(const char *caller_name, int socket, const void *buffer,
 				break;
 			FAULT_INJECT_BACKUP_PKT();
 			msg->srcPid = -1;	/* There is no such pid. */
-			msg->icId = gp_interconnect_id;
+			msg->icId = 0;
 			msg->seq = 1;
 			write_log("inject fault to sendto: FINC_PKT_MISMATCH");
 			break;

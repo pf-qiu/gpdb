@@ -3,7 +3,7 @@
  * aovisimap.h
  *   Definitions to support creation of aovisimap tables.
  *
- * Copyright (c) 2013-Present Pivotal Software, Inc.
+ * Copyright (c) 2013-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -25,7 +25,6 @@
 #define Anum_pg_aovisimap_firstrownum   2
 #define Anum_pg_aovisimap_visimap       3
 
-extern void AlterTableCreateAoVisimapTable(Oid relOid, bool is_part_child,
-										   bool is_part_parent);
+extern void AlterTableCreateAoVisimapTable(Oid relOid);
 
 #endif

@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CParseHandlerLogicalExternalGet.cpp
@@ -25,15 +25,12 @@ XERCES_CPP_NAMESPACE_USE
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CParseHandlerLogicalExternalGet::CParseHandlerLogicalExternalGet
-	(
-	CMemoryPool *mp,
-	CParseHandlerManager *parse_handler_mgr,
-	CParseHandlerBase *parse_handler_root
-	)
-	:
-	CParseHandlerLogicalGet(mp, parse_handler_mgr, parse_handler_root)
-{}
+CParseHandlerLogicalExternalGet::CParseHandlerLogicalExternalGet(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+	: CParseHandlerLogicalGet(mp, parse_handler_mgr, parse_handler_root)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -44,15 +41,15 @@ CParseHandlerLogicalExternalGet::CParseHandlerLogicalExternalGet
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerLogicalExternalGet::StartElement
-	(
-	const XMLCh* const, // element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const, // element_qname
-	const Attributes& //attrs
-	)
+CParseHandlerLogicalExternalGet::StartElement(
+	const XMLCh *const,	 // element_uri,
+	const XMLCh *const element_local_name,
+	const XMLCh *const,	 // element_qname
+	const Attributes &	 //attrs
+)
 {
-	CParseHandlerLogicalGet::StartElement(element_local_name, EdxltokenLogicalExternalGet);
+	CParseHandlerLogicalGet::StartElement(element_local_name,
+										  EdxltokenLogicalExternalGet);
 }
 
 //---------------------------------------------------------------------------
@@ -64,14 +61,14 @@ CParseHandlerLogicalExternalGet::StartElement
 //
 //---------------------------------------------------------------------------
 void
-CParseHandlerLogicalExternalGet::EndElement
-	(
-	const XMLCh* const, // element_uri,
-	const XMLCh* const element_local_name,
-	const XMLCh* const // element_qname
-	)
+CParseHandlerLogicalExternalGet::EndElement(
+	const XMLCh *const,	 // element_uri,
+	const XMLCh *const element_local_name,
+	const XMLCh *const	// element_qname
+)
 {
-	CParseHandlerLogicalGet::EndElement(element_local_name, EdxltokenLogicalExternalGet);
+	CParseHandlerLogicalGet::EndElement(element_local_name,
+										EdxltokenLogicalExternalGet);
 }
 
 // EOF

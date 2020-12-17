@@ -16,64 +16,52 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementCTEProducer
-	//
-	//	@doc:
-	//		Transform Logical CTE Producer to Physical CTE Producer
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementCTEProducer : public CXformImplementation
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementCTEProducer
+//
+//	@doc:
+//		Transform Logical CTE Producer to Physical CTE Producer
+//
+//---------------------------------------------------------------------------
+class CXformImplementCTEProducer : public CXformImplementation
+{
+private:
+public:
+	CXformImplementCTEProducer(const CXformImplementCTEProducer &) = delete;
+
+	// ctor
+	explicit CXformImplementCTEProducer(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementCTEProducer() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementCTEProducer;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementCTEProducer";
+	}
 
-			// private copy ctor
-			CXformImplementCTEProducer(const CXformImplementCTEProducer &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformImplementCTEProducer(CMemoryPool *mp);
+};	// class CXformImplementCTEProducer
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformImplementCTEProducer() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementCTEProducer;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementCTEProducer";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformImplementCTEProducer
-}
-
-#endif // !GPOPT_CXformImplementCTEProducer_H
+#endif	// !GPOPT_CXformImplementCTEProducer_H
 
 // EOF

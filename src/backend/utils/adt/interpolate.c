@@ -3,7 +3,7 @@
  * interpolate.c
  *
  * Portions Copyright (c) 2012, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -12,6 +12,8 @@
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
+
+#include <limits.h>
 
 #include "catalog/pg_type.h"
 #include "utils/date.h"

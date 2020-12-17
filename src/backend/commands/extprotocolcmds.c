@@ -5,7 +5,7 @@
  *	  Routines for external protocol-manipulation commands
  *
  * Portions Copyright (c) 2011, Greenplum/EMC.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 1996-2008, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -128,10 +128,10 @@ RemoveExtProtocolById(Oid protOid)
 	/*
 	 * Search pg_extprotocol.
 	 */
-	rel = heap_open(ExtprotocolRelationId, RowExclusiveLock);
+	rel = table_open(ExtprotocolRelationId, RowExclusiveLock);
 
 	ScanKeyInit(&skey,
-				ObjectIdAttributeNumber,
+				Anum_pg_extprotocol_oid,
 				BTEqualStrategyNumber, F_OIDEQ,
 				ObjectIdGetDatum(protOid));
 	scan = systable_beginscan(rel, ExtprotocolOidIndexId, true,
@@ -139,7 +139,7 @@ RemoveExtProtocolById(Oid protOid)
 
 	while (HeapTupleIsValid(tup = systable_getnext(scan)))
 	{
-		simple_heap_delete(rel, &tup->t_self);
+		CatalogTupleDelete(rel, &tup->t_self);
 		found = true;
 	}
 	systable_endscan(scan);
@@ -147,5 +147,5 @@ RemoveExtProtocolById(Oid protOid)
 	if (!found)
 		elog(ERROR, "protocol %u could not be found", protOid);
 
-	heap_close(rel, NoLock);
+	table_close(rel, NoLock);
 }

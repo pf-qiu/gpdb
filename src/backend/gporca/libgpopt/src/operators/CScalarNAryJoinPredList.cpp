@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2019 Pivotal Inc.
+//	Copyright (C) 2019 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarNAryJoinPredList.cpp
@@ -24,12 +24,7 @@ using namespace gpopt;
 //		ctor
 //
 //---------------------------------------------------------------------------
-CScalarNAryJoinPredList::CScalarNAryJoinPredList
-(
- CMemoryPool *mp
- )
-:
-CScalar(mp)
+CScalarNAryJoinPredList::CScalarNAryJoinPredList(CMemoryPool *mp) : CScalar(mp)
 {
 }
 
@@ -43,11 +38,7 @@ CScalar(mp)
 //
 //---------------------------------------------------------------------------
 BOOL
-CScalarNAryJoinPredList::Matches
-(
- COperator *pop
- )
-const
+CScalarNAryJoinPredList::Matches(COperator *pop) const
 {
 	return (pop->Eopid() == Eopid());
 }
@@ -69,4 +60,3 @@ CScalarNAryJoinPredList::FInputOrderSensitive() const
 
 
 // EOF
-

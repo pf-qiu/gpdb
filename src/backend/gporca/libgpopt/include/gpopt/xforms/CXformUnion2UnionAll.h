@@ -8,8 +8,8 @@
 //	@doc:
 //		Transform logical union into an aggregate over a logical union all
 //
-//	@owner: 
-//		
+//	@owner:
+//
 //
 //	@test:
 //
@@ -22,66 +22,57 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformUnion2UnionAll
-	//
-	//	@doc:
-	//		Transform logical union into an aggregate over a logical union all
-	//
-	//---------------------------------------------------------------------------
-	class CXformUnion2UnionAll : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformUnion2UnionAll
+//
+//	@doc:
+//		Transform logical union into an aggregate over a logical union all
+//
+//---------------------------------------------------------------------------
+class CXformUnion2UnionAll : public CXformExploration
+{
+private:
+public:
+	CXformUnion2UnionAll(const CXformUnion2UnionAll &) = delete;
+
+	// ctor
+	explicit CXformUnion2UnionAll(CMemoryPool *mp);
+
+	// dtor
+	~CXformUnion2UnionAll() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfUnion2UnionAll;
+	}
 
-		private:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformUnion2UnionAll";
+	}
 
-			// private copy ctor
-			CXformUnion2UnionAll(const CXformUnion2UnionAll &);
+	// compute xform promise for a given expression handle
+	EXformPromise
+	Exfp(CExpressionHandle &  // exprhdl
+	) const override
+	{
+		return CXform::ExfpHigh;
+	}
 
-		public:
+	// actual transform
+	void Transform(CXformContext *, CXformResult *,
+				   CExpression *) const override;
 
-			// ctor
-			explicit
-			CXformUnion2UnionAll(CMemoryPool *mp);
+};	// class CXformUnion2UnionAll
 
-			// dtor
-			virtual
-			~CXformUnion2UnionAll()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfUnion2UnionAll;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformUnion2UnionAll";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp
-				(
-				CExpressionHandle & // exprhdl
-				)
-				const
-			{
-				return CXform::ExfpHigh;
-			}
-
-			// actual transform
-			void Transform(CXformContext *, CXformResult *, CExpression *) const;
-
-	}; // class CXformUnion2UnionAll
-
-}
-
-#endif // !GPOPT_CXformUnion2UnionAll_H
+#endif	// !GPOPT_CXformUnion2UnionAll_H
 
 // EOF

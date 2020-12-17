@@ -16,66 +16,54 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformLeftSemiJoin2InnerJoin
-	//
-	//	@doc:
-	//		Transform left semi join to inner join
-	//
-	//---------------------------------------------------------------------------
-	class CXformLeftSemiJoin2InnerJoin : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformLeftSemiJoin2InnerJoin
+//
+//	@doc:
+//		Transform left semi join to inner join
+//
+//---------------------------------------------------------------------------
+class CXformLeftSemiJoin2InnerJoin : public CXformExploration
+{
+private:
+public:
+	CXformLeftSemiJoin2InnerJoin(const CXformLeftSemiJoin2InnerJoin &) = delete;
+
+	// ctor
+	explicit CXformLeftSemiJoin2InnerJoin(CMemoryPool *mp);
+
+	// dtor
+	~CXformLeftSemiJoin2InnerJoin() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfLeftSemiJoin2InnerJoin;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformLeftSemiJoin2InnerJoin";
+	}
 
-			// private copy ctor
-			CXformLeftSemiJoin2InnerJoin(const CXformLeftSemiJoin2InnerJoin &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformLeftSemiJoin2InnerJoin(CMemoryPool *mp);
+};	// class CXformLeftSemiJoin2InnerJoin
 
-			// dtor
-			virtual
-			~CXformLeftSemiJoin2InnerJoin() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfLeftSemiJoin2InnerJoin;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformLeftSemiJoin2InnerJoin";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformLeftSemiJoin2InnerJoin
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformLeftSemiJoin2InnerJoin_H
+#endif	// !GPOPT_CXformLeftSemiJoin2InnerJoin_H
 
 // EOF

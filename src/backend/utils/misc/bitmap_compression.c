@@ -3,7 +3,7 @@
  * bitmap_compression.c
  *	  Compression code tailored to compression of bitmap
  *
- * Copyright (c) 2013-Present Pivotal Software, Inc.
+ * Copyright (c) 2013-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -85,10 +85,9 @@ BitmapDecompress_HasError(
  * bitmapDataSize in uint32-words.
  */
 void
-BitmapDecompress_Decompress(
-		BitmapDecompressState *state,
-		uint32* bitmap,
-		int bitmapDataSize)
+BitmapDecompress_Decompress(BitmapDecompressState *state,
+							uint32 *bitmap,
+							int bitmapDataSize)
 {
 	uint32 lastBlockData, flag, rleRepeatCount;
 	int i;

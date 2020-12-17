@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CMultilevelPartitionTest.h
@@ -15,37 +15,31 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CMultilevelPartitionTest
-	//
-	//	@doc:
-	//		Unittests
-	//
-	//---------------------------------------------------------------------------
-	class CMultilevelPartitionTest
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CMultilevelPartitionTest
+//
+//	@doc:
+//		Unittests
+//
+//---------------------------------------------------------------------------
+class CMultilevelPartitionTest
+{
+private:
+	// counter used to mark last successful test
+	static ULONG m_ulMLPTTestCounter;
 
-			// counter used to mark last successful test
-			static
-			ULONG m_ulMLPTTestCounter;
+public:
+	// unittests
+	static GPOS_RESULT EresUnittest();
 
-		public:
+	static GPOS_RESULT EresUnittest_RunTests();
 
-			// unittests
-			static
-			GPOS_RESULT EresUnittest();
+};	// class CMultilevelPartitionTest
+}  // namespace gpopt
 
-			static
-			GPOS_RESULT EresUnittest_RunTests();
-
-	}; // class CMultilevelPartitionTest
-}
-
-#endif // !GPOPT_CMultilevelPartitionTest_H
+#endif	// !GPOPT_CMultilevelPartitionTest_H
 
 // EOF
-

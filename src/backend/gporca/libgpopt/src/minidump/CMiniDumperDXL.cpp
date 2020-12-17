@@ -33,12 +33,7 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CMiniDumperDXL::CMiniDumperDXL
-	(
-	CMemoryPool *mp
-	)
-	:
-	CMiniDumper(mp)
+CMiniDumperDXL::CMiniDumperDXL() : CMiniDumper()
 {
 }
 
@@ -51,9 +46,7 @@ CMiniDumperDXL::CMiniDumperDXL
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CMiniDumperDXL::~CMiniDumperDXL()
-{
-}
+CMiniDumperDXL::~CMiniDumperDXL() = default;
 
 
 //---------------------------------------------------------------------------
@@ -98,13 +91,11 @@ void
 CMiniDumperDXL::SerializeEntryHeader()
 {
 	WCHAR wszBuffer[GPOPT_THREAD_HEADER_SIZE];
-	
+
 	CWStringStatic str(wszBuffer, GPOS_ARRAY_SIZE(wszBuffer));
-	str.AppendFormat
-		(
-		CDXLSections::m_wszThreadHeaderTemplate,
-		0 // thread id
-		);
+	str.AppendFormat(CDXLSections::m_wszThreadHeaderTemplate,
+					 0	// thread id
+	);
 
 	*m_oos << str.GetBuffer();
 }
@@ -119,7 +110,7 @@ CMiniDumperDXL::SerializeEntryHeader()
 //
 //---------------------------------------------------------------------------
 void
-CMiniDumperDXL::SerializeEntryFooter	()
+CMiniDumperDXL::SerializeEntryFooter()
 {
 	*m_oos << CDXLSections::m_wszThreadFooter;
 }

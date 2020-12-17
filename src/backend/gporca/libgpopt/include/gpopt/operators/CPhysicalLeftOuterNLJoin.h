@@ -16,65 +16,55 @@
 
 namespace gpopt
 {
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CPhysicalLeftOuterNLJoin
-	//
-	//	@doc:
-	//		Left outer nested-loops join operator
-	//
-	//---------------------------------------------------------------------------
-	class CPhysicalLeftOuterNLJoin : public CPhysicalNLJoin
+//---------------------------------------------------------------------------
+//	@class:
+//		CPhysicalLeftOuterNLJoin
+//
+//	@doc:
+//		Left outer nested-loops join operator
+//
+//---------------------------------------------------------------------------
+class CPhysicalLeftOuterNLJoin : public CPhysicalNLJoin
+{
+private:
+public:
+	CPhysicalLeftOuterNLJoin(const CPhysicalLeftOuterNLJoin &) = delete;
+
+	// ctor
+	explicit CPhysicalLeftOuterNLJoin(CMemoryPool *mp);
+
+	// dtor
+	~CPhysicalLeftOuterNLJoin() override;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
+		return EopPhysicalLeftOuterNLJoin;
+	}
 
-		private:
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CPhysicalLeftOuterNLJoin";
+	}
 
-			// private copy ctor
-			CPhysicalLeftOuterNLJoin(const CPhysicalLeftOuterNLJoin &);
 
-		public:
-		
-			// ctor
-			explicit
-			CPhysicalLeftOuterNLJoin(CMemoryPool *mp);
+	// conversion function
+	static CPhysicalLeftOuterNLJoin *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(EopPhysicalLeftOuterNLJoin == pop->Eopid());
 
-			// dtor
-			virtual 
-			~CPhysicalLeftOuterNLJoin();
+		return dynamic_cast<CPhysicalLeftOuterNLJoin *>(pop);
+	}
 
-			// ident accessors
-			virtual 
-			EOperatorId Eopid() const
-			{
-				return EopPhysicalLeftOuterNLJoin;
-			}
-			
-			 // return a string for operator name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CPhysicalLeftOuterNLJoin";
-			}
 
-			
-			// conversion function
-			static
-			CPhysicalLeftOuterNLJoin *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(EopPhysicalLeftOuterNLJoin == pop->Eopid());
+};	// class CPhysicalLeftOuterNLJoin
 
-				return dynamic_cast<CPhysicalLeftOuterNLJoin*>(pop);
-			}
+}  // namespace gpopt
 
-					
-	}; // class CPhysicalLeftOuterNLJoin
-
-}
-
-#endif // !GPOPT_CPhysicalLeftOuterNLJoin_H
+#endif	// !GPOPT_CPhysicalLeftOuterNLJoin_H
 
 // EOF

@@ -28,61 +28,51 @@
 // fwd decl
 namespace gpopt
 {
-	class CMDAccessor;
+class CMDAccessor;
 }
 
 namespace gpmd
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CMDProviderRelcache
-	//
-	//	@doc:
-	//		Relcache-based provider of metadata objects.
-	//
-	//---------------------------------------------------------------------------
-	class CMDProviderRelcache : public IMDProvider
+//---------------------------------------------------------------------------
+//	@class:
+//		CMDProviderRelcache
+//
+//	@doc:
+//		Relcache-based provider of metadata objects.
+//
+//---------------------------------------------------------------------------
+class CMDProviderRelcache : public IMDProvider
+{
+private:
+	// memory pool
+	CMemoryPool *m_mp;
+
+public:
+	CMDProviderRelcache(const CMDProviderRelcache &) = delete;
+
+	// ctor/dtor
+	explicit CMDProviderRelcache(CMemoryPool *mp);
+
+	~CMDProviderRelcache() override = default;
+
+	// returns the DXL string of the requested metadata object
+	CWStringBase *GetMDObjDXLStr(CMemoryPool *mp, CMDAccessor *md_accessor,
+								 IMDId *md_id) const override;
+
+	// return the mdid for the requested type
+	IMDId *
+	MDId(CMemoryPool *mp, CSystemId sysid,
+		 IMDType::ETypeInfo type_info) const override
 	{
-		private:
-			// memory pool
-			CMemoryPool *m_mp;
-
-			// private copy ctor
-			CMDProviderRelcache(const CMDProviderRelcache&);
-
-		public:
-			// ctor/dtor
-			explicit
-			CMDProviderRelcache(CMemoryPool *mp);
-
-			~CMDProviderRelcache()
-			{
-			}
-
-			// returns the DXL string of the requested metadata object
-			virtual
-			CWStringBase *GetMDObjDXLStr(CMemoryPool *mp, CMDAccessor *md_accessor, IMDId *md_id) const;
-
-			// return the mdid for the requested type
-			virtual
-			IMDId *MDId
-				(
-				CMemoryPool *mp,
-				CSystemId sysid,
-				IMDType::ETypeInfo type_info
-				)
-				const
-			{
-				return GetGPDBTypeMdid(mp, sysid, type_info);
-			}
-
-	};
-}
+		return GetGPDBTypeMdid(mp, sysid, type_info);
+	}
+};
+}  // namespace gpmd
 
 
 
-#endif // !GPMD_CMDProviderRelcache_H
+#endif	// !GPMD_CMDProviderRelcache_H
 
 // EOF

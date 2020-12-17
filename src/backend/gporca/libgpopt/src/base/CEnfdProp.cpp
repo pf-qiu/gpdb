@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Software, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CEnfdProp.cpp
@@ -16,25 +16,16 @@
 #ifdef GPOS_DEBUG
 #include "gpopt/base/COptCtxt.h"
 #include "gpos/error/CAutoTrace.h"
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
-namespace gpopt {
-
-	IOstream &operator << (IOstream &os, CEnfdProp &efdprop)
-	{
-		return efdprop.OsPrint(os);
-	}
-
-#ifdef GPOS_DEBUG
-	void
-	CEnfdProp::DbgPrint() const
-	{
-		CMemoryPool *mp = COptCtxt::PoctxtFromTLS()->Pmp();
-		CAutoTrace at(mp);
-		(void) this->OsPrint(at.Os());
-	}
-#endif // GPOS_DEBUG
-
+namespace gpopt
+{
+IOstream &
+operator<<(IOstream &os, CEnfdProp &efdprop)
+{
+	return efdprop.OsPrint(os);
 }
+
+}  // namespace gpopt
 
 // EOF

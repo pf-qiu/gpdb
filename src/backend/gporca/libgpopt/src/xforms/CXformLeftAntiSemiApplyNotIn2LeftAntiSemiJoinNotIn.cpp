@@ -12,8 +12,6 @@
 #include "gpos/base.h"
 #include "gpopt/xforms/CXformLeftAntiSemiApplyNotIn2LeftAntiSemiJoinNotIn.h"
 
-#include "gpopt/operators/ops.h"
-
 using namespace gpopt;
 
 //---------------------------------------------------------------------------
@@ -26,15 +24,13 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformLeftAntiSemiApplyNotIn2LeftAntiSemiJoinNotIn::Exfp
-	(
-	CExpressionHandle &exprhdl
-	)
-	const
+CXformLeftAntiSemiApplyNotIn2LeftAntiSemiJoinNotIn::Exfp(
+	CExpressionHandle &exprhdl) const
 {
 	// if there are outer refs that include columns from the immediate outer child, the
 	// transformation is applicable
-	if (exprhdl.HasOuterRefs(1 /*child_index*/) && !CUtils::FInnerUsesExternalColsOnly(exprhdl))
+	if (exprhdl.HasOuterRefs(1 /*child_index*/) &&
+		!CUtils::FInnerUsesExternalColsOnly(exprhdl))
 	{
 		return CXform::ExfpHigh;
 	}
@@ -51,13 +47,8 @@ CXformLeftAntiSemiApplyNotIn2LeftAntiSemiJoinNotIn::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformLeftAntiSemiApplyNotIn2LeftAntiSemiJoinNotIn::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformLeftAntiSemiApplyNotIn2LeftAntiSemiJoinNotIn::Transform(
+	CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const
 {
 	GPOS_ASSERT(NULL != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));

@@ -5,7 +5,7 @@
  *
  * Portions Copyright (c) 1996-2009, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
- * Portions Copyright (c) 2016-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2016-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -28,6 +28,7 @@
 #include "utils/array.h"
 #include "utils/builtins.h"
 #include "utils/complex_type.h"
+#include "utils/float.h"
 #include "utils/float_utils.h"
 #include "utils/geo_decls.h"
 #include "utils/numeric.h"

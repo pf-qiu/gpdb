@@ -16,61 +16,53 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementAssert
-	//
-	//	@doc:
-	//		Implement Assert
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementAssert : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementAssert
+//
+//	@doc:
+//		Implement Assert
+//
+//---------------------------------------------------------------------------
+class CXformImplementAssert : public CXformImplementation
+{
+private:
+public:
+	CXformImplementAssert(const CXformImplementAssert &) = delete;
+
+	// ctor
+	explicit CXformImplementAssert(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementAssert() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementAssert;
+	}
 
-		private:
+	// xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementAssert";
+	}
 
-			// private copy ctor
-			CXformImplementAssert(const CXformImplementAssert &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
-		
-			// ctor
-			explicit
-			CXformImplementAssert(CMemoryPool *mp);
+	// actual transform
+	void Transform(CXformContext *, CXformResult *,
+				   CExpression *) const override;
 
-			// dtor
-			virtual 
-			~CXformImplementAssert() 
-			{}
+};	// class CXformImplementAssert
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementAssert;
-			}
-			
-			// xform name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformImplementAssert";
-			}
+}  // namespace gpopt
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform(CXformContext *, CXformResult *, CExpression *) const;
-
-	}; // class CXformImplementAssert
-
-}
-
-#endif // !GPOPT_CXformImplementAssert_H
+#endif	// !GPOPT_CXformImplementAssert_H
 
 // EOF

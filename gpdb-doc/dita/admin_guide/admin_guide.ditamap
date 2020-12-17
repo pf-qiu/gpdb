@@ -4,7 +4,7 @@
     <topicref href="../../7-0/homenav.html" scope="external"
         navtitle="Greenplum Database® 7.0 Beta Documentation" format="html" otherprops="oss-only"/>
     <topicref href="../../7-0/homenav.html" scope="external"
-        navtitle="Pivotal Greenplum® 7.0 Beta Documentation" format="html" otherprops="pivotal"/>
+        navtitle="Tanzu Greenplum® 7.0 Beta Documentation" format="html" otherprops="pivotal"/>
     <topicref href="admin_guide.xml" navtitle="Administration Guide">
         <topicref href="intro/partI.xml" id="partI" format="dita">
             <topicref href="intro/arch_overview.xml" id="arch_overview"/>
@@ -23,6 +23,7 @@
             <topicref href="access_db/access_db.ditamap" format="ditamap"/>
             <topicref href="configure.ditamap" format="ditamap"/>
             <topicref href="managing/compression.xml"/>
+            <topicref href="managing/proxy-ic.xml"/>
             <topicref href="highavail/highavail.ditamap" format="ditamap"/>
             <topicref href="managing/backup.ditamap" format="ditamap"/>
             <topicref href="expand/expand.ditamap" format="ditamap"/>

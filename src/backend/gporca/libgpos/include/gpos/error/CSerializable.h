@@ -17,41 +17,35 @@
 
 namespace gpos
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CSerializable
-	//
-	//	@doc:
-	//		Interface for serializable objects;
-	//
-	//---------------------------------------------------------------------------
-	class CSerializable : CStackObject
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CSerializable
+//
+//	@doc:
+//		Interface for serializable objects;
+//
+//---------------------------------------------------------------------------
+class CSerializable : CStackObject
+{
+private:
+public:
+	CSerializable(const CSerializable &) = delete;
 
-			// private copy ctor
-			CSerializable(const CSerializable&);
+	// ctor
+	CSerializable();
 
-		public:
+	// dtor
+	virtual ~CSerializable();
 
-			// ctor
-			CSerializable();
+	// serialize object to passed stream
+	virtual void Serialize(COstream &oos) = 0;
 
-			// dtor
-			virtual
-			~CSerializable();
+	// link for list in error context
+	SLink m_err_ctxt_link;
 
-			// serialize object to passed stream
-			virtual
-			void Serialize(COstream &oos) = 0;
+};	// class CSerializable
+}  // namespace gpos
 
-			// link for list in error context
-			SLink m_err_ctxt_link;
-
-	}; // class CSerializable
-}
-
-#endif // !GPOS_CSerializable_H
+#endif	// !GPOS_CSerializable_H
 
 // EOF
-

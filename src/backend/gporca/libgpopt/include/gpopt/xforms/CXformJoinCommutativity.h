@@ -16,75 +16,62 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformJoinCommutativity
-	//
-	//	@doc:
-	//		Commutative transformation of join
-	//
-	//---------------------------------------------------------------------------
-	class CXformJoinCommutativity : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformJoinCommutativity
+//
+//	@doc:
+//		Commutative transformation of join
+//
+//---------------------------------------------------------------------------
+class CXformJoinCommutativity : public CXformExploration
+{
+private:
+public:
+	CXformJoinCommutativity(const CXformJoinCommutativity &) = delete;
+
+	// ctor
+	explicit CXformJoinCommutativity(CMemoryPool *mp);
+
+	// dtor
+	~CXformJoinCommutativity() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfJoinCommutativity;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformJoinCommutativity";
+	}
 
-			// private copy ctor
-			CXformJoinCommutativity(const CXformJoinCommutativity &);
+	// compatibility function
+	BOOL FCompatible(CXform::EXformId exfid) override;
 
-		public:
+	// compute xform promise for a given expression handle
+	EXformPromise
+	Exfp(CExpressionHandle &  // exprhdl
+	) const override
+	{
+		return CXform::ExfpHigh;
+	}
 
-			// ctor
-			explicit
-			CXformJoinCommutativity(CMemoryPool *mp);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// dtor
-			virtual
-			~CXformJoinCommutativity() {}
+};	// class CXformJoinCommutativity
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfJoinCommutativity;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformJoinCommutativity";
-			}
-
-			// compatibility function
-			BOOL FCompatible(CXform::EXformId exfid);
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp
-				(
-				CExpressionHandle & // exprhdl
-				)
-				const
-			{
-				return CXform::ExfpHigh;
-			}
-
-			// actual transform
-			void Transform
-					(
-					CXformContext *pxfctxt,
-					CXformResult *pxfres,
-					CExpression *pexpr
-					) const;
-
-	}; // class CXformJoinCommutativity
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformJoinCommutativity_H
+#endif	// !GPOPT_CXformJoinCommutativity_H
 
 // EOF

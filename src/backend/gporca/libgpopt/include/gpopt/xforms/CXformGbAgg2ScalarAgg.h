@@ -16,64 +16,54 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformGbAgg2ScalarAgg
-	//
-	//	@doc:
-	//		Transform Get to TableScan
-	//
-	//---------------------------------------------------------------------------
-	class CXformGbAgg2ScalarAgg : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformGbAgg2ScalarAgg
+//
+//	@doc:
+//		Transform Get to TableScan
+//
+//---------------------------------------------------------------------------
+class CXformGbAgg2ScalarAgg : public CXformImplementation
+{
+private:
+public:
+	CXformGbAgg2ScalarAgg(const CXformGbAgg2ScalarAgg &) = delete;
+
+	// ctor
+	CXformGbAgg2ScalarAgg(CMemoryPool *mp);
+
+	// dtor
+	~CXformGbAgg2ScalarAgg() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfGbAgg2ScalarAgg;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformGbAgg2ScalarAgg";
+	}
 
-			// private copy ctor
-			CXformGbAgg2ScalarAgg(const CXformGbAgg2ScalarAgg &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
-		
-			// ctor
-			CXformGbAgg2ScalarAgg(CMemoryPool *mp);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// dtor
-			virtual 
-			~CXformGbAgg2ScalarAgg() {}
+};	// class CXformGbAgg2ScalarAgg
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfGbAgg2ScalarAgg;
-			}
-			
-			// return a string for xform name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformGbAgg2ScalarAgg";
-			}
-			
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform
-					(
-					CXformContext *pxfctxt,
-					CXformResult *pxfres,
-					CExpression *pexpr
-					) const;
-		
-	}; // class CXformGbAgg2ScalarAgg
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformGbAgg2ScalarAgg_H
+#endif	// !GPOPT_CXformGbAgg2ScalarAgg_H
 
 // EOF

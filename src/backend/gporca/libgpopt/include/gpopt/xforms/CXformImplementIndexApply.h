@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2018 Pivotal Software, Inc.
+//	Copyright (C) 2018 VMware, Inc. or its affiliates.
 //
 //	Template Class for Inner / Left Outer Index Apply
 //---------------------------------------------------------------------------
@@ -8,117 +8,108 @@
 #define GPOPT_CXformImplementIndexApply_H
 
 #include "gpos/base.h"
+#include "gpopt/operators/CLogicalIndexApply.h"
+#include "gpopt/operators/CPatternLeaf.h"
+#include "gpopt/operators/CPhysicalInnerIndexNLJoin.h"
+#include "gpopt/operators/CPhysicalLeftOuterIndexNLJoin.h"
+#include "gpopt/operators/CPhysicalNLJoin.h"
 #include "gpopt/xforms/CXformImplementation.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	class CXformImplementIndexApply : public CXformImplementation
+class CXformImplementIndexApply : public CXformImplementation
+{
+private:
+public:
+	CXformImplementIndexApply(const CXformImplementIndexApply &) = delete;
+
+	// ctor
+	explicit CXformImplementIndexApply(CMemoryPool *mp)
+		:  // pattern
+		  CXformImplementation(GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalIndexApply(mp),
+			  GPOS_NEW(mp) CExpression(
+				  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // outer child
+			  GPOS_NEW(mp) CExpression(
+				  mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // inner child
+			  GPOS_NEW(mp)
+				  CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))  // predicate
+			  ))
 	{
+	}
 
-		private:
+	// dtor
+	~CXformImplementIndexApply() override = default;
 
-			// private copy ctor
-			CXformImplementIndexApply(const CXformImplementIndexApply &);
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfImplementIndexApply;
+	}
 
-		public:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementIndexApply";
+	}
 
-			// ctor
-			explicit
-			CXformImplementIndexApply(CMemoryPool *mp)
-			:
-			// pattern
-			CXformImplementation
-				(
-				GPOS_NEW(mp) CExpression
-								(
-								mp,
-								GPOS_NEW(mp) CLogicalIndexApply(mp),
-								GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)), // outer child
-								GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp)),  // inner child
-								GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))  // predicate
-								)
-				)
-			{}
+	// compute xform promise for a given expression handle
+	EXformPromise
+	Exfp(CExpressionHandle &  // exprhdl
+	) const override
+	{
+		return ExfpHigh;
+	}
 
-			// dtor
-			virtual
-			~CXformImplementIndexApply()
-			{}
+	// actual transform
+	void
+	Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+			  CExpression *pexpr) const override
+	{
+		GPOS_ASSERT(NULL != pxfctxt);
+		GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
+		GPOS_ASSERT(FCheckPattern(pexpr));
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementIndexApply;
-			}
+		CMemoryPool *mp = pxfctxt->Pmp();
+		CLogicalIndexApply *indexApply =
+			CLogicalIndexApply::PopConvert(pexpr->Pop());
 
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementIndexApply";
-			}
+		// extract components
+		CExpression *pexprOuter = (*pexpr)[0];
+		CExpression *pexprInner = (*pexpr)[1];
+		CExpression *pexprScalar = (*pexpr)[2];
+		CColRefArray *colref_array = indexApply->PdrgPcrOuterRefs();
+		colref_array->AddRef();
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp
-				(
-				CExpressionHandle & // exprhdl
-				)
-				const
-			{
-				return ExfpHigh;
-			}
+		// addref all components
+		pexprOuter->AddRef();
+		pexprInner->AddRef();
+		pexprScalar->AddRef();
 
-			// actual transform
-			virtual
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const
-			{
-				GPOS_ASSERT(NULL != pxfctxt);
-				GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
-				GPOS_ASSERT(FCheckPattern(pexpr));
+		// assemble physical operator
+		CPhysicalNLJoin *pop = NULL;
 
-				CMemoryPool *mp = pxfctxt->Pmp();
+		if (CLogicalIndexApply::PopConvert(pexpr->Pop())->FouterJoin())
+			pop = GPOS_NEW(mp) CPhysicalLeftOuterIndexNLJoin(
+				mp, colref_array, indexApply->OrigJoinPred());
+		else
+			pop = GPOS_NEW(mp) CPhysicalInnerIndexNLJoin(
+				mp, colref_array, indexApply->OrigJoinPred());
 
-				// extract components
-				CExpression *pexprOuter = (*pexpr)[0];
-				CExpression *pexprInner = (*pexpr)[1];
-				CExpression *pexprScalar = (*pexpr)[2];
-				CColRefArray *colref_array = CLogicalIndexApply::PopConvert(pexpr->Pop())->PdrgPcrOuterRefs();
-				colref_array->AddRef();
+		CExpression *pexprResult = GPOS_NEW(mp)
+			CExpression(mp, pop, pexprOuter, pexprInner, pexprScalar);
 
-				// addref all components
-				pexprOuter->AddRef();
-				pexprInner->AddRef();
-				pexprScalar->AddRef();
+		// add alternative to results
+		pxfres->Add(pexprResult);
+	}
 
-				// assemble physical operator
-				CPhysicalNLJoin *pop = NULL;
+};	// class CXformImplementIndexApply
 
-				if (CLogicalIndexApply::PopConvert(pexpr->Pop())->FouterJoin())
-					pop = GPOS_NEW(mp) CPhysicalLeftOuterIndexNLJoin(mp, colref_array);
-				else
-					pop = GPOS_NEW(mp) CPhysicalInnerIndexNLJoin(mp, colref_array);
+}  // namespace gpopt
 
-				CExpression *pexprResult =
-						GPOS_NEW(mp) CExpression
-								(
-								mp,
-								pop,
-								pexprOuter,
-								pexprInner,
-								pexprScalar
-								);
-
-				// add alternative to results
-				pxfres->Add(pexprResult);
-			}
-
-	}; // class CXformImplementIndexApply
-
-}
-
-#endif // !GPOPT_CXformImplementIndexApply_H
+#endif	// !GPOPT_CXformImplementIndexApply_H
 
 // EOF

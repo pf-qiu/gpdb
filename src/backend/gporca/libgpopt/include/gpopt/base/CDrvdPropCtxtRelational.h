@@ -20,102 +20,73 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDrvdPropCtxtRelational
-	//
-	//	@doc:
-	//		Container of information passed among expression nodes during
-	//		derivation of relational properties
-	//
-	//---------------------------------------------------------------------------
-	class CDrvdPropCtxtRelational : public CDrvdPropCtxt
+//---------------------------------------------------------------------------
+//	@class:
+//		CDrvdPropCtxtRelational
+//
+//	@doc:
+//		Container of information passed among expression nodes during
+//		derivation of relational properties
+//
+//---------------------------------------------------------------------------
+class CDrvdPropCtxtRelational : public CDrvdPropCtxt
+{
+private:
+protected:
+	// copy function
+	CDrvdPropCtxt *
+	PdpctxtCopy(CMemoryPool *mp) const override
 	{
+		return GPOS_NEW(mp) CDrvdPropCtxtRelational(mp);
+	}
 
-		private:
+	// add props to context
+	void
+	AddProps(CDrvdProp *  // pdp
+			 ) override
+	{
+		// derived relational context is currently empty
+	}
 
-			// private copy ctor
-			CDrvdPropCtxtRelational(const CDrvdPropCtxtRelational &);
+public:
+	CDrvdPropCtxtRelational(const CDrvdPropCtxtRelational &) = delete;
 
-		protected:
+	// ctor
+	CDrvdPropCtxtRelational(CMemoryPool *mp) : CDrvdPropCtxt(mp)
+	{
+	}
 
-			// copy function
-			virtual
-			CDrvdPropCtxt *PdpctxtCopy
-				(
-				CMemoryPool *mp
-				)
-				const
-			{
-				return GPOS_NEW(mp) CDrvdPropCtxtRelational(mp);
-			}
+	// dtor
+	~CDrvdPropCtxtRelational() override = default;
 
-			// add props to context
-			virtual
-			void AddProps
-				(
-				CDrvdProp* // pdp
-				)
-			{
-				// derived relational context is currently empty
-			}
-
-		public:
-
-			// ctor
-			CDrvdPropCtxtRelational
-				(
-				CMemoryPool *mp
-				)
-				:
-				CDrvdPropCtxt(mp)
-			{}
-
-			// dtor
-			virtual
-			~CDrvdPropCtxtRelational() {}
-
-			// print
-			virtual
-			IOstream &OsPrint
-				(
-				IOstream &os
-				)
-				const
-			{
-				return os;
-			}
 
 #ifdef GPOS_DEBUG
 
-			// is it a relational property context?
-			virtual
-			BOOL FRelational() const
-			{
-				return true;
-			}
+	// is it a relational property context?
+	BOOL
+	FRelational() const override
+	{
+		return true;
+	}
 
-#endif // GPOS_DEBUG
+#endif	// GPOS_DEBUG
 
-			// conversion function
-			static
-			CDrvdPropCtxtRelational *PdpctxtrelConvert
-				(
-				CDrvdPropCtxt *pdpctxt
-				)
-			{
-				GPOS_ASSERT(NULL != pdpctxt);
+	// conversion function
+	static CDrvdPropCtxtRelational *
+	PdpctxtrelConvert(CDrvdPropCtxt *pdpctxt)
+	{
+		GPOS_ASSERT(NULL != pdpctxt);
 
-				return reinterpret_cast<CDrvdPropCtxtRelational*>(pdpctxt);
-			}
+		return reinterpret_cast<CDrvdPropCtxtRelational *>(pdpctxt);
+	}
 
-	}; // class CDrvdPropCtxtRelational
+};	// class CDrvdPropCtxtRelational
 
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CDrvdPropCtxtRelational_H
+#endif	// !GPOPT_CDrvdPropCtxtRelational_H
 
 // EOF

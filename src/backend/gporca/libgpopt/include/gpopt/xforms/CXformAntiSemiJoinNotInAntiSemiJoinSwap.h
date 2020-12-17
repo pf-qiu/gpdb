@@ -13,73 +13,65 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalLeftAntiSemiJoin.h"
+#include "gpopt/operators/CLogicalLeftAntiSemiJoinNotIn.h"
 #include "gpopt/xforms/CXformJoinSwap.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformAntiSemiJoinNotInAntiSemiJoinSwap
-	//
-	//	@doc:
-	//		Swap cascaded anti semi-join (NotIn) and anti semi-join
-	//
-	//---------------------------------------------------------------------------
-	class CXformAntiSemiJoinNotInAntiSemiJoinSwap : public CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn, CLogicalLeftAntiSemiJoin>
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformAntiSemiJoinNotInAntiSemiJoinSwap
+//
+//	@doc:
+//		Swap cascaded anti semi-join (NotIn) and anti semi-join
+//
+//---------------------------------------------------------------------------
+class CXformAntiSemiJoinNotInAntiSemiJoinSwap
+	: public CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn,
+							CLogicalLeftAntiSemiJoin>
+{
+private:
+public:
+	CXformAntiSemiJoinNotInAntiSemiJoinSwap(
+		const CXformAntiSemiJoinNotInAntiSemiJoinSwap &) = delete;
+
+	// ctor
+	explicit CXformAntiSemiJoinNotInAntiSemiJoinSwap(CMemoryPool *mp)
+		: CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn,
+						 CLogicalLeftAntiSemiJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformAntiSemiJoinNotInAntiSemiJoinSwap() override = default;
 
-			// private copy ctor
-			CXformAntiSemiJoinNotInAntiSemiJoinSwap(const CXformAntiSemiJoinNotInAntiSemiJoinSwap &);
+	// Compatibility function
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return ExfAntiSemiJoinAntiSemiJoinNotInSwap != exfid;
+	}
 
-		public:
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfAntiSemiJoinNotInAntiSemiJoinSwap;
+	}
 
-			// ctor
-			explicit
-			CXformAntiSemiJoinNotInAntiSemiJoinSwap
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformJoinSwap<CLogicalLeftAntiSemiJoinNotIn, CLogicalLeftAntiSemiJoin>(mp)
-			{}
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformAntiSemiJoinNotInAntiSemiJoinSwap";
+	}
 
-			// dtor
-			virtual
-			~CXformAntiSemiJoinNotInAntiSemiJoinSwap()
-			{}
+};	// class CXformAntiSemiJoinNotInAntiSemiJoinSwap
 
-			// Compatibility function
-			virtual
-			BOOL FCompatible
-				(
-				CXform::EXformId exfid
-				)
-			{
-				return ExfAntiSemiJoinAntiSemiJoinNotInSwap != exfid;
-			}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfAntiSemiJoinNotInAntiSemiJoinSwap;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformAntiSemiJoinNotInAntiSemiJoinSwap";
-			}
-
-	}; // class CXformAntiSemiJoinNotInAntiSemiJoinSwap
-
-}
-
-#endif // !GPOPT_CXformAntiSemiJoinNotInAntiSemiJoinSwap_H
+#endif	// !GPOPT_CXformAntiSemiJoinNotInAntiSemiJoinSwap_H
 
 // EOF

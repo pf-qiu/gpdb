@@ -4,7 +4,7 @@
  * routines for processing dispatch results.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -282,12 +282,6 @@ cdbdisp_sumCmdTuples(CdbDispatchResults *results, int sliceIndex);
  */
 void
 cdbdisp_sumRejectedRows(CdbDispatchResults *results);
-
-/*
- * max of the lastOid values returned from the QEs
- */
-Oid
-cdbdisp_maxLastOid(CdbDispatchResults *results, int sliceIndex);
 
 /*
  * Return ptr to first resultArray entry for a given sliceIndex.

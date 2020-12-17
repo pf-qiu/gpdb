@@ -2,7 +2,7 @@ import time
 
 from gppylib.commands import base
 from gppylib.db import dbconn
-import pygresql.pg
+import pg
 
 
 FTS_PROBE_QUERY = 'SELECT pg_catalog.gp_request_fts_probe_scan()'
@@ -14,12 +14,12 @@ class SegmentReconfigurer:
         self.timeout = timeout
 
     def _trigger_fts_probe(self, dburl):
-        conn = pygresql.pg.connect(dburl.pgdb,
-                dburl.pghost,
-                dburl.pgport,
-                None,
-                dburl.pguser,
-                dburl.pgpass,
+        conn = pg.connect(dbname=dburl.pgdb,
+                host=dburl.pghost,
+                port=dburl.pgport,
+                opt=None,
+                user=dburl.pguser,
+                passwd=dburl.pgpass,
                 )
         conn.query(FTS_PROBE_QUERY)
         conn.close()

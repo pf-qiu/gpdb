@@ -32,10 +32,9 @@ using namespace gpdxl;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CSerializableStackTrace::CSerializableStackTrace()
-	:
-	CSerializable()
-{}
+CSerializableStackTrace::CSerializableStackTrace() : CSerializable()
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -46,9 +45,7 @@ CSerializableStackTrace::CSerializableStackTrace()
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CSerializableStackTrace::~CSerializableStackTrace()
-{
-}
+CSerializableStackTrace::~CSerializableStackTrace() = default;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -59,10 +56,7 @@ CSerializableStackTrace::~CSerializableStackTrace()
 //
 //---------------------------------------------------------------------------
 void
-CSerializableStackTrace::Serialize
-	(
-	COstream& oos
-	)
+CSerializableStackTrace::Serialize(COstream &oos)
 {
 	if (!ITask::Self()->HasPendingExceptions())
 	{
@@ -83,4 +77,3 @@ CSerializableStackTrace::Serialize
 }
 
 // EOF
-

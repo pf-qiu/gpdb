@@ -16,52 +16,46 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementTVFNoArgs
-	//
-	//	@doc:
-	//		Implement TVF with no arguments
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementTVFNoArgs : public CXformImplementTVF
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementTVFNoArgs
+//
+//	@doc:
+//		Implement TVF with no arguments
+//
+//---------------------------------------------------------------------------
+class CXformImplementTVFNoArgs : public CXformImplementTVF
+{
+private:
+public:
+	CXformImplementTVFNoArgs(const CXformImplementTVFNoArgs &) = delete;
+
+	// ctor
+	explicit CXformImplementTVFNoArgs(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementTVFNoArgs() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementTVFNoArgs;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementTVFNoArgs";
+	}
 
-			// private copy ctor
-			CXformImplementTVFNoArgs(const CXformImplementTVFNoArgs &);
+};	// class CXformImplementTVFNoArgs
 
-		public:
+}  // namespace gpopt
 
-			// ctor
-			explicit
-			CXformImplementTVFNoArgs(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformImplementTVFNoArgs() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementTVFNoArgs;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementTVFNoArgs";
-			}
-
-	}; // class CXformImplementTVFNoArgs
-
-}
-
-#endif // !GPOPT_CXformImplementTVFNoArgs_H
+#endif	// !GPOPT_CXformImplementTVFNoArgs_H
 
 // EOF

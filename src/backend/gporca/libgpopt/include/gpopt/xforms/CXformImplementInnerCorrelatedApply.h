@@ -12,63 +12,58 @@
 #define GPOPT_CXformImplementInnerCorrelatedApply_H
 
 #include "gpos/base.h"
+#include "gpopt/operators/CLogicalInnerCorrelatedApply.h"
+#include "gpopt/operators/CPhysicalCorrelatedInnerNLJoin.h"
 #include "gpopt/xforms/CXformImplementCorrelatedApply.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//-------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementInnerCorrelatedApply
-	//
-	//	@doc:
-	//		Transform inner correlated apply to physical inner correlated apply
-	//
-	//-------------------------------------------------------------------------
-	class CXformImplementInnerCorrelatedApply :
-		public CXformImplementCorrelatedApply<CLogicalInnerCorrelatedApply, CPhysicalCorrelatedInnerNLJoin>
+//-------------------------------------------------------------------------
+//	@class:
+//		CXformImplementInnerCorrelatedApply
+//
+//	@doc:
+//		Transform inner correlated apply to physical inner correlated apply
+//
+//-------------------------------------------------------------------------
+class CXformImplementInnerCorrelatedApply
+	: public CXformImplementCorrelatedApply<CLogicalInnerCorrelatedApply,
+											CPhysicalCorrelatedInnerNLJoin>
+{
+private:
+public:
+	CXformImplementInnerCorrelatedApply(
+		const CXformImplementInnerCorrelatedApply &) = delete;
+
+	// ctor
+	explicit CXformImplementInnerCorrelatedApply(CMemoryPool *mp)
+		: CXformImplementCorrelatedApply<CLogicalInnerCorrelatedApply,
+										 CPhysicalCorrelatedInnerNLJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformImplementInnerCorrelatedApply() override = default;
 
-			// private copy ctor
-			CXformImplementInnerCorrelatedApply(const CXformImplementInnerCorrelatedApply &);
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfImplementInnerCorrelatedApply;
+	}
 
-		public:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementInnerCorrelatedApply";
+	}
 
-			// ctor
-			explicit
-			CXformImplementInnerCorrelatedApply
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformImplementCorrelatedApply<CLogicalInnerCorrelatedApply, CPhysicalCorrelatedInnerNLJoin>(mp)
-			{}
+};	// class CXformImplementInnerCorrelatedApply
 
-			// dtor
-			virtual
-			~CXformImplementInnerCorrelatedApply()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementInnerCorrelatedApply;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementInnerCorrelatedApply";
-			}
-
-	}; // class CXformImplementInnerCorrelatedApply
-
-}
-
-#endif // !GPOPT_CXformImplementInnerCorrelatedApply_H
+#endif	// !GPOPT_CXformImplementInnerCorrelatedApply_H
 
 // EOF

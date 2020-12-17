@@ -14,70 +14,63 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalLeftOuterApply.h"
+#include "gpopt/operators/CLogicalLeftOuterJoin.h"
 #include "gpopt/xforms/CXformApply2Join.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformLeftOuterApply2LeftOuterJoinNoCorrelations
-	//
-	//	@doc:
-	//		Transform left outer apply into left outer join
-	//
-	//---------------------------------------------------------------------------
-	class CXformLeftOuterApply2LeftOuterJoinNoCorrelations : public CXformApply2Join<CLogicalLeftOuterApply, CLogicalLeftOuterJoin>
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformLeftOuterApply2LeftOuterJoinNoCorrelations
+//
+//	@doc:
+//		Transform left outer apply into left outer join
+//
+//---------------------------------------------------------------------------
+class CXformLeftOuterApply2LeftOuterJoinNoCorrelations
+	: public CXformApply2Join<CLogicalLeftOuterApply, CLogicalLeftOuterJoin>
+{
+private:
+public:
+	CXformLeftOuterApply2LeftOuterJoinNoCorrelations(
+		const CXformLeftOuterApply2LeftOuterJoinNoCorrelations &) = delete;
+
+	// ctor
+	explicit CXformLeftOuterApply2LeftOuterJoinNoCorrelations(CMemoryPool *mp)
+		: CXformApply2Join<CLogicalLeftOuterApply, CLogicalLeftOuterJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformLeftOuterApply2LeftOuterJoinNoCorrelations() override = default;
 
-			// private copy ctor
-			CXformLeftOuterApply2LeftOuterJoinNoCorrelations(const CXformLeftOuterApply2LeftOuterJoinNoCorrelations &);
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfLeftOuterApply2LeftOuterJoinNoCorrelations;
+	}
 
-		public:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformLeftOuterApply2LeftOuterJoinNoCorrelations";
+	}
 
-			// ctor
-			explicit
-			CXformLeftOuterApply2LeftOuterJoinNoCorrelations
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformApply2Join<CLogicalLeftOuterApply, CLogicalLeftOuterJoin>(mp)
-			{}
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// dtor
-			virtual
-			~CXformLeftOuterApply2LeftOuterJoinNoCorrelations()
-			{}
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfLeftOuterApply2LeftOuterJoinNoCorrelations;
-			}
+};	// class CXformLeftOuterApply2LeftOuterJoinNoCorrelations
 
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformLeftOuterApply2LeftOuterJoinNoCorrelations";
-			}
+}  // namespace gpopt
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	}; // class CXformLeftOuterApply2LeftOuterJoinNoCorrelations
-
-}
-
-#endif // !GPOPT_CXformLeftOuterApply2LeftOuterJoinNoCorrelations_H
+#endif	// !GPOPT_CXformLeftOuterApply2LeftOuterJoinNoCorrelations_H
 
 // EOF

@@ -13,7 +13,11 @@
 #include "gpos/base.h"
 #include "gpopt/xforms/CXformUnion2UnionAll.h"
 
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalGbAgg.h"
+#include "gpopt/operators/CLogicalUnion.h"
+#include "gpopt/operators/CLogicalUnionAll.h"
+#include "gpopt/operators/CPatternMultiLeaf.h"
+#include "gpopt/operators/CScalarProjectList.h"
 
 using namespace gpopt;
 
@@ -25,22 +29,13 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformUnion2UnionAll::CXformUnion2UnionAll
-	(
-	CMemoryPool *mp
-	)
-	:
-	// pattern
-	CXformExploration
-		(
-		GPOS_NEW(mp) CExpression
-						(
-						mp,
-						GPOS_NEW(mp) CLogicalUnion(mp),
-						GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp))
-						)
-		)
-{}
+CXformUnion2UnionAll::CXformUnion2UnionAll(CMemoryPool *mp)
+	:  // pattern
+	  CXformExploration(GPOS_NEW(mp) CExpression(
+		  mp, GPOS_NEW(mp) CLogicalUnion(mp),
+		  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternMultiLeaf(mp))))
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -51,13 +46,8 @@ CXformUnion2UnionAll::CXformUnion2UnionAll
 //
 //---------------------------------------------------------------------------
 void
-CXformUnion2UnionAll::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformUnion2UnionAll::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+								CExpression *pexpr) const
 {
 	GPOS_ASSERT(NULL != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));
@@ -84,24 +74,21 @@ CXformUnion2UnionAll::Transform
 	pdrgpdrgpcrInput->AddRef();
 
 	// assemble new logical operator
-	CExpression *pexprUnionAll = GPOS_NEW(mp) CExpression
-									(
-									mp,
-									GPOS_NEW(mp) CLogicalUnionAll(mp, pdrgpcrOutput, pdrgpdrgpcrInput),
-									pdrgpexpr
-									);
+	CExpression *pexprUnionAll = GPOS_NEW(mp) CExpression(
+		mp, GPOS_NEW(mp) CLogicalUnionAll(mp, pdrgpcrOutput, pdrgpdrgpcrInput),
+		pdrgpexpr);
 
 	pdrgpcrOutput->AddRef();
 
-	CExpression *pexprProjList = GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CScalarProjectList(mp), GPOS_NEW(mp) CExpressionArray(mp));
+	CExpression *pexprProjList =
+		GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CScalarProjectList(mp),
+								 GPOS_NEW(mp) CExpressionArray(mp));
 
-	CExpression *pexprAgg = GPOS_NEW(mp) CExpression
-										(
-										mp,
-										GPOS_NEW(mp) CLogicalGbAgg(mp, pdrgpcrOutput, COperator::EgbaggtypeGlobal /*egbaggtype*/),
-										pexprUnionAll,
-										pexprProjList
-										);
+	CExpression *pexprAgg = GPOS_NEW(mp) CExpression(
+		mp,
+		GPOS_NEW(mp) CLogicalGbAgg(mp, pdrgpcrOutput,
+								   COperator::EgbaggtypeGlobal /*egbaggtype*/),
+		pexprUnionAll, pexprProjList);
 
 	// add alternative to results
 	pxfres->Add(pexprAgg);

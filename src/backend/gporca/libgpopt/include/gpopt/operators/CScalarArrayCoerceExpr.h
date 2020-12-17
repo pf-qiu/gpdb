@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2017 Pivotal Inc.
+//	Copyright (C) 2017 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarArrayCoerceExpr.h
@@ -24,82 +24,61 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarArrayCoerceExpr
-	//
-	//	@doc:
-	//		Scalar Array Coerce Expr operator
-	//
-	//---------------------------------------------------------------------------
-	class CScalarArrayCoerceExpr : public CScalarCoerceBase
-	{
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarArrayCoerceExpr
+//
+//	@doc:
+//		Scalar Array Coerce Expr operator
+//
+//---------------------------------------------------------------------------
+class CScalarArrayCoerceExpr : public CScalarCoerceBase
+{
+private:
+	// catalog MDId of the element function
+	IMDId *m_pmdidElementFunc;
 
-		private:
-			// catalog MDId of the element function
-			IMDId *m_pmdidElementFunc;
+	// conversion semantics flag to pass to func
+	BOOL m_is_explicit;
 
-			// conversion semantics flag to pass to func
-			BOOL m_is_explicit;
+public:
+	CScalarArrayCoerceExpr(const CScalarArrayCoerceExpr &) = delete;
 
-			// private copy ctor
-			CScalarArrayCoerceExpr(const CScalarArrayCoerceExpr &);
+	// ctor
+	CScalarArrayCoerceExpr(CMemoryPool *mp, IMDId *element_func,
+						   IMDId *result_type_mdid, INT type_modifier,
+						   BOOL is_explicit, ECoercionForm dxl_coerce_format,
+						   INT location);
 
-		public:
+	// dtor
+	~CScalarArrayCoerceExpr() override;
 
-			// ctor
-			CScalarArrayCoerceExpr
-				(
-				CMemoryPool *mp,
-				IMDId *element_func,
-				IMDId *result_type_mdid,
-				INT type_modifier,
-				BOOL is_explicit,
-				ECoercionForm dxl_coerce_format,
-				INT location
-				);
+	// return metadata id of element coerce function
+	IMDId *PmdidElementFunc() const;
 
-			// dtor
-			virtual
-			~CScalarArrayCoerceExpr();
-		
-			// return metadata id of element coerce function
-			IMDId *PmdidElementFunc() const;
+	BOOL IsExplicit() const;
 
-			BOOL IsExplicit() const;
+	EOperatorId Eopid() const override;
 
-			virtual
-			EOperatorId Eopid() const;
+	// return a string for operator name
+	const CHAR *SzId() const override;
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const;
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// match function
-			virtual
-			BOOL Matches
-				(
-				COperator *pop
-				) const;
+	// sensitivity to order of inputs
+	BOOL FInputOrderSensitive() const override;
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const;
+	// conversion function
+	static CScalarArrayCoerceExpr *PopConvert(COperator *pop);
 
-			// conversion function
-			static
-			CScalarArrayCoerceExpr *PopConvert
-				(
-				COperator *pop
-				);
+};	// class CScalarArrayCoerceExpr
 
-	}; // class CScalarArrayCoerceExpr
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CScalarArrayCoerceExpr_H
+#endif	// !GPOPT_CScalarArrayCoerceExpr_H
 
 // EOF

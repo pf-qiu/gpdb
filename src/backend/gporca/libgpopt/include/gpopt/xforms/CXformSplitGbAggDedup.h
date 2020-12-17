@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformSplitGbAggDedup.h
@@ -16,70 +16,57 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformSplitGbAggDedup
-	//
-	//	@doc:
-	//		Split a dedup aggregate operator into pair of local and global aggregates
-	//
-	//---------------------------------------------------------------------------
-	class CXformSplitGbAggDedup : public CXformSplitGbAgg
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformSplitGbAggDedup
+//
+//	@doc:
+//		Split a dedup aggregate operator into pair of local and global aggregates
+//
+//---------------------------------------------------------------------------
+class CXformSplitGbAggDedup : public CXformSplitGbAgg
+{
+private:
+public:
+	CXformSplitGbAggDedup(const CXformSplitGbAggDedup &) = delete;
+
+	// ctor
+	explicit CXformSplitGbAggDedup(CMemoryPool *mp);
+
+	// dtor
+	~CXformSplitGbAggDedup() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfSplitGbAggDedup;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformSplitGbAggDedup";
+	}
 
-			// private copy ctor
-			CXformSplitGbAggDedup(const CXformSplitGbAggDedup &);
+	// Compatibility function for splitting aggregates
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return (CXform::ExfSplitGbAggDedup != exfid);
+	}
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformSplitGbAggDedup(CMemoryPool *mp);
+};	// class CXformSplitGbAggDedup
 
-			// dtor
-			virtual
-			~CXformSplitGbAggDedup()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfSplitGbAggDedup;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformSplitGbAggDedup";
-			}
-
-			// Compatibility function for splitting aggregates
-			virtual
-			BOOL FCompatible(CXform::EXformId exfid)
-			{
-				return (CXform::ExfSplitGbAggDedup != exfid);
-			}
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformSplitGbAggDedup
-
-}
-
-#endif // !GPOPT_CXformSplitGbAggDedup_H
+#endif	// !GPOPT_CXformSplitGbAggDedup_H
 
 // EOF

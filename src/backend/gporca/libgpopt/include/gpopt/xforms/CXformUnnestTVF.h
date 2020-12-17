@@ -16,74 +16,62 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformUnnestTVF
-	//
-	//	@doc:
-	//		Unnest TVF with subquery arguments
-	//
-	//---------------------------------------------------------------------------
-	class CXformUnnestTVF : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformUnnestTVF
+//
+//	@doc:
+//		Unnest TVF with subquery arguments
+//
+//---------------------------------------------------------------------------
+class CXformUnnestTVF : public CXformExploration
+{
+private:
+	// helper for mapping subquery function arguments into columns
+	static CColRefArray *PdrgpcrSubqueries(CMemoryPool *mp,
+										   CExpression *pexprCTEProducer,
+										   CExpression *pexprCTEConsumer);
+
+	//	collect subquery arguments and return a Project expression
+	static CExpression *PexprProjectSubqueries(CMemoryPool *mp,
+											   CExpression *pexprTVF);
+
+public:
+	CXformUnnestTVF(const CXformUnnestTVF &) = delete;
+
+	// ctor
+	explicit CXformUnnestTVF(CMemoryPool *mp);
+
+	// dtor
+	~CXformUnnestTVF() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfUnnestTVF;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformUnnestTVF";
+	}
 
-			// private copy ctor
-			CXformUnnestTVF(const CXformUnnestTVF &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// helper for mapping subquery function arguments into columns
-			static
-			CColRefArray *PdrgpcrSubqueries
-				(
-				CMemoryPool *mp,
-				CExpression *pexprCTEProducer,
-				CExpression *pexprCTEConsumer
-				);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			//	collect subquery arguments and return a Project expression
-			static
-			CExpression *PexprProjectSubqueries(CMemoryPool *mp, CExpression *pexprTVF);
+};	// class CXformUnnestTVF
 
-		public:
+}  // namespace gpopt
 
-			// ctor
-			explicit
-			CXformUnnestTVF(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformUnnestTVF()
-			{}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfUnnestTVF;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformUnnestTVF";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	}; // class CXformUnnestTVF
-
-}
-
-#endif // !GPOPT_CXformUnnestTVF_H
+#endif	// !GPOPT_CXformUnnestTVF_H
 
 // EOF

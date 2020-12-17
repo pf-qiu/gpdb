@@ -14,70 +14,63 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalInnerApply.h"
+#include "gpopt/operators/CLogicalInnerJoin.h"
 #include "gpopt/xforms/CXformApply2Join.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformInnerApply2InnerJoinNoCorrelations
-	//
-	//	@doc:
-	//		Transform inner apply into inner join
-	//
-	//---------------------------------------------------------------------------
-	class CXformInnerApply2InnerJoinNoCorrelations : public CXformApply2Join<CLogicalInnerApply, CLogicalInnerJoin>
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformInnerApply2InnerJoinNoCorrelations
+//
+//	@doc:
+//		Transform inner apply into inner join
+//
+//---------------------------------------------------------------------------
+class CXformInnerApply2InnerJoinNoCorrelations
+	: public CXformApply2Join<CLogicalInnerApply, CLogicalInnerJoin>
+{
+private:
+public:
+	CXformInnerApply2InnerJoinNoCorrelations(
+		const CXformInnerApply2InnerJoinNoCorrelations &) = delete;
+
+	// ctor
+	explicit CXformInnerApply2InnerJoinNoCorrelations(CMemoryPool *mp)
+		: CXformApply2Join<CLogicalInnerApply, CLogicalInnerJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformInnerApply2InnerJoinNoCorrelations() override = default;
 
-			// private copy ctor
-			CXformInnerApply2InnerJoinNoCorrelations(const CXformInnerApply2InnerJoinNoCorrelations &);
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfInnerApply2InnerJoinNoCorrelations;
+	}
 
-		public:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformInnerApply2InnerJoinNoCorrelations";
+	}
 
-			// ctor
-			explicit
-			CXformInnerApply2InnerJoinNoCorrelations
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformApply2Join<CLogicalInnerApply, CLogicalInnerJoin>(mp)
-			{}
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// dtor
-			virtual
-			~CXformInnerApply2InnerJoinNoCorrelations()
-			{}
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfInnerApply2InnerJoinNoCorrelations;
-			}
+};	// class CXformInnerApply2InnerJoinNoCorrelations
 
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformInnerApply2InnerJoinNoCorrelations";
-			}
+}  // namespace gpopt
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	}; // class CXformInnerApply2InnerJoinNoCorrelations
-
-}
-
-#endif // !GPOPT_CXformInnerApply2InnerJoinNoCorrelations_H
+#endif	// !GPOPT_CXformInnerApply2InnerJoinNoCorrelations_H
 
 // EOF

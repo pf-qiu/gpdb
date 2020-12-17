@@ -15,47 +15,41 @@
 
 namespace gpos
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		COstreamBasic
-	//
-	//	@doc:
-	//		Implements a basic write thru interface over a std::WOSTREAM
-	//
-	//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+//	@class:
+//		COstreamBasic
+//
+//	@doc:
+//		Implements a basic write thru interface over a std::WOSTREAM
+//
+//---------------------------------------------------------------------------
 
-	class COstreamBasic : public COstream
-	{
-		private:
-			
-			// underlying stream
-			WOSTREAM *m_ostream;
+class COstreamBasic : public COstream
+{
+private:
+	// underlying stream
+	WOSTREAM *m_ostream;
 
-			// private copy ctor
-			COstreamBasic(const COstreamBasic &);
-			
-		public:
+public:
+	COstreamBasic(const COstreamBasic &) = delete;
 
-			// please see comments in COstream.h for an explanation
-			using COstream::operator <<;
-			
-			// ctor
-			explicit
-			COstreamBasic(WOSTREAM *ostream);
+	// please see comments in COstream.h for an explanation
+	using COstream::operator<<;
 
-			virtual ~COstreamBasic() {}
-						
-			// implement << operator				
-			virtual IOstream& operator<< (const WCHAR *);
+	// ctor
+	explicit COstreamBasic(WOSTREAM *ostream);
 
-			// implement << operator
-			virtual IOstream& operator<< (const WCHAR);
+	~COstreamBasic() override = default;
 
-	};
+	// implement << operator
+	IOstream &operator<<(const WCHAR *) override;
 
-}
+	// implement << operator
+	IOstream &operator<<(const WCHAR) override;
+};
 
-#endif // !GPOS_COstreamBasic_H
+}  // namespace gpos
+
+#endif	// !GPOS_COstreamBasic_H
 
 // EOF
-

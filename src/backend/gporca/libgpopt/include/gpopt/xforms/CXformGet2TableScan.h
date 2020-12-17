@@ -16,66 +16,54 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformGet2TableScan
-	//
-	//	@doc:
-	//		Transform Get to TableScan
-	//
-	//---------------------------------------------------------------------------
-	class CXformGet2TableScan : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformGet2TableScan
+//
+//	@doc:
+//		Transform Get to TableScan
+//
+//---------------------------------------------------------------------------
+class CXformGet2TableScan : public CXformImplementation
+{
+private:
+public:
+	CXformGet2TableScan(const CXformGet2TableScan &) = delete;
+
+	// ctor
+	explicit CXformGet2TableScan(CMemoryPool *);
+
+	// dtor
+	~CXformGet2TableScan() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfGet2TableScan;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformGet2TableScan";
+	}
 
-			// private copy ctor
-			CXformGet2TableScan(const CXformGet2TableScan &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
-		
-			// ctor
-			explicit
-			CXformGet2TableScan(CMemoryPool *);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// dtor
-			virtual 
-			~CXformGet2TableScan() {}
+};	// class CXformGet2TableScan
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfGet2TableScan;
-			}
-			
-			// return a string for xform name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformGet2TableScan";
-			}
-			
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-			
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				) 
-				const;
-		
-	}; // class CXformGet2TableScan
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformGet2TableScan_H
+#endif	// !GPOPT_CXformGet2TableScan_H
 
 // EOF

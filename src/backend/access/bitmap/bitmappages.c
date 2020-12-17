@@ -5,7 +5,7 @@
  *
  * Portions Copyright (c) 2007-2010 Greenplum Inc
  * Portions Copyright (c) 2010-2012 EMC Corporation
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 2006-2008, PostgreSQL Global Development Group
  *
  *
@@ -16,12 +16,15 @@
  */
 
 #include "postgres.h"
-#include "miscadmin.h"
 
 #include "access/genam.h"
 #include "access/tupdesc.h"
 #include "access/bitmap.h"
+#include "access/bitmap_private.h"
+#include "catalog/pg_collation.h"
+#include "miscadmin.h"
 #include "parser/parse_oper.h"
+#include "storage/bufmgr.h"
 #include "storage/lmgr.h"
 #include "utils/memutils.h"
 #include "utils/lsyscache.h"
@@ -39,6 +42,7 @@ typedef struct BMBuildHashData
 	FmgrInfo   *hash_funcs;
 	bool       *hash_func_is_strict;
 	FmgrInfo   *eq_funcs;
+	Oid        *ind_collations;
 	MemoryContext tmpcxt;
 	MemoryContext hash_cxt;
 } BMBuildHashData;
@@ -189,10 +193,11 @@ _bitmap_init_buildstate(Relation index, BMBuildState *bmstate)
                         palloc(sizeof(FmgrInfo) * bmstate->bm_tupDesc->natts);
     cur_bmbuild->hash_func_is_strict = (bool *)
                         palloc(sizeof(bool) * bmstate->bm_tupDesc->natts);
+	cur_bmbuild->ind_collations = NULL;
 
 	for (i = 0; i < bmstate->bm_tupDesc->natts; i++)
 	{
-		Oid			typid = bmstate->bm_tupDesc->attrs[i]->atttypid;
+		Oid			typid = TupleDescAttr(bmstate->bm_tupDesc,  i)->atttypid;
 		Oid			eq_opr;
 		Oid			eq_function;
 		Oid			left_hash_function;
@@ -224,6 +229,7 @@ _bitmap_init_buildstate(Relation index, BMBuildState *bmstate)
 	if (cur_bmbuild)
 	{
 		cur_bmbuild->natts = bmstate->bm_tupDesc->natts;
+		cur_bmbuild->ind_collations = index->rd_indcollation;
 		cur_bmbuild->tmpcxt = AllocSetContextCreate(CurrentMemoryContext,
         	                      "Bitmap build temp space",
             	                  ALLOCSET_DEFAULT_MINSIZE,
@@ -271,7 +277,7 @@ _bitmap_init_buildstate(Relation index, BMBuildState *bmstate)
 			RegProcedure opfuncid;
 			Oid			atttypid;
 
-			atttypid = bmstate->bm_tupDesc->attrs[attno]->atttypid;
+			atttypid = TupleDescAttr(bmstate->bm_tupDesc,  attno)->atttypid;
 
 			get_sort_group_operators(atttypid,
 									 false, true, false,
@@ -473,9 +479,14 @@ build_hash_key(const void *key, Size keysize pg_attribute_unused())
         }
         else
         {
-            hashkey ^= DatumGetUInt32(FunctionCall1(&cur_bmbuild->hash_funcs[i], k[i]));
-        }
+			Oid	collation = cur_bmbuild->ind_collations[i];
 
+			if (!OidIsValid(collation))
+				collation = DEFAULT_COLLATION_OID;
+			hashkey ^= DatumGetUInt32(FunctionCall1Coll(&cur_bmbuild->hash_funcs[i],
+														collation,
+														k[i]));
+        }
 	}
 	return hashkey;
 }
@@ -525,7 +536,14 @@ build_match_key(const void *key1, const void *key2, Size keysize pg_attribute_un
             /* do the real comparison */
             Datum attr1 = k1[i];
             Datum attr2 = k2[i];
-            if (!DatumGetBool(FunctionCall2(&cur_bmbuild->eq_funcs[i], attr1, attr2)))
+			Oid	collation = cur_bmbuild->ind_collations[i];
+
+			if (!OidIsValid(collation))
+				collation = DEFAULT_COLLATION_OID;
+			if (!DatumGetBool(FunctionCall2Coll(&cur_bmbuild->eq_funcs[i],
+												collation,
+												attr1,
+												attr2)))
             {
                 result = 1;     /* they aren't equal */
                 break;

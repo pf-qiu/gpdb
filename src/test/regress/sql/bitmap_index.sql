@@ -17,7 +17,7 @@ select * from bm_test where i > 10;
 reindex index bm_test_idx;
 select count(*) from bm_test where i in(1, 3);
 drop index bm_test_idx;
-create index bm_test_multi_idx on bm_test using bitmap(i, t);
+create index bm_test_coll_idx on bm_test using bitmap(i, t COLLATE "C");
 select * from bm_test where i=5 and t='5';
 select * from bm_test where i=5 or t='6';
 
@@ -191,7 +191,6 @@ create unique index ijk_ij on ijk(i,j);
 -- should OK.
 create unique index ijk_ijk on ijk(i,j,k);
 
-set gp_enable_mk_sort=on;
 drop table if exists ijk;
 create table ijk(i int, j int, k int) distributed by (i);
 insert into ijk values (1, 1, 3);
@@ -207,7 +206,6 @@ create unique index ijk_ij on ijk(i,j);
 -- should OK.
 create unique index ijk_ijk on ijk(i,j,k);
 
-set gp_enable_mk_sort=off;
 drop table ijk;
 
 --
@@ -248,6 +246,27 @@ drop index oversize_test_idx;
 insert into oversize_test values (array_to_string(array(select generate_series(1, 10000)), '123456789'));
 CREATE INDEX oversize_test_idx ON oversize_test USING BITMAP (c1);
 
+--
+-- Test Index Only Scans.
+--
+-- Bitmap indexes don't really support index only scans at the moment. But the
+-- planner can still choose an Index Only Scan, if the query doesn't need any
+-- of the attributes from the index.
+create table bm_indexonly_test (i int, t text);
+insert into bm_indexonly_test select g, 'foo' || g from generate_series(1, 5) g;
+create index on bm_indexonly_test using bitmap (i, t);
+set enable_seqscan=off;
+set enable_bitmapscan=off;
+set enable_indexscan=on;
+set enable_indexonlyscan=on;
+
+-- if bitmap indexes supported Index Only Scans, properly, this could use one.
+explain (costs off) select i, t from bm_indexonly_test where i = 1;
+select i, t from bm_indexonly_test where i = 1;
+
+-- even without proper support, the planner chooses an Index Only Scan for this.
+explain (costs off) select 'foobar' from bm_indexonly_test;
+select 'foobar' from bm_indexonly_test;
 
 --
 -- Test unlogged table
@@ -322,3 +341,52 @@ SELECT * from bm_test_reindex where c2 = 32767;
 SELECT * from bm_test_reindex where c2 = 32768;
 SELECT * from bm_test_reindex where c2 = 32769;
 SELECT * from bm_test_reindex where c2 = 65536;
+
+SET enable_seqscan = ON;
+SET enable_indexscan = ON;
+
+--
+-- correct cost estimate to avoid bm index scan for wrong result
+--
+CREATE TABLE test_bmselec(id int, type int, msg text) distributed by (id);
+INSERT INTO test_bmselec (id, type, msg) SELECT g, g % 10000, md5(g::text) FROM generate_series(1,100000) as g;
+CREATE INDEX ON test_bmselec USING bitmap(type);
+ANALYZE test_bmselec;
+
+-- it used to choose bitmap index over seq scan, which not right.
+explain (analyze, verbose) select * from test_bmselec where type < 500;
+
+SET enable_seqscan = OFF;
+SET enable_bitmapscan = OFF;
+-- we can see the bitmap index scan is much more slower
+explain (analyze, verbose) select * from test_bmselec where type < 500;
+DROP TABLE test_bmselec;
+
+SET enable_seqscan = ON;
+SET enable_bitmapscan = ON;
+
+-- for sparse bitmap index
+create table test_bmsparse(id int, type int, msg text) distributed by (id);
+INSERT INTO test_bmsparse (id, type, msg) SELECT g, g % 10000, md5(g::text) FROM generate_series(1,10000) as g;
+INSERT INTO test_bmsparse (id, type, msg) SELECT g, g % 200, md5(g::text) FROM generate_series(1,80000) as g;
+INSERT INTO test_bmsparse (id, type, msg) SELECT g, g % 10000, md5(g::text) FROM generate_series(1,10000) as g;
+CREATE INDEX ON test_bmsparse USING bitmap(type);
+ANALYZE test_bmsparse;
+
+-- select lots of rows but on small part of distinct values, should use seq scan
+explain (analyze, verbose) select * from test_bmsparse where type < 200;
+
+SET enable_seqscan = OFF;
+SET enable_bitmapscan = OFF;
+explain (analyze, verbose) select * from test_bmsparse where type < 200;
+
+SET enable_seqscan = ON;
+SET enable_bitmapscan = ON;
+-- select small part of table but on lots of distinct values, should use seq scan
+explain (analyze, verbose) select * from test_bmsparse where type > 500;
+
+SET enable_seqscan = OFF;
+SET enable_bitmapscan = OFF;
+explain (analyze, verbose) select * from test_bmsparse where type > 500;
+
+DROP TABLE test_bmsparse;

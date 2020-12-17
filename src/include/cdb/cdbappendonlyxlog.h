@@ -3,7 +3,7 @@
  * cdbappendonlyxlog.h
  *
  * Portions Copyright (c) 2009-2010, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -15,7 +15,8 @@
 #define CDBAPPENDONLYXLOG_H
 
 
-#include "access/xlog.h"
+#include "access/xlogreader.h"
+#include "lib/stringinfo.h"
 #include "storage/fd.h"
 #include "storage/relfilenode.h"
 #include "storage/smgr.h"

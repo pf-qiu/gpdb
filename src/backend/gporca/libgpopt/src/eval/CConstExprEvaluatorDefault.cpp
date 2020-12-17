@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CConstExprEvaluatorDefault.cpp
@@ -9,7 +9,7 @@
 //		Dummy implementation of the constant expression evaluator
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
@@ -30,9 +30,7 @@ using namespace gpopt;
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CConstExprEvaluatorDefault::~CConstExprEvaluatorDefault()
-{
-}
+CConstExprEvaluatorDefault::~CConstExprEvaluatorDefault() = default;
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -43,10 +41,7 @@ CConstExprEvaluatorDefault::~CConstExprEvaluatorDefault()
 //
 //---------------------------------------------------------------------------
 CExpression *
-CConstExprEvaluatorDefault::PexprEval
-	(
-	CExpression *pexpr
-	)
+CConstExprEvaluatorDefault::PexprEval(CExpression *pexpr)
 {
 	pexpr->AddRef();
 	return pexpr;

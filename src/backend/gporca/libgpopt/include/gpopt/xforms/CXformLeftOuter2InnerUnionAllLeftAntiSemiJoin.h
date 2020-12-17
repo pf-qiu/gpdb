@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin.h
@@ -28,7 +28,7 @@
 //		where A is the InnerJoin(Big, Small)
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
@@ -42,104 +42,80 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	class CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin : public CXformExploration
+class CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin : public CXformExploration
+{
+private:
+	// if ratio of the cardinalities outer/inner is below this value, we apply the xform
+	static const DOUBLE m_dOuterInnerRatioThreshold;
+
+	// check the stats ratio to decide whether to apply the xform or not
+	BOOL FApplyXformUsingStatsInfo(const IStatistics *outer_stats,
+								   const IStatistics *inner_side_stats) const;
+
+	// check if the inner expression is of a type which should be considered by this xform
+	static BOOL FValidInnerExpr(CExpression *pexprInner);
+
+	// construct a left anti semi join with the CTE consumer (ulCTEJoinId) as outer
+	// and a group by as inner
+	static CExpression *PexprLeftAntiSemiJoinWithInnerGroupBy(
+		CMemoryPool *mp, CColRefArray *pdrgpcrOuter,
+		CColRefArray *pdrgpcrOuterCopy, CColRefSet *pcrsScalar,
+		CColRefSet *pcrsInner, CColRefArray *pdrgpcrJoinOutput,
+		ULONG ulCTEJoinId, ULONG ulCTEOuterId);
+
+	// return a project over a left anti semi join that appends nulls for all
+	// columns in the original inner child
+	static CExpression *PexprProjectOverLeftAntiSemiJoin(
+		CMemoryPool *mp, CColRefArray *pdrgpcrOuter, CColRefSet *pcrsScalar,
+		CColRefSet *pcrsInner, CColRefArray *pdrgpcrJoinOutput,
+		ULONG ulCTEJoinId, ULONG ulCTEOuterId,
+		CColRefArray **ppdrgpcrProjectOutput);
+
+public:
+	CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin(
+		const CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin &) = delete;
+
+	// ctor
+	explicit CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin(CMemoryPool *mp);
+
+	// dtor
+	~CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin() override = default;
+
+	// identifier
+	EXformId
+	Exfid() const override
 	{
-		private:
-			// if ratio of the cardinalities outer/inner is below this value, we apply the xform
-			static const DOUBLE m_dOuterInnerRatioThreshold;
+		return ExfLeftOuter2InnerUnionAllLeftAntiSemiJoin;
+	}
 
-			// disable copy ctor
-			CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin(const CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin &);
+	// return a string for the xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin";
+	}
 
-			// check the stats ratio to decide whether to apply the xform or not
-			BOOL FApplyXformUsingStatsInfo(const IStatistics *outer_stats, const IStatistics *inner_side_stats) const;
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// check if the inner expression is of a type which should be considered by this xform
-			static
-			BOOL FValidInnerExpr(CExpression *pexprInner);
+	// do stats need to be computed before applying xform?
+	BOOL
+	FNeedsStats() const override
+	{
+		return true;
+	}
 
-			// construct a left anti semi join with the CTE consumer (ulCTEJoinId) as outer
-			// and a group by as inner
-			static
-			CExpression *PexprLeftAntiSemiJoinWithInnerGroupBy
-				(
-				CMemoryPool *mp,
-				CColRefArray *pdrgpcrOuter,
-				CColRefArray *pdrgpcrOuterCopy,
-				CColRefSet *pcrsScalar,
-				CColRefSet *pcrsInner,
-				CColRefArray *pdrgpcrJoinOutput,
-				ULONG ulCTEJoinId,
-				ULONG ulCTEOuterId
-				);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// return a project over a left anti semi join that appends nulls for all
-			// columns in the original inner child
-			static
-			CExpression *PexprProjectOverLeftAntiSemiJoin
-				(
-				CMemoryPool *mp,
-				CColRefArray *pdrgpcrOuter,
-				CColRefSet *pcrsScalar,
-				CColRefSet *pcrsInner,
-				CColRefArray *pdrgpcrJoinOutput,
-				ULONG ulCTEJoinId,
-				ULONG ulCTEOuterId,
-				CColRefArray **ppdrgpcrProjectOutput
-				);
+	// return true if xform should be applied only once
+	BOOL IsApplyOnce() override;
+};
+}  // namespace gpopt
 
-		public:
-			// ctor
-			explicit
-			CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin() {}
-
-			// identifier
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfLeftOuter2InnerUnionAllLeftAntiSemiJoin;
-			}
-
-			// return a string for the xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// do stats need to be computed before applying xform?
-			virtual
-			BOOL FNeedsStats() const
-			{
-				return true;
-			}
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-			// return true if xform should be applied only once
-			virtual
-			BOOL IsApplyOnce();
-	};
-}
-
-#endif // !GPOPT_CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin_H
+#endif	// !GPOPT_CXformLeftOuter2InnerUnionAllLeftAntiSemiJoin_H
 
 // EOF

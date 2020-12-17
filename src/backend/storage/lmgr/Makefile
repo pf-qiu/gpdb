@@ -13,7 +13,7 @@ top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
 OBJS = lmgr.o lock.o proc.o deadlock.o lwlock.o lwlocknames.o spin.o \
-	s_lock.o predicate.o
+	s_lock.o predicate.o condition_variable.o
 
 include $(top_srcdir)/src/backend/common.mk
 
@@ -25,8 +25,9 @@ s_lock_test: s_lock.c $(top_builddir)/src/port/libpgport.a
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DS_LOCK_TEST=1 $(srcdir)/s_lock.c \
 		$(TASPATH) -L $(top_builddir)/src/port -lpgport -o s_lock_test
 
-# see explanation in ../../parser/Makefile
-lwlocknames.c: lwlocknames.h ;
+# see notes in src/backend/parser/Makefile
+lwlocknames.c: lwlocknames.h
+	touch $@
 
 lwlocknames.h: $(top_srcdir)/src/backend/storage/lmgr/lwlocknames.txt generate-lwlocknames.pl
 	$(PERL) $(srcdir)/generate-lwlocknames.pl $<

@@ -2,7 +2,7 @@
 <!DOCTYPE topic
   PUBLIC "-//OASIS//DTD DITA Composite//EN" "ditabase.dtd">
 <topic id="topic1" xml:lang="en">
-  <title id="kh138244">Migrating Data from Greenplum 4.3 or 5</title>
+  <title id="kh138244">Migrating Data from Greenplum 4.3 or 5 to Greenplum 6</title>
   <shortdesc>You can migrate data from Greenplum Database 4.3 or 5 to Greenplum 6 using the standard
     backup and restore procedures, <codeph>gpbackup</codeph> and <codeph>gprestore</codeph><ph
       otherprops="pivotal">, or by using <codeph>gpcopy</codeph></ph>.</shortdesc>
@@ -42,7 +42,7 @@
         <li>Install the latest release of the Greenplum Backup and Restore utilities, available to
           download from <ph otherprops="pivotal"><xref
               href="https://network.pivotal.io/products/pivotal-gpdb-backup-restore" format="html"
-              scope="external">Pivotal Network</xref></ph><ph otherprops="oss-only"><xref
+              scope="external">VMware Tanzu Network</xref></ph><ph otherprops="oss-only"><xref
               href="https://github.com/greenplum-db/gpbackup/releases" format="html"
               scope="external">github</xref></ph>.</li>
         <li>If you intend to install Greenplum Database 6 on the same hardware as your 4.3 system,
@@ -102,7 +102,7 @@
         must be at least version 5.5. Be sure to use the latest release of the backup and restore
         utilities, available for download from <ph otherprops="pivotal"><xref
             href="https://network.pivotal.io/products/pivotal-gpdb-backup-restore" format="html"
-            scope="external">Pivotal Network</xref></ph><ph otherprops="oss-only"><xref
+            scope="external">VMware Tanzu Network</xref></ph><ph otherprops="oss-only"><xref
             href="https://github.com/greenplum-db/gpbackup/releases" format="html" scope="external"
             >github</xref></ph>.</note>
       <note type="important">Make sure that you have a complete backup of all data in the Greenplum
@@ -118,7 +118,7 @@
             from Greenplum 5</xref> to plan for the PXF migration.</li>
         <li>Greenplum Database version 6 removes support for the <codeph>gphdfs</codeph> protocol.
           If you have created external tables that use gphdfs, remove the external table definitions
-          and (optionally) recreate them to use Pivotal Extension Framework (PXF) before you migrate
+          and (optionally) recreate them to use Greenplum Platform Extension Framework (PXF) before you migrate
           the data to Greenplum 6. Refer to <xref scope="peer" href="../pxf/gphdfs-pxf-migrate.html"
             >Migrating gphdfs External Tables to PXF</xref> in the PXF documentation for the
           migration procedure.</li>
@@ -283,7 +283,8 @@ SELECT '20190905 140000'::timestamp ;</codeblock></p></li>
           <codeph>gpbackup</codeph> or <codeph>gprestore</codeph> filter options to omit schemas or
         tables that cannot be restored without error. </p>
       <p otherprops="pivotal">If you use <codeph>gpcopy</codeph> to migrate data, initiate the
-          <codeph>gpcopy</codeph> operation from the Greenplum 4.3 or 5 cluster. See <xref
+          <codeph>gpcopy</codeph> operation from the Greenplum 4.3.26 (or later) or the
+          5.9 (or later) cluster. See <xref
           scope="peer" href="../admin_guide/managing/gpcopy-migrate.xml">Migrating Data with
           gpcopy</xref> for more information.</p>
       <note type="important">When you restore a backup taken from a Greenplum Database 4.3 or 5
@@ -325,7 +326,7 @@ SELECT '20190905 140000'::timestamp ;</codeblock></p></li>
           user-defined functions as necessary to account for changes in Greenplum Database version
           6. Review the <xref
             href="https://gpdb.docs.pivotal.io/latest/relnotes/GPDB_600_README.html" format="html"
-            scope="external">Pivotal Greenplum 6.0.0 Release Notes</xref> for features and changes
+            scope="external">Tanzu Greenplum 6.0.0 Release Notes</xref> for features and changes
           that may necessitate post-migration tasks.</li>
         <li>To use the new Greenplum 6 default hash operator classes, use the command <codeph>ALTER
             TABLE &lt;table> SET DISTRIBUTED BY (&lt;key>)</codeph> to redistribute tables restored

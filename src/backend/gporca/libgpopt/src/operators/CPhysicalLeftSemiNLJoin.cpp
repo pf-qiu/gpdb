@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "gpos/base.h"
-#include "gpopt/base/CUtils.h"
 
 #include "gpopt/operators/CPhysicalLeftSemiNLJoin.h"
 
@@ -26,13 +25,10 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CPhysicalLeftSemiNLJoin::CPhysicalLeftSemiNLJoin
-	(
-	CMemoryPool *mp
-	)
-	:
-	CPhysicalNLJoin(mp)
-{}
+CPhysicalLeftSemiNLJoin::CPhysicalLeftSemiNLJoin(CMemoryPool *mp)
+	: CPhysicalNLJoin(mp)
+{
+}
 
 
 //---------------------------------------------------------------------------
@@ -43,8 +39,7 @@ CPhysicalLeftSemiNLJoin::CPhysicalLeftSemiNLJoin
 //		Dtor
 //
 //---------------------------------------------------------------------------
-CPhysicalLeftSemiNLJoin::~CPhysicalLeftSemiNLJoin()
-{}
+CPhysicalLeftSemiNLJoin::~CPhysicalLeftSemiNLJoin() = default;
 
 
 //---------------------------------------------------------------------------
@@ -56,13 +51,10 @@ CPhysicalLeftSemiNLJoin::~CPhysicalLeftSemiNLJoin()
 //
 //---------------------------------------------------------------------------
 BOOL
-CPhysicalLeftSemiNLJoin::FProvidesReqdCols
-	(
-	CExpressionHandle &exprhdl,
-	CColRefSet *pcrsRequired,
-	ULONG // ulOptReq
-	)
-	const
+CPhysicalLeftSemiNLJoin::FProvidesReqdCols(CExpressionHandle &exprhdl,
+										   CColRefSet *pcrsRequired,
+										   ULONG  // ulOptReq
+) const
 {
 	// left semi join only propagates columns from left child
 	return FOuterProvidesReqdCols(exprhdl, pcrsRequired);
@@ -70,4 +62,3 @@ CPhysicalLeftSemiNLJoin::FProvidesReqdCols
 
 
 // EOF
-

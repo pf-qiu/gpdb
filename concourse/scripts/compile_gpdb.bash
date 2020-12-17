@@ -48,6 +48,21 @@ function prep_env() {
   esac
 }
 
+function install_libuv() {
+  local includedir=/usr/include
+  local libdir
+
+  case "${TARGET_OS}" in
+    centos | sles) libdir=/usr/lib64 ;;
+    ubuntu) libdir=/usr/lib/x86_64-linux-gnu ;;
+    *) return ;;
+  esac
+  # provided by build container
+  cp -a /usr/local/include/uv* ${includedir}/
+  cp -a /usr/local/lib/libuv* ${libdir}/
+}
+
+
 function install_deps_for_centos_or_sles() {
   rpm -i libquicklz-installer/libquicklz-*.rpm
   rpm -i libquicklz-devel-installer/libquicklz-*.rpm
@@ -62,11 +77,7 @@ function install_deps() {
     centos | sles) install_deps_for_centos_or_sles;;
     ubuntu) install_deps_for_ubuntu;;
   esac
-}
-
-function link_python() {
-  tar xf python-tarball/python-*.tar.gz -C $(pwd)/${GPDB_SRC_PATH}/gpAux/ext
-  ln -sf $(pwd)/${GPDB_SRC_PATH}/gpAux/ext/${BLD_ARCH}/python-2.7.12 /opt/python-2.7.12
+  install_libuv
 }
 
 function generate_build_number() {
@@ -145,21 +156,19 @@ function include_quicklz() {
   popd
 }
 
-function include_libstdcxx() {
-  if [ "${TARGET_OS}" == "centos" ] ; then
-    pushd /opt/gcc-6*/lib64
-      for libfile in libstdc++.so.*; do
-        case $libfile in
-          *.py)
-            ;; # we don't vendor libstdc++.so.*-gdb.py
-          *)
-            cp -d "$libfile" ${GREENPLUM_INSTALL_DIR}/lib
-            ;; # vendor everything else
-        esac
-      done
-    popd
-  fi
-
+function include_libuv() {
+  local includedir=/usr/include
+  local libdir
+  case "${TARGET_OS}" in
+    centos | sles) libdir=/usr/lib64 ;;
+    ubuntu) libdir=/usr/lib/x86_64-linux-gnu ;;
+    *) return ;;
+  esac
+  pushd ${GREENPLUM_INSTALL_DIR}
+    # need to include both uv.h and uv/*.h
+    cp -a ${includedir}/uv* include
+    cp -a ${libdir}/libuv.so* lib
+  popd
 }
 
 function export_gpdb() {
@@ -172,7 +181,7 @@ function export_gpdb() {
 
   pushd ${GREENPLUM_INSTALL_DIR}
     source greenplum_path.sh
-    python -m compileall -q -x test .
+    python3 -m compileall -q -x test .
     chmod -R 755 .
     tar -czf "${TARBALL}" ./*
   popd
@@ -204,6 +213,9 @@ function export_gpdb_clients() {
     mkdir -p bin/ext/gppylib
     cp ${GREENPLUM_INSTALL_DIR}/lib/python/gppylib/__init__.py ./bin/ext/gppylib
     cp  ${GREENPLUM_INSTALL_DIR}/lib/python/gppylib/gpversion.py ./bin/ext/gppylib
+    # GPHOME_LOADERS and greenplum_loaders_path.sh are still requried by some users
+    # So link greenplum_loaders_path.sh to greenplum_clients_path.sh for compatible
+    ln -sf greenplum_clients_path.sh greenplum_loaders_path.sh
     chmod -R 755 .
     tar -czf "${TARBALL}" ./*
   popd
@@ -214,18 +226,8 @@ function build_xerces()
     OUTPUT_DIR="gpdb_src/gpAux/ext/${BLD_ARCH}"
     mkdir -p xerces_patch/concourse
     cp -r gpdb_src/src/backend/gporca/concourse/xerces-c xerces_patch/concourse
-    cp -r gpdb_src/src/backend/gporca/patches/ xerces_patch
     /usr/bin/python xerces_patch/concourse/xerces-c/build_xerces.py --output_dir=${OUTPUT_DIR}
     rm -rf build
-}
-
-function test_orca()
-{
-    OUTPUT_DIR="../../../../gpAux/ext/${BLD_ARCH}"
-    pushd ${GPDB_SRC_PATH}/src/backend/gporca
-    concourse/build_and_test.py --build_type=RelWithDebInfo --output_dir=${OUTPUT_DIR}
-    concourse/build_and_test.py --build_type=Debug --output_dir=${OUTPUT_DIR}
-    popd
 }
 
 function _main() {
@@ -235,9 +237,7 @@ function _main() {
     centos|ubuntu|sles)
       prep_env
       build_xerces
-      test_orca
       install_deps
-      link_python
       ;;
     win32)
         export BLD_ARCH=win32
@@ -264,14 +264,14 @@ function _main() {
   build_gpdb "${BLD_TARGET_OPTION[@]}"
   git_info
 
-  if [ "${TARGET_OS}" != "win32" ] ; then
+  if [[ "${TARGET_OS}" != "win32" ]] && [[ -z "${SKIP_UNITTESTS}" ]]; then
       # Don't unit test when cross compiling. Tests don't build because they
       # require `./configure --with-zlib`.
       unittest_check_gpdb
   fi
   include_zstd
   include_quicklz
-  include_libstdcxx
+  include_libuv
   export_gpdb
   export_gpdb_extensions
   export_gpdb_win32_ccl

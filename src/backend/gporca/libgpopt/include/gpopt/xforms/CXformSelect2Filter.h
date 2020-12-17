@@ -16,59 +16,52 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformSelect2Filter
-	//
-	//	@doc:
-	//		Transform Select to Filter
-	//
-	//---------------------------------------------------------------------------
-	class CXformSelect2Filter : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformSelect2Filter
+//
+//	@doc:
+//		Transform Select to Filter
+//
+//---------------------------------------------------------------------------
+class CXformSelect2Filter : public CXformImplementation
+{
+private:
+public:
+	CXformSelect2Filter(const CXformSelect2Filter &) = delete;
+
+	// ctor
+	explicit CXformSelect2Filter(CMemoryPool *mp);
+
+	// dtor
+	~CXformSelect2Filter() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfSelect2Filter;
+	}
 
-		private:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformSelect2Filter";
+	}
 
-			// private copy ctor
-			CXformSelect2Filter(const CXformSelect2Filter &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
-		
-			// ctor
-			explicit
-			CXformSelect2Filter(CMemoryPool *mp);
+	// actual transform
+	void Transform(CXformContext *, CXformResult *,
+				   CExpression *) const override;
 
-			// dtor
-			virtual 
-			~CXformSelect2Filter() 
-			{}
+};	// class CXformSelect2Filter
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfSelect2Filter;
-			}
-			
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformSelect2Filter";
-			}
+}  // namespace gpopt
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform(CXformContext *, CXformResult *, CExpression *) const;
-
-	}; // class CXformSelect2Filter
-
-}
-
-#endif // !GPOPT_CXformSelect2Filter_H
+#endif	// !GPOPT_CXformSelect2Filter_H
 
 // EOF

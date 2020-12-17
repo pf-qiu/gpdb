@@ -5,7 +5,7 @@
  *
  * Portions Copyright (c) 2007-2010 Greenplum Inc
  * Portions Copyright (c) 2010-2012 EMC Corporation
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 2006-2008, PostgreSQL Global Development Group
  *
  *
@@ -24,7 +24,10 @@
 #include "access/amvalidate.h"
 #include "access/genam.h"
 #include "access/bitmap.h"
+#include "access/bitmap_private.h"
+#include "access/reloptions.h"
 #include "access/nbtree.h"		/* for btree_or_bitmap_validate() */
+#include "access/tableam.h"
 #include "access/xact.h"
 #include "catalog/index.h"
 #include "catalog/pg_am.h"
@@ -141,8 +144,9 @@ bmbuild(Relation heap, Relation index, IndexInfo *indexInfo)
 	_bitmap_init_buildstate(index, &bmstate);
 
 	/* do the heap scan */
-	reltuples = IndexBuildScan(heap, index, indexInfo, false,
-							  bmbuildCallback, (void *)&bmstate);
+	reltuples = table_index_build_scan(heap, index, indexInfo, true, true,
+									   bmbuildCallback, (void *) &bmstate,
+									   NULL);
 	/* clean up the build state */
 	_bitmap_cleanup_buildstate(index, &bmstate);
 	
@@ -171,7 +175,8 @@ bmbuildempty(Relation indexrel)
 bool
 bminsert(Relation rel, Datum *values, bool *isnull,
 		 ItemPointer ht_ctid, Relation heapRel,
-		 IndexUniqueCheck checkUnique)
+		 IndexUniqueCheck checkUnique,
+		 IndexInfo *indexInfo)
 {
 	_bitmap_doinsert(rel, *ht_ctid, values, isnull);
 	return true;
@@ -317,6 +322,9 @@ bmbeginscan(Relation rel, int nkeys, int norderbys)
 	so->bm_markPos = NULL;
 	so->cur_pos_valid = false;
 	so->mark_pos_valid = false;
+
+	scan->xs_itupdesc = RelationGetDescr(rel);
+
 	scan->opaque = so;
 
 	return scan;
@@ -1086,6 +1094,12 @@ GetBitmapIndexAuxOids(Relation index, Oid *heapId, Oid *indexId)
 	*indexId = metapage->bm_lov_indexId;
 
 	_bitmap_relbuf(metabuf);
+}
+
+bytea *
+bmoptions(Datum reloptions, bool validate)
+{
+	return default_reloptions(reloptions, validate, RELOPT_KIND_BITMAP);
 }
 
 /*

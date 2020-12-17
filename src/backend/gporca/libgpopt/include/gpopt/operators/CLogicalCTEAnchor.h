@@ -18,181 +18,157 @@
 
 namespace gpopt
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalCTEAnchor
-	//
-	//	@doc:
-	//		CTE anchor operator
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalCTEAnchor : public CLogical
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalCTEAnchor
+//
+//	@doc:
+//		CTE anchor operator
+//
+//---------------------------------------------------------------------------
+class CLogicalCTEAnchor : public CLogical
+{
+private:
+	// cte identifier
+	ULONG m_id;
+
+public:
+	CLogicalCTEAnchor(const CLogicalCTEAnchor &) = delete;
+
+	// ctor
+	explicit CLogicalCTEAnchor(CMemoryPool *mp);
+
+	// ctor
+	CLogicalCTEAnchor(CMemoryPool *mp, ULONG id);
+
+	// dtor
+	~CLogicalCTEAnchor() override = default;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
-		private:
+		return EopLogicalCTEAnchor;
+	}
 
-			// cte identifier
-			ULONG m_id;
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalCTEAnchor";
+	}
 
-			// private copy ctor
-			CLogicalCTEAnchor(const CLogicalCTEAnchor &);
+	// cte identifier
+	ULONG
+	Id() const
+	{
+		return m_id;
+	}
 
-		public:
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-			// ctor
-			explicit
-			CLogicalCTEAnchor(CMemoryPool *mp);
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// ctor
-			CLogicalCTEAnchor(CMemoryPool *mp, ULONG id);
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// dtor
-			virtual
-			~CLogicalCTEAnchor()
-			{}
+	// return a copy of the operator with remapped columns
+	COperator *
+	PopCopyWithRemappedColumns(CMemoryPool *,		//mp,
+							   UlongToColRefMap *,	//colref_mapping,
+							   BOOL					//must_exist
+							   ) override
+	{
+		return PopCopyDefault();
+	}
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopLogicalCTEAnchor;
-			}
+	//-------------------------------------------------------------------------------------
+	// Derived Relational Properties
+	//-------------------------------------------------------------------------------------
 
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CLogicalCTEAnchor";
-			}
+	// derive output columns
+	CColRefSet *DeriveOutputColumns(CMemoryPool *mp,
+									CExpressionHandle &exprhdl) override;
 
-			// cte identifier
-			ULONG Id() const
-			{
-				return m_id;
-			}
+	// dervive keys
+	CKeyCollection *DeriveKeyCollection(
+		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
 
-			// operator specific hash function
-			virtual
-			ULONG HashValue() const;
+	// derive max card
+	CMaxCard DeriveMaxCard(CMemoryPool *mp,
+						   CExpressionHandle &exprhdl) const override;
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// derive constraint property
+	CPropConstraint *
+	DerivePropertyConstraint(CMemoryPool *,	 //mp,
+							 CExpressionHandle &exprhdl) const override
+	{
+		return PpcDeriveConstraintPassThru(exprhdl, 0 /*ulChild*/);
+	}
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
+	// derive partition consumer info
+	CPartInfo *DerivePartitionInfo(CMemoryPool *mp,
+								   CExpressionHandle &exprhdl) const override;
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns
-						(
-						CMemoryPool *, //mp,
-						UlongToColRefMap *, //colref_mapping,
-						BOOL //must_exist
-						)
-			{
-				return PopCopyDefault();
-			}
+	// compute required stats columns of the n-th child
+	CColRefSet *
+	PcrsStat(CMemoryPool *,		   // mp
+			 CExpressionHandle &,  // exprhdl
+			 CColRefSet *pcrsInput,
+			 ULONG	// child_index
+	) const override
+	{
+		return PcrsStatsPassThru(pcrsInput);
+	}
 
-			//-------------------------------------------------------------------------------------
-			// Derived Relational Properties
-			//-------------------------------------------------------------------------------------
+	// derive statistics
+	IStatistics *
+	PstatsDerive(CMemoryPool *,	 //mp,
+				 CExpressionHandle &exprhdl,
+				 IStatisticsArray *	 //stats_ctxt
+	) const override
+	{
+		return PstatsPassThruOuter(exprhdl);
+	}
 
-			// derive output columns
-			virtual
-			CColRefSet *DeriveOutputColumns(CMemoryPool *mp, CExpressionHandle &exprhdl);
+	// stat promise
+	EStatPromise
+	Esp(CExpressionHandle &) const override
+	{
+		return CLogical::EspHigh;
+	}
 
-			// dervive keys
-			virtual
-			CKeyCollection *DeriveKeyCollection(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			// derive max card
-			virtual
-			CMaxCard DeriveMaxCard(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *mp) const override;
 
-			// derive constraint property
-			virtual
-			CPropConstraint *DerivePropertyConstraint
-				(
-				CMemoryPool *, //mp,
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PpcDeriveConstraintPassThru(exprhdl, 0 /*ulChild*/);
-			}
+	//-------------------------------------------------------------------------------------
 
-			// derive partition consumer info
-			virtual
-			CPartInfo *DerivePartitionInfo(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// conversion function
+	static CLogicalCTEAnchor *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalCTEAnchor == pop->Eopid());
 
-			// compute required stats columns of the n-th child
-			virtual
-			CColRefSet *PcrsStat
-				(
-				CMemoryPool *,// mp
-				CExpressionHandle &,// exprhdl
-				CColRefSet *pcrsInput,
-				ULONG // child_index
-				)
-				const
-			{
-				return PcrsStatsPassThru(pcrsInput);
-			}
+		return dynamic_cast<CLogicalCTEAnchor *>(pop);
+	}
 
-			// derive statistics
-			virtual
-			IStatistics *PstatsDerive
-						(
-						CMemoryPool *, //mp,
-						CExpressionHandle &exprhdl,
-						IStatisticsArray * //stats_ctxt
-						)
-						const
-			{
-				return PstatsPassThruOuter(exprhdl);
-			}
+	// debug print
+	IOstream &OsPrint(IOstream &) const override;
 
-			// stat promise
-			virtual
-			EStatPromise Esp(CExpressionHandle &) const
-			{
-				return CLogical::EspHigh;
-			}
+};	// class CLogicalCTEAnchor
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
+}  // namespace gpopt
 
-			// candidate set of xforms
-			virtual
-			CXformSet *PxfsCandidates(CMemoryPool *mp) const;
-
-			//-------------------------------------------------------------------------------------
-
-			// conversion function
-			static
-			CLogicalCTEAnchor *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalCTEAnchor == pop->Eopid());
-
-				return dynamic_cast<CLogicalCTEAnchor*>(pop);
-			}
-
-			// debug print
-			virtual
-			IOstream &OsPrint(IOstream &) const;
-
-	}; // class CLogicalCTEAnchor
-
-}
-
-#endif // !GPOPT_CLogicalCTEAnchor_H
+#endif	// !GPOPT_CLogicalCTEAnchor_H
 
 // EOF

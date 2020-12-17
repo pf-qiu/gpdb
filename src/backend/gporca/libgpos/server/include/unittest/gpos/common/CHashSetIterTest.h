@@ -1,5 +1,5 @@
 //	Greenplum Database
-//	Copyright (C) 2017 Pivotal Software, Inc
+//	Copyright (C) 2017 VMware, Inc. or its affiliates
 
 #ifndef GPOS_CHashSetIterTest_H
 #define GPOS_CHashSetIterTest_H
@@ -8,20 +8,17 @@
 
 namespace gpos
 {
+// Static unit tests
+class CHashSetIterTest
+{
+public:
+	// unittests
+	static GPOS_RESULT EresUnittest();
+	static GPOS_RESULT EresUnittest_Basic();
 
-	// Static unit tests
-	class CHashSetIterTest
-	{
-		public:
+};	// class CHashSetIterTest
+}  // namespace gpos
 
-			// unittests
-			static GPOS_RESULT EresUnittest();
-			static GPOS_RESULT EresUnittest_Basic();
-
-	}; // class CHashSetIterTest
-}
-
-#endif // !GPOS_CHashSetIterTest_H
+#endif	// !GPOS_CHashSetIterTest_H
 
 // EOF
-

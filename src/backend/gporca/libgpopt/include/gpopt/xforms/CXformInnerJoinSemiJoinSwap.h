@@ -13,73 +13,62 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/operators/ops.h"
+#include "gpopt/operators/CLogicalInnerJoin.h"
+#include "gpopt/operators/CLogicalLeftSemiJoin.h"
 #include "gpopt/xforms/CXformJoinSwap.h"
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformInnerJoinSemiJoinSwap
-	//
-	//	@doc:
-	//		Swap cascaded inner join and semi-join
-	//
-	//---------------------------------------------------------------------------
-	class CXformInnerJoinSemiJoinSwap : public CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftSemiJoin>
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformInnerJoinSemiJoinSwap
+//
+//	@doc:
+//		Swap cascaded inner join and semi-join
+//
+//---------------------------------------------------------------------------
+class CXformInnerJoinSemiJoinSwap
+	: public CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftSemiJoin>
+{
+private:
+public:
+	CXformInnerJoinSemiJoinSwap(const CXformInnerJoinSemiJoinSwap &) = delete;
+
+	// ctor
+	explicit CXformInnerJoinSemiJoinSwap(CMemoryPool *mp)
+		: CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftSemiJoin>(mp)
 	{
+	}
 
-		private:
+	// dtor
+	~CXformInnerJoinSemiJoinSwap() override = default;
 
-			// private copy ctor
-			CXformInnerJoinSemiJoinSwap(const CXformInnerJoinSemiJoinSwap &);
+	// Compatibility function
+	BOOL
+	FCompatible(CXform::EXformId exfid) override
+	{
+		return ExfSemiJoinInnerJoinSwap != exfid;
+	}
 
-		public:
+	// ident accessors
+	EXformId
+	Exfid() const override
+	{
+		return ExfInnerJoinSemiJoinSwap;
+	}
 
-			// ctor
-			explicit
-			CXformInnerJoinSemiJoinSwap
-				(
-				CMemoryPool *mp
-				)
-				:
-				CXformJoinSwap<CLogicalInnerJoin, CLogicalLeftSemiJoin>(mp)
-			{}
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformInnerJoinSemiJoinSwap";
+	}
 
-			// dtor
-			virtual
-			~CXformInnerJoinSemiJoinSwap()
-			{}
+};	// class CXformInnerJoinSemiJoinSwap
 
-			// Compatibility function
-			virtual
-			BOOL FCompatible
-				(
-				CXform::EXformId exfid
-				)
-			{
-				return ExfSemiJoinInnerJoinSwap != exfid;
-			}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfInnerJoinSemiJoinSwap;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformInnerJoinSemiJoinSwap";
-			}
-
-	}; // class CXformInnerJoinSemiJoinSwap
-
-}
-
-#endif // !GPOPT_CXformInnerJoinSemiJoinSwap_H
+#endif	// !GPOPT_CXformInnerJoinSemiJoinSwap_H
 
 // EOF

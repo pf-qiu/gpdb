@@ -9,12 +9,14 @@ TARGETS=postgres
 # conflict resolution. If those hooks are needed then bring it back and then
 # enable the tests or delete the tests.
 
-include $(top_builddir)/src/backend/mock.mk
+include $(top_srcdir)/src/backend/mock.mk
 
 postgres.t: \
 	$(MOCK_DIR)/backend/commands/async_mock.o \
 	$(MOCK_DIR)/backend/storage/ipc/sinval_mock.o \
-	$(MOCK_DIR)/backend/utils/error/elog_mock.o
+	$(MOCK_DIR)/backend/utils/error/elog_mock.o \
+	$(MOCK_DIR)/backend/access/hash/hash_mock.o \
+	$(MOCK_DIR)/backend/utils/fmgr/fmgr_mock.o \
 
 idle_resource_cleaner.t: \
 	$(MOCK_DIR)/backend/cdb/dispatcher/cdbgang_mock.o \

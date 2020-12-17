@@ -16,71 +16,62 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformResult
-	//
-	//	@doc:
-	//		result container
-	//
-	//---------------------------------------------------------------------------
-	class CXformResult : public CRefCount
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformResult
+//
+//	@doc:
+//		result container
+//
+//---------------------------------------------------------------------------
+class CXformResult : public CRefCount
+{
+private:
+	// set of alternatives
+	CExpressionArray *m_pdrgpexpr;
+
+	// cursor for retrieval
+	ULONG m_ulExpr;
+
+public:
+	CXformResult(const CXformResult &) = delete;
+
+	// ctor
+	explicit CXformResult(CMemoryPool *);
+
+	// dtor
+	~CXformResult() override;
+
+	// accessor
+	inline CExpressionArray *
+	Pdrgpexpr() const
 	{
-
-		private:
-
-			// set of alternatives
-			CExpressionArray *m_pdrgpexpr;
-
-			// cursor for retrieval
-			ULONG m_ulExpr;
-
-			// private copy ctor
-			CXformResult(const CXformResult &);
-
-		public:
-		
-			// ctor
-			explicit
-			CXformResult(CMemoryPool *);
-
-			// dtor
-			~CXformResult();
-
-			// accessor
-			inline
-			CExpressionArray *Pdrgpexpr() const
-			{
-				return m_pdrgpexpr;
-			}
-			
-			// add alternative
-			void Add(CExpression *pexpr);
-			
-			// retrieve next alternative
-			CExpression *PexprNext();
-
-			// print function
-			IOstream &OsPrint(IOstream &) const;
-
-	}; // class CXformResult
-
-	// shorthand for printing
-	inline
-	IOstream &operator <<
-		(
-		IOstream &os,
-		CXformResult &xfres
-		)
-	{
-		return xfres.OsPrint(os);
+		return m_pdrgpexpr;
 	}
 
+	// add alternative
+	void Add(CExpression *pexpr);
+
+	// retrieve next alternative
+	CExpression *PexprNext();
+
+	// print function
+	IOstream &OsPrint(IOstream &os) const override;
+
+};	// class CXformResult
+
+// shorthand for printing
+inline IOstream &
+operator<<(IOstream &os, CXformResult &xfres)
+{
+	return xfres.OsPrint(os);
 }
 
+}  // namespace gpopt
 
-#endif // !GPOPT_CXformResult_H
+
+#endif	// !GPOPT_CXformResult_H
 
 // EOF

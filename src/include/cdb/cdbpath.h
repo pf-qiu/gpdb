@@ -4,7 +4,7 @@
  *
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -15,7 +15,7 @@
 #ifndef CDBPATH_H
 #define CDBPATH_H
 
-#include "nodes/relation.h"
+#include "nodes/pathnodes.h"
 
 void
 cdbpath_cost_motion(PlannerInfo *root, CdbMotionPath *motionpath);
@@ -52,11 +52,13 @@ cdbpath_motion_for_join(PlannerInfo    *root,
                         Path          **p_inner_path,       /* INOUT */
 						int			   *p_rowidexpr_id,
                         List           *redistribution_clauses,   /* equijoin RestrictInfo list */
+                        List           *restrict_clauses, /* all RestrictInfos */
                         List           *outer_pathkeys,
                         List           *inner_pathkeys,
                         bool            outer_require_existing_order,
                         bool            inner_require_existing_order);
 
 extern bool cdbpath_contains_wts(Path *path);
+extern Path * turn_volatile_seggen_to_singleqe(PlannerInfo *root, Path *path, Node *node);
 
 #endif   /* CDBPATH_H */

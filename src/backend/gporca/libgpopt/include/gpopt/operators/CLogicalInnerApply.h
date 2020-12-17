@@ -17,129 +17,108 @@
 
 namespace gpopt
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalInnerApply
+//
+//	@doc:
+//		Logical Apply operator used in scalar subquery transformations
+//
+//---------------------------------------------------------------------------
+class CLogicalInnerApply : public CLogicalApply
+{
+private:
+public:
+	CLogicalInnerApply(const CLogicalInnerApply &) = delete;
 
+	// ctor for patterns
+	explicit CLogicalInnerApply(CMemoryPool *mp);
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalInnerApply
-	//
-	//	@doc:
-	//		Logical Apply operator used in scalar subquery transformations
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalInnerApply : public CLogicalApply
+	// ctor
+	CLogicalInnerApply(CMemoryPool *mp, CColRefArray *pdrgpcrInner,
+					   EOperatorId eopidOriginSubq);
+
+	// dtor
+	~CLogicalInnerApply() override;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
+		return EopLogicalInnerApply;
+	}
 
-		private:
-			// private copy ctor
-			CLogicalInnerApply(const CLogicalInnerApply &);
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalInnerApply";
+	}
 
-		public:
+	// return a copy of the operator with remapped columns
+	COperator *PopCopyWithRemappedColumns(CMemoryPool *mp,
+										  UlongToColRefMap *colref_mapping,
+										  BOOL must_exist) override;
 
-			// ctor for patterns
-			explicit
-			CLogicalInnerApply(CMemoryPool *mp);
+	//-------------------------------------------------------------------------------------
+	// Derived Relational Properties
+	//-------------------------------------------------------------------------------------
 
-			// ctor
-			CLogicalInnerApply(CMemoryPool *mp, CColRefArray *pdrgpcrInner, EOperatorId eopidOriginSubq);
+	// derive output columns
+	CColRefSet *
+	DeriveOutputColumns(CMemoryPool *mp, CExpressionHandle &exprhdl) override
+	{
+		GPOS_ASSERT(3 == exprhdl.Arity());
 
-			// dtor
-			virtual
-			~CLogicalInnerApply();
+		return PcrsDeriveOutputCombineLogical(mp, exprhdl);
+	}
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopLogicalInnerApply;
-			}
+	// derive not nullable columns
+	CColRefSet *
+	DeriveNotNullColumns(CMemoryPool *mp,
+						 CExpressionHandle &exprhdl) const override
+	{
+		return PcrsDeriveNotNullCombineLogical(mp, exprhdl);
+	}
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CLogicalInnerApply";
-			}
+	// derive max card
+	CMaxCard DeriveMaxCard(CMemoryPool *mp,
+						   CExpressionHandle &exprhdl) const override;
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns(CMemoryPool *mp, UlongToColRefMap *colref_mapping, BOOL must_exist);
+	// derive constraint property
+	CPropConstraint *
+	DerivePropertyConstraint(CMemoryPool *mp,
+							 CExpressionHandle &exprhdl) const override
+	{
+		return PpcDeriveConstraintFromPredicates(mp, exprhdl);
+	}
 
-			//-------------------------------------------------------------------------------------
-			// Derived Relational Properties
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			// derive output columns
-			virtual
-			CColRefSet *DeriveOutputColumns
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl
-				)
-			{
-				GPOS_ASSERT(3 == exprhdl.Arity());
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *) const override;
 
-				return PcrsDeriveOutputCombineLogical(mp, exprhdl);
-			}
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// derive not nullable columns
-			virtual
-			CColRefSet *DeriveNotNullColumns
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PcrsDeriveNotNullCombineLogical(mp, exprhdl);
-			}
+	// conversion function
+	static CLogicalInnerApply *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalInnerApply == pop->Eopid());
 
-			// derive max card
-			virtual
-			CMaxCard DeriveMaxCard(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+		return dynamic_cast<CLogicalInnerApply *>(pop);
+	}
 
-			// derive constraint property
-			virtual
-			CPropConstraint *DerivePropertyConstraint
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PpcDeriveConstraintFromPredicates(mp, exprhdl);
-			}
+};	// class CLogicalInnerApply
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
-
-			// candidate set of xforms
-			virtual
-			CXformSet *PxfsCandidates(CMemoryPool *) const;
-
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-
-			// conversion function
-			static
-			CLogicalInnerApply *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalInnerApply == pop->Eopid());
-
-				return dynamic_cast<CLogicalInnerApply*>(pop);
-			}
-
-	}; // class CLogicalInnerApply
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CLogicalInnerApply_H
+#endif	// !GPOPT_CLogicalInnerApply_H
 
 // EOF

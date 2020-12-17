@@ -394,19 +394,19 @@ attach_receiver_mq(MsgQueueStatusEntry * entry, dsm_handle dsmHandle)
 	dsm_pin_mapping(dsmSeg);
 	shm_toc    *toc =
 	shm_toc_attach(ENDPOINT_MSG_QUEUE_MAGIC, dsm_segment_address(dsmSeg));
-	shm_mq	   *mq = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_QUEUE);
+	shm_mq	   *mq = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_QUEUE, false);
 
 	shm_mq_set_receiver(mq, MyProc);
 	entry->mqHandle = shm_mq_attach(mq, dsmSeg, NULL);
 	entry->mqSeg = dsmSeg;
 
 	td = read_tuple_desc_info(toc);
-	entry->tqReader = CreateTupleQueueReader(entry->mqHandle, td);
+	entry->tqReader = CreateTupleQueueReader(entry->mqHandle);
 
 	if (entry->retrieveTs != NULL)
 		ExecClearTuple(entry->retrieveTs);
 	else
-		entry->retrieveTs = MakeTupleTableSlot();
+		entry->retrieveTs = MakeTupleTableSlot(td, &TTSOpsVirtual); /* TODO: TTSOpsVirtual or others? */
 
 	ExecSetSlotDescriptor(entry->retrieveTs, td);
 	entry->retrieveStatus = RETRIEVE_STATUS_GET_TUPLEDSCR;
@@ -473,10 +473,10 @@ read_tuple_desc_info(shm_toc *toc)
 	char	   *tdlen_space;
 	char	   *tupdesc_space;
 
-	tdlen_space = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_DESC_LEN);
+	tdlen_space = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_DESC_LEN, false);
 	tdlen_plen = (int *) tdlen_space;
 
-	tupdesc_space = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_DESC);
+	tupdesc_space = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_DESC, false);
 
 	TupleDescNode *tupdescnode =
 	(TupleDescNode *) deserializeNode(tupdesc_space, *tdlen_plen);
@@ -562,8 +562,6 @@ receive_tuple_slot(MsgQueueStatusEntry * entry)
 		result = entry->retrieveTs;
 		ExecStoreHeapTuple(tup, /* tuple to store */
 						   result,		/* slot in which to store the tuple */
-						   InvalidBuffer,		/* buffer associated with this
-												 * tuple */
 						   false);		/* slot should not pfree tuple */
 	}
 	return result;

@@ -29,7 +29,7 @@
  * GPPC 1.2 is compatible with Greenplum Database 4.2.2.0 and above.
  *
  * Portions Copyright (c) 2012, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -1906,6 +1906,14 @@ typedef enum GppcReportLevel
 	GPPC_WARNING			= 19,
 	GPPC_ERROR				= 20,
 } GppcReportLevel;
+
+#ifndef PG_PRINTF_ATTRIBUTE
+#ifdef WIN32
+#define PG_PRINTF_ATTRIBUTE gnu_printf
+#else
+#define PG_PRINTF_ATTRIBUTE printf
+#endif
+#endif
 
 /**
  * \brief Emits a formatted message and may raise error.

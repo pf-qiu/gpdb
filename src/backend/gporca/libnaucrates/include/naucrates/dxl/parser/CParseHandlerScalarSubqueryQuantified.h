@@ -20,55 +20,50 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
-	XERCES_CPP_NAMESPACE_USE
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerScalarSubqueryQuantified
-	//
-	//	@doc:
-	//		Parse handler for parsing scalar subquery ALL and ANY operators
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerScalarSubqueryQuantified : public CParseHandlerScalarOp
-	{
-		private:
-			// scalar subquery operator
-			CDXLScalar *m_dxl_op;
-			
-			// private copy ctor
-			CParseHandlerScalarSubqueryQuantified(const CParseHandlerScalarSubqueryQuantified &);
+XERCES_CPP_NAMESPACE_USE
 
-			// process the start of an element
-			void StartElement
-				(
-				const XMLCh* const element_uri, 		// URI of element's namespace
-				const XMLCh* const element_local_name,	// local part of element's name
-				const XMLCh* const element_qname,		// element's qname
-				const Attributes& attr				// element's attributes
-				);
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerScalarSubqueryQuantified
+//
+//	@doc:
+//		Parse handler for parsing scalar subquery ALL and ANY operators
+//
+//---------------------------------------------------------------------------
+class CParseHandlerScalarSubqueryQuantified : public CParseHandlerScalarOp
+{
+private:
+	// scalar subquery operator
+	CDXLScalar *m_dxl_op;
 
-			// process the end of an element
-			void EndElement
-				(
-				const XMLCh* const element_uri, 		// URI of element's namespace
-				const XMLCh* const element_local_name,	// local part of element's name
-				const XMLCh* const element_qname		// element's qname
-				);
-			
-		public:
-			// ctor/dtor
-			CParseHandlerScalarSubqueryQuantified
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
-	};
-}
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-#endif // !GPDXL_CParseHandlerScalarSubqueryAny_H
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
+
+public:
+	CParseHandlerScalarSubqueryQuantified(
+		const CParseHandlerScalarSubqueryQuantified &) = delete;
+
+	// ctor/dtor
+	CParseHandlerScalarSubqueryQuantified(
+		CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+		CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
+
+#endif	// !GPDXL_CParseHandlerScalarSubqueryAny_H
 
 // EOF

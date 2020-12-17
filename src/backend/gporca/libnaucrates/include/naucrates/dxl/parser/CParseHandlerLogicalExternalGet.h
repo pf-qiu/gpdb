@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CParseHandlerLogicalExternalGet.h
@@ -17,57 +17,48 @@
 
 namespace gpdxl
 {
-	using namespace gpos;
+using namespace gpos;
 
 
-	XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CParseHandlerLogicalExternalGet
-	//
-	//	@doc:
-	//		Parse handler for parsing a logical external get operator
-	//
-	//---------------------------------------------------------------------------
-	class CParseHandlerLogicalExternalGet : public CParseHandlerLogicalGet
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CParseHandlerLogicalExternalGet
+//
+//	@doc:
+//		Parse handler for parsing a logical external get operator
+//
+//---------------------------------------------------------------------------
+class CParseHandlerLogicalExternalGet : public CParseHandlerLogicalGet
+{
+private:
+	// process the start of an element
+	void StartElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname,		// element's qname
+		const Attributes &attr					// element's attributes
+		) override;
 
-			// private copy ctor
-			CParseHandlerLogicalExternalGet(const CParseHandlerLogicalExternalGet &);
+	// process the end of an element
+	void EndElement(
+		const XMLCh *const element_uri,			// URI of element's namespace
+		const XMLCh *const element_local_name,	// local part of element's name
+		const XMLCh *const element_qname		// element's qname
+		) override;
 
-			// process the start of an element
-			virtual
-			void StartElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
- 					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname,		// element's qname
-					const Attributes& attr				// element's attributes
-				);
+public:
+	CParseHandlerLogicalExternalGet(const CParseHandlerLogicalExternalGet &) =
+		delete;
 
-			// process the end of an element
-			virtual
-			void EndElement
-				(
-					const XMLCh* const element_uri, 		// URI of element's namespace
-					const XMLCh* const element_local_name,	// local part of element's name
-					const XMLCh* const element_qname		// element's qname
-				);
+	// ctor
+	CParseHandlerLogicalExternalGet(CMemoryPool *mp,
+									CParseHandlerManager *parse_handler_mgr,
+									CParseHandlerBase *parse_handler_root);
+};
+}  // namespace gpdxl
 
-		public:
-			// ctor
-			CParseHandlerLogicalExternalGet
-				(
-				CMemoryPool *mp,
-				CParseHandlerManager *parse_handler_mgr,
-				CParseHandlerBase *parse_handler_root
-				);
-
-	};
-}
-
-#endif // !GPDXL_CParseHandlerLogicalExternalGet_H
+#endif	// !GPDXL_CParseHandlerLogicalExternalGet_H
 
 // EOF

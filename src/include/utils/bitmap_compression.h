@@ -13,7 +13,7 @@
  * in bitmap indexes. These algorithms have build in assumptions not
  * given in the use case this compression algorithm was developed for.
  *
- * Copyright (c) 2013-Present Pivotal Software, Inc.
+ * Copyright (c) 2013-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -99,12 +99,12 @@ int BitmapDecompress_HasError(
 
 void BitmapDecompress_Decompress(
 		BitmapDecompressState *state,
-		uint32* bitmapData,
+		uint32 *bitmapData,
 		int bitmapDataSize);
 
 int Bitmap_Compress(
 		BitmapCompressionType compressionType,
-		uint32* bitmapData,
+		uint32 *bitmapData,
 		int bitmapDataSize,
 		unsigned char *outData,
 		int maxOutDataSize);

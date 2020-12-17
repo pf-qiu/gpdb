@@ -18,40 +18,33 @@
 
 namespace gpos
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CTraceFlagIter
-	//
-	//	@doc:
-	//		Trace flag iterator for the currently executing task
-	//
-	//---------------------------------------------------------------------------
-	class CTraceFlagIter : public CBitSetIter
+//---------------------------------------------------------------------------
+//	@class:
+//		CTraceFlagIter
+//
+//	@doc:
+//		Trace flag iterator for the currently executing task
+//
+//---------------------------------------------------------------------------
+class CTraceFlagIter : public CBitSetIter
+{
+private:
+public:
+	CTraceFlagIter(const CTraceFlagIter &) = delete;
+
+	// ctor
+	CTraceFlagIter() : CBitSetIter(*CTask::Self()->GetTaskCtxt()->m_bitset)
 	{
-		private:
+	}
 
-			// no copy ctor
-			CTraceFlagIter(const CTraceFlagIter&);
+	// dtor
+	virtual ~CTraceFlagIter() = default;
 
-		public:
+};	// class CTraceFlagIter
 
-			// ctor
-			CTraceFlagIter()
-				:
-				CBitSetIter(*CTask::Self()->GetTaskCtxt()->m_bitset)
-			{}
-
-			// dtor
-			virtual
-			~CTraceFlagIter ()
-			{}
-
-	}; // class CTraceFlagIter
-
-}
+}  // namespace gpos
 
 
-#endif // !GPOS_CTraceFlagIter_H
+#endif	// !GPOS_CTraceFlagIter_H
 
 // EOF
-

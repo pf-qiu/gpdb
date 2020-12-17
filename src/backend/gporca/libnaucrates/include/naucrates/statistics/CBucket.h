@@ -13,6 +13,8 @@
 #define GPNAUCRATES_CBucket_H
 
 #include "gpos/base.h"
+#include "gpos/task/CTask.h"
+#include "gpos/error/CAutoTrace.h"
 #include "naucrates/statistics/CPoint.h"
 #include "naucrates/statistics/IBucket.h"
 
@@ -21,219 +23,221 @@
 
 namespace gpnaucrates
 {
-	using namespace gpos;
-	using namespace gpmd;
+using namespace gpos;
+using namespace gpmd;
 
-	// forward decl
-	class CBucket;
+// forward decl
+class CBucket;
 
-	// dynamic array of buckets
-	typedef CDynamicPtrArray<CBucket, CleanupDelete> CBucketArray;
+// dynamic array of buckets
+typedef CDynamicPtrArray<CBucket, CleanupDelete> CBucketArray;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CBucket
-	//
-	//	@doc:
-	//		Represents a bucket in a histogram
-	//
-	//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+//	@class:
+//		CBucket
+//
+//	@doc:
+//		Represents a bucket in a histogram
+//
+//---------------------------------------------------------------------------
 
-	class CBucket: public IBucket
+class CBucket : public IBucket
+{
+private:
+	// lower bound of bucket
+	CPoint *m_bucket_lower_bound;
+
+	// upper bound of bucket
+	CPoint *m_bucket_upper_bound;
+
+	// is lower bound closed (does bucket include boundary value)
+	BOOL m_is_lower_closed;
+
+	// is upper bound closed (does bucket includes boundary value)
+	BOOL m_is_upper_closed;
+
+	// frequency corresponding to bucket
+	CDouble m_frequency;
+
+	// number of distinct elements in bucket
+	CDouble m_distinct;
+
+public:
+	CBucket &operator=(const CBucket &) = delete;
+
+	CBucket(const CBucket &) = delete;
+
+	// ctor
+	CBucket(CPoint *bucket_lower_bound, CPoint *bucket_upper_bound,
+			BOOL is_lower_closed, BOOL is_upper_closed, CDouble frequency,
+			CDouble distinct);
+
+	// dtor
+	~CBucket() override;
+
+	// does bucket contain point
+	BOOL Contains(const CPoint *point) const;
+
+	// is the point before the lower bound of the bucket
+	BOOL IsBefore(const CPoint *point) const;
+
+	// is the point after the upper bound of the bucket
+	BOOL IsAfter(const CPoint *point) const;
+
+	// what percentage of bucket is covered by [lb,pp]
+	CDouble GetOverlapPercentage(const CPoint *point,
+								 BOOL include_point = true) const;
+
+	// frequency associated with bucket
+	CDouble
+	GetFrequency() const
 	{
-		private:
-			// lower bound of bucket
-			CPoint *m_bucket_lower_bound;
+		return m_frequency;
+	}
 
-			// upper bound of bucket
-			CPoint *m_bucket_upper_bound;
+	// width of bucket
+	CDouble Width() const;
 
-		// is lower bound closed (does bucket include boundary value)
-			BOOL m_is_lower_closed;
+	// set frequency
+	void
+	SetFrequency(CDouble frequency)
+	{
+		GPOS_ASSERT(CDouble(0) <= frequency);
+		GPOS_ASSERT(CDouble(1.0) >= frequency);
+		m_frequency = frequency;
+	}
 
-		// is upper bound closed (does bucket includes boundary value)
-			BOOL m_is_upper_closed;
+	// set number of distinct values
+	void
+	SetDistinct(CDouble distinct)
+	{
+		GPOS_ASSERT(CDouble(0) <= distinct);
+		m_distinct = distinct;
+	}
 
-			// frequency corresponding to bucket
-			CDouble m_frequency;
+	// number of distinct values in bucket
+	CDouble
+	GetNumDistinct() const
+	{
+		return m_distinct;
+	}
 
-			// number of distinct elements in bucket
-			CDouble m_distinct;
+	// lower point
+	CPoint *
+	GetLowerBound() const override
+	{
+		return m_bucket_lower_bound;
+	}
 
-			// private copy constructor
-			CBucket(const CBucket &);
+	// upper point
+	CPoint *
+	GetUpperBound() const override
+	{
+		return m_bucket_upper_bound;
+	}
 
-			// private assignment operator
-			CBucket& operator=(const CBucket &);
+	// is lower bound closed (does bucket includes boundary value)
+	BOOL
+	IsLowerClosed() const
+	{
+		return m_is_lower_closed;
+	}
 
-		public:
+	// is upper bound closed (does bucket includes boundary value)
+	BOOL
+	IsUpperClosed() const
+	{
+		return m_is_upper_closed;
+	}
 
-			// ctor
-			CBucket
-				(
-				CPoint *bucket_lower_bound, 
-				CPoint *bucket_upper_bound,
-				BOOL is_lower_closed,
-				BOOL is_upper_closed,
-				CDouble frequency, 
-				CDouble distinct
-				);
-			
-			// dtor
-			virtual
-			~CBucket();
+	// does bucket's range intersect another's
+	BOOL Intersects(const CBucket *bucket) const;
 
-			// does bucket contain point
-			BOOL Contains(const CPoint *point) const;
+	// does bucket's range subsume another's
+	BOOL Subsumes(const CBucket *bucket) const;
 
-			// is the point before the lower bound of the bucket
-			BOOL IsBefore(const CPoint *point) const;
+	// does bucket occur before another
+	BOOL IsBefore(const CBucket *bucket) const;
 
-			// is the point after the upper bound of the bucket
-			BOOL IsAfter(const CPoint *point) const;
+	// does bucket occur after another
+	BOOL IsAfter(const CBucket *bucket) const;
 
-			// what percentage of bucket is covered by [lb,pp]
-			CDouble GetOverlapPercentage(const CPoint *point) const;
+	// print function
+	IOstream &OsPrint(IOstream &os) const;
 
-			// frequency associated with bucket
-			CDouble GetFrequency() const
-			{
-				return m_frequency;
-			}
+#ifdef GPOS_DEBUG
+	void DbgPrint() const;
+#endif
 
-			// width of bucket
-			CDouble Width() const;
+	// construct new bucket with lower bound greater than given point
+	CBucket *MakeBucketGreaterThan(CMemoryPool *mp, CPoint *point) const;
 
-			// set frequency
-			void SetFrequency
-				(
-				CDouble frequency
-				)
-			{
-				GPOS_ASSERT(CDouble(0) <= frequency);
-				GPOS_ASSERT(CDouble(1.0) >= frequency);
-				m_frequency = frequency;
-			}
+	// scale down version of bucket adjusting upper boundary
+	CBucket *MakeBucketScaleUpper(CMemoryPool *mp, CPoint *bucket_upper_bound,
+								  BOOL include_upper) const;
 
-			// set number of distinct values
-			void SetDistinct
-				(
-				CDouble distinct
-				)
-			{
-				GPOS_ASSERT(CDouble(0) <= distinct);
-				m_distinct = distinct;
-			}
+	// scale down version of bucket adjusting lower boundary
+	CBucket *MakeBucketScaleLower(CMemoryPool *mp, CPoint *bucket_lower_bound,
+								  BOOL include_lower) const;
 
-			// number of distinct values in bucket
-			CDouble GetNumDistinct() const
-			{
-				return m_distinct;
-			}
+	// extract singleton bucket at given point
+	// use_width to calculate the scaling ratio instead of default (ndv)
+	CBucket *MakeBucketSingleton(CMemoryPool *mp,
+								 CPoint *point_singleton) const;
 
-			// lower point
-			CPoint *GetLowerBound() const
-			{
-				return m_bucket_lower_bound;
-			}
+	// create a new bucket by intersecting with another and return the percentage of each of the buckets that intersect
+	CBucket *MakeBucketIntersect(CMemoryPool *mp, CBucket *bucket,
+								 CDouble *result_freq_intersect1,
+								 CDouble *result_freq_intersect2) const;
 
-			// upper point
-			CPoint *GetUpperBound() const
-			{
-				return m_bucket_upper_bound;
-			}
+	// Remove a bucket range. This produces lower and upper split
+	void Difference(CMemoryPool *mp, CBucket *bucket_other,
+					CBucket **result_bucket_lower,
+					CBucket **result_bucket_upper);
 
-			// is lower bound closed (does bucket includes boundary value)
-			BOOL IsLowerClosed() const
-			{
-				return m_is_lower_closed;
-			}
+	// return copy of bucket
+	CBucket *MakeBucketCopy(CMemoryPool *mp);
 
-			// is upper bound closed (does bucket includes boundary value)
-			BOOL IsUpperClosed() const
-			{
-				return m_is_upper_closed;
-			}
+	// return a copy of the bucket with updated frequency based on the new total number of rows
+	CBucket *MakeBucketUpdateFrequency(CMemoryPool *mp, CDouble rows_old,
+									   CDouble rows_new);
 
-			// does bucket's range intersect another's
-			BOOL Intersects(const CBucket *bucket) const;
+	// Attempt a merge with another bucket and return leftovers
+	CBucket *SplitAndMergeBuckets(CMemoryPool *mp, CBucket *bucket_other,
+								  CDouble rows, CDouble rows_other,
+								  CBucket **bucket1_new, CBucket **bucket2_new,
+								  CDouble *result_rows,
+								  BOOL is_union_all = true);
 
-			// does bucket's range subsume another's
-			BOOL Subsumes(const CBucket *bucket) const;
+	// does bucket support sampling
+	BOOL
+	CanSample() const
+	{
+		return m_bucket_lower_bound->GetDatum()->StatsMappable();
+	}
 
-			// does bucket occur before another
-			BOOL IsBefore(const CBucket *bucket) const;
+	BOOL Equals(const CBucket *bucket);
 
-			// does bucket occur after another
-			BOOL IsAfter(const CBucket *bucket) const;
+	// generate a random data point within bucket boundaries
+	CDouble GetSample(ULONG *seed) const;
 
-			// print function
-			virtual
-			IOstream &OsPrint(IOstream &os) const;
+	// compare lower bucket boundaries
+	static INT CompareLowerBounds(const CBucket *bucket1,
+								  const CBucket *bucket2);
 
-			// construct new bucket with lower bound greater than given point
-			CBucket *MakeBucketGreaterThan(CMemoryPool *mp, CPoint *point) const;
+	// compare upper bucket boundaries
+	static INT CompareUpperBounds(const CBucket *bucket1,
+								  const CBucket *bucket2);
 
-			// scale down version of bucket adjusting upper boundary
-			CBucket *MakeBucketScaleUpper(CMemoryPool *mp, CPoint *bucket_upper_bound, BOOL include_upper) const;
+	// compare lower bound of first bucket to upper bound of second bucket
+	static INT CompareLowerBoundToUpperBound(const CBucket *bucket1,
+											 const CBucket *bucket2);
 
-			// scale down version of bucket adjusting lower boundary
-			CBucket *MakeBucketScaleLower(CMemoryPool *mp, CPoint *bucket_lower_bound, BOOL include_lower) const;
+	// create a new singleton bucket with the given datum as it lower and upper bounds
+	static CBucket *MakeBucketSingleton(CMemoryPool *mp, IDatum *datum);
+};
+}  // namespace gpnaucrates
 
-			// extract singleton bucket at given point
-			CBucket *MakeBucketSingleton(CMemoryPool *mp, CPoint *point_singleton) const;
-
-			// create a new bucket by intersecting with another and return the percentage of each of the buckets that intersect
-			CBucket *MakeBucketIntersect(CMemoryPool *mp, CBucket *bucket, CDouble *result_freq_intersect1, CDouble *result_freq_intersect2) const;
-
-			// Remove a bucket range. This produces lower and upper split
-			void Difference(CMemoryPool *mp, CBucket *bucket_other, CBucket **result_bucket_lower, CBucket **result_bucket_upper);
-
-			// return copy of bucket
-			CBucket *MakeBucketCopy(CMemoryPool *mp);
-
-			// return a copy of the bucket with updated frequency based on the new total number of rows
-			CBucket *MakeBucketUpdateFrequency(CMemoryPool *mp, CDouble rows_old, CDouble rows_new);
-
-			// Merge with another bucket and return leftovers
-			CBucket *MakeBucketMerged
-					(
-					CMemoryPool *mp,
-					CBucket *bucket_other,
-					CDouble rows,
-					CDouble rows_other,
-					CBucket **result_bucket1_new,
-					CBucket **result_bucket2_new,
-					BOOL is_union_all = true
-					);
-
-			// does bucket support sampling
-			BOOL CanSample() const
-			{
-				return m_bucket_lower_bound->GetDatum()->StatsMappable();
-			}
-
-			// generate a random data point within bucket boundaries
-			CDouble GetSample(ULONG *seed) const;
-
-			// compare lower bucket boundaries
-			static
-			INT CompareLowerBounds(const CBucket *bucket1, const CBucket *bucket2);
-
-			// compare upper bucket boundaries
-			static
-			INT CompareUpperBounds(const CBucket *bucket1, const CBucket *bucket2);
-			
-			// compare lower bound of first bucket to upper bound of second bucket
-			static
-			INT CompareLowerBoundToUpperBound(const CBucket *bucket1, const CBucket *bucket2);
-
-			// create a new singleton bucket with the given datum as it lower and upper bounds
-			static
-			CBucket *MakeBucketSingleton(CMemoryPool *mp, IDatum *datum);
-	};
-}
-
-#endif // !GPNAUCRATES_CBucket_H
+#endif	// !GPNAUCRATES_CBucket_H
 
 // EOF

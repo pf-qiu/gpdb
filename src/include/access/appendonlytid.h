@@ -3,7 +3,7 @@
  * appendonlytid.h
  *
  * Portions Copyright (c) 2007-2009, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -56,6 +56,7 @@ typedef struct AOTupleId
 	uint16		bytes_4_5;
 } AOTupleId;
 
+#define AO_MAX_OFFSET	32768
 #define AOTupleIdGet_segmentFileNum(h)        ((((h)->bytes_0_1&0xFE00)>>9)) // 7 bits
 
 static inline uint64

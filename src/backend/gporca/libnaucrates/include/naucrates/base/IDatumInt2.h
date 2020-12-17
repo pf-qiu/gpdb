@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		IDatumInt2.h
@@ -16,115 +16,109 @@
 
 namespace gpnaucrates
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		IDatumInt2
-	//
-	//	@doc:
-	//		Base abstract class for int2 representation
-	//
-	//---------------------------------------------------------------------------
-	class IDatumInt2 : public IDatum
+//---------------------------------------------------------------------------
+//	@class:
+//		IDatumInt2
+//
+//	@doc:
+//		Base abstract class for int2 representation
+//
+//---------------------------------------------------------------------------
+class IDatumInt2 : public IDatum
+{
+private:
+public:
+	IDatumInt2(const IDatumInt2 &) = delete;
+
+	// ctor
+	IDatumInt2() = default;
+
+	// dtor
+	~IDatumInt2() override = default;
+
+	// accessor for datum type
+	IMDType::ETypeInfo
+	GetDatumType() override
 	{
+		return IMDType::EtiInt2;
+	}
 
-		private:
+	// accessor of integer value
+	virtual SINT Value() const = 0;
 
-			// private copy ctor
-			IDatumInt2(const IDatumInt2 &);
+	// can datum be mapped to a double
+	BOOL
+	IsDatumMappableToDouble() const override
+	{
+		return true;
+	}
 
-		public:
+	// map to double for stats computation
+	CDouble
+	GetDoubleMapping() const override
+	{
+		return CDouble(Value());
+	}
 
-			// ctor
-			IDatumInt2()
-			{};
+	// can datum be mapped to LINT
+	BOOL
+	IsDatumMappableToLINT() const override
+	{
+		return true;
+	}
 
-			// dtor
-			virtual
-			~IDatumInt2()
-			{};
+	// map to LINT for statistics computation
+	LINT
+	GetLINTMapping() const override
+	{
+		return LINT(Value());
+	}
 
-			// accessor for datum type
-			virtual  IMDType::ETypeInfo GetDatumType()
-			{
-				return IMDType::EtiInt2;
-			}
+	// byte array representation of datum
+	const BYTE *
+	GetByteArrayValue() const override
+	{
+		GPOS_ASSERT(!"Invalid invocation of MakeCopyOfValue");
+		return NULL;
+	}
 
-			// accessor of integer value
-			virtual
-			SINT Value() const = 0;
+	// does the datum need to be padded before statistical derivation
+	BOOL
+	NeedsPadding() const override
+	{
+		return false;
+	}
 
-			// can datum be mapped to a double
-			BOOL IsDatumMappableToDouble() const
-			{
-				return true;
-			}
+	// return the padded datum
+	IDatum *
+	MakePaddedDatum(CMemoryPool *,	// mp,
+					ULONG			// col_len
+	) const override
+	{
+		GPOS_ASSERT(!"Invalid invocation of MakePaddedDatum");
+		return NULL;
+	}
 
-			// map to double for stats computation
-			CDouble GetDoubleMapping() const
-			{
-				return CDouble(Value());
-			}
+	// does datum support like predicate
+	BOOL
+	SupportsLikePredicate() const override
+	{
+		return false;
+	}
 
-			// can datum be mapped to LINT
-			BOOL IsDatumMappableToLINT() const
-			{
-				return true;
-			}
+	// return the default scale factor of like predicate
+	CDouble
+	GetLikePredicateScaleFactor() const override
+	{
+		GPOS_ASSERT(!"Invalid invocation of DLikeSelectivity");
+		return false;
+	}
 
-			// map to LINT for statistics computation
-			LINT GetLINTMapping() const
-			{
-				return LINT(Value());
-			}
+};	// class IDatumInt2
 
-			// byte array representation of datum
-			virtual
-			const BYTE *GetByteArrayValue() const
-			{
-				GPOS_ASSERT(!"Invalid invocation of MakeCopyOfValue");
-				return NULL;
-			}
-
-			// does the datum need to be padded before statistical derivation
-			virtual
-			BOOL NeedsPadding() const
-			{
-				return false;
-			}
-
-			// return the padded datum
-			virtual
-			IDatum *MakePaddedDatum
-				(
-				CMemoryPool *, // mp,
-				ULONG    // col_len
-				)
-				const
-			{
-				GPOS_ASSERT(!"Invalid invocation of MakePaddedDatum");
-				return NULL;
-			}
-
-			// does datum support like predicate
-			virtual
-			BOOL SupportsLikePredicate() const
-			{
-				return false;
-			}
-
-			// return the default scale factor of like predicate
-			virtual
-			CDouble GetLikePredicateScaleFactor() const
-			{
-				GPOS_ASSERT(!"Invalid invocation of DLikeSelectivity");
-				return false;
-			}
-
-	}; // class IDatumInt2
-
-}
+}  // namespace gpnaucrates
 
 
-#endif // !GPNAUCRATES_IDatumInt2_H
+#endif	// !GPNAUCRATES_IDatumInt2_H
 
 // EOF

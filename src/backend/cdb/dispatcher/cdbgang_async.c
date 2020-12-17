@@ -3,8 +3,11 @@
  * cdbgang_async.c
  *	  Functions for asynchronous implementation of creating gang.
  *
+ * GPDB_12_MERGE_FIXME: Like in cdbdisp_async.c, we should replace poll()
+ * with WaitEventSetWait() here.
+ *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION

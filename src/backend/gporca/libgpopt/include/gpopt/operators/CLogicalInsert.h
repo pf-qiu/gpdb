@@ -16,194 +16,167 @@
 
 namespace gpopt
 {
+// fwd declarations
+class CTableDescriptor;
 
-	// fwd declarations
-	class CTableDescriptor;
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalInsert
+//
+//	@doc:
+//		Logical Insert operator
+//
+//---------------------------------------------------------------------------
+class CLogicalInsert : public CLogical
+{
+private:
+	// table descriptor
+	CTableDescriptor *m_ptabdesc;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalInsert
-	//
-	//	@doc:
-	//		Logical Insert operator
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalInsert : public CLogical
+	// source columns
+	CColRefArray *m_pdrgpcrSource;
+
+public:
+	CLogicalInsert(const CLogicalInsert &) = delete;
+
+	// ctor
+	explicit CLogicalInsert(CMemoryPool *mp);
+
+	// ctor
+	CLogicalInsert(CMemoryPool *mp, CTableDescriptor *ptabdesc,
+				   CColRefArray *colref_array);
+
+	// dtor
+	~CLogicalInsert() override;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
+		return EopLogicalInsert;
+	}
 
-		private:
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalInsert";
+	}
 
-			// table descriptor
-			CTableDescriptor *m_ptabdesc;
+	// source columns
+	CColRefArray *
+	PdrgpcrSource() const
+	{
+		return m_pdrgpcrSource;
+	}
 
-			// source columns
-			CColRefArray *m_pdrgpcrSource;
+	// return table's descriptor
+	CTableDescriptor *
+	Ptabdesc() const
+	{
+		return m_ptabdesc;
+	}
 
-			// private copy ctor
-			CLogicalInsert(const CLogicalInsert &);
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-		public:
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// ctor
-			explicit
-			CLogicalInsert(CMemoryPool *mp);
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// ctor
-			CLogicalInsert(CMemoryPool *mp, CTableDescriptor *ptabdesc, CColRefArray *colref_array);
+	// return a copy of the operator with remapped columns
+	COperator *PopCopyWithRemappedColumns(CMemoryPool *mp,
+										  UlongToColRefMap *colref_mapping,
+										  BOOL must_exist) override;
 
-			// dtor
-			virtual
-			~CLogicalInsert();
+	//-------------------------------------------------------------------------------------
+	// Derived Relational Properties
+	//-------------------------------------------------------------------------------------
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopLogicalInsert;
-			}
-
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CLogicalInsert";
-			}
-
-			// source columns
-			CColRefArray *PdrgpcrSource() const
-			{
-				return m_pdrgpcrSource;
-			}
-
-			// return table's descriptor
-			CTableDescriptor *Ptabdesc() const
-			{
-				return m_ptabdesc;
-			}
-
-			// operator specific hash function
-			virtual
-			ULONG HashValue() const;
-
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
-
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
-
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns(CMemoryPool *mp, UlongToColRefMap *colref_mapping, BOOL must_exist);
-
-			//-------------------------------------------------------------------------------------
-			// Derived Relational Properties
-			//-------------------------------------------------------------------------------------
-
-			// derive output columns
-			virtual
-			CColRefSet *DeriveOutputColumns(CMemoryPool *mp, CExpressionHandle &exprhdl);
+	// derive output columns
+	CColRefSet *DeriveOutputColumns(CMemoryPool *mp,
+									CExpressionHandle &exprhdl) override;
 
 
-			// derive constraint property
-			virtual
-			CPropConstraint *DerivePropertyConstraint
-				(
-				CMemoryPool *, // mp
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return CLogical::PpcDeriveConstraintPassThru(exprhdl, 0 /*ulChild*/);
-			}
+	// derive constraint property
+	CPropConstraint *
+	DerivePropertyConstraint(CMemoryPool *,	 // mp
+							 CExpressionHandle &exprhdl) const override
+	{
+		return CLogical::PpcDeriveConstraintPassThru(exprhdl, 0 /*ulChild*/);
+	}
 
-			// derive max card
-			virtual
-			CMaxCard DeriveMaxCard(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// derive max card
+	CMaxCard DeriveMaxCard(CMemoryPool *mp,
+						   CExpressionHandle &exprhdl) const override;
 
-			// derive partition consumer info
-			virtual
-			CPartInfo *DerivePartitionInfo
-				(
-				CMemoryPool *, // mp,
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PpartinfoPassThruOuter(exprhdl);
-			}
+	// derive partition consumer info
+	CPartInfo *
+	DerivePartitionInfo(CMemoryPool *,	// mp,
+						CExpressionHandle &exprhdl) const override
+	{
+		return PpartinfoPassThruOuter(exprhdl);
+	}
 
-			// compute required stats columns of the n-th child
-			virtual
-			CColRefSet *PcrsStat
-				(
-				CMemoryPool *,// mp
-				CExpressionHandle &,// exprhdl
-				CColRefSet *pcrsInput,
-				ULONG // child_index
-				)
-				const
-			{
-				return PcrsStatsPassThru(pcrsInput);
-			}
+	// compute required stats columns of the n-th child
+	CColRefSet *
+	PcrsStat(CMemoryPool *,		   // mp
+			 CExpressionHandle &,  // exprhdl
+			 CColRefSet *pcrsInput,
+			 ULONG	// child_index
+	) const override
+	{
+		return PcrsStatsPassThru(pcrsInput);
+	}
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			// candidate set of xforms
-			virtual
-			CXformSet *PxfsCandidates(CMemoryPool *mp) const;
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *mp) const override;
 
-			// derive key collections
-			virtual
-			CKeyCollection *DeriveKeyCollection(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// derive key collections
+	CKeyCollection *DeriveKeyCollection(
+		CMemoryPool *mp, CExpressionHandle &exprhdl) const override;
 
-			// derive statistics
-			virtual
-			IStatistics *PstatsDerive
-						(
-						CMemoryPool *mp,
-						CExpressionHandle &exprhdl,
-						IStatisticsArray *stats_ctxt
-						)
-						const;
+	// derive statistics
+	IStatistics *PstatsDerive(CMemoryPool *mp, CExpressionHandle &exprhdl,
+							  IStatisticsArray *stats_ctxt) const override;
 
-			// stat promise
-			virtual
-			EStatPromise Esp(CExpressionHandle &) const
-			{
-				return CLogical::EspHigh;
-			}
+	// stat promise
+	EStatPromise
+	Esp(CExpressionHandle &) const override
+	{
+		return CLogical::EspHigh;
+	}
 
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// conversion function
-			static
-			CLogicalInsert *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalInsert == pop->Eopid());
+	// conversion function
+	static CLogicalInsert *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalInsert == pop->Eopid());
 
-				return dynamic_cast<CLogicalInsert*>(pop);
-			}
+		return dynamic_cast<CLogicalInsert *>(pop);
+	}
 
-			// debug print
-			virtual
-			IOstream &OsPrint(IOstream &) const;
+	// debug print
+	IOstream &OsPrint(IOstream &) const override;
 
-	}; // class CLogicalInsert
-}
+};	// class CLogicalInsert
+}  // namespace gpopt
 
-#endif // !GPOPT_CLogicalInsert_H
+#endif	// !GPOPT_CLogicalInsert_H
 
 // EOF

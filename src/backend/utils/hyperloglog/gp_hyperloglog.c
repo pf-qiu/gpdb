@@ -1,7 +1,7 @@
 /*
  * Copyright 2012, Tomas Vondra (tv@fuzzy.cz). All rights reserved.
  * Copyright 2015, Conversant, Inc. All rights reserved.
- * Copyright 2018, Pivotal Software, Inc. All rights reserved.
+ * Copyright 2018, VMware, Inc. or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are
  * permitted provided that the following conditions are met:
@@ -13,8 +13,8 @@
  * of conditions and the following disclaimer in the documentation and/or other materials
  * provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY TOMAS VONDRA, CONVERSANT INC, PIVOTAL SOFTWARE INC. AND ANY
- * OTHER CONTRIBUTORS (THE "AUTHORS") ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED BY TOMAS VONDRA, CONVERSANT INC, VMWARE, INC. OF ITS AFFILIATES.
+ * AND ANY OTHER CONTRIBUTORS (THE "AUTHORS") ''AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
  * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
@@ -171,7 +171,7 @@ gp_hll_decompress_dense_unpacked(GpHLLCounter hloglog)
 
 	/* decompress the data */
 	pglz_decompress(hloglog->data, VARSIZE_ANY(hloglog) - sizeof(GpHLLData),
-					(char *) &htemp->data, data_rawsize);
+					(char *) &htemp->data, data_rawsize, true);
 
 	hloglog = htemp;
 
@@ -592,6 +592,13 @@ gp_hll_compress_dense(GpHLLCounter hloglog)
     	}
     	return hloglog;
     }
+
+	if (len < 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("LZ compression failed"),
+				 errdetail("LZ compression return value: %d", len)));
+
     memcpy(hloglog->data,dest,len);
 
     /* resize the counter to only encompass the compressed data and the struct
@@ -649,6 +656,13 @@ gp_hll_compress_dense_unpacked(GpHLLCounter hloglog)
 		}
 		return hloglog;
 	}
+
+	if (len < 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("LZ compression failed"),
+				 errdetail("LZ compression return value: %d", len)));
+
 	memcpy(hloglog->data, dest, len);
 
 	/* resize the counter to only encompass the compressed data and the struct
@@ -710,7 +724,7 @@ gp_hll_decompress_dense(GpHLLCounter hloglog)
 
     /* decompress the data */
     pglz_decompress(hloglog->data, VARSIZE_ANY(hloglog) - sizeof(GpHLLData),
-					dest, data_rawsize);
+					dest, data_rawsize, true);
 
     /* copy the struct internals but not the data into a counter with enough 
      * space for the uncompressed data  */

@@ -5,7 +5,7 @@
  *
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -171,9 +171,12 @@ cdbdisp_getDispatchResults(struct CdbDispatcherState *ds, ErrorData **qeError)
 		 * likely to output the errors on NULL return, add an error message to
 		 * aid debugging.
 		 */
-		if (errstart(ERROR, __FILE__, __LINE__, PG_FUNCNAME_MACRO, TEXTDOMAIN))
-			*qeError = errfinish_and_return(errcode(ERRCODE_INTERNAL_ERROR),
-											errmsg("no dispatcher state"));
+		if (errstart(ERROR, TEXTDOMAIN))
+		{
+			errcode(ERRCODE_INTERNAL_ERROR);
+			errmsg("no dispatcher state");
+			*qeError = errfinish_and_return(__FILE__, __LINE__, PG_FUNCNAME_MACRO);
+		}
 		else
 			pg_unreachable();
 
@@ -326,6 +329,7 @@ cdbdisp_makeDispatcherState(bool isExtendedQuery)
 #endif
 	handle->dispatcherState->allocatedGangs = NIL;
 	handle->dispatcherState->largestGangSize = 0;
+	handle->dispatcherState->destroyIdleReaderGang = false;
 
 	return handle->dispatcherState;
 }
@@ -401,6 +405,12 @@ cdbdisp_destroyDispatcherState(CdbDispatcherState *ds)
 
 		RecycleGang(gp, ds->forceDestroyGang);
 	}
+
+	/*
+	 * Destroy all the idle reader gangs when flag destroyIdleReaderGang is true
+	 */
+	if (ds->destroyIdleReaderGang)
+		cdbcomponent_cleanupIdleQEs(false);
 
 	ds->allocatedGangs = NIL;
 	ds->dispatchParams = NULL;

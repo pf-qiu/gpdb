@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2017 Pivotal Software Inc.
+//	Copyright (C) 2017 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformRemoveSubqDistinct.h
@@ -16,53 +16,45 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	class CXformRemoveSubqDistinct : public CXformExploration
+class CXformRemoveSubqDistinct : public CXformExploration
+{
+private:
+public:
+	CXformRemoveSubqDistinct(const CXformRemoveSubqDistinct &) = delete;
+
+	// ctor
+	explicit CXformRemoveSubqDistinct(CMemoryPool *mp);
+
+	// dtor
+	~CXformRemoveSubqDistinct() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfRemoveSubqDistinct;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformRemoveSubqDistinct";
+	}
 
-			// private copy ctor
-			CXformRemoveSubqDistinct(const CXformRemoveSubqDistinct &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformRemoveSubqDistinct(CMemoryPool *mp);
+};	// class CXformRemoveSubqDistinct
 
-			// dtor
-			virtual
-			~CXformRemoveSubqDistinct()
-			{}
+}  // namespace gpopt
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfRemoveSubqDistinct;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformRemoveSubqDistinct";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp (CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	}; // class CXformRemoveSubqDistinct
-
-}
-
-#endif // !GPOPT_CXformRemoveSubqDistinct_H
+#endif	// !GPOPT_CXformRemoveSubqDistinct_H
 
 // EOF

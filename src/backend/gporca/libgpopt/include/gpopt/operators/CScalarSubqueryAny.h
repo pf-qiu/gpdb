@@ -17,76 +17,63 @@
 
 namespace gpopt
 {
+using namespace gpos;
 
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarSubqueryAny
-	//
-	//	@doc:
-	//		Scalar subquery ANY.
-	//		A scalar subquery ANY expression has two children: relational and scalar.
-	//
-	//---------------------------------------------------------------------------
-	class CScalarSubqueryAny : public CScalarSubqueryQuantified
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarSubqueryAny
+//
+//	@doc:
+//		Scalar subquery ANY.
+//		A scalar subquery ANY expression has two children: relational and scalar.
+//
+//---------------------------------------------------------------------------
+class CScalarSubqueryAny : public CScalarSubqueryQuantified
+{
+private:
+public:
+	CScalarSubqueryAny(const CScalarSubqueryAny &) = delete;
+
+	// ctor
+	CScalarSubqueryAny(CMemoryPool *mp, IMDId *scalar_op_mdid,
+					   const CWStringConst *pstrScalarOp,
+					   const CColRef *colref);
+
+	// dtor
+	~CScalarSubqueryAny() override = default;
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
-		
-		private:
+		return EopScalarSubqueryAny;
+	}
 
-			// private copy ctor
-			CScalarSubqueryAny(const CScalarSubqueryAny &);
-		
-		public:
-		
-			// ctor
-			CScalarSubqueryAny
-				(
-				CMemoryPool *mp, 
-				IMDId *scalar_op_mdid, 
-				const CWStringConst *pstrScalarOp,
-				const CColRef *colref
-				);
+	// return a string for scalar subquery
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarSubqueryAny";
+	}
 
-			// dtor
-			virtual 
-			~CScalarSubqueryAny()
-			{}
+	// return a copy of the operator with remapped columns
+	COperator *PopCopyWithRemappedColumns(CMemoryPool *mp,
+										  UlongToColRefMap *colref_mapping,
+										  BOOL must_exist) override;
 
-			// ident accessors
-			virtual 
-			EOperatorId Eopid() const
-			{
-				return EopScalarSubqueryAny;
-			}
-			
-			// return a string for scalar subquery
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CScalarSubqueryAny";
-			}
+	// conversion function
+	static CScalarSubqueryAny *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarSubqueryAny == pop->Eopid());
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns(CMemoryPool *mp, UlongToColRefMap *colref_mapping, BOOL must_exist);
+		return reinterpret_cast<CScalarSubqueryAny *>(pop);
+	}
 
-			// conversion function
-			static
-			CScalarSubqueryAny *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarSubqueryAny == pop->Eopid());
-				
-				return reinterpret_cast<CScalarSubqueryAny*>(pop);
-			}
+};	// class CScalarSubqueryAny
+}  // namespace gpopt
 
-	}; // class CScalarSubqueryAny
-}
-
-#endif // !GPOPT_CScalarSubqueryAny_H
+#endif	// !GPOPT_CScalarSubqueryAny_H
 
 // EOF

@@ -6,11 +6,7 @@ set -eox pipefail
 
 CLUSTER_NAME=$(cat ./cluster_env_files/terraform/name)
 
-if [ "$TEST_OS" = centos6 ]; then
-    CGROUP_BASEDIR=/cgroup
-else
-    CGROUP_BASEDIR=/sys/fs/cgroup
-fi
+CGROUP_BASEDIR=/sys/fs/cgroup
 
 if [ "$TEST_OS" = centos7 ]; then
     CGROUP_AUTO_MOUNTED=1
@@ -62,11 +58,11 @@ run_resgroup_test() {
         export CPPFLAGS="-I\${GPHOME}/include"
 
         cd /home/gpadmin/gpdb_src
-        ./configure --prefix=/usr/local/greenplum-db-devel \
+        PYTHON=python3 ./configure --prefix=/usr/local/greenplum-db-devel \
             --without-zlib --without-rt --without-libcurl \
             --without-libedit-preferred --without-docdir --without-readline \
             --disable-gpcloud --disable-gpfdist --disable-orca \
-            --disable-pxf ${CONFIGURE_FLAGS}
+            --disable-pxf --without-python ${CONFIGURE_FLAGS}
 
         make -C /home/gpadmin/gpdb_src/src/test/regress
         ssh sdw1 mkdir -p /home/gpadmin/gpdb_src/src/test/regress </dev/null

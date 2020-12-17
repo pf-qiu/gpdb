@@ -18,104 +18,87 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarDMLAction
-	//
-	//	@doc:
-	//		Scalar casting operator
-	//
-	//---------------------------------------------------------------------------
-	class CScalarDMLAction : public CScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarDMLAction
+//
+//	@doc:
+//		Scalar casting operator
+//
+//---------------------------------------------------------------------------
+class CScalarDMLAction : public CScalar
+{
+private:
+public:
+	CScalarDMLAction(const CScalarDMLAction &) = delete;
+
+	// dml action specification
+	enum EDMLAction
 	{
+		EdmlactionDelete,
+		EdmlactionInsert
+	};
 
-		private:
+	// ctor
+	CScalarDMLAction(CMemoryPool *mp) : CScalar(mp)
+	{
+	}
 
-			// private copy ctor
-			CScalarDMLAction(const CScalarDMLAction &);
+	// dtor
+	~CScalarDMLAction() override = default;
+	// ident accessors
 
-		public:
+	// the type of the scalar expression
+	IMDId *MdidType() const override;
 
-			// dml action specification
-			enum EDMLAction
-			{
-				EdmlactionDelete,
-				EdmlactionInsert
-			};
-			
-			// ctor
-			CScalarDMLAction
-				(
-				CMemoryPool *mp
-				)
-				:
-				CScalar(mp)
-			{}
+	EOperatorId
+	Eopid() const override
+	{
+		return EopScalarDMLAction;
+	}
 
-			// dtor
-			virtual
-			~CScalarDMLAction() 
-			{}
-			// ident accessors
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarDMLAction";
+	}
 
-			// the type of the scalar expression
-			virtual 
-			IMDId *MdidType() const;
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopScalarDMLAction;
-			}
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CScalarDMLAction";
-			}
+	// return a copy of the operator with remapped columns
+	COperator *
+	PopCopyWithRemappedColumns(CMemoryPool *,		//mp,
+							   UlongToColRefMap *,	//colref_mapping,
+							   BOOL					//must_exist
+							   ) override
+	{
+		return PopCopyDefault();
+	}
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// conversion function
+	static CScalarDMLAction *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarDMLAction == pop->Eopid());
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
+		return dynamic_cast<CScalarDMLAction *>(pop);
+	}
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns
-						(
-						CMemoryPool *, //mp,
-						UlongToColRefMap *, //colref_mapping,
-						BOOL //must_exist
-						)
-			{
-				return PopCopyDefault();
-			}
+};	// class CScalarDMLAction
+}  // namespace gpopt
 
-			// conversion function
-			static
-			CScalarDMLAction *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarDMLAction == pop->Eopid());
-
-				return dynamic_cast<CScalarDMLAction*>(pop);
-			}
-
-	}; // class CScalarDMLAction
-}
-
-#endif // !GPOPT_CScalarDMLAction_H
+#endif	// !GPOPT_CScalarDMLAction_H
 
 // EOF

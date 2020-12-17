@@ -22,50 +22,46 @@ using namespace gpdxl;
 
 namespace gpopt
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CSerializableQuery
-	//
-	//	@doc:
-	//		Serializable query object 
-	//
-	//---------------------------------------------------------------------------
-	class CSerializableQuery : public CSerializable
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CSerializableQuery
+//
+//	@doc:
+//		Serializable query object
+//
+//---------------------------------------------------------------------------
+class CSerializableQuery : public CSerializable
+{
+private:
+	CMemoryPool *m_mp;
 
-			CMemoryPool *m_mp;
+	// query DXL node;
+	const CDXLNode *m_query_dxl_root;
 
-			// query DXL node;
-			const CDXLNode *m_query_dxl_root;
+	// query output
+	const CDXLNodeArray *m_query_output;
 
-			// query output
-			const CDXLNodeArray *m_query_output;
+	// CTE DXL nodes
+	const CDXLNodeArray *m_cte_producers;
 
-			// CTE DXL nodes
-			const CDXLNodeArray *m_cte_producers;
 
-			
-			// private copy ctor
-			CSerializableQuery(const CSerializableQuery&);
+public:
+	CSerializableQuery(const CSerializableQuery &) = delete;
 
-		public:
+	// ctor
+	CSerializableQuery(CMemoryPool *mp, const CDXLNode *query,
+					   const CDXLNodeArray *query_output_dxlnode_array,
+					   const CDXLNodeArray *cte_producers);
 
-			// ctor
-			CSerializableQuery(CMemoryPool *mp, const CDXLNode *query, const CDXLNodeArray *query_output_dxlnode_array, const CDXLNodeArray *cte_producers);
+	// dtor
+	~CSerializableQuery() override;
 
-			// dtor
-			virtual
-			~CSerializableQuery();
+	// serialize object to passed stream
+	void Serialize(COstream &oos) override;
 
-			// serialize object to passed stream
-			virtual
-			void Serialize(COstream &oos);
+};	// class CSerializableQuery
+}  // namespace gpopt
 
-	}; // class CSerializableQuery
-}
-
-#endif // !GPOS_CSerializableQuery_H
+#endif	// !GPOS_CSerializableQuery_H
 
 // EOF
-

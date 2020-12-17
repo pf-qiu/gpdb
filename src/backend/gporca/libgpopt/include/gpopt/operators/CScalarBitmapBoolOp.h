@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarBitmapBoolOp.h
@@ -9,7 +9,7 @@
 //		Bitmap bool op scalar operator
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
@@ -24,128 +24,112 @@
 
 namespace gpopt
 {
-
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarBitmapBoolOp
-	//
-	//	@doc:
-	//		Bitmap bool op scalar operator
-	//
-	//---------------------------------------------------------------------------
-	class CScalarBitmapBoolOp : public CScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarBitmapBoolOp
+//
+//	@doc:
+//		Bitmap bool op scalar operator
+//
+//---------------------------------------------------------------------------
+class CScalarBitmapBoolOp : public CScalar
+{
+public:
+	// type of bitmap bool operator
+	enum EBitmapBoolOp
 	{
-		public:
-			// type of bitmap bool operator
-			enum EBitmapBoolOp
-			{
-				EbitmapboolAnd,
-				EbitmapboolOr,
-				EbitmapboolSentinel
-			};
-			
-		private:
-				
-			// bitmap boolean operator
-			EBitmapBoolOp m_ebitmapboolop;
+		EbitmapboolAnd,
+		EbitmapboolOr,
+		EbitmapboolSentinel
+	};
 
-			// bitmap type id
-			IMDId *m_pmdidBitmapType;
+private:
+	// bitmap boolean operator
+	EBitmapBoolOp m_ebitmapboolop;
 
-			// private copy ctor
-			CScalarBitmapBoolOp(const CScalarBitmapBoolOp &);
-			
-			static
-			const WCHAR m_rgwszBitmapOpType[EbitmapboolSentinel][30];
+	// bitmap type id
+	IMDId *m_pmdidBitmapType;
 
-		public:
-			// ctor
-			CScalarBitmapBoolOp
-				(
-				CMemoryPool *mp,
-				EBitmapBoolOp ebitmapboolop,
-				IMDId *pmdidBitmapType
-				);
+	static const WCHAR m_rgwszBitmapOpType[EbitmapboolSentinel][30];
+
+public:
+	CScalarBitmapBoolOp(const CScalarBitmapBoolOp &) = delete;
+
+	// ctor
+	CScalarBitmapBoolOp(CMemoryPool *mp, EBitmapBoolOp ebitmapboolop,
+						IMDId *pmdidBitmapType);
 
 
-			// dtor
-			virtual
-			~CScalarBitmapBoolOp();
+	// dtor
+	~CScalarBitmapBoolOp() override;
 
-			// bitmap bool op type
-			EBitmapBoolOp Ebitmapboolop() const
-			{
-				return m_ebitmapboolop;
-			}
+	// bitmap bool op type
+	EBitmapBoolOp
+	Ebitmapboolop() const
+	{
+		return m_ebitmapboolop;
+	}
 
-			// bitmap type id
-			virtual
-			IMDId *MdidType() const
-			{
-				return m_pmdidBitmapType;
-			}
+	// bitmap type id
+	IMDId *
+	MdidType() const override
+	{
+		return m_pmdidBitmapType;
+	}
 
-			// identifier
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopScalarBitmapBoolOp;
-			}
+	// identifier
+	EOperatorId
+	Eopid() const override
+	{
+		return EopScalarBitmapBoolOp;
+	}
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CScalarBitmapBoolOp";
-			}
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarBitmapBoolOp";
+	}
 
-			// operator specific hash function
-			virtual
-			ULONG HashValue() const;
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns
-						(
-						CMemoryPool *, //mp,
-						UlongToColRefMap *, //colref_mapping,
-						BOOL //must_exist
-						)
-			{
-				return PopCopyDefault();
-			}
+	// return a copy of the operator with remapped columns
+	COperator *
+	PopCopyWithRemappedColumns(CMemoryPool *,		//mp,
+							   UlongToColRefMap *,	//colref_mapping,
+							   BOOL					//must_exist
+							   ) override
+	{
+		return PopCopyDefault();
+	}
 
-			// debug print
-			virtual
-			IOstream &OsPrint(IOstream &) const;
+	// debug print
+	IOstream &OsPrint(IOstream &) const override;
 
-			// conversion
-			static
-			CScalarBitmapBoolOp *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarBitmapBoolOp == pop->Eopid());
+	// conversion
+	static CScalarBitmapBoolOp *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarBitmapBoolOp == pop->Eopid());
 
-				return dynamic_cast<CScalarBitmapBoolOp *>(pop);
-			}
+		return dynamic_cast<CScalarBitmapBoolOp *>(pop);
+	}
 
-	};  // class CScalarBitmapBoolOp
-}
+};	// class CScalarBitmapBoolOp
+}  // namespace gpopt
 
-#endif // !GPOPT_CScalarBitmapBoolOp_H
+#endif	// !GPOPT_CScalarBitmapBoolOp_H
 
 // EOF

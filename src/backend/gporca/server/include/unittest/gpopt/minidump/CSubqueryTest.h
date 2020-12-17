@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2017 Pivotal, Inc.
+//	Copyright (C) 2017 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CSubqueryTest.h
@@ -15,27 +15,21 @@
 
 namespace gpopt
 {
-	class CSubqueryTest
-	{
-		private:
+class CSubqueryTest
+{
+private:
+	// counter used to mark last successful test
+	static gpos::ULONG m_ulSubQueryTestCounter;
 
-			// counter used to mark last successful test
-			static
-			gpos::ULONG m_ulSubQueryTestCounter;
+public:
+	// unittests
+	static gpos::GPOS_RESULT EresUnittest();
 
-		public:
+	static gpos::GPOS_RESULT EresUnittest_RunTests();
 
-			// unittests
-			static
-			gpos::GPOS_RESULT EresUnittest();
+};	// class CSubqueryTest
+}  // namespace gpopt
 
-			static
-			gpos::GPOS_RESULT EresUnittest_RunTests();
-
-	}; // class CSubqueryTest
-}
-
-#endif // !GPOPT_CSubqueryTest_H
+#endif	// !GPOPT_CSubqueryTest_H
 
 // EOF
-

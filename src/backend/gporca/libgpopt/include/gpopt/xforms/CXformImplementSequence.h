@@ -16,73 +16,59 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementSequence
-	//
-	//	@doc:
-	//		Transform logical to physical Sequence
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementSequence : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementSequence
+//
+//	@doc:
+//		Transform logical to physical Sequence
+//
+//---------------------------------------------------------------------------
+class CXformImplementSequence : public CXformImplementation
+{
+private:
+public:
+	CXformImplementSequence(const CXformImplementSequence &) = delete;
+
+	// ctor
+	explicit CXformImplementSequence(CMemoryPool *);
+
+	// dtor
+	~CXformImplementSequence() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementSequence;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementSequence";
+	}
 
-			// private copy ctor
-			CXformImplementSequence(const CXformImplementSequence &);
+	// compute xform promise for a given expression handle
+	EXformPromise
+	Exfp(CExpressionHandle &  // exprhdl
+	) const override
+	{
+		return CXform::ExfpHigh;
+	}
 
-		public:
-		
-			// ctor
-			explicit
-			CXformImplementSequence(CMemoryPool *);
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// dtor
-			virtual 
-			~CXformImplementSequence() {}
+};	// class CXformImplementSequence
 
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementSequence;
-			}
-			
-			// return a string for xform name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformImplementSequence";
-			}
-			
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp
-				(
-				CExpressionHandle & // exprhdl
-				)
-				const
-			{				
-				return CXform::ExfpHigh;
-			}
-
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-		
-	}; // class CXformImplementSequence
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformImplementSequence_H
+#endif	// !GPOPT_CXformImplementSequence_H
 
 // EOF

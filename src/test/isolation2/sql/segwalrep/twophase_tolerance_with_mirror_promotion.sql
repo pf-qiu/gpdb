@@ -105,14 +105,5 @@
 !\retcode gpstop -u;
 
 -- loop while segments come in sync
-do $$
-begin /* in func */
-  for i in 1..120 loop /* in func */
-    if (select count(*) = 0 from gp_segment_configuration where content != -1 and mode != 's') then /* in func */
-      return; /* in func */
-    end if; /* in func */
-    perform gp_request_fts_probe_scan(); /* in func */
-  end loop; /* in func */
-end; /* in func */
-$$;
+select wait_until_all_segments_synchronized();
 5:SELECT role, preferred_role, content FROM gp_segment_configuration;

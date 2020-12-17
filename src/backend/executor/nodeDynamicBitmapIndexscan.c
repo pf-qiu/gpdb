@@ -18,7 +18,7 @@
  * can change at a rescan.
  *
  * Portions Copyright (c) 2013 - present, EMC/Greenplum
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -29,7 +29,6 @@
 
 #include "postgres.h"
 
-#include "cdb/cdbpartition.h"
 #include "cdb/cdbvars.h"
 #include "cdb/partitionselection.h"
 #include "executor/executor.h"

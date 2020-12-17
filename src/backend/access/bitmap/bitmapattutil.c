@@ -6,7 +6,7 @@
  *
  * Portions Copyright (c) 2007-2010 Greenplum Inc
  * Portions Copyright (c) 2010-2012 EMC Corporation
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Portions Copyright (c) 2006-2008, PostgreSQL Global Development Group
  *
  *
@@ -21,6 +21,7 @@
 #include "access/genam.h"
 #include "access/tupdesc.h"
 #include "access/bitmap.h"
+#include "access/bitmap_private.h"
 #include "access/heapam.h"
 #include "access/heapam_xlog.h"
 #include "access/multixact.h"
@@ -28,7 +29,6 @@
 #include "access/xact.h"
 #include "access/transam.h"
 #include "catalog/dependency.h"
-#include "catalog/gp_policy.h"
 #include "catalog/heap.h"
 #include "catalog/index.h"
 #include "catalog/pg_am.h"
@@ -121,8 +121,8 @@ _bitmap_create_lov_heapandindex(Relation rel,
 		lovHeap = heap_open(heapid, AccessExclusiveLock);
 		lovIndex = index_open(idxid, AccessExclusiveLock);
 
-		RelationSetNewRelfilenode(lovHeap, lovHeap->rd_rel->relpersistence, RecentXmin, GetOldestMultiXactId());
-		RelationSetNewRelfilenode(lovIndex, lovIndex->rd_rel->relpersistence, InvalidTransactionId, InvalidMultiXactId);
+		RelationSetNewRelfilenode(lovHeap, lovHeap->rd_rel->relpersistence);
+		RelationSetNewRelfilenode(lovIndex, lovIndex->rd_rel->relpersistence);
 
 		/*
 		 * After creating the new relfilenode for a btee index, this is not
@@ -174,20 +174,18 @@ _bitmap_create_lov_heapandindex(Relation rel,
 								 InvalidOid,
 								 InvalidOid,
 								 rel->rd_rel->relowner,
+								 HEAP_TABLE_AM_OID,
 								 tupDesc, NIL,
 								 RELKIND_RELATION,
 								 rel->rd_rel->relpersistence,
-								 RELSTORAGE_HEAP,
 								 rel->rd_rel->relisshared,
 								 false, /* mapped_relation */
-								 false, 0,
 								 ONCOMMIT_NOOP, NULL /* GP Policy */,
 								 (Datum)0, false, true,
 								 true, /* is_internal */
+								 InvalidOid, /* relrewrite */
 								 NULL, /* typeaddress */
-								 /* valid_opts */ true,
-								 /* is_part_child */ false,
-								 /* is_part_parent */ false);
+								 /* valid_opts */ true);
 	*lovHeapOid = heapid;
 
 	/*
@@ -216,11 +214,22 @@ _bitmap_create_lov_heapandindex(Relation rel,
 	indattrs = tupDesc->natts - 2;
 	indexInfo = makeNode(IndexInfo);
 	indexInfo->ii_NumIndexAttrs = indattrs;
+	indexInfo->ii_NumIndexKeyAttrs = indattrs;
 	indexInfo->ii_Expressions = NIL;
 	indexInfo->ii_ExpressionsState = NIL;
-	indexInfo->ii_Predicate = make_ands_implicit(NULL);
-	indexInfo->ii_PredicateState = NIL;
+	indexInfo->ii_Predicate = NIL;
+	indexInfo->ii_PredicateState = NULL;
+	indexInfo->ii_ExclusionOps = NULL;
+	indexInfo->ii_ExclusionProcs = NULL;
+	indexInfo->ii_ExclusionStrats = NULL;
 	indexInfo->ii_Unique = true;
+	indexInfo->ii_ReadyForInserts = true;
+	indexInfo->ii_Concurrent = false;
+	indexInfo->ii_BrokenHotChain = false;
+	indexInfo->ii_ParallelWorkers = 0;
+	indexInfo->ii_Am = BTREE_AM_OID;
+	indexInfo->ii_AmCache = NULL;
+	indexInfo->ii_Context = CurrentMemoryContext;
 
 	classObjectId = (Oid *) palloc(indattrs * sizeof(Oid));
 	coloptions = (int16 *) palloc(indattrs * sizeof(int16));
@@ -228,14 +237,14 @@ _bitmap_create_lov_heapandindex(Relation rel,
 	indexColNames = NIL;
 	for (i = 0; i < indattrs; i++)
 	{
-		Oid typid = tupDesc->attrs[i]->atttypid;
+		Form_pg_attribute attr = TupleDescAttr(tupDesc, i);
 
-		indexInfo->ii_KeyAttrNumbers[i] = i + 1;
-		classObjectId[i] = GetDefaultOpClass(typid, BTREE_AM_OID);
+		indexInfo->ii_IndexAttrNumbers[i] = i + 1;
+		classObjectId[i] = GetDefaultOpClass(attr->atttypid, BTREE_AM_OID);
 		coloptions[i] = 0;
 		colcollations[i] = rel->rd_indcollation[i];
 
-		indexColNames = lappend(indexColNames, NameStr(tupDesc->attrs[i]->attname));
+		indexColNames = lappend(indexColNames, NameStr(attr->attname));
 	}
 
 	idxid = index_create(lov_heap_rel, lovIndexName, InvalidOid,
@@ -248,15 +257,10 @@ _bitmap_create_lov_heapandindex(Relation rel,
 						 rel->rd_rel->reltablespace,
 						 colcollations,
 						 classObjectId, coloptions, (Datum) 0,
-						 /* isprimary */ false,
-						 /* isconstraint */ false,
-						 /* deferrable */ false,
-						 /* initdeferred */ false,
+						 INDEX_CREATE_IF_NOT_EXISTS, /* flags */
+						 0, /* constr_flags */
 						 /* allow_system_table_mods */ true,
-						 /* skip_build */ false,
-						 /* concurrent */ false,
 						 /* is_internal */ true,
-						 /* if_not_exists */ true,
 						 NULL);
 	*lovIndexOid = idxid;
 
@@ -278,7 +282,7 @@ _bitmap_create_lov_heapTupleDesc(Relation rel)
 	oldTupDesc = RelationGetDescr(rel);
 	natts = oldTupDesc->natts + 2;
 
-	tupDesc = CreateTemplateTupleDesc(natts, false);
+	tupDesc = CreateTemplateTupleDesc(natts);
 
 	for (attno = 1; attno <= oldTupDesc->natts; attno++)
 	{
@@ -335,7 +339,7 @@ _bitmap_insert_lov(Relation lovHeap, Relation lovIndex, Datum *datum,
 	memcpy(indexDatum, datum, (tupDesc->natts - 2) * sizeof(Datum));
 	memcpy(indexNulls, nulls, (tupDesc->natts - 2) * sizeof(bool));
 	result = index_insert(lovIndex, indexDatum, indexNulls,
-					 	  &(tuple->t_self), lovHeap, true);
+					 	  &(tuple->t_self), lovHeap, true, NULL);
 
 	pfree(indexDatum);
 	pfree(indexNulls);
@@ -375,26 +379,30 @@ _bitmap_findvalue(Relation lovHeap, Relation lovIndex,
 				  OffsetNumber *lovOffset, bool *offsetNull)
 {
 	TupleDesc		tupDesc;
-	HeapTuple		tuple;
 	bool			found = false;
+	TupleTableSlot *slot;
 
 	tupDesc = RelationGetDescr(lovIndex);
 
-	tuple = index_getnext(scanDesc, ForwardScanDirection);
-
-	if (tuple != NULL)
+	/*
+	 * creating a new slot on every call is a bit expensive, but there's no
+	 * convenient place to keep it.
+	 */
+	slot = table_slot_create(lovHeap, NULL);
+	if (index_getnext_slot(scanDesc, ForwardScanDirection, slot))
 	{
-		TupleDesc 	heapTupDesc;
 		Datum 		d;
 
 		found = true;
-		heapTupDesc = RelationGetDescr(lovHeap);
 
-		d = heap_getattr(tuple, tupDesc->natts + 1, heapTupDesc, blockNull);
+		d = slot_getattr(slot, tupDesc->natts + 1, blockNull);
 		*lovBlock =	DatumGetInt32(d);
-		d = heap_getattr(tuple, tupDesc->natts + 2, heapTupDesc, offsetNull);
+		d = slot_getattr(slot, tupDesc->natts + 2, offsetNull);
 		*lovOffset = DatumGetInt16(d);
 	}
+
+	ExecDropSingleTupleTableSlot(slot);
+
 	return found;
 }
 

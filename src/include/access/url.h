@@ -5,7 +5,7 @@
  *    to the qExec processes.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  * src/include/access/url.h
  *
@@ -73,6 +73,12 @@ typedef struct extvar_t
 /* an EXECUTE string will always be prefixed like this */
 #define EXEC_URL_PREFIX "execute:"
 
+extern void external_set_env_vars(extvar_t *extvar, char *uri, bool csv, char *escape,
+								  char *quote, bool header, uint32 scancounter);
+extern void external_set_env_vars_ext(extvar_t *extvar, char *uri, bool csv, char *escape,
+									  char *quote, int eol_type, bool header,
+									  uint32 scancounter, List *params);
+
 /* exported functions */
 extern URL_FILE *url_fopen(char *url, bool forwrite, extvar_t *ev, CopyState pstate, ExternalSelectDesc desc);
 extern void url_fclose(URL_FILE *file, bool failOnError, const char *relname);
@@ -81,6 +87,9 @@ extern bool url_ferror(URL_FILE *file, int bytesread, char *ebuf, int ebuflen);
 extern size_t url_fread(void *ptr, size_t size, URL_FILE *file, CopyState pstate);
 extern size_t url_fwrite(void *ptr, size_t size, URL_FILE *file, CopyState pstate);
 extern void url_fflush(URL_FILE *file, CopyState pstate);
+
+/* prototypes for functions in url_execute.c */
+extern char *make_command(const char *cmd, extvar_t *ev);
 
 /* implementation-specific functions. */
 extern URL_FILE *url_curl_fopen(char *url, bool forwrite, extvar_t *ev, CopyState pstate);
@@ -113,5 +122,6 @@ extern size_t url_custom_fwrite(void *ptr, size_t size, URL_FILE *file, CopyStat
 
 /* GUC */
 extern int readable_external_table_timeout;
+extern int write_to_gpfdist_timeout;
 
 #endif

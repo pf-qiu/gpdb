@@ -3,7 +3,7 @@
  *	   Interconnect code specific to UDP transport.
  *
  * Portions Copyright (c) 2005-2011, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  * Copyright (c) 2011-2012, EMC Corporation
  *
  *
@@ -25,17 +25,23 @@
 #include "postgres.h"
 
 #include <pthread.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "access/transam.h"
 #include "access/xact.h"
+#include "common/ip.h"
 #include "nodes/execnodes.h"
 #include "nodes/pg_list.h"
 #include "nodes/print.h"
 #include "miscadmin.h"
 #include "libpq/libpq-be.h"
-#include "libpq/ip.h"
 #include "port/atomics.h"
 #include "port/pg_crc32c.h"
+#include "pgstat.h"
 #include "postmaster/postmaster.h"
 #include "storage/latch.h"
 #include "storage/pmsignal.h"
@@ -50,12 +56,6 @@
 #include "cdb/cdbdisp.h"
 #include "cdb/cdbdispatchresult.h"
 #include "cdb/cdbicudpfaultinjection.h"
-
-#include <fcntl.h>
-#include <limits.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -436,7 +436,15 @@ struct ICGlobalControlInfo
 	ConnHashTable startupCacheHtab;
 
 	/* Used by main thread to ask the background thread to exit. */
-	uint32		shutdown;
+	pg_atomic_uint32 shutdown;
+
+	/*
+	 * Used by ic thread in the QE to identify the current serving ic instance
+	 * and handle the mismatch packets. It is not used by QD because QD may have
+	 * cursors, QD may receive packets for open the cursors with lower instance
+	 * id, QD use cursorHistoryTable to handle packets mismatch.
+	 */
+	uint32		ic_instance_id;
 };
 
 /*
@@ -703,7 +711,7 @@ static inline TupleChunkListItem RecvTupleChunkFromUDPIFC_Internal(ChunkTranspor
 								  int16 motNodeID,
 								  int16 srcRoute);
 static void TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
-									bool forceEOS);
+									bool hasErrors);
 
 static void freeDisorderedPackets(MotionConn *conn);
 
@@ -1362,16 +1370,7 @@ ic_set_pthread_sigmasks(sigset_t *old_sigs)
 	sigset_t sigs;
 	int		 err;
 
-	sigemptyset(&sigs);
-
-	/* make our thread ignore these signals (which should allow that
-	 * they be delivered to the main thread) */
-	sigaddset(&sigs, SIGHUP);
-	sigaddset(&sigs, SIGINT);
-	sigaddset(&sigs, SIGTERM);
-	sigaddset(&sigs, SIGALRM);
-	sigaddset(&sigs, SIGUSR1);
-	sigaddset(&sigs, SIGUSR2);
+	sigfillset(&sigs);
 
 	err = pthread_sigmask(SIG_BLOCK, &sigs, old_sigs);
 	if (err != 0)
@@ -1430,8 +1429,9 @@ InitMotionUDPIFC(int *listenerSocketFd, uint16 *listenerPort)
 													   ALLOCSET_DEFAULT_MAXSIZE);
 	initMutex(&ic_control_info.lock);
 	InitLatch(&ic_control_info.latch);
-	ic_control_info.shutdown = 0;
+	pg_atomic_init_u32(&ic_control_info.shutdown, 0);
 	ic_control_info.threadCreated = false;
+	ic_control_info.ic_instance_id = 0;
 
 	old = MemoryContextSwitchTo(ic_control_info.memContext);
 
@@ -1514,10 +1514,8 @@ CleanupMotionUDPIFC(void)
 	 */
 	pthread_mutex_unlock(&ic_control_info.lock);
 
-	uint32		expected = 0;
-
 	/* Shutdown rx thread. */
-	pg_atomic_compare_exchange_u32((pg_atomic_uint32 *) &ic_control_info.shutdown, &expected, 1);
+	pg_atomic_write_u32(&ic_control_info.shutdown, 1);
 
 	if (ic_control_info.threadCreated)
 		pthread_join(ic_control_info.threadHandle, NULL);
@@ -1743,7 +1741,7 @@ findConnByHeader(ConnHashTable *ht, icpkthdr *hdr)
 		write_log("findConnByHeader: not found! (hdr->srcPid %d "
 				  "hdr->srcContentId %d hdr->dstContentId %d hdr->dstPid %d sess(%d:%d) cmd(%d:%d)) hashcode %d",
 				  hdr->srcPid, hdr->srcContentId, hdr->dstContentId, hdr->dstPid, hdr->sessionId,
-				  gp_session_id, hdr->icId, gp_interconnect_id, hashcode);
+				  gp_session_id, hdr->icId, ic_control_info.ic_instance_id, hashcode);
 
 	return NULL;
 }
@@ -2794,6 +2792,7 @@ void
 setupOutgoingUDPConnection(ChunkTransportState *transportStates, ChunkTransportStateEntry *pEntry, MotionConn *conn)
 {
 	CdbProcess *cdbProc = conn->cdbProc;
+	SliceTable *sliceTbl = transportStates->sliceTable;
 
 	Assert(conn->state == mcsSetupOutgoingConnection);
 	Assert(conn->cdbProc);
@@ -2926,7 +2925,7 @@ setupOutgoingUDPConnection(ChunkTransportState *transportStates, ChunkTransportS
 	conn->conn_info.dstListenerPort = conn->cdbProc->listenerPort;
 
 	conn->conn_info.sessionId = gp_session_id;
-	conn->conn_info.icId = gp_interconnect_id;
+	conn->conn_info.icId = sliceTbl->ic_instance_id;
 
 	connAddHash(&ic_control_info.connHtab, conn);
 
@@ -3035,9 +3034,24 @@ SetupUDPIFCInterconnect_Internal(SliceTable *sliceTable)
 
 	pthread_mutex_lock(&ic_control_info.lock);
 
-	gp_interconnect_id = sliceTable->ic_instance_id;
+	Assert(sliceTable->ic_instance_id > 0);
 
-	Assert(gp_interconnect_id > 0);
+	if (Gp_role == GP_ROLE_DISPATCH)
+	{
+		Assert(gp_interconnect_id == sliceTable->ic_instance_id);
+		/*
+		 * QD use cursorHistoryTable to handle mismatch packets, no
+		 * need to update ic_control_info.ic_instance_id
+		 */
+	}
+	else
+	{
+		/*
+		 * update ic_control_info.ic_instance_id, it is mainly used
+		 * by rx thread to handle mismatch packets
+		 */
+		ic_control_info.ic_instance_id = sliceTable->ic_instance_id;
+	}
 
 	interconnect_context = palloc0(sizeof(ChunkTransportState));
 
@@ -3085,11 +3099,11 @@ SetupUDPIFCInterconnect_Internal(SliceTable *sliceTable)
 		if (distTransId != rx_control_info.lastDXatId && rx_control_info.cursorHistoryTable.count > (2 * CURSOR_IC_TABLE_SIZE))
 		{
 			if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
-				elog(DEBUG1, "prune cursor history table (count %d), icid %d", rx_control_info.cursorHistoryTable.count, gp_interconnect_id);
-			pruneCursorIcEntry(&rx_control_info.cursorHistoryTable, gp_interconnect_id);
+				elog(DEBUG1, "prune cursor history table (count %d), icid %d", rx_control_info.cursorHistoryTable.count, sliceTable->ic_instance_id);
+			pruneCursorIcEntry(&rx_control_info.cursorHistoryTable, sliceTable->ic_instance_id);
 		}
 
-		addCursorIcEntry(&rx_control_info.cursorHistoryTable, gp_interconnect_id, gp_command_count);
+		addCursorIcEntry(&rx_control_info.cursorHistoryTable, sliceTable->ic_instance_id, gp_command_count);
 
 		/* save the latest transaction id. */
 		rx_control_info.lastDXatId = distTransId;
@@ -3161,7 +3175,7 @@ SetupUDPIFCInterconnect_Internal(SliceTable *sliceTable)
 				conn->conn_info.dstPid = MyProcPid;
 				conn->conn_info.dstListenerPort = (Gp_listener_port >> 16) & 0x0ffff;
 				conn->conn_info.sessionId = gp_session_id;
-				conn->conn_info.icId = gp_interconnect_id;
+				conn->conn_info.icId = sliceTable->ic_instance_id;
 				conn->conn_info.flags = UDPIC_FLAGS_RECEIVER_TO_SENDER;
 
 				connAddHash(&ic_control_info.connHtab, conn);
@@ -3212,9 +3226,9 @@ SetupUDPIFCInterconnect_Internal(SliceTable *sliceTable)
 
 	if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
 		ereport(DEBUG1, (errmsg("SetupUDPInterconnect will activate "
-								"%d incoming, %d outgoing routes for gp_interconnect_id %d. "
+								"%d incoming, %d outgoing routes for ic_instancce_id %d. "
 								"Listening on ports=%d/%d sockfd=%d.",
-								expectedTotalIncoming, expectedTotalOutgoing, gp_interconnect_id,
+								expectedTotalIncoming, expectedTotalOutgoing, sliceTable->ic_instance_id,
 								Gp_listener_port & 0x0ffff, (Gp_listener_port >> 16) & 0x0ffff, UDP_listenerFd)));
 
 	/*
@@ -3364,7 +3378,7 @@ computeNetworkStatistics(uint64 value, uint64 *min, uint64 *max, double *sum)
  */
 static void
 TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
-									bool forceEOS)
+									bool hasErrors)
 {
 	ChunkTransportStateEntry *pEntry = NULL;
 	int			i;
@@ -3402,7 +3416,7 @@ TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
 	{
 		int			elevel = 0;
 
-		if (forceEOS || !transportStates->activated)
+		if (hasErrors || !transportStates->activated)
 		{
 			if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
 				elevel = LOG;
@@ -3416,7 +3430,7 @@ TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
 			ereport(elevel, (errmsg("Interconnect seg%d slice%d cleanup state: "
 									"%s; setup was %s",
 									GpIdentity.segindex, mySlice->sliceIndex,
-									forceEOS ? "force" : "normal",
+									hasErrors ? "hasErrors" : "normal",
 									transportStates->activated ? "completed" : "exited")));
 
 		/* if setup did not complete, log the slicetable */
@@ -3613,7 +3627,7 @@ TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
 		 "isSender %d isReceiver %d "
 		 "snd_queue_depth %d recv_queue_depth %d Gp_max_packet_size %d "
 		 "UNACK_QUEUE_RING_SLOTS_NUM %d TIMER_SPAN %lld DEFAULT_RTT %d "
-		 "forceEOS %d, gp_interconnect_id %d ic_id_last_teardown %d "
+		 "hasErrors %d, ic_instance_id %d ic_id_last_teardown %d "
 		 "snd_buffer_pool.count %d snd_buffer_pool.maxCount %d snd_sock_bufsize %d recv_sock_bufsize %d "
 		 "snd_pkt_count %d retransmits %d crc_errors %d"
 		 " recv_pkt_count %d recv_ack_num %d"
@@ -3626,7 +3640,7 @@ TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
 		 ic_control_info.isSender, isReceiver,
 		 Gp_interconnect_snd_queue_depth, Gp_interconnect_queue_depth, Gp_max_packet_size,
 		 UNACK_QUEUE_RING_SLOTS_NUM, TIMER_SPAN, DEFAULT_RTT,
-		 forceEOS, transportStates->sliceTable->ic_instance_id, rx_control_info.lastTornIcId,
+		 hasErrors, transportStates->sliceTable->ic_instance_id, rx_control_info.lastTornIcId,
 		 snd_buffer_pool.count, snd_buffer_pool.maxCount, ic_control_info.socketSendBufferSize, ic_control_info.socketRecvBufferSize,
 		 ic_statistics.sndPktNum, ic_statistics.retransmits, ic_statistics.crcErrors,
 		 ic_statistics.recvPktNum, ic_statistics.recvAckNum,
@@ -3672,11 +3686,11 @@ TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
  */
 void
 TeardownUDPIFCInterconnect(ChunkTransportState *transportStates,
-						   bool forceEOS)
+						   bool hasErrors)
 {
 	PG_TRY();
 	{
-		TeardownUDPIFCInterconnect_Internal(transportStates, forceEOS);
+		TeardownUDPIFCInterconnect_Internal(transportStates, hasErrors);
 
 		Assert(pthread_mutex_unlock(&ic_control_info.lock) != 0);
 	}
@@ -3791,6 +3805,7 @@ receiveChunksUDPIFC(ChunkTransportState *pTransportStates, ChunkTransportStateEn
 		 * error through the main QD-QE libpq connection. For that, ask
 		 * the dispatcher for a file descriptor to wait on for that.
 		 *
+		 * GPDB_12_MERGE_FIXME:
 		 * XXX: We currently only get a single FD to wait on. That catches
 		 * the common case that *all* the QEs report the same error more or
 		 * less at the same time. WaitLatchOrSocket doesn't allow waiting for
@@ -3813,7 +3828,8 @@ receiveChunksUDPIFC(ChunkTransportState *pTransportStates, ChunkTransportStateEn
 		}
 		(void) WaitLatchOrSocket(&ic_control_info.latch,
 								 wakeEvents, waitFd,
-								 MAIN_THREAD_COND_TIMEOUT_MS);
+								 MAIN_THREAD_COND_TIMEOUT_MS,
+								 WAIT_EVENT_INTERCONNECT);
 
 		/* check the potential errors in rx thread. */
 		checkRxThreadError();
@@ -4263,6 +4279,7 @@ handleAcks(ChunkTransportState *transportStates, ChunkTransportStateEntry *pEntr
 
 
 	bool		shouldSendBuffers = false;
+	SliceTable	*sliceTbl = transportStates->sliceTable;
 
 	for (;;)
 	{
@@ -4314,16 +4331,12 @@ handleAcks(ChunkTransportState *transportStates, ChunkTransportStateEntry *pEntr
 
 		/*
 		 * read packet, is this the ack we want ?
-		 *
-		 * Here, using gp_interconnect_id is safe, since only senders get
-		 * acks. QD (never be a sender) does not. QD may have several
-		 * concurrent running interconnect instances.
 		 */
 		if (pkt->srcContentId == GpIdentity.segindex &&
 			pkt->srcPid == MyProcPid &&
 			pkt->srcListenerPort == ((Gp_listener_port >> 16) & 0x0ffff) &&
 			pkt->sessionId == gp_session_id &&
-			pkt->icId == gp_interconnect_id)
+			pkt->icId == sliceTbl->ic_instance_id)
 		{
 
 			/*
@@ -4462,7 +4475,7 @@ handleAcks(ChunkTransportState *transportStates, ChunkTransportStateEntry *pEntr
 					  pkt->srcListenerPort, ((Gp_listener_port >> 16) & 0x0ffff),
 					  pkt->dstListenerPort,
 					  pkt->sessionId, gp_session_id,
-					  pkt->icId, gp_interconnect_id);
+					  pkt->icId, sliceTbl->ic_instance_id);
 	}
 }
 
@@ -4557,6 +4570,8 @@ xmit_retry:
 			   (struct sockaddr *) &conn->peer, conn->peer_len);
 	if (n < 0)
 	{
+		int			save_errno = errno;
+
 		if (errno == EINTR)
 			goto xmit_retry;
 
@@ -4582,7 +4597,7 @@ xmit_retry:
 						errmsg("Interconnect error writing an outgoing packet: %m"),
 						errdetail("error during sendto() call (error:%d).\n"
 								  "For Remote Connection: contentId=%d at %s",
-								  errno, conn->remoteContentId,
+								  save_errno, conn->remoteContentId,
 								  conn->remoteHostAndPort)));
 		/* not reached */
 	}
@@ -5405,7 +5420,7 @@ SendChunkUDPIFC(ChunkTransportState *transportStates,
 				int16 motionId)
 {
 
-	int			length = TYPEALIGN(TUPLE_CHUNK_ALIGN, tcItem->chunk_length);
+	int			length = tcItem->chunk_length;
 	int			retry = 0;
 	bool		doCheckExpiration = false;
 	bool		gotStops = false;
@@ -6120,7 +6135,6 @@ rxThreadFunc(void *arg)
 {
 	icpkthdr   *pkt = NULL;
 	bool		skip_poll = false;
-	uint32		expected = 1;
 
 	for (;;)
 	{
@@ -6128,8 +6142,7 @@ rxThreadFunc(void *arg)
 		int			n;
 
 		/* check shutdown condition */
-		expected = 1;
-		if (pg_atomic_compare_exchange_u32((pg_atomic_uint32 *) &ic_control_info.shutdown, &expected, 0))
+		if (pg_atomic_read_u32(&ic_control_info.shutdown) == 1)
 		{
 			if (DEBUG1 >= log_min_messages)
 			{
@@ -6160,8 +6173,7 @@ rxThreadFunc(void *arg)
 
 			n = poll(&nfd, 1, RX_THREAD_POLL_TIMEOUT);
 
-			expected = 1;
-			if (pg_atomic_compare_exchange_u32((pg_atomic_uint32 *) &ic_control_info.shutdown, &expected, 0))
+			if (pg_atomic_read_u32(&ic_control_info.shutdown) == 1)
 			{
 				if (DEBUG1 >= log_min_messages)
 				{
@@ -6206,8 +6218,7 @@ rxThreadFunc(void *arg)
 			read_count = recvfrom(UDP_listenerFd, (char *) pkt, Gp_max_packet_size, 0,
 								  (struct sockaddr *) &peer, &peerlen);
 
-			expected = 1;
-			if (pg_atomic_compare_exchange_u32((pg_atomic_uint32 *) &ic_control_info.shutdown, &expected, 0))
+			if (pg_atomic_read_u32(&ic_control_info.shutdown) == 1)
 			{
 				if (DEBUG1 >= log_min_messages)
 				{
@@ -6383,15 +6394,15 @@ rxThreadFunc(void *arg)
  *            c) Normal execution: from past history transactions (should not happen).
  *
  * For QE:
- * 1) pkt->id > Gp_interconnect_id : NAK it/Do nothing
+ * 1) pkt->id > ic_control_info.ic_instance_id : NAK it/Do nothing
  *    Causes: a) Start race
- *            b) Before Gp_interconnect_id is assigned to correct value, an error happened.
- * 2) lastTornIcId < pkt->id == Gp_interconnect_id: NAK it/Do nothing
- *    Causes:  a) Error reported after Gp_interconnect_id is set, and connections are
+ *            b) Before ic_control_info.ic_instance_id is assigned to correct value, an error happened.
+ * 2) lastTornIcId < pkt->id == ic_control_info.ic_instance_id: NAK it/Do nothing
+ *    Causes:  a) Error reported after ic_control_info.ic_instance_id is set, and connections are
  *                not inserted to the hashtable yet, and before teardown is called.
- * 3) lastTornIcId == pkt->id == Gp_interconnect_id: ACK it (with stop)
+ * 3) lastTornIcId == pkt->id == ic_control_info.ic_instance_id: ACK it (with stop)
  *    Causes:  a) Normal execution: after teardown is called on current command
- * 4) pkt->id < Gp_interconnect_id: NAK it/Do nothing/ACK it.
+ * 4) pkt->id < ic_control_info.ic_instance_id: NAK it/Do nothing/ACK it.
  *    Causes:  a) Should not happen.
  *
  */
@@ -6465,7 +6476,7 @@ handleMismatch(icpkthdr *pkt, struct sockaddr_storage *peer, int peer_len)
 		/* The QEs get to use a simple counter. */
 		else if (Gp_role == GP_ROLE_EXECUTE)
 		{
-			if (gp_interconnect_id >= pkt->icId)
+			if (ic_control_info.ic_instance_id >= pkt->icId)
 			{
 				need_ack = true;
 
@@ -6480,9 +6491,11 @@ handleMismatch(icpkthdr *pkt, struct sockaddr_storage *peer, int peer_len)
 					need_ack = false;
 				}
 			}
-			else				/* gp_interconnect_id < pkt->icId, from the
-								 * future */
+			else
 			{
+				/*
+				 * ic_control_info.ic_instance_id < pkt->icId, from the future
+				 */ 
 				if (gp_interconnect_cache_future_packets)
 				{
 					cached = cacheFuturePacket(pkt, peer, peer_len);
@@ -6505,7 +6518,7 @@ handleMismatch(icpkthdr *pkt, struct sockaddr_storage *peer, int peer_len)
 
 			if (DEBUG1 >= log_min_messages)
 				write_log("ACKING PACKET WITH FLAGS: pkt->seq %d 0x%x [pkt->icId %d last-teardown %d interconnect_id %d]",
-						  pkt->seq, dummyconn.conn_info.flags, pkt->icId, rx_control_info.lastTornIcId, gp_interconnect_id);
+						  pkt->seq, dummyconn.conn_info.flags, pkt->icId, rx_control_info.lastTornIcId, ic_control_info.ic_instance_id);
 
 			format_sockaddr(&dummyconn.peer, buf, sizeof(buf));
 
@@ -6540,7 +6553,7 @@ handleMismatch(icpkthdr *pkt, struct sockaddr_storage *peer, int peer_len)
 	else
 	{
 		if (DEBUG1 >= log_min_messages)
-			write_log("dropping packet from command-id %d seq %d (my cmd %d)", pkt->icId, pkt->seq, gp_interconnect_id);
+			write_log("dropping packet from command-id %d seq %d (my cmd %d)", pkt->icId, pkt->seq, ic_control_info.ic_instance_id);
 	}
 
 	return cached;
@@ -6838,14 +6851,12 @@ dumpConnections(ChunkTransportStateEntry *pEntry, const char *fname)
 void
 WaitInterconnectQuitUDPIFC(void)
 {
-	uint32		expected = 0;
-
 	/*
 	 * Just in case ic thread is waiting on the locks.
 	 */
 	pthread_mutex_unlock(&ic_control_info.lock);
 
-	pg_atomic_compare_exchange_u32((pg_atomic_uint32 *) &ic_control_info.shutdown, &expected, 1);
+	pg_atomic_write_u32(&ic_control_info.shutdown, 1);
 
 	if (ic_control_info.threadCreated)
 	{

@@ -25,14 +25,9 @@ CLoggerStream CLoggerStream::m_stderr_stream_logger(oswcerr);
 //	@doc:
 //
 //---------------------------------------------------------------------------
-CLoggerStream::CLoggerStream
-	(
-	IOstream &os
-	)
-	:
-	CLogger(),
-	m_os(os)
-{}
+CLoggerStream::CLoggerStream(IOstream &os) : CLogger(), m_os(os)
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -41,9 +36,7 @@ CLoggerStream::CLoggerStream
 //	@doc:
 //
 //---------------------------------------------------------------------------
-CLoggerStream::~CLoggerStream()
-{}
+CLoggerStream::~CLoggerStream() = default;
 
 
 // EOF
-

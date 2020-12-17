@@ -16,64 +16,52 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementRowTrigger
-	//
-	//	@doc:
-	//		Transform Logical RowTrigger to Physical RowTrigger
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementRowTrigger : public CXformImplementation
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementRowTrigger
+//
+//	@doc:
+//		Transform Logical RowTrigger to Physical RowTrigger
+//
+//---------------------------------------------------------------------------
+class CXformImplementRowTrigger : public CXformImplementation
+{
+private:
+public:
+	CXformImplementRowTrigger(const CXformImplementRowTrigger &) = delete;
+
+	// ctor
+	explicit CXformImplementRowTrigger(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementRowTrigger() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfImplementRowTrigger;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementRowTrigger";
+	}
 
-			// private copy ctor
-			CXformImplementRowTrigger(const CXformImplementRowTrigger &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformImplementRowTrigger(CMemoryPool *mp);
+};	// class CXformImplementRowTrigger
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformImplementRowTrigger() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementRowTrigger;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementRowTrigger";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformImplementRowTrigger
-}
-
-#endif // !GPOPT_CXformImplementRowTrigger_H
+#endif	// !GPOPT_CXformImplementRowTrigger_H
 
 // EOF

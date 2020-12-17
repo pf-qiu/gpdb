@@ -1,5 +1,5 @@
 """
-Copyright (c) 2004-Present Pivotal Software, Inc.
+Copyright (c) 2004-Present VMware, Inc. or its affiliates.
 
 This program and the accompanying materials are made available under
 the terms of the under the Apache License, Version 2.0 (the "License");
@@ -15,13 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import pygresql.pg
+import pg
 import pty
 import os
-try:
-    import subprocess32 as subprocess
-except:
-    import subprocess
+import subprocess
 import re
 import multiprocessing
 import tempfile
@@ -39,19 +36,12 @@ def is_digit(n):
     except ValueError:
         return  False
 
-def load_helper_file(helper_file):
-    with open(helper_file) as file:
-        return "".join(file.readlines()).strip()
-
-
-def parse_include_statement(sql):
-    include_statement, command = sql.split(None, 1)
-    stripped_command = command.strip()
-
-    if stripped_command.endswith(";"):
-        return stripped_command.replace(";", "")
-    else:
-        raise SyntaxError("expected 'include: %s' to end with a semicolon." % stripped_command)
+def null_notice_receiver(notice):
+    '''
+        Tests ignore notice messages when analyzing results,
+        so silently drop notices from the pg.connection
+    '''
+    return
 
 
 class ConnectionInfo(object):
@@ -251,7 +241,7 @@ class SQLIsolationExecutor(object):
         # The re.S flag makes the "." in the regex match newlines.
         # When matched against a command in process_command(), all
         # lines in the command are matched and sent as SQL query.
-        self.command_pattern = re.compile(r"^(-?\d+|[*])([&\\<\\>USRIq]*?)\:(.*)", re.S)
+        self.command_pattern = re.compile(r"^(-?\d+|[*])([&\\<\\>USRq]*?)\:(.*)", re.S)
         if dbname:
             self.dbname = dbname
         else:
@@ -291,7 +281,7 @@ class SQLIsolationExecutor(object):
             sp.do()
 
         def query(self, command, out_sh_cmd, global_sh_executor):
-            print >>self.out_file
+            print(file=self.out_file)
             self.out_file.flush()
             if len(command.strip()) == 0:
                 return
@@ -308,12 +298,12 @@ class SQLIsolationExecutor(object):
             if out_sh_cmd != None:
                 new_out = global_sh_executor.exec_global_shell_with_orig_str(r.rstrip(), out_sh_cmd, True)
                 for line in new_out:
-                    print >>self.out_file, line.rstrip()
+                    print(line.rstrip(), file=self.out_file)
             else:
-                print >>self.out_file, r.rstrip()
+                print(r.rstrip(), file=self.out_file)
 
         def fork(self, command, blocking, global_sh_executor):
-            print >>self.out_file, " <waiting ...>"
+            print("  <waiting ...>", file=self.out_file)
             self.pipe.send((command, True))
 
             if blocking:
@@ -325,12 +315,12 @@ class SQLIsolationExecutor(object):
 
         def join(self):
             r = None
-            print >>self.out_file, " <... completed>"
+            print("  <... completed>", file=self.out_file)
             if self.has_open:
                 r = self.pipe.recv()
             if r is None:
                 raise Exception("Execution failed")
-            print >>self.out_file, r.rstrip()
+            print(r.rstrip(), file=self.out_file)
             self.has_open = False
 
         def stop(self):
@@ -340,7 +330,7 @@ class SQLIsolationExecutor(object):
                 raise Exception("Should not finish test case while waiting for results")
 
         def quit(self):
-            print >>self.out_file, "... <quitting>"
+            print(" ... <quitting>", file=self.out_file)
             self.stop()
         
         def terminate(self):
@@ -366,7 +356,7 @@ class SQLIsolationExecutor(object):
                 self.con = self.connectdb(given_dbname=self.dbname,
                                           given_host=hostname,
                                           given_port=port,
-                                          given_opt="-c gp_session_role=utility",
+                                          given_opt="-c gp_role=utility",
                                           given_user=user,
                                           given_passwd=passwd)
             elif self.mode == "standby":
@@ -397,13 +387,13 @@ class SQLIsolationExecutor(object):
             while retry:
                 try:
                     if (given_port is None):
-                        con = pygresql.pg.connect(host= given_host,
+                        con = pg.connect(host= given_host,
                                           opt= given_opt,
                                           dbname= given_dbname,
                                           user = given_user,
                                           passwd = given_passwd)
                     else:
-                        con = pygresql.pg.connect(host= given_host,
+                        con = pg.connect(host= given_host,
                                                   port= given_port,
                                                   opt= given_opt,
                                                   dbname= given_dbname,
@@ -421,18 +411,21 @@ class SQLIsolationExecutor(object):
                         time.sleep(0.1)
                     else:
                         raise
+            con.set_notice_receiver(null_notice_receiver)
             return con
 
-        # Print out a pygresql result set (a Query object, after the query
-        # has been executed), in a format that imitates the default
-        # formatting of psql. This isn't a perfect imitation: we left-justify
-        # all the fields and headers, whereas psql centers the header, and
-        # right-justifies numeric fields. But this is close enough, to make
-        # gpdiff.pl recognize the result sets as such. (We used to just call
-        # str(r), and let PyGreSQL do the formatting. But even though
-        # PyGreSQL's default formatting is close to psql's, it's not close
-        # enough.)
         def printout_result(self, r):
+            """
+            Print out a pygresql result set (a Query object, after the query
+            has been executed), in a format that imitates the default
+            formatting of psql. This isn't a perfect imitation: we left-justify
+            all the fields and headers, whereas psql centers the header, and
+            right-justifies numeric fields. But this is close enough, to make
+            gpdiff.pl recognize the result sets as such. (We used to just call
+            str(r), and let PyGreSQL do the formatting. But even though
+            PyGreSQL's default formatting is close to psql's, it's not close
+            enough.)
+            """
             widths = []
 
             # Figure out the widths of each column.
@@ -474,7 +467,14 @@ class SQLIsolationExecutor(object):
                 for col in row:
                     if colno > 0:
                         result += "|"
-                    if col is None:
+                    if isinstance(col, float):
+                        col = format(col, "g")
+                    elif isinstance(col, bool):
+                        if col:
+                            col = 't'
+                        else:
+                            col = 'f'
+                    elif col is None:
                         col = ""
                     result += " " + str(col).ljust(widths[colno]) + " "
                     colno = colno + 1
@@ -484,7 +484,7 @@ class SQLIsolationExecutor(object):
             if len(rset) == 1:
                 result += "(1 row)\n"
             else:
-                result += "(" + str(len(rset)) +" rows)\n"
+                result += "(" + str(len(rset)) + " rows)\n"
 
             return result
 
@@ -494,12 +494,16 @@ class SQLIsolationExecutor(object):
             """
             try:
                 r = self.con.query(command)
-                if r and type(r) == str:
-                    echo_content = command[:-1].partition(" ")[0].upper()
-                    return "%s %s" % (echo_content, r)
-                elif r:
-                    return self.printout_result(r)
+                if r is not None:
+                    if type(r) == str:
+                        # INSERT, UPDATE, etc that returns row count but not result set
+                        echo_content = command[:-1].partition(" ")[0].upper()
+                        return "%s %s" % (echo_content, r)
+                    else:
+                        # SELECT or similar, print the result set without the command (type pg.Query)
+                        return self.printout_result(r)
                 else:
+                    # CREATE or other DDL without a result set or count
                     echo_content = command[:-1].partition(" ")[0].upper()
                     return echo_content
             except Exception as e:
@@ -564,7 +568,7 @@ class SQLIsolationExecutor(object):
         if not dbname:
             dbname = self.dbname
 
-        con = pygresql.pg.connect(dbname=dbname)
+        con = pg.connect(dbname=dbname)
         result = con.query("SELECT content FROM gp_segment_configuration WHERE role = 'p' order by content").getresult()
         if len(result) == 0:
             raise Exception("Invalid gp_segment_configuration contents")
@@ -667,23 +671,13 @@ class SQLIsolationExecutor(object):
 
                 cmd_output = subprocess.Popen(sql.strip(), stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True)
                 stdout, _ = cmd_output.communicate()
-                print >> output_file
+                print(file=output_file)
                 if mode == '\\retcode':
-                    print >> output_file, '-- start_ignore'
-                print >> output_file, stdout
+                    print('-- start_ignore', file=output_file)
+                print(stdout.decode(), file=output_file)
                 if mode == '\\retcode':
-                    print >> output_file, '-- end_ignore'
-                    print >> output_file, '(exited with code {})'.format(cmd_output.returncode)
-            elif sql.startswith('include:'):
-                helper_file = parse_include_statement(sql)
-
-                self.get_process(
-                    output_file,
-                    process_name,
-                    dbname=dbname
-                ).query(
-                    load_helper_file(helper_file), out_sh_cmd, global_sh_executor
-                )
+                    print('-- end_ignore', file=output_file)
+                    print('(exited with code {})'.format(cmd_output.returncode), file=output_file)
             else:
                 sql_new = self.__preprocess_sql(process_name, in_sh_cmd, sql.strip(), global_sh_executor)
                 self.get_process(output_file, process_name, con_mode, dbname=dbname).query(sql_new, out_sh_cmd, global_sh_executor)
@@ -761,9 +755,12 @@ class SQLIsolationExecutor(object):
         shell_executor = GlobalShellExecutor(output_file, initfile_prefix)
         try:
             command = ""
+            newline = False
             for line in sql_file:
-                #tinctest.logger.info("re.match: %s" %re.match(r"^\d+[q\\<]:$", line))
-                print >>output_file, line.strip(),
+                # this logic replicates the python2 behavior of a trailing comma at the end of print
+                # i.e. ''' print >>output_file, line.strip(), '''
+                print((" " if command and not newline else "") + line.strip(), end="", file=output_file)
+                newline = False
                 if line[0] == "!":
                     command_part = line # shell commands can use -- for multichar options like --include
                 elif re.match(r";.*--", line) or re.match(r"^--", line):
@@ -771,7 +768,8 @@ class SQLIsolationExecutor(object):
                 else:
                     command_part = line
                 if command_part == "" or command_part == "\n":
-                    print >>output_file
+                    print(file=output_file) 
+                    newline = True
                 elif re.match(r".*;\s*$", command_part) or re.match(r"^\d+[q\\<]:\s*$", line) or re.match(r"^-?\d+[SUR][q\\<]:\s*$", line):
                     command += command_part
                     try:
@@ -780,20 +778,20 @@ class SQLIsolationExecutor(object):
                         # error in the daemon shell cannot be recovered
                         raise
                     except Exception as e:
-                        print >>output_file, "FAILED: ", e
+                        print("FAILED: ", e, file=output_file)
                     command = ""
                 else:
                     command += command_part
 
-            for process in self.processes.values():
+            for process in list(self.processes.values()):
                 process.stop()
         except:
-            for process in self.processes.values():
+            for process in list(self.processes.values()):
                 process.terminate()
             shell_executor.terminate()
             raise
         finally:
-            for process in self.processes.values():
+            for process in list(self.processes.values()):
                 process.terminate()
             shell_executor.terminate()
 
@@ -824,7 +822,6 @@ class SQLIsolationTestCase:
             U: connect in utility mode to primary contentid from gp_segment_configuration
             U&: expect blocking behavior in utility mode (does not currently support an asterisk target)
             U<: join an existing utility mode session (does not currently support an asterisk target)
-            I: include a file of sql statements (useful for loading reusable functions)
 
             R|R&|R<: similar to 'U' meaning execept that the connect is in retrieve mode, here don't
                thinking about retrieve mode authentication, just using the normal authentication directly.
@@ -950,12 +947,6 @@ class SQLIsolationTestCase:
         failures; a better long-term solution is needed.)
 
         Block/join flags are not currently supported with *U.
-
-        Including files:
-
-        -- example contents for file.sql: create function some_test_function() returning void ...
-        include: path/to/some/file.sql;
-        select some_helper_function();
 
         Line continuation:
         If a line is not ended by a semicolon ';' which is followed by 0 or more spaces, the line will be combined with next line and

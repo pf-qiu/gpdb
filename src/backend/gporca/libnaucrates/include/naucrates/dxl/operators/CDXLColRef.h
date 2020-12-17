@@ -23,73 +23,60 @@
 
 namespace gpdxl
 {
-	using namespace gpmd;
-	using namespace gpos;
+using namespace gpmd;
+using namespace gpos;
 
-	// fwd decl
-	class CXMLSerializer;
-	class CDXLColRef;
-	
-	// arrays of column references
-	typedef CDynamicPtrArray<CDXLColRef, CleanupRelease> CDXLColRefArray;
+// fwd decl
+class CXMLSerializer;
+class CDXLColRef;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDXLColRef
-	//
-	//	@doc:
-	//		Class for representing references to columns in DXL trees
-	//
-	//---------------------------------------------------------------------------
-	class CDXLColRef : public CRefCount
-	{
-		private:
-			// memory pool
-			CMemoryPool *m_mp;
-			
-			// name
-			CMDName *m_mdname;
-	
-			// id
-			const ULONG m_id;
+// arrays of column references
+typedef CDynamicPtrArray<CDXLColRef, CleanupRelease> CDXLColRefArray;
 
-			// column type
-			IMDId *m_mdid_type;
+//---------------------------------------------------------------------------
+//	@class:
+//		CDXLColRef
+//
+//	@doc:
+//		Class for representing references to columns in DXL trees
+//
+//---------------------------------------------------------------------------
+class CDXLColRef : public CRefCount
+{
+private:
+	// name
+	CMDName *m_mdname;
 
-			// column type modifier
-			INT m_iTypeModifer;
+	// id
+	const ULONG m_id;
 
-			// private copy ctor
-			CDXLColRef(const CDXLColRef &);
-		
-		public:
-			// ctor/dtor
-			CDXLColRef
-				(
-				CMemoryPool *mp,
-				CMDName *mdname,
-				ULONG id,
-				IMDId *mdid_type,
-				INT type_modifier
-				);
+	// column type
+	IMDId *m_mdid_type;
 
-			~CDXLColRef();
-			
-			// accessors
-			const CMDName *MdName() const;
+	// column type modifier
+	INT m_iTypeModifer;
 
-			IMDId *MdidType() const;
+public:
+	CDXLColRef(const CDXLColRef &) = delete;
 
-			INT TypeModifier() const;
+	// ctor/dtor
+	CDXLColRef(CMDName *mdname, ULONG id, IMDId *mdid_type, INT type_modifier);
 
-			ULONG Id() const;
+	~CDXLColRef() override;
 
-	};
-}
+	// accessors
+	const CMDName *MdName() const;
+
+	IMDId *MdidType() const;
+
+	INT TypeModifier() const;
+
+	ULONG Id() const;
+};
+}  // namespace gpdxl
 
 
 
-#endif // !GPDXL_CDXLColRef_H
+#endif	// !GPDXL_CDXLColRef_H
 
 // EOF
-

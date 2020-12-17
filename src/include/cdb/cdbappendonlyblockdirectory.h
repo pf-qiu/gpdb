@@ -3,7 +3,7 @@
  * cdbappendonlyblockdirectory.h
  *
  * Portions Copyright (c) 2009, Greenplum Inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -18,6 +18,7 @@
 #include "access/aocssegfiles.h"
 #include "access/appendonlytid.h"
 #include "access/skey.h"
+#include "catalog/indexing.h"
 
 extern int gp_blockdirectory_entry_min_range;
 extern int gp_blockdirectory_minipage_size;
@@ -89,6 +90,7 @@ typedef struct AppendOnlyBlockDirectory
 	Snapshot appendOnlyMetaDataSnapshot;
 	Relation blkdirRel;
 	Relation blkdirIdx;
+	CatalogIndexState indinfo;
 	int numColumnGroups;
 	bool isAOCol;
 	bool *proj; /* projected columns, used only if isAOCol = TRUE */

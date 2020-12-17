@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Software, Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CUnittestTest.cpp
@@ -14,8 +14,8 @@
 
 #include "unittest/gpos/test/CUnittestTest.h"
 
-namespace gpos {
-
+namespace gpos
+{
 //---------------------------------------------------------------------------
 //	@function:
 //		CUnittestTest::EresSubtest

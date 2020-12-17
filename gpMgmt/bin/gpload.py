@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # gpload - load file(s) into Greenplum Database
 # Copyright Greenplum 2008
@@ -22,8 +22,8 @@ Options:
     --version: print version number and exit
     -?: help
 '''
-
 import sys
+import yaml
 if sys.hexversion<0x2040400:
     sys.stderr.write("gpload needs python 2.4.4 or higher\n")
     sys.exit(2)
@@ -35,19 +35,25 @@ except ImportError:
     sys.exit(2)
 
 import platform
+
 try:
-    from pygresql import pg
-except Exception, e:
+    import pg
+except ImportError:
+    try:
+        from pygresql import pg
+    except Exception as e:
+        pass
+except Exception as e:
+    print(repr(e))
     errorMsg = "gpload was unable to import The PyGreSQL Python module (pg.py) - %s\n" % str(e)
+    sys.stderr.write(str(errorMsg))
+    errorMsg = "Please check if you have the correct Visual Studio redistributable package installed.\n"
     sys.stderr.write(str(errorMsg))
     sys.exit(2)
 
 import hashlib
 import datetime,getpass,os,signal,socket,threading,time,traceback,re
-try:
-    import subprocess32 as subprocess
-except:
-    import subprocess
+import subprocess
 import uuid
 
 try:
@@ -67,6 +73,12 @@ else:
 if windowsPlatform == False:
    import select
 
+from sys import version_info
+if version_info.major == 2 :
+    import __builtin__
+    long = __builtin__.long
+else:
+    long = int
 
 EXECNAME = 'gpload'
 
@@ -110,6 +122,7 @@ valid_tokens = {
     "quote": {'parse_children': True, 'parent': "input"},
     "encoding": {'parse_children': True, 'parent': "input"},
     "force_not_null": {'parse_children': False, 'parent': "input"},
+    "fill_missing_fields": {'parse_children': False, 'parent': "input"},
     "error_limit": {'parse_children': True, 'parent': "input"},
     "error_percent": {'parse_children': True, 'parent': "input"},
     "error_table": {'parse_children': True, 'parent': "input"},
@@ -135,11 +148,11 @@ valid_tokens = {
     "schema": {'parse_children': False, 'parent': 'external'}}
 
 _abbrevs = [
-    (1<<50L, ' PB'),
-    (1<<40L, ' TB'),
-    (1<<30L, ' GB'),
-    (1<<20L, ' MB'),
-    (1<<10L, ' kB'),
+    (long(1<<50), ' PB'),
+    (long(1<<40), ' TB'),
+    (long(1<<30), ' GB'),
+    (long(1<<20), ' MB'),
+    (long(1<<10), ' kB'),
     (1, ' bytes')
     ]
 
@@ -700,13 +713,13 @@ def quote_unident(val):
     return val
 
 
-def notice_processor(self):
+def notice_processor(notice):
     if windowsPlatform == True:
        # We don't have a pygresql with our notice fix, so skip for windows.
        # This means we will not get any warnings on windows (MPP10989).
        return
 
-    theNotices = self.db.notices()
+    theNotices = notice
     r = re.compile("^NOTICE:  found (\d+) data formatting errors.*")
     messageNumber = 0
     m = None
@@ -739,7 +752,7 @@ def bytestr(size, precision=1):
         if size >= factor:
             break
 
-    float_string_split = `size/float(factor)`.split('.')
+    float_string_split = "size/float(factor)".split('.')
     integer_part = float_string_split[0]
     decimal_part = float_string_split[1]
     if int(decimal_part[0:precision]):
@@ -771,7 +784,7 @@ class CatThread(threading.Thread):
                 while 1:
                     # Windows select does not support select on non-file fd's, so we can use the lock fix. Deadlock is possible here.
                     # We need to look into the Python windows module to see if there is another way to do this in Windows.
-                    line = self.fd.readline()
+                    line = self.fd.readline().decode()
                     if line=='':
                         break
                     self.gpload.log(self.gpload.DEBUG, 'gpfdist: ' + line.strip('\n'))
@@ -784,14 +797,14 @@ class CatThread(threading.Thread):
                                             )
                     if retList[0] == [self.fd]:
                         self.theLock.acquire()
-                        line = self.fd.readline()
+                        line = self.fd.readline().decode()
                         self.theLock.release()
                     else:
                         continue
                     if line=='':
                         break
                     self.gpload.log(self.gpload.DEBUG, 'gpfdist: ' + line.strip('\n'))
-        except Exception, e:
+        except Exception as e:
             # close fd so that not block the worker thread because of stdout/stderr pipe not finish/closed.
             self.fd.close()
             sys.stderr.write("\n\nWarning: gpfdist log halt because Log Thread '%s' got an exception: %s \n" % (self.getName(), str(e)))
@@ -871,7 +884,7 @@ class Progress(threading.Thread):
                     self.condition.notify()
                     self.condition.release()
                     break
-            except socket.error, e:
+            except socket.error as e:
                 self.gpload.log(self.gpload.DEBUG, "got socket exception: %s" % e)
                 break
             time.sleep(1)
@@ -890,7 +903,7 @@ def cli_help():
 
 #============================================================
 def usage(error = None):
-    print cli_help() or __doc__
+    print (cli_help() or __doc__)
     sys.stdout.flush()
     if error:
         sys.stderr.write('ERROR: ' + error + '\n')
@@ -1001,16 +1014,16 @@ def changeToUnicode(a):
     Change every entry in a list or dictionary to a unicode item
     """
     if type(a) == list:
-        return map(changeToUnicode,a)
+        return list(map(changeToUnicode,a))
     if type(a) == dict:
         b = dict()
-        for key,value in a.iteritems():
+        for key,value in list(a.items()):
             if type(key) == str:
-                key = unicode(key)
+                key = str(key)
             b[key] = changeToUnicode(value)
         return b
     if type(a) == str:
-        a = unicode(a)
+        a = str(a)
     return a
 
 
@@ -1020,16 +1033,16 @@ def dictKeyToLower(a):
     down case all entries in a list or dict
     """
     if type(a) == list:
-        return map(dictKeyToLower,a)
+        return list(map(dictKeyToLower,a))
     if type(a) == dict:
         b = dict()
-        for key,value in a.iteritems():
+        for key,value in list(a.items()):
             if type(key) == str:
-                key = unicode(key.lower())
+                key = str(key.lower())
             b[key] = dictKeyToLower(value)
         return b
     if type(a) == str:
-        a = unicode(a)
+        a = str(a)
     return a
 
 #
@@ -1173,7 +1186,7 @@ class gpload:
                     if argv[0]=='-h':
                         self.options.h = argv[1]
                         argv = argv[2:]
-                    if argv[0]=='--gpfdist_timeout':
+                    elif argv[0]=='--gpfdist_timeout':
                         self.options.gpfdist_timeout = argv[1]
                         argv = argv[2:]
                     elif argv[0]=='-p':
@@ -1248,7 +1261,7 @@ class gpload:
 
         try:
             self.logfile = open(self.options.l,'a')
-        except Exception, e:
+        except Exception as e:
             self.log(self.ERROR, "could not open logfile %s: %s" % \
                       (self.options.l, e))
 
@@ -1260,18 +1273,18 @@ class gpload:
 
         try:
             f = open(configFilename,'r')
-        except IOError,e:
+        except IOError as e:
             self.log(self.ERROR, "could not open configuration file: %s" % e)
 
         # pull in the config file, which should be in valid YAML
         try:
             # do an initial parse, validating the config file
             doc = f.read()
-            self.config = yaml.load(doc)
+            self.config = yaml.safe_load(doc)
 
             self.configOriginal = changeToUnicode(self.config)
             self.config = dictKeyToLower(self.config)
-            ver = self.getconfig('version', unicode, extraStuff = ' tag')
+            ver = self.getconfig('version', str, extraStuff = ' tag')
             if ver != '1.0.0.1':
                 self.control_file_error("gpload configuration schema version must be 1.0.0.1")
             # second parse, to check that the keywords are sensible
@@ -1281,10 +1294,10 @@ class gpload:
                 self.control_file_error("configuration file must begin with a mapping")
 
             yaml_walk(self, y.value, [])
-        except yaml.scanner.ScannerError,e:
+        except yaml.scanner.ScannerError as e:
             self.log(self.ERROR, "configuration file error: %s, line %s" % \
                 (e.problem, e.problem_mark.line))
-        except yaml.reader.ReaderError, e:
+        except yaml.reader.ReaderError as e:
             es = ""
             if isinstance(e.character, str):
                 es = "'%s' codec can't decode byte #x%02x: %s position %d" % \
@@ -1294,7 +1307,7 @@ class gpload:
                 es = "unacceptable character #x%04x at byte %d: %s"    \
                     % (ord(e.character), e.position, e.reason)
             self.log(self.ERROR, es)
-        except yaml.error.MarkedYAMLError, e:
+        except yaml.error.MarkedYAMLError as e:
             self.log(self.ERROR, "configuration file error: %s, line %s" % \
                 (e.problem, e.problem_mark.line))
 
@@ -1328,23 +1341,23 @@ class gpload:
         Level is either DEBUG, LOG, INFO, ERROR. a is the message
         """
         try:
-            str = '|'.join(
+            log = '|'.join(
                        [datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                         self.elevel2str(level), a]) + '\n'
 
-            str = str.encode('utf-8')
-        except Exception, e:
+            #str = str.encode('utf-8')
+        except Exception as e:
             # log even if contains non-utf8 data and pass this exception
             self.logfile.write("\nWarning: Log() threw an exception: %s \n" % (e))
 
         if level <= self.options.qv:
-            sys.stdout.write(str)
+            sys.stdout.write(log)
 
         if level <= self.options.qv or level <= self.INFO:
             try:
-               self.logfile.write(str)
+               self.logfile.write(log)
                self.logfile.flush()
-            except AttributeError, e:
+            except AttributeError as e:
                 pass
 
         if level == self.ERROR:
@@ -1402,7 +1415,7 @@ class gpload:
                 self.control_file_error("The %s entry must be a YAML sequence %s"% (a ,extraStuff))
             elif typ == dict:
                 self.control_file_error("The %s entry must be a YAML mapping %s"% (a, extraStuff))
-            elif typ == unicode or typ == str:
+            elif typ == str or typ == str:
                 self.control_file_error("%s must be a string %s" % (a, extraStuff))
             elif typ == int:
                 self.control_file_error("The %s entry must be a YAML integer %s" % (a, extraStuff))
@@ -1424,7 +1437,7 @@ class gpload:
         # The user supplied table name can be completely or partially delimited,
         # and it can be a one or two part name. Get the originally supplied name
         # and parse it into its delimited one or two part name.
-        self.schemaTable = self.getconfig('gpload:output:table', unicode, returnOriginal=True)
+        self.schemaTable = self.getconfig('gpload:output:table', str, returnOriginal=True)
         schemaTableList  = splitUpMultipartIdentifier(self.schemaTable)
         schemaTableList  = convertListToDelimited(schemaTableList)
         if len(schemaTableList) == 2:
@@ -1439,7 +1452,7 @@ class gpload:
 
         # host to connect to
         if not self.options.h:
-            self.options.h = self.getconfig('host', unicode, None)
+            self.options.h = self.getconfig('host', str, None)
             if self.options.h:
                 self.options.h = str(self.options.h)
         if not self.options.h:
@@ -1461,13 +1474,15 @@ class gpload:
 
         # User to connect as
         if not self.options.U:
-            self.options.U = self.getconfig('user', unicode, None)
+            self.options.U = self.getconfig('user', str, None)
         if not self.options.U:
             self.options.U = os.environ.get('PGUSER')
         if not self.options.U:
-            self.options.U = os.environ.get('USER') or \
-                    os.environ.get('LOGNAME') or \
-                    os.environ.get('USERNAME')
+            self.options.U = getpass.getuser()
+            self.log(self.INFO, "no user supplied, defaulting to "+self.options.U)
+            #self.options.U = os.environ.get('USER') or \
+            #       os.environ.get('LOGNAME') or \
+            #        os.environ.get('USERNAME')
 
         if not self.options.U or len(self.options.U) == 0:
             self.log(self.ERROR,
@@ -1477,14 +1492,14 @@ class gpload:
 
         # database to connect to
         if not self.options.d:
-            self.options.d = self.getconfig('database', unicode, None)
+            self.options.d = self.getconfig('database', str, None)
         if not self.options.d:
             self.options.d = os.environ.get('PGDATABASE')
         if not self.options.d:
             # like libpq, just inherit USER
             self.options.d = self.options.U
 
-        if self.getconfig('gpload:input:error_table', unicode, None):
+        if self.getconfig('gpload:input:error_table', str, None):
             self.error_table = True
             self.log(self.WARN,
                         "ERROR_TABLE is not supported. " +
@@ -1518,7 +1533,7 @@ class gpload:
         if (startPort > 65535 or endPort > 65535):
             # Do not allow invalid ports
             self.control_file_error("Invalid port. Port values must be less than or equal to 65535.")
-        elif not (set(xrange(startPort,endPort+1)) & availablePorts):
+        elif not (set(range(startPort,endPort+1)) & availablePorts):
             self.log(self.ERROR, "no more ports available for gpfdist")
 
         popenList.append('-p')
@@ -1539,7 +1554,7 @@ class gpload:
         """
         file = self.getconfig(name+':file',list)
         for i in file:
-            if type(i)!= unicode and type(i) != str:
+            if type(i)!= str and type(i) != str:
                 self.control_file_error(name + ":file must be a YAML sequence of strings")
         popenList.append('-f')
         popenList.append('"'+' '.join(file)+'"')
@@ -1594,12 +1609,12 @@ class gpload:
         @param popenList: gpfdist options (updated)
         @returns: uri fragment for transform or "" if not appropriate.
         """
-        transform = self.getconfig('gpload:input:transform', unicode, None)
-        transform_config = self.getconfig('gpload:input:transform_config', unicode, None)
+        transform = self.getconfig('gpload:input:transform', str, None)
+        transform_config = self.getconfig('gpload:input:transform_config', str, None)
         if transform_config:
             try:
                 f = open(transform_config,'r')
-            except IOError,e:
+            except IOError as e:
                 self.log(self.ERROR, "could not open transform_config file: %s" % e)
             f.close()
             popenList.append('-c')
@@ -1621,7 +1636,7 @@ class gpload:
         @param popenList: gpfdist options (updated)
         """
         ssl = self.getconfig('gpload:input:source:ssl',bool, False)
-        certificates_path = self.getconfig('gpload:input:source:certificates_path', unicode, None)
+        certificates_path = self.getconfig('gpload:input:source:certificates_path', str, None)
 
         if ssl and certificates_path:
             dir_exists = os.path.isdir(certificates_path)
@@ -1645,10 +1660,8 @@ class gpload:
         self.locations = []
         self.ports = []
         sourceIndex = 0
-        availablePorts = set(xrange(1,65535))
+        availablePorts = set(range(1,65535))
         found_source = False
-
-        self.getconfig('gpload:input', list)
 
         while 1:
             sourceIndex += 1
@@ -1707,7 +1720,7 @@ class gpload:
                                      stderr=subprocess.PIPE,
                                      close_fds=cfds, shell=needshell)
                 self.subprocesses.append(a)
-            except Exception, e:
+            except Exception as e:
                 self.log(self.ERROR, "could not run %s: %s" % \
                                 (' '.join(popenList), str(e)))
 
@@ -1724,7 +1737,7 @@ class gpload:
 
             while 1:
                 readLock.acquire()
-                line = a.stdout.readline()
+                line = a.stdout.readline().decode()
                 readLock.release()
                 if line=='':
                     self.log(self.ERROR,'failed to start gpfdist: ' +
@@ -1752,7 +1765,7 @@ class gpload:
                 protocol = 'gpfdist'
 
             for l in local_hostname:
-                if type(l) != str and type(l) != unicode:
+                if type(l) != str and type(l) != str:
                     self.control_file_error(name + ":local_hostname must be a YAML sequence of strings")
                 l = str(l)
                 sep = ''
@@ -1804,7 +1817,7 @@ class gpload:
                 self.options.password = getpass.getpass()
         else:
             if self.options.password==None:
-                self.options.password = self.getconfig('password', unicode,
+                self.options.password = self.getconfig('password', str,
                                                        None)
             if self.options.password==None:
                 self.options.password = os.environ.get('PGPASSWORD')
@@ -1831,7 +1844,7 @@ class gpload:
                 self.gpdb_version = GpVersion(curs.getresult()[0][0])
                 self.log(self.DEBUG, "GPDB version is: %s" % self.gpdb_version)
 
-        except Exception, e:
+        except Exception as e:
             errorMessage = str(e)
             if errorMessage.find("no password supplied") != -1:
                 self.options.password = getpass.getpass()
@@ -1857,6 +1870,9 @@ class gpload:
                     self.options.p))
 
     def read_columns(self):
+        '''
+        get from columns
+        '''
         columns = self.getconfig('gpload:input:columns',list,None, returnOriginal=True)
         if columns != None:
             self.from_cols_from_user = True # user specified from columns
@@ -1864,12 +1880,12 @@ class gpload:
             for d in columns:
                 if type(d)!=dict:
                     self.control_file_error("gpload:input:columns must be a sequence of YAML mappings")
-                tempkey = d.keys()[0]
+                tempkey = list(d.keys())[0]
                 value = d[tempkey]
                 """ remove leading or trailing spaces """
                 d = { tempkey.strip() : value }
-                key = d.keys()[0]
-                if d[key] is None:
+                key = list(d.keys())[0]
+                if d[key] is None or not d[key]:
                     self.log(self.DEBUG,
                              'getting source column data type from target')
                     for name, typ, mapto, hasseq in self.into_columns:
@@ -1885,7 +1901,7 @@ class gpload:
 
                 # Mark this column as having no mapping, which is important
                 # for do_insert()
-                self.from_columns.append([key.lower(),d[key].lower(),None, False])
+                self.from_columns.append([key,d[key].lower(),None, False])
         else:
             self.from_columns = self.into_columns
             self.from_cols_from_user = False
@@ -1904,6 +1920,9 @@ class gpload:
 
 
     def read_table_metadata(self):
+        '''
+        get into columns list like: [column name, column data type, mapping target, has_sequence(bool)]
+        '''
         # KAS Note to self. If schema is specified, then probably should use PostgreSQL rules for defining it.
 
         # find the shema name for this table (according to search_path)
@@ -1916,7 +1935,7 @@ class gpload:
                              WHERE c.relname = '%s'
                              AND pg_catalog.pg_table_is_visible(c.oid);""" % quote_unident(self.table)
 
-            resultList = self.db.query(queryString.encode('utf-8')).getresult()
+            resultList = self.db.query(queryString).getresult()
 
             if len(resultList) > 0:
                 self.schema = (resultList[0])[0]
@@ -1945,22 +1964,24 @@ class gpload:
         count = 0
         self.into_columns = []
         self.into_columns_dict = dict()
-        resultList = self.db.query(queryString.encode('utf-8')).dictresult()
+        resultList = self.db.query(queryString).dictresult()
         while count < len(resultList):
             row = resultList[count]
             count += 1
-            ct = unicode(row['data_type'])
+            ct = str(row['data_type'])
             if ct == 'bigserial':
                ct = 'bigint'
             elif ct == 'serial':
                ct = 'int4'
-            name = unicode(row['column_name'], 'utf-8')
+            name = row['column_name']
             name = quote_ident(name)
-            if unicode(row['has_sequence']) != unicode('f'):
-                has_seq = True
-            else:
-                has_seq = False
-            i = [name,ct,None, has_seq]
+            has_seq = row['has_sequence']
+            if has_seq == str('f') or has_seq==False:
+                has_seq_bool = False
+            if has_seq == str('t') or has_seq==True:
+                has_sql_bool = True
+            i = [name,ct,None, has_seq_bool]  
+            # i: [column name, column data type, mapping target, has_sequence]
             self.into_columns.append(i)
             self.into_columns_dict[name] = i
             self.log(self.DEBUG, "found input column: " + str(i))
@@ -1972,7 +1993,7 @@ class gpload:
                         where c.relname = '%s' and
                         n.nspname = '%s' and
                         n.oid = c.relnamespace""" % (tableName, tableSchema)
-            resultList = self.db.query(sql.encode('utf-8')).getresult()
+            resultList = self.db.query(sql).getresult()
             if len(resultList) > 0:
                 self.log(self.ERROR, "permission denied for table %s.%s" % \
                             (tableSchema, tableName))
@@ -1980,11 +2001,15 @@ class gpload:
                self.log(self.ERROR, 'table %s.%s does not exist in database %s'% (tableSchema, tableName, self.options.d))
 
     def read_mapping(self):
+        '''
+        get mapping for into_colums and record the mapping at into_columns[2].
+        if no mapping in cofig file, this function will get mapping from from_columns
+        '''
         mapping = self.getconfig('gpload:output:mapping',dict,None, returnOriginal=True)
 
         if mapping:
-            for key,value in mapping.iteritems():
-                if type(key) != unicode or type(value) != unicode:
+            for key,value in list(mapping.items()):
+                if type(key) != str or type(value) != str:
                     self.control_file_error("gpload:output:mapping must be a YAML type mapping from strings to strings")
                 found = False
                 for a in self.into_columns:
@@ -2000,7 +2025,7 @@ class gpload:
             # columns which are not found in the table.
             for x in self.from_columns:
                 # Check to see if it already has a mapping value
-                i = filter(lambda a:a[2] == x[0], self.into_columns)
+                i = [a for a in self.into_columns if a[2] == x[0]]
                 if not i:
                     # Check to see if the target column names match the input column names.
                     for a in self.into_columns:
@@ -2015,15 +2040,18 @@ class gpload:
         for name,typ,mapto,seq in self.into_columns:
             self.log(self.DEBUG,'%s: %s = %s'%(name,typ,mapto))
 
-    # In order to find out whether we have an existing external table in the
-    # catalog which could be reused for this operation we need to make sure
-    # that it has the same column names and types, the same data format, and
-    # location specification, and single row error handling specs.
-    #
-    # This function will return the SQL to run in order to find out whether
-    # such a table exists.
-    #
+
     def get_reuse_exttable_query(self, formatType, formatOpts, limitStr, from_cols, schemaName, log_errors, encodingCode):
+        '''
+        In order to find out whether we have an existing external table in the
+        catalog which could be reused for this operation we need to make sure
+        that it has the same column names and types, the same data format, and
+        location specification, and single row error handling specs.
+
+        Return:
+            SQL to run in order to find out whether such a table exists.
+        '''
+
         sqlFormat = """select attrelid::regclass
                  from (
                         select
@@ -2039,7 +2067,7 @@ class gpload:
                             on (pg_class.oid = attrelid)
                             %s
                         where
-                            relstorage in ('x', 'f') and
+                            relkind = '%s' and
                             relname like 'ext_gpload_reusable_%%' and
                             attnum > 0 and
                             not attisdropped and %s
@@ -2049,6 +2077,7 @@ class gpload:
                     on(pgattr.attrelid = pgext.reloid)
                     """
         joinStr = ""
+        relkind = ""
         conditionStr = ""
 
         # if schemaName is None, find the resuable ext table which is visible to
@@ -2063,8 +2092,11 @@ class gpload:
                          on(pg_class.relnamespace = pgns.oid)
                       """
             conditionStr = "pgns.nspname = '%s'" % schemaName
-
-        sql = sqlFormat % (joinStr, conditionStr)
+        if noGpVersion or self.gpdb_version < "7.0.0":
+            relkind='r'
+        else:
+            relkind='f'
+        sql = sqlFormat % (joinStr, relkind, conditionStr)
 
         if noGpVersion or self.gpdb_version < "6.0.0":
             if log_errors:
@@ -2110,28 +2142,30 @@ class gpload:
         self.log(self.DEBUG, "query used to identify reusable external relations: %s" % sql)
         return sql
 
-    # Fast path to find out whether we have an existing external table in the
-    # catalog which could be reused for this operation. we only make sure the
-    # location, data format and error limit are same. we don't check column
-    # names and types
-    #
-    # This function will return the SQL to run in order to find out whether
-    # such a table exists. The results of this SQl are table names without schema
-    #
-    def get_fast_match_exttable_query(self, formatType, formatOpts, limitStr, schemaName, log_errors, encodingCode):
 
+    def get_fast_match_exttable_query(self, formatType, formatOpts, limitStr, schemaName, log_errors, encodingCode):
+        '''
+        Fast path to find out whether we have an existing external table in the
+        catalog which could be reused for this operation. we only make sure the
+        location, data format and error limit are same. we don't check column
+        names and types
+
+        Return: SQL to run in order to find out whether
+        such a table exists. The results of this SQl are table names without schema
+        '''
         sqlFormat = """select relname from pg_class
                     join
                     pg_exttable pgext
                     on(pg_class.oid = pgext.reloid)
                     %s
                     where
-                    relstorage in ('x', 'f') and
+                    relkind = '%s' and
                     relname like 'ext_gpload_reusable_%%' and
 		    %s
                     """
 
         joinStr = ""
+        relkind = ""
         conditionStr = ""
 
         # if schemaName is None, find the resuable ext table which is visible to
@@ -2145,8 +2179,11 @@ class gpload:
                     pg_namespace pgns
                     on(pg_class.relnamespace = pgns.oid)"""
             conditionStr = "pgns.nspname = '%s'" % schemaName
-
-        sql = sqlFormat % (joinStr, conditionStr)
+        if noGpVersion or self.gpdb_version < "7.0.0":
+            relkind='r'
+        else:
+            relkind='f'
+        sql = sqlFormat % (joinStr, relkind, conditionStr)
 
         if noGpVersion or self.gpdb_version < "6.0.0":
             if log_errors:
@@ -2179,31 +2216,38 @@ class gpload:
         self.log(self.DEBUG, "query used to fast match external relations:\n %s" % sql)
         return sql
 
-    #
-    # Create a string from the following conditions to reuse staging table:
-    # 1. same target table
-    # 2. same number of columns
-    # 3. same names and types, in the same order
-    # 4. same distribution key (according to columns' names and their order)
-    #
+
     def get_staging_conditions_string(self, target_table_name, staging_cols, distribution_cols):
-			
+        '''
+        Create a string from the following conditions to reuse staging table:
+         1. same target table
+         2. same number of columns
+         3. same names and types, in the same order
+         4. same distribution key (according to columns' names and their order)
+
+        Return:
+         string (target_table_name:columns_num:staging_cols_str:distribution_cols_str)
+        '''
+
         columns_num = len(staging_cols)
 
-        staging_cols_str = '-'.join(map(lambda col:'%s-%s' % (quote(quote_unident(col[0])), quote(col[1])), staging_cols))
+        staging_cols_str = '-'.join(['%s-%s' % (quote(quote_unident(col[0])), quote(col[1])) for col in staging_cols])
 
         distribution_cols_str = '-'.join([quote(quote_unident(col)) for col in distribution_cols])
 		
         return '%s:%s:%s:%s' % (target_table_name, columns_num, staging_cols_str, distribution_cols_str)
 
 		
-    #
-    # This function will return the SQL to run in order to find out whether
-    # we have an existing staging table in the catalog which could be reused for this
-    # operation, according to the method and the encoding conditions.
-    #
+
     def get_reuse_staging_table_query(self, encoding_conditions):
-		
+        '''
+        This function will return the SQL to run in order to find out whether
+        we have an existing staging table in the catalog which could be reused for this
+        operation, according to the method and the encoding conditions.
+
+        return:
+            sql(string)
+        '''
         sql = """SELECT oid::regclass
                  FROM pg_class
                  WHERE relname = 'staging_gpload_reusable_%s';""" % (encoding_conditions)
@@ -2211,20 +2255,22 @@ class gpload:
         self.log(self.DEBUG, "query used to identify reusable temporary relations: %s" % sql)
         return sql
 
-    #
-    # get oid for table from pg_class, None if not exist
-    #
+
     def get_table_oid(self, tableName):
+        '''get oid for table from pg_class, None if not exist'''
         if tableName:
             sql = "select %s::regclass::oid" % quote(quote_unident(tableName))
             try:
-                resultList = self.db.query(sql.encode('utf-8')).getresult()
+                resultList = self.db.query(sql).getresult()
                 return resultList[0][0]
-            except Exception, e:
+            except Exception as e:
                 pass
         return None
 
     def get_ext_schematable(self, schemaName, tableName):
+        '''
+        return formated table name
+        '''
         if schemaName is None:
             return tableName
         else:
@@ -2232,8 +2278,11 @@ class gpload:
             return schemaTable
 
     def get_external_table_formatOpts(self, option, specify=''):
+        '''
+        add option, specify to self.formatOpts for creating external table
+        '''
 
-        formatType = self.getconfig('gpload:input:format', unicode, 'text').lower()
+        formatType = self.getconfig('gpload:input:format', str, 'text').lower()
         if formatType == 'text':
             valid_token = ['delimiter','escape']
         elif formatType == 'csv':
@@ -2247,12 +2296,12 @@ class gpload:
 
         if option == 'delimiter':
             defval = ',' if formatType == 'csv' else '\t'
-            val = self.getconfig('gpload:input:delimiter', unicode, defval)
+            val = self.getconfig('gpload:input:delimiter', str, defval)
         elif option == 'escape':
-            defval = self.getconfig('gpload:input:quote', unicode, '"')
-            val = self.getconfig('gpload:input:escape', unicode, defval)
+            defval = self.getconfig('gpload:input:quote', str, '"')
+            val = self.getconfig('gpload:input:escape', str, defval)
         elif option == 'quote':
-            val = self.getconfig('gpload:input:quote', unicode, '"')
+            val = self.getconfig('gpload:input:quote', str, '"')
         else:
             self.control_file_error("unexpected error -- backtrace " +
                              "written to log file")
@@ -2260,52 +2309,51 @@ class gpload:
 
         specify_str = str(specify) if specify else option
         if len(val) != 1:
-            if val.startswith("E'") and val.endswith("'") and len(val[2:-1].decode('unicode-escape')) == 1:
+            val_decoded = val.encode().decode('unicode-escape')
+            subval_decoded = val[2:-1].encode().decode('unicode-escape')
+            if val.startswith("E'") and val.endswith("'") and len(subval_decoded) == 1:
                 subval = val[2:-1]
                 if subval == "\\'":
                     self.formatOpts += "%s %s " % (specify_str, val)
                 else:
-                    val = subval.decode('unicode-escape')
+                    val = subval_decoded
                     self.formatOpts += "%s '%s' " % (specify_str, val)
-            elif len(val.decode('unicode-escape')) == 1:
-                val = val.decode('unicode-escape')
+            elif len(val_decoded) == 1:
+                val = val_decoded
                 self.formatOpts += "%s '%s' " % (specify_str, val)
 
             else:
                 self.control_file_warning(option +''' must be single ASCII character, you can also use unprintable characters(for example: '\\x1c' / E'\\x1c' or '\\u001c' / E'\\u001c' ''')
                 self.control_file_error("Invalid option, gpload quit immediately")
-                sys.exit(2);
+                sys.exit(2)
         else:
             self.formatOpts += "%s '%s' " % (specify_str, val)
 
 
-    #
-    # Create a new external table or find a reusable external table to use for this operation
-    #
     def create_external_table(self):
+        '''
+        extract all control file information and transform it accordingly,
+        create a new external table or find a reusable external table to use for this operation or later
+        '''
 
-        # extract all control file information and transform it accordingly
-        # in order to construct a CREATE EXTERNAL TABLE statement if will be
-        # needed later on
-
-        formatType = self.getconfig('gpload:input:format', unicode, 'text').lower()
+        formatType = self.getconfig('gpload:input:format', str, 'text').lower()
         locationStr = ','.join(map(quote,self.locations))
 
         self.get_external_table_formatOpts('delimiter')
 
-        nullas = self.getconfig('gpload:input:null_as', unicode, False)
-        self.log(self.DEBUG, "null " + unicode(nullas))
+        nullas = self.getconfig('gpload:input:null_as', str, False)
+        self.log(self.DEBUG, "null " + str(nullas))
         if nullas != False: # could be empty string
             self.formatOpts += "null %s " % quote_no_slash(nullas)
         elif formatType=='csv':
             self.formatOpts += "null '' "
         else:
-            self.formatOpts += "null %s " % quote_no_slash("\N")
+            self.formatOpts += "null %s " % quote_no_slash("\\N")
 
 
         esc = self.getconfig('gpload:input:escape', None, None)
         if esc:
-            if type(esc) != unicode and type(esc) != str:
+            if type(esc) != str and type(esc) != str:
                 self.control_file_error("gpload:input:escape must be a string")
             if esc.lower() == 'off':
                 if formatType == 'csv':
@@ -2325,23 +2373,24 @@ class gpload:
         if self.getconfig('gpload:input:header',bool,False):
             self.formatOpts += "header "
 
+        ### should be true or false
         force_not_null_columns = self.getconfig('gpload:input:force_not_null',list,[])
         if force_not_null_columns:
             for i in force_not_null_columns:
-                if type(i) != unicode and type(i) != str:
+                if type(i) != str and type(i) != str:
                     self.control_file_error("gpload:input:force_not_null must be a YAML sequence of strings")
             self.formatOpts += "force not null %s " % ','.join(force_not_null_columns)
 
         encodingCode = None
-        encodingStr = self.getconfig('gpload:input:encoding', unicode, None)
+        encodingStr = self.getconfig('gpload:input:encoding', str, None)
         if encodingStr is None:
-            result = self.db.query("SHOW SERVER_ENCODING".encode('utf-8')).getresult()
+            result = self.db.query("SHOW SERVER_ENCODING").getresult()
             if len(result) > 0:
                 encodingStr = result[0][0]
 
         if encodingStr:
             sql = "SELECT pg_char_to_encoding('%s')" % encodingStr
-            result = self.db.query(sql.encode('utf-8')).getresult()
+            result = self.db.query(sql).getresult()
             if len(result) > 0:
                 encodingCode = result[0][0]
 
@@ -2350,17 +2399,20 @@ class gpload:
             self.control_file_error("gpload:input:log_errors requires " +
                     "gpload:input:error_limit to be specified")
 
-        self.extSchemaName = self.getconfig('gpload:external:schema', unicode, None)
+        self.extSchemaName = self.getconfig('gpload:external:schema', str, None)
         if self.extSchemaName == '%':
             self.extSchemaName = self.schema
 
         # get the list of columns to use in the extnernal table
         if not self.from_cols_from_user:
             # don't put values serial columns
-            from_cols = filter(lambda a: a[3] != True,
-                               self.from_columns)
+            from_cols = [a for a in self.from_columns if a[3] != True]
         else:
             from_cols = self.from_columns
+
+        if formatType == 'csv' or formatType == 'text':
+            if self.getconfig('gpload:input:fill_missing_fields', bool, False):
+                self.formatOpts += 'fill missing fields'
 
         # If the 'reuse tables' option was specified we now try to find an
         # already existing external table in the catalog which will match
@@ -2384,11 +2436,12 @@ class gpload:
                               AND n.nspname <> 'pg_catalog'
                               AND n.nspname <> 'information_schema'
                               AND n.nspname !~ '^pg_toast'"""
-                result = self.db.query(sql.encode('utf-8')).getresult()
+                result = self.db.query(sql).getresult()
                 if len(result) > 0:
                     self.extSchemaTable = self.get_ext_schematable(quote_unident(self.extSchemaName), self.extTableName)
                     self.log(self.INFO, "reusing external staging table %s" % self.extSchemaTable)
                     return
+            # staging table is not specified, we need to find it manually
             else:
                 # process the single quotes in order to successfully find an existing external table to reuse.
                 self.formatOpts = self.formatOpts.replace("E'\\''","'\''")
@@ -2399,7 +2452,7 @@ class gpload:
                     sql = self.get_reuse_exttable_query(formatType, self.formatOpts,
                         limitStr, from_cols, self.extSchemaName, self.log_errors, encodingCode)
 
-                resultList = self.db.query(sql.encode('utf-8')).getresult()
+                resultList = self.db.query(sql).getresult()
                 if len(resultList) > 0:
                     # found an external table to reuse. no need to create one. we're done here.
                     self.extTableName = (resultList[0])[0]
@@ -2424,7 +2477,7 @@ class gpload:
         # construct a CREATE EXTERNAL TABLE statement and execute it
         self.extSchemaTable = self.get_ext_schematable(self.extSchemaName, self.extTableName)
         sql = "create external table %s" % self.extSchemaTable
-        sql += "(%s)" % ','.join(map(lambda a:'%s %s' % (a[0], a[1]), from_cols))
+        sql += "(%s)" % ','.join(['%s %s' % (a[0], a[1]) for a in from_cols])
 
         sql += "location(%s) "%locationStr
         sql += "format%s "% quote(formatType)
@@ -2442,7 +2495,7 @@ class gpload:
 
         try:
             self.db.query(sql.encode('utf-8'))
-        except Exception, e:
+        except Exception as e:
             self.log(self.ERROR, 'could not run SQL "%s": %s' % (sql, unicode(e)))
 
         # set up to drop the external table at the end of operation, unless user
@@ -2451,17 +2504,17 @@ class gpload:
             self.cleanupSql.append('drop external table if exists %s'%self.extSchemaTable)
 
 		
-    #
-    # Create a new staging table or find a reusable staging table to use for this operation
-    # (only valid for update/merge operations).
-    #
     def create_staging_table(self):
+        '''
+        Create a new staging table or find a reusable staging table to use for this operation
+        (only valid for update/merge operations).
+        '''
 
         # make sure we set the correct distribution policy
         distcols = self.getconfig('gpload:output:match_columns', list)
 
         sql = "SELECT * FROM pg_class WHERE relname LIKE 'temp_gpload_reusable_%%';"
-        resultList = self.db.query(sql.encode('utf-8')).getresult()
+        resultList = self.db.query(sql).getresult()
         if len(resultList) > 0:
             self.log(self.WARN, """Old style, reusable tables named "temp_gpload_reusable_*" from a previous versions were found.
                          Greenplum recommends running "DROP TABLE temp_gpload_reusable_..." on each table. This only needs to be done once.""")
@@ -2480,11 +2533,11 @@ class gpload:
             target_table_name = quote_unident(self.table)
 
             # create a string from all reuse conditions for staging tables and ancode it
-            conditions_str = self.get_staging_conditions_string(target_table_name, target_columns, distcols)
+            conditions_str = self.get_staging_conditions_string(target_table_name, target_columns, distcols).encode()
             encoding_conditions = hashlib.md5(conditions_str).hexdigest()
 					
             sql = self.get_reuse_staging_table_query(encoding_conditions)
-            resultList = self.db.query(sql.encode('utf-8')).getresult()
+            resultList = self.db.query(sql).getresult()
 
             if len(resultList) > 0:
 
@@ -2508,28 +2561,31 @@ class gpload:
         # MPP-14667 - self.reuse_tables should change one, and only one, aspect of how we build the following table,
         # and that is, whether it's a temp table or not. In other words, is_temp_table = '' iff self.reuse_tables == True.
         sql = 'CREATE %sTABLE %s ' % (is_temp_table, self.staging_table_name)
-        cols = map(lambda a:'%s %s' % (a[0], a[1]), target_columns)
+        cols = ['"%s" %s' % (a[0], a[1]) for a in target_columns]
         sql += "(%s)" % ','.join(cols)
-        sql += " DISTRIBUTED BY (%s)" % ', '.join(distcols)
+        #sql += " DISTRIBUTED BY (%s)" % ', '.join(distcols)
         self.log(self.LOG, sql)
 
         if not self.options.D:
-            self.db.query(sql.encode('utf-8'))
+            self.db.query(sql)
             if not self.reuse_tables:
                 self.cleanupSql.append('DROP TABLE IF EXISTS %s' % self.staging_table_name)
 
 
     def count_errors(self):
-        notice_processor(self)
+        if self.gpdb_version < "7.0.0":  # for gpdb6
+            notice_processor(self.db.notices())
+        else:
+            self.db.set_notice_receiver(notice_processor)
         if self.log_errors and not self.options.D:
             # make sure we only get errors for our own instance
             if not self.reuse_tables:
                 queryStr = "select count(*) from gp_read_error_log('%s')" % pg.escape_string(self.extSchemaTable)
-                results = self.db.query(queryStr.encode('utf-8')).getresult()
+                results = self.db.query(queryStr).getresult()
                 return (results[0])[0]
             else: # reuse_tables
                 queryStr = "select count(*) from gp_read_error_log('%s') where cmdtime > to_timestamp(%s)" % (pg.escape_string(self.extSchemaTable), self.startTimestamp)
-                results = self.db.query(queryStr.encode('utf-8')).getresult()
+                results = self.db.query(queryStr).getresult()
                 global NUM_WARN_ROWS
                 NUM_WARN_ROWS = (results[0])[0]
                 return (results[0])[0];
@@ -2553,18 +2609,22 @@ class gpload:
     def do_insert(self, dest):
         """
         Handle the INSERT case
+        insert data into dest table from self external table
         """
         self.log(self.DEBUG, "into columns " + str(self.into_columns))
-        cols = filter(lambda a:a[2]!=None, self.into_columns)
+        # a[2] is mapping target
+        #cols = filter(lambda a:a[2]!=None, self.into_columns)
+        cols = [a for a in self.into_columns if a[2]!=None]
 
         # only insert non-serial columns, unless the user told us to
         # insert the serials explicitly
+        # a[3] is has_sequence (bool)
         if not self.from_cols_from_user:
-            cols = filter(lambda a:a[3] == False, cols)
+            cols = [a for a in cols if a[3] == False]
 
         sql = 'INSERT INTO %s' % dest
-        sql += ' (%s)' % ','.join(map(lambda a:a[0], cols))
-        sql += ' SELECT %s' % ','.join(map(lambda a:a[2], cols))
+        sql += ' (%s)' % ','.join([a[0] for a in cols])
+        sql += ' SELECT %s' % ','.join([a[2] for a in cols])
         sql += ' FROM %s' % self.extSchemaTable
 
         # cktan: progress thread is not reliable. revisit later.
@@ -2575,10 +2635,10 @@ class gpload:
         if not self.options.D:
             try:
                 self.rowsInserted = self.db.query(sql.encode('utf-8'))
-            except Exception, e:
+            except Exception as e:
                 # We need to be a bit careful about the error since it may contain non-unicode characters
-                strE = unicode(str(e), errors = 'ignore')
-                strF = unicode(str(sql), errors = 'ignore')
+                strE = e.__str__().encode().decode('unicode-escape')
+                strF = sql.encode().decode('unicode-escape')
                 self.log(self.ERROR, strE + ' encountered while running ' + strF)
 
         #progress.condition.acquire()
@@ -2591,19 +2651,28 @@ class gpload:
         self.create_external_table()
         self.do_insert(self.get_qualified_tablename())
 
-    def map_stuff(self,config,format,index):
+    def map_stuff(self,config,configFormat,index):
+        '''
+        get the config and find it in into_columns_dict,
+        report error if no column finded in into_columns_dict or no mapping for it.
+
+        Return
+            list: [ configFormat(into_clomuns[0], into_clomuns[index]) ]
+        '''
         lis = []
         theList = self.getconfig(config,list)
         theList = convertListToDelimited(theList)
         for i in theList:
-            if type(i) != unicode and type(i) != str:
+            if type(i) != str and type(i) != str:
                 self.control_file_error("%s must be a YAML sequence of strings"%config)
             j = self.into_columns_dict.get(i)
             if not j:
                 self.log(self.ERROR,'column %s in %s does not exist'%(i,config))
             if not j[index]:
                 self.log(self.ERROR,'there is no mapping from the column %s in %s'%(i,config))
-            lis.append(format(j[0],j[index]))
+            # append ( j[0] = from_table.j[index])
+            # column_name = from_table.column_name
+            lis.append(configFormat(j[0],j[index]))
         return lis
 
     def fix_update_cond(self, match):
@@ -2612,7 +2681,8 @@ class gpload:
 
     def do_update(self,fromname,index):
         """
-        UPDATE case
+        UPDATE case. Update into_table from staging_table
+        form the update sql from update_columns, match_columns and update_condition
         """
         sql = 'update %s into_table ' % self.get_qualified_tablename()
         sql += 'set %s '%','.join(self.map_stuff('gpload:output:update_columns',(lambda x,y:'%s=from_table.%s' % (x, y)),index))
@@ -2623,8 +2693,9 @@ class gpload:
                               , index)
 
         update_condition = self.getconfig('gpload:output:update_condition',
-                            unicode, None)
+                            str, None)
         if update_condition:
+            ### need to optimize
             #
             # Place the table alias infront of column references.
             #
@@ -2634,17 +2705,17 @@ class gpload:
             # Better lexing and parsing needs to be done here to fix all cases.
             #
             update_condition = ' ' + update_condition + ' '
-            for name, type, mapto, seq in self.into_columns:
+            for name, colType, mapto, seq in self.into_columns:
                 regexp = '(?<=[^\w])%s(?=[^\w])' % name
                 self.log(self.DEBUG, 'update_condition re: ' + regexp)
                 temp_update_condition = update_condition
                 updateConditionList = splitIntoLiteralsAndNonLiterals(update_condition)
                 skip = False
-                update_condition = ''
+                update_condition = """"""
                 for uc in updateConditionList:
                     if skip == False:
-                       uc = re.sub(regexp, self.fix_update_cond, uc)
-                       skip = True
+                        uc = re.sub(regexp, self.fix_update_cond, uc)
+                        skip = True
                     update_condition = update_condition + uc
                 if update_condition == temp_update_condition:
                    # see if column can be undelimited, and try again.
@@ -2663,18 +2734,22 @@ class gpload:
         if not self.options.D:
             try:
                 self.rowsUpdated = self.db.query(sql.encode('utf-8'))
-            except Exception, e:
+            except Exception as e:
                 # We need to be a bit careful about the error since it may contain non-unicode characters
-                strE = unicode(str(e), errors = 'ignore')
-                strF = unicode(str(sql), errors = 'ignore')
+                strE = str(str(e), errors = 'ignore')
+                strF = str(str(sql), errors = 'ignore')
                 self.log(self.ERROR, strE + ' encountered while running ' + strF)
 				
     def get_qualified_tablename(self):
-
+        '''
+        return a qualified table name from self.schema and self.table
+        '''
         tblname = "%s.%s" % (self.schema, self.table)
         return tblname
 
     def get_table_dist_key(self):
+        '''
+        '''
         # NOTE: this query should be re-written better. the problem is that it is
         # not possible to perform a cast on a table name with spaces...
         if noGpVersion or self.gpdb_version < "6.0.0":
@@ -2692,7 +2767,7 @@ class gpload:
                 "c.relnamespace = n.oid and " + \
                 "n.nspname = '%s' and c.relname = '%s'; " % (quote_unident(self.schema), quote_unident(self.table))
 
-        resultList = self.db.query(sql.encode('utf-8')).getresult()
+        resultList = self.db.query(sql).getresult()
         attrs = []
         count = 0
         while count < len(resultList):
@@ -2702,7 +2777,7 @@ class gpload:
         return attrs
 
     def table_supports_update(self):
-        """Columns being updated cannot appear in the distribution key."""
+        """ Check wether columns being updated are distribution key."""
         distKeyList = self.get_table_dist_key()
         distkey = set()
         for dk in distKeyList:
@@ -2746,15 +2821,15 @@ class gpload:
         match = self.map_stuff('gpload:output:match_columns',lambda x,y:'into_table.%s=from_table.%s'%(x,y),0)
         matchColumns = self.getconfig('gpload:output:match_columns',list)
 		
-        cols = filter(lambda a:a[2] != None, self.into_columns)				
+        cols = [a for a in self.into_columns if a[2] != None]				
         sql = 'INSERT INTO %s ' % self.get_qualified_tablename()
-        sql += '(%s) ' % ','.join(map(lambda a:a[0], cols))
-        sql += '(SELECT %s ' % ','.join(map(lambda a:'from_table.%s' % a[0], cols))
+        sql += '(%s) ' % ','.join([a[0] for a in cols])
+        sql += '(SELECT %s ' % ','.join(['from_table.%s' % a[0] for a in cols])
         sql += 'FROM (SELECT *, row_number() OVER (PARTITION BY %s) AS gpload_row_number ' % ','.join(matchColumns)
         sql += 'FROM %s) AS from_table ' % self.staging_table_name
         sql += 'LEFT OUTER JOIN %s into_table ' % self.get_qualified_tablename()
         sql += 'ON %s '%' AND '.join(match)
-        where = self.map_stuff('gpload:output:match_columns',lambda x,y:'into_table.%s IS NULL'%x,0)
+        where = self.map_stuff('gpload:output:match_columns',lambda x,y:'(into_table.%s IS NULL OR CAST(into_table.%s AS varchar) = \'\')'%(x,x),0)
         sql += 'WHERE %s ' % ' AND '.join(where)
         sql += 'AND gpload_row_number=1)'
 
@@ -2762,10 +2837,10 @@ class gpload:
         if not self.options.D:
             try:
                 self.rowsInserted = self.db.query(sql.encode('utf-8'))
-            except Exception, e:
+            except Exception as e:
                 # We need to be a bit careful about the error since it may contain non-unicode characters
-                strE = unicode(str(e), errors = 'ignore')
-                strF = unicode(str(sql), errors = 'ignore')
+                strE = str(str(e), errors = 'ignore')
+                strF = str(str(sql), errors = 'ignore')
                 self.log(self.ERROR, strE + ' encountered while running ' + strF)
 				
 
@@ -2775,13 +2850,21 @@ class gpload:
             try:
                 truncateSQLtext = "truncate %s" % tblname
                 self.db.query(truncateSQLtext.encode('utf-8'))
-            except Exception, e:
+            except Exception as e:
                 self.log(self.ERROR, 'could not execute truncate target %s: %s' % (tblname, str(e)))
 
     def do_method(self):
+        '''
+        setup gpload config,
+        start a transaction
+        execute the 'before sql',
+        do method (insert upade, merge) accordingly,
+        execute the 'after sql'
+        '''
+
         # Is the table to be truncated before the load?
         preload = self.getconfig('gpload:preload', list, default=None)
-        method = self.getconfig('gpload:output:mode', unicode, 'insert').lower()
+        method = self.getconfig('gpload:output:mode', str, 'insert').lower()
         self.log_errors = self.getconfig('gpload:input:log_errors', bool, False)
         truncate = False
         self.reuse_tables = False
@@ -2795,10 +2878,12 @@ class gpload:
             self.fast_match = self.getconfig('gpload:preload:fast_match',bool,False)
             if self.reuse_tables == False and self.fast_match == True:
                 self.log(self.WARN, 'fast_match is ignored when reuse_tables is false!')
-            self.staging_table = self.getconfig('gpload:preload:staging_table', unicode, default=None)
+            self.staging_table = self.getconfig('gpload:preload:staging_table', str, default=None)
         if self.error_table:
             self.log_errors = True
             self.reuse_tables = True
+            self.staging_table = self.getconfig('gpload:preload:staging_table', str, default=None)
+            self.fast_match = self.getconfig('gpload:preload:fast_match',bool,False)
         if truncate == True:
             if method=='insert':
                 self.do_truncate(self.schemaTable)
@@ -2811,14 +2896,14 @@ class gpload:
         before   = None
         after    = None
         if sql:
-            before   = self.getconfig('gpload:sql:before', unicode, default=None)
-            after    = self.getconfig('gpload:sql:after', unicode, default=None)
+            before   = self.getconfig('gpload:sql:before', str, default=None)
+            after    = self.getconfig('gpload:sql:after', str, default=None)
         if before:
             self.log(self.LOG, "Pre-SQL from user: %s" % before)
             if not self.options.D:
                 try:
                     self.db.query(before.encode('utf-8'))
-                except Exception, e:
+                except Exception as e:
                     self.log(self.ERROR, 'could not execute SQL in sql:before "%s": %s' %
                              (before, str(e)))
 
@@ -2841,7 +2926,7 @@ class gpload:
             if not self.options.D:
                 try:
                     self.db.query(after.encode('utf-8'))
-                except Exception, e:
+                except Exception as e:
                     self.log(self.ERROR, 'could not execute SQL in sql:after "%s": %s' %
                              (after, str(e)))
 
@@ -2915,7 +3000,7 @@ class gpload:
                 for a in self.cleanupSql:
                     try:
                         self.log(self.DEBUG, a)
-                        self.db.query(a.encode('utf-8'))
+                        self.db.query(a)
                     except (Exception, SystemExit):
                         traceback.print_exc(file=self.logfile)
                         self.logfile.flush()

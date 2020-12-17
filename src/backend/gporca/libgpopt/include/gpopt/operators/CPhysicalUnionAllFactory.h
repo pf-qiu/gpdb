@@ -1,5 +1,5 @@
 //	Greenplum Database
-//	Copyright (C) 2016 Pivotal Software, Inc.
+//	Copyright (C) 2016 VMware, Inc. or its affiliates.
 #ifndef GPOPT_CPhysicalUnionAllFactory_H
 #define GPOPT_CPhysicalUnionAllFactory_H
 
@@ -9,21 +9,20 @@
 
 namespace gpopt
 {
-	// Constructs a gpopt::CPhysicalUnionAll operator instance. Depending the
-	// parameter fParallel we construct either a CPhysicalParallelUnionAll or
-	// a CPhysicalSerialUnionAll instance.
-	class CPhysicalUnionAllFactory
-	{
-		private:
-			CLogicalUnionAll* const m_popLogicalUnionAll;
+// Constructs a gpopt::CPhysicalUnionAll operator instance. Depending the
+// parameter fParallel we construct either a CPhysicalParallelUnionAll or
+// a CPhysicalSerialUnionAll instance.
+class CPhysicalUnionAllFactory
+{
+private:
+	CLogicalUnionAll *const m_popLogicalUnionAll;
 
-		public:
+public:
+	CPhysicalUnionAllFactory(CLogicalUnionAll *popLogicalUnionAll);
 
-			CPhysicalUnionAllFactory(CLogicalUnionAll* popLogicalUnionAll);
+	CPhysicalUnionAll *PopPhysicalUnionAll(CMemoryPool *mp, BOOL fParallel);
+};
 
-			CPhysicalUnionAll* PopPhysicalUnionAll(CMemoryPool* mp, BOOL fParallel);
-	};
+}  // namespace gpopt
 
-}
-
-#endif //GPOPT_CPhysicalUnionAllFactory_H
+#endif	//GPOPT_CPhysicalUnionAllFactory_H

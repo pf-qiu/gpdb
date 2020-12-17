@@ -17,42 +17,35 @@
 
 namespace gpos
 {
+// fwd declarations
+class CMemoryPool;
 
-	// fwd declarations
-	class CMemoryPool;
+//---------------------------------------------------------------------------
+//	@class:
+//		CErrorHandler
+//
+//	@doc:
+//		Error handler to be installed inside a worker;
+//
+//---------------------------------------------------------------------------
+class CErrorHandler
+{
+private:
+public:
+	CErrorHandler(const CErrorHandler &) = delete;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CErrorHandler
-	//
-	//	@doc:
-	//		Error handler to be installed inside a worker;
-	//
-	//---------------------------------------------------------------------------
-	class CErrorHandler
-	{
-		private:
+	// ctor
+	CErrorHandler() = default;
 
-			// private copy ctor
-			CErrorHandler(const CErrorHandler&);
+	// dtor
+	virtual ~CErrorHandler() = default;
 
-		public:
+	// process error
+	virtual void Process(CException exception) = 0;
 
-			// ctor
-			CErrorHandler() {}
-			
-			// dtor
-			virtual
-			~CErrorHandler() {}
+};	// class CErrorHandler
+}  // namespace gpos
 
-			// process error
-			virtual
-			void Process(CException exception) = 0;
-
-	}; // class CErrorHandler
-}
-
-#endif // !GPOS_CErrorHandler_H
+#endif	// !GPOS_CErrorHandler_H
 
 // EOF
-

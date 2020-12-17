@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformSelect2DynamicBitmapBoolOp.h
@@ -18,55 +18,51 @@
 
 namespace gpopt
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformSelect2DynamicBitmapBoolOp
-	//
-	//	@doc:
-	//		Transform select over partitioned table table into a dynamic bitmap
-	//		table get with bitmap bool op
-	//---------------------------------------------------------------------------
-	class CXformSelect2DynamicBitmapBoolOp : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformSelect2DynamicBitmapBoolOp
+//
+//	@doc:
+//		Transform select over partitioned table table into a dynamic bitmap
+//		table get with bitmap bool op
+//---------------------------------------------------------------------------
+class CXformSelect2DynamicBitmapBoolOp : public CXformExploration
+{
+private:
+public:
+	CXformSelect2DynamicBitmapBoolOp(const CXformSelect2DynamicBitmapBoolOp &) =
+		delete;
+
+	// ctor
+	explicit CXformSelect2DynamicBitmapBoolOp(CMemoryPool *mp);
+
+	// dtor
+	~CXformSelect2DynamicBitmapBoolOp() override = default;
+
+	// identifier
+	EXformId
+	Exfid() const override
 	{
-		private:
-			// disable copy ctor
-			CXformSelect2DynamicBitmapBoolOp(const CXformSelect2DynamicBitmapBoolOp &);
+		return ExfSelect2DynamicBitmapBoolOp;
+	}
 
-		public:
-			// ctor
-			explicit
-			CXformSelect2DynamicBitmapBoolOp(CMemoryPool *mp);
+	// xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformSelect2DynamicBitmapBoolOp";
+	}
 
-			// dtor
-			virtual
-			~CXformSelect2DynamicBitmapBoolOp()
-			{}
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			// identifier
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfSelect2DynamicBitmapBoolOp;
-			}
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformSelect2DynamicBitmapBoolOp";
-			}
+};	// class CXformSelect2DynamicBitmapBoolOp
+}  // namespace gpopt
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle & exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	};  // class CXformSelect2DynamicBitmapBoolOp
-}
-
-#endif  // !GPOPT_CXformSelect2DynamicBitmapBoolOp_H
+#endif	// !GPOPT_CXformSelect2DynamicBitmapBoolOp_H
 
 // EOF

@@ -114,49 +114,6 @@ select * from x_part left join x_non_part on (a > e);
 select * from x_part right join x_non_part on (a > e);
 select * from x_part join x_non_part on (my_equality(a,e));
 
-
--- Bug-fix verification for MPP-25537: PANIC when bitmap index used in ORCA select
-CREATE TABLE mpp25537_facttable1 (
-  col1 integer,
-  wk_id smallint,
-  id integer
-)
-with (appendonly=true, orientation=column, compresstype=zlib, compresslevel=5)
-partition by range (wk_id) (
-  start (1::smallint) END (20::smallint) inclusive every (1),
-  default partition dflt
-);
-
-insert into mpp25537_facttable1 select col1, col1, col1 from (select generate_series(1,20) col1) a;
-
-CREATE TABLE mpp25537_dimdate (
-  wk_id smallint,
-  col2 date
-);
-
-insert into mpp25537_dimdate select col1, current_date - col1 from (select generate_series(1,20,2) col1) a;
-
-CREATE TABLE mpp25537_dimtabl1 (
-  id integer,
-  col2 integer
-);
-
-insert into mpp25537_dimtabl1 select col1, col1 from (select generate_series(1,20,3) col1) a;
-
-CREATE INDEX idx_mpp25537_facttable1 on mpp25537_facttable1 (id);
-
-set optimizer_analyze_root_partition to on;
-
-ANALYZE mpp25537_facttable1;
-ANALYZE mpp25537_dimdate;
-ANALYZE mpp25537_dimtabl1;
-
-SELECT count(*)
-FROM mpp25537_facttable1 ft, mpp25537_dimdate dt, mpp25537_dimtabl1 dt1
-WHERE ft.wk_id = dt.wk_id
-AND ft.id = dt1.id;
-
-
 --
 -- This threw an error at one point:
 -- ERROR: FULL JOIN is only supported with merge-joinable join conditions
@@ -252,18 +209,30 @@ insert into a select g from generate_series(1,1) g;
 insert into b select g from generate_series(1,1) g;
 insert into c select g, g from generate_series(1, 100) g;
 
-create index on c (i,j);
+create index on c (j, i);
 
 -- In order to get the plan we want, Index Scan on 'c' must appear
 -- much cheaper than a Seq Scan. In order to keep this test quick and small,
 -- we don't want to actually create a huge table, so cheat a little and
 -- force that stats to make it look big to the planner.
 set allow_system_table_mods = on;
+
+update pg_class set reltuples=1 where oid ='a'::regclass;
+update pg_class set relpages=1 where oid ='a'::regclass;
+
+update pg_class set reltuples=10 where oid ='b'::regclass;
+update pg_class set relpages=10 where oid ='b'::regclass;
+
 update pg_class set reltuples=10000000 where oid ='c'::regclass;
+update pg_class set relpages=100000 where oid ='c'::regclass;
 
 set enable_hashjoin=off;
 set enable_mergejoin=off;
 set enable_nestloop=on;
+set random_page_cost=1;
+
+set join_collapse_limit=1;
+set from_collapse_limit=1;
 
 -- the plan should look something like this:
 --
@@ -279,7 +248,7 @@ set enable_nestloop=on;
 --                      ->  Materialize [5]
 --                            ->  Broadcast Motion 3:3  (slice3; segments: 3) [3]
 --                                  ->  Seq Scan on a
---                      ->  Index Only Scan using c_i_j_idx on c
+--                      ->  Index Only Scan using c_j_i_idx on c
 --                            Index Cond: (j = (a.i + b.i)) [4]
 --  Optimizer: Postgres query optimizer
 -- (14 rows)
@@ -301,9 +270,9 @@ set enable_nestloop=on;
 -- Motion node from rescanning! That Materialize node is rescanned, when the
 -- executor parameter 'b.i' changes.
 
-explain (costs off) select * from a, b, c where b.i = a.i and (a.i + b.i) = c.j;
+explain (costs off) select * from b, lateral (select * from a, c where b.i = a.i and (a.i + b.i) = c.j) as ac;
 
-select * from a, b, c where b.i = a.i and (a.i + b.i) = c.j;
+select * from b, lateral (select * from a, c where b.i = a.i and (a.i + b.i) = c.j) as ac;
 
 -- The above plan will prefetch inner plan and the inner plan refers
 -- outerParams. Previously, we do not handle this case correct and forgot
@@ -313,12 +282,15 @@ select * from a, b, c where b.i = a.i and (a.i + b.i) = c.j;
 -- for details.
 create type mytype_prefetch_params as (x int, y int);
 alter table b add column mt_col mytype_prefetch_params;
-explain select a.*, b.i, c.* from a, b, c where ((mt_col).x > a.i or b.i = a.i) and (a.i + b.i) = c.j;
-select a.*, b.i, c.* from a, b, c where ((mt_col).x > a.i or b.i = a.i) and (a.i + b.i) = c.j;
+
+explain select ac.*, b.i from b, lateral (select * from a, c where ((mt_col).x > a.i or b.i = a.i) and (a.i + b.i) = c.j) as ac;
+select ac.*, b.i from b, lateral (select * from a, c where ((mt_col).x > a.i or b.i = a.i) and (a.i + b.i) = c.j) as ac;
 
 reset enable_hashjoin;
 reset enable_mergejoin;
 reset enable_nestloop;
+reset join_collapse_limit;
+reset from_collapse_limit;
 
 --
 -- Mix timestamp and timestamptz in a join. We cannot use a Redistribute

@@ -4,7 +4,7 @@
  *	  routines for reading info from Greenplum Database schema tables
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -41,11 +41,5 @@ extern bool index_check_policy_compatible(GpPolicy *policy,
 							  int nidxatts,
 							  bool report_error,
 							  index_check_policy_compatible_context *error_context);
-
-extern bool change_policy_to_match_index(Relation rel,
-							 AttrNumber *indattr,
-							 Oid *indclasses,
-							 Oid *exclop,
-							 int nidxatts);
 
 #endif   /* CDBCAT_H */

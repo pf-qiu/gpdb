@@ -16,114 +16,108 @@
 
 namespace gpnaucrates
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		IDatumInt8
-	//
-	//	@doc:
-	//		Base abstract class for int8 representation
-	//
-	//---------------------------------------------------------------------------
-	class IDatumInt8 : public IDatum
+//---------------------------------------------------------------------------
+//	@class:
+//		IDatumInt8
+//
+//	@doc:
+//		Base abstract class for int8 representation
+//
+//---------------------------------------------------------------------------
+class IDatumInt8 : public IDatum
+{
+private:
+public:
+	IDatumInt8(const IDatumInt8 &) = delete;
+
+	// ctor
+	IDatumInt8() = default;
+
+	// dtor
+	~IDatumInt8() override = default;
+
+	// accessor for datum type
+	IMDType::ETypeInfo
+	GetDatumType() override
 	{
+		return IMDType::EtiInt8;
+	}
 
-		private:
+	// accessor of integer value
+	virtual LINT Value() const = 0;
 
-			// private copy ctor
-			IDatumInt8(const IDatumInt8 &);
+	// can datum be mapped to a double
+	BOOL
+	IsDatumMappableToDouble() const override
+	{
+		return true;
+	}
 
-		public:
+	// map to double for stats computation
+	CDouble
+	GetDoubleMapping() const override
+	{
+		return CDouble(Value());
+	}
 
-			// ctor
-			IDatumInt8()
-			{}
+	// can datum be mapped to LINT
+	BOOL
+	IsDatumMappableToLINT() const override
+	{
+		return true;
+	}
 
-			// dtor
-			virtual
-			~IDatumInt8()
-			{}
+	// map to LINT for statistics computation
+	LINT
+	GetLINTMapping() const override
+	{
+		return Value();
+	}
 
-			// accessor for datum type
-			virtual  IMDType::ETypeInfo GetDatumType()
-			{
-				return IMDType::EtiInt8;
-			}
+	// byte array representation of datum
+	const BYTE *
+	GetByteArrayValue() const override
+	{
+		GPOS_ASSERT(!"Invalid invocation of MakeCopyOfValue");
+		return NULL;
+	}
 
-			// accessor of integer value
-			virtual
-			LINT Value() const = 0;
+	// does the datum need to be padded before statistical derivation
+	BOOL
+	NeedsPadding() const override
+	{
+		return false;
+	}
 
-			// can datum be mapped to a double
-			BOOL IsDatumMappableToDouble() const
-			{
-				return true;
-			}
+	// return the padded datum
+	IDatum *
+	MakePaddedDatum(CMemoryPool *,	// mp,
+					ULONG			// col_len
+	) const override
+	{
+		GPOS_ASSERT(!"Invalid invocation of MakePaddedDatum");
+		return NULL;
+	}
 
-			// map to double for stats computation
-			CDouble GetDoubleMapping() const
-			{
-				return CDouble(Value());
-			}
+	// does datum support like predicate
+	BOOL
+	SupportsLikePredicate() const override
+	{
+		return false;
+	}
 
-			// can datum be mapped to LINT
-			BOOL IsDatumMappableToLINT() const
-			{
-				return true;
-			}
+	// return the default scale factor of like predicate
+	CDouble
+	GetLikePredicateScaleFactor() const override
+	{
+		GPOS_ASSERT(!"Invalid invocation of DLikeSelectivity");
+		return false;
+	}
+};	// class IDatumInt8
 
-			// map to LINT for statistics computation
-			LINT GetLINTMapping() const
-			{
-				return Value();
-			}
-
-			// byte array representation of datum
-			virtual
-			const BYTE *GetByteArrayValue() const
-			{
-				GPOS_ASSERT(!"Invalid invocation of MakeCopyOfValue");
-				return NULL;
-			}
-
-			// does the datum need to be padded before statistical derivation
-			virtual
-			BOOL NeedsPadding() const
-			{
-				return false;
-			}
-
-			// return the padded datum
-			virtual
-			IDatum *MakePaddedDatum
-				(
-				CMemoryPool *, // mp,
-				ULONG    // col_len
-				)
-				const
-			{
-				GPOS_ASSERT(!"Invalid invocation of MakePaddedDatum");
-				return NULL;
-			}
-
-			// does datum support like predicate
-			virtual
-			BOOL SupportsLikePredicate() const
-			{
-				return false;
-			}
-
-			// return the default scale factor of like predicate
-			virtual
-			CDouble GetLikePredicateScaleFactor() const
-			{
-				GPOS_ASSERT(!"Invalid invocation of DLikeSelectivity");
-				return false;
-			}
-	}; // class IDatumInt8
-
-}
+}  // namespace gpnaucrates
 
 
-#endif // !GPNAUCRATES_IDatumInt8_H
+#endif	// !GPNAUCRATES_IDatumInt8_H
 
 // EOF

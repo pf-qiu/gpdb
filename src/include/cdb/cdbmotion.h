@@ -3,7 +3,7 @@
  * cdbmotion.h
  *
  * Portions Copyright (c) 2004-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -113,7 +113,7 @@ SendEndOfStream(MotionLayerState       *mlStates,
  *
  * Returns the next tuple, or NULL if end-of-stream was reached.
  */
-extern GenericTuple RecvTupleFrom(MotionLayerState *mlStates,
+extern MinimalTuple RecvTupleFrom(MotionLayerState *mlStates,
 								  ChunkTransportState *transportStates,
 								  int16 motNodeID,
 								  int16 srcRoute);

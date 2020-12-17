@@ -3,6 +3,8 @@
 -- Expect: success
 -----------------------------------------------------------------------
 
+-- These tests ALTER the default encoding options of some built-in types.
+-- Run them in a separate database to avoid messing with other tests.
 create database column_compression;
 \c column_compression
 
@@ -43,7 +45,7 @@ create table ccddl (
 	i int,
 	j int,
 	default column encoding (compresstype=zlib)
-) with (appendonly=true, orientation=column, fillfactor=11);
+) with (appendonly=true, orientation=column);
 
 execute ccddlcheck;
 
@@ -178,13 +180,50 @@ with (appendonly=true, orientation=column);
 create table t1 (i int encoding (compresstype=zlib, ahhhh=boooooo))
 with (appendonly=true, orientation=column);
 
--- Inheritance: check that we don't support inheritance on tables using
--- column compression
-create table ccddlparent (i int encoding (compresstype=zlib))
+-- Invalid column references in COLUMN ENCODING clause
+create table t1 (i text,
+                 column non_existent encoding (compresstype=zlib))
+with (appendonly=true, orientation=column);
+
+-- Conflicting column references for the same column
+create table t1 (dupe text,
+                 column dupe encoding (compresstype=zlib),
+		 column dupe encoding (compresstype=zlib))
+with (appendonly=true, orientation=column);
+
+-- Inheritance. The ENCODING options are not inherited from the parent.
+create table ccddlparent (parentcol int encoding (compresstype=zlib))
 with (appendonly = true, orientation = column);
-create table ccddlchild (j int encoding (compresstype=zlib))
+create table ccddlchild (childcol int encoding (compresstype=zlib))
 inherits(ccddlparent) with (appendonly = true, orientation = column);
+
+-- but you can specify it explicitly
+create table ccddlchild2 (childcol int,
+			  parentcol int encoding (compresstype=zlib))
+inherits(ccddlparent) with (appendonly = true, orientation = column);
+
+execute ccddlcheck;
+
 drop table ccddlparent cascade;
+
+-- Multiple inheritance. Not particularly interesting because the
+-- encoding options are not copied from any parent, but let's test
+-- it anyway.
+create table ccddlparent1 (parentcol1 int encoding (compresstype=zlib),
+                           parentcol2 int)
+with (appendonly = true, orientation = column);
+
+create table ccddlparent2 (parentcol1 int,
+                           parentcol2 int encoding (compresstype=zlib))
+with (appendonly = true, orientation = column);
+
+create table ccddlchild (childcol int)
+inherits(ccddlparent1, ccddlparent2) with (appendonly = true, orientation = column);
+
+execute ccddlcheck;
+
+drop table ccddlparent1 cascade;
+drop table ccddlparent2 cascade;
 
 -- Conflict between default and with, in the LIKE case
 create table ccddl (i int);
@@ -249,10 +288,6 @@ partition by range(j)
 
 execute ccddlcheck;
 
-select parencattnum, parencattoptions from
-pg_partition_encoding e, pg_partition p, pg_class c
-where c.relname = 'ccddl' and c.oid = p.parrelid and p.oid = e.parencoid;
-
 insert into ccddl select 1, (i % 19) + 1, ((i+3) % 5) + 1, i+3 from generate_series(1, 100) i;
 
 select * from ccddl;
@@ -261,10 +296,6 @@ select * from ccddl;
 alter table ccddl drop column l;
 
 insert into ccddl select 1, (i % 19) + 1, ((i+3) % 5) + 1 from generate_series(1, 100) i;
-
-select parencattnum, parencattoptions from
-pg_partition_encoding e, pg_partition p, pg_class c
-where c.relname = 'ccddl' and c.oid = p.parrelid and p.oid = e.parencoid;
 
 select * from ccddl;
 
@@ -313,9 +344,6 @@ alter table ccddl add partition p3 start(20) end(30);
 execute ccddlcheck;
 
 drop table ccddl;
-
--- Should be nothing in pg_partition_encoding now
-select * from pg_partition_encoding;
 
 -- Split support. We must preserve the column encodings of the split partition
 create table ccddl (i int encoding (compresstype=zlib))
@@ -481,7 +509,7 @@ create table ccddl (i int, d date, j int)
 
 alter table ccddl add partition newp 
 	start('2010-01-06') end('2010-01-07')
-	with (appendonly=true, orientation=column, compresstype=RLE_TYPE); 
+	with (appendonly=true, orientation=column);
 
 execute ccddlcheck;
 drop table ccddl;
@@ -507,7 +535,9 @@ create table a (i int, j int) with (appendonly=true, orientation=column)
                             start(10) end(20))
 (partition p1 start(1) end(10));
 
--- partition level mention of column encoding but the table isn't heap oriented
+-- Partition level mention of column encoding but the table is not column
+-- oriented. This used to throw an error, but we're more lenient now. The
+-- ENCODING clause is simply ignored.
 CREATE TABLE ccddl
 (a1 int,a2 char(5),a3 text,a4 timestamp ,a5 date) 
 partition by range(a1) 
@@ -515,6 +545,8 @@ partition by range(a1)
 		start(1) end(1000) every(500),
 		COLUMN a1 ENCODING (compresstype=zlib,compresslevel=4,blocksize=32768)
 	);
+execute ccddlcheck;
+drop table ccddl;
 
 -----------------------------------------------------------------------
 -- Type support
@@ -711,30 +743,6 @@ SET enable_seqscan = FALSE;
 -- to the same internal representation.
 SELECT owner, property FROM ccddl
  WHERE property ~= '((7052,250),(6050,20))';
-drop table ccddl;
-
------------------------------------------------------------------------
--- Dump / restore
------------------------------------------------------------------------
-
--- We can only test partition dumping here, since pg_dump does table level
--- dump/restore
-
-create table ccddl (i int, j int)
-with (appendonly=true, orientation=column)
-partition by range(i) subpartition by range(j)
-	subpartition template
-		( subpartition sp1 start(1) end(2),
-		  subpartition sp2 start(2) end (3),
-		  column i encoding (compresstype=zlib),
-		  column j encoding (blocksize=65536)
-		)
-	(partition p1 start(1) end (2));
-
-select pg_get_partition_def('ccddl'::regclass, true);
-
-select pg_get_partition_template_def('ccddl'::regclass, true, false);
-
 drop table ccddl;
 
 \c regression

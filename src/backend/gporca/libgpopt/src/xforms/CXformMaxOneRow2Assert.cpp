@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformMaxOneRow2Assert.cpp
@@ -10,6 +10,8 @@
 //---------------------------------------------------------------------------
 
 #include "gpos/base.h"
+#include "gpopt/operators/CLogicalMaxOneRow.h"
+#include "gpopt/operators/CPatternLeaf.h"
 #include "gpopt/xforms/CXformMaxOneRow2Assert.h"
 #include "gpopt/xforms/CXformUtils.h"
 
@@ -25,22 +27,14 @@ using namespace gpopt;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CXformMaxOneRow2Assert::CXformMaxOneRow2Assert
-	(
-	CMemoryPool *mp
-	)
-	:
-	CXformExploration
-		(
-		 // pattern
-		GPOS_NEW(mp) CExpression
-				(
-				mp,
-				GPOS_NEW(mp) CLogicalMaxOneRow(mp),
-				GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))
-				)
-		)
-{}
+CXformMaxOneRow2Assert::CXformMaxOneRow2Assert(CMemoryPool *mp)
+	: CXformExploration(
+		  // pattern
+		  GPOS_NEW(mp) CExpression(
+			  mp, GPOS_NEW(mp) CLogicalMaxOneRow(mp),
+			  GPOS_NEW(mp) CExpression(mp, GPOS_NEW(mp) CPatternLeaf(mp))))
+{
+}
 
 //---------------------------------------------------------------------------
 //	@function:
@@ -51,11 +45,8 @@ CXformMaxOneRow2Assert::CXformMaxOneRow2Assert
 //
 //---------------------------------------------------------------------------
 CXform::EXformPromise
-CXformMaxOneRow2Assert::Exfp
-	(
-	CExpressionHandle & // exprhdl
-	)
-	const
+CXformMaxOneRow2Assert::Exfp(CExpressionHandle &  // exprhdl
+) const
 {
 	return CXform::ExfpHigh;
 }
@@ -69,13 +60,8 @@ CXformMaxOneRow2Assert::Exfp
 //
 //---------------------------------------------------------------------------
 void
-CXformMaxOneRow2Assert::Transform
-	(
-	CXformContext *pxfctxt,
-	CXformResult *pxfres,
-	CExpression *pexpr
-	)
-	const
+CXformMaxOneRow2Assert::Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+								  CExpression *pexpr) const
 {
 	GPOS_ASSERT(NULL != pxfctxt);
 	GPOS_ASSERT(FPromising(pxfctxt->Pmp(), this, pexpr));

@@ -263,6 +263,8 @@ extern DtxContext DistributedTransactionContext;
 
 /* state variables for how much of the log file has been flushed */
 extern volatile bool *shmDtmStarted;
+extern volatile bool *shmCleanupBackends;
+extern volatile pid_t *shmDtxRecoveryPid;
 extern volatile DistributedTransactionTimeStamp *shmDistribTimeStamp;
 extern volatile DistributedTransactionId *shmGIDSeq;
 extern uint32 *shmNextSnapshotId;
@@ -325,8 +327,6 @@ extern void finishDistributedTransactionContext (char *debugCaller, bool aborted
 extern void performDtxProtocolCommand(DtxProtocolCommand dtxProtocolCommand,
 									  const char *gid,
 									  DtxContextInfo *contextInfo);
-extern void UtilityModeFindOrCreateDtmRedoFile(void);
-extern void UtilityModeCloseDtmRedoFile(void);
 
 extern bool currentDtxDispatchProtocolCommand(DtxProtocolCommand dtxProtocolCommand, bool raiseError);
 extern bool doDispatchSubtransactionInternalCmd(DtxProtocolCommand cmdType);
@@ -341,6 +341,7 @@ extern bool currentGxactWriterGangLost(void);
 extern void addToGxactDtxSegments(struct Gang* gp);
 extern bool CurrentDtxIsRollingback(void);
 
+extern pid_t DtxRecoveryPID(void);
 extern void DtxRecoveryMain(Datum main_arg);
 extern bool DtxRecoveryStartRule(Datum main_arg);
 

@@ -2,7 +2,7 @@
 <!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
 <map>
     <topicref href="../../7-0/homenav.html" scope="external"
-        navtitle="Pivotal Greenplum® 7.0 Beta Documentation" format="html" otherprops="op-help"/>
+        navtitle="Tanzu Greenplum® 7.0 Beta Documentation" format="html" otherprops="op-help"/>
     <topicref href="install_guide.xml" navtitle="Installation Guide">
         <topicref href="platform-requirements.xml"/>
         <topicref href="preinstall_concepts.xml">
@@ -35,8 +35,16 @@
         <topicref href="data_sci_pkgs.ditamap" format="ditamap" otherprops="pivotal"/>
         <topicref href="install_modules.xml" navtitle="Installing Additional Supplied Modules"/>
         <topicref href="localization.xml" navtitle="Configuring Localization Settings"/>
-        <topicref href="upgrading.xml"/>
-        <topicref href="migrate.xml"/>
+        <topicref href="upgrade_intro.xml" navtitle="Upgrading to Greenplum 6.x">
+          <topicref href="upgrading.xml"/>
+          <topicref href="../pxf/upgrade_pxf_6x.html"
+                format="html" scope="peer" navtitle="Upgrading PXF When You Upgrade Greenplum 6"/>
+          <topicref href="migrate.xml"/>
+          <topicref href="../pxf/gphdfs-pxf-migrate.html"
+                format="html" otherprops="pivotal" scope="peer" navtitle="Migrating gphdfs External Tables to PXF"/>
+          <topicref href="../pxf/migrate_5to6.html"
+                format="html" scope="peer" navtitle="Migrating PXF from Greenplum 5"/>
+        </topicref>
         <topicref href="enable_iptables.xml" navtitle="Enabling iptables"/>
         <topicref href="apx_mgmt_utils.xml" navtitle="Installation Management Utilities"/>
         <topicref href="env_var_ref.xml" navtitle="Greenplum Environment Variables">

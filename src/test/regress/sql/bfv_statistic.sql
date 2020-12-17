@@ -311,3 +311,35 @@ EXPLAIN SELECT * FROM test_join_card1 t1, test_join_card2 t2, test_join_card3 t3
 DROP TABLE IF EXISTS test_join_card1;
 DROP TABLE IF EXISTS test_join_card2;
 -- end_ignore
+
+-- Test if the table pg_statistic has data in segments
+
+DROP TABLE IF EXISTS test_statistic_1;
+CREATE TABLE test_statistic_1(a int, b int);
+INSERT INTO test_statistic_1 SELECT i, i FROM generate_series(1, 1000)i;
+
+select count(*) from pg_class c, pg_statistic s where c.oid = s.starelid and relname = 'test_statistic_1';
+select count(*) from pg_class c, gp_dist_random('pg_statistic') s where c.oid = s.starelid and relname = 'test_statistic_1';
+
+DROP TABLE test_statistic_1;
+
+-- Test that the histogram looks reasonable.
+--
+-- We once had a bug where the samples gathered from the segments were
+-- truncated, leading to highly biased samples.
+CREATE TABLE uniformtest(i int4);
+INSERT INTO uniformtest SELECT g/100 FROM generate_series(0, 9999) g;
+BEGIN;
+SET LOCAL default_statistics_target=10; -- don't need so many rows for testing
+ANALYZE uniformtest;
+COMMIT;
+
+-- ANALYZE collects a random sample, so the exact values chosen for the
+-- histogram are nondeterministic. But they should be roughly uniformly
+-- distributed across the range 0-99. Show some characteristic values.
+select case when avg(bound) between 40 and 60 then '40-60' else avg(bound)::text end as avg,
+       case when min(bound) <= 5              then '<= 5'  else min(bound)::text end as min,
+       case when max(bound) >= 95             then '>= 95' else max(bound)::text end as max
+from pg_stats s,
+     unnest(histogram_bounds::text::int4[]) as bound
+where tablename = 'uniformtest';

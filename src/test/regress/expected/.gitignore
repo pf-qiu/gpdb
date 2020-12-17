@@ -17,6 +17,7 @@
 /autovacuum-template0.out
 /bb_memory_quota.out
 /bb_mpph.out
+/collect_tabstat.out
 /constraints_optimizer.out
 /createdb.out
 /default_tablespace.out
@@ -33,7 +34,6 @@
 /guc_env_var.out
 /hooktest.out
 /oid_wraparound.out
-/partindex_test.out
 /partition_ddl.out
 /qp_gist_indexes2_optimizer.out
 /qp_gist_indexes2.out
@@ -51,3 +51,4 @@
 /transient_types.out
 /trigger_sets_oid.out
 /workfile_mgr_test.out
+/external_table_persistent_error_log.out

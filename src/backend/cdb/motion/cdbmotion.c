@@ -5,7 +5,7 @@
  *		within a motion node ID within a particular process group id.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -24,6 +24,7 @@
 #include "cdb/cdbvars.h"
 #include "cdb/htupfifo.h"
 #include "cdb/ml_ipc.h"
+#include "cdb/tupleremap.h"
 #include "cdb/tupser.h"
 #include "utils/memutils.h"
 #include "utils/typcache.h"
@@ -52,12 +53,14 @@ static MotionNodeEntry *getMotionNodeEntry(MotionLayerState *mlStates, int16 mot
 static ChunkSorterEntry *getChunkSorterEntry(MotionLayerState *mlStates,
 					MotionNodeEntry *motNodeEntry,
 					int16 srcRoute);
-static void addChunkToSorter(MotionLayerState *mlStates,
-				 ChunkTransportState *transportStates,
-				 MotionNodeEntry *pMNEntry,
-				 TupleChunkListItem tcItem,
-				 int16 motNodeID,
-				 int16 srcRoute);
+static void addChunkToSorter(ChunkTransportState *transportStates,
+							 MotionNodeEntry *pMNEntry,
+							 TupleChunkListItem tcItem,
+							 int16 motNodeID,
+							 ChunkSorterEntry *chunkSorterEntry,
+							 ChunkTransportStateEntry *pEntry,
+							 MotionConn *conn,
+							 int16 srcRoute);
 
 static void processIncomingChunks(MotionLayerState *mlStates,
 					  ChunkTransportState *transportStates,
@@ -86,7 +89,7 @@ static void UpdateSentRecordCache(MotionConn *conn);
 static inline void
 reconstructTuple(MotionNodeEntry *pMNEntry, ChunkSorterEntry *pCSEntry, TupleRemapper *remapper)
 {
-	GenericTuple tup;
+	MinimalTuple tup;
 	SerTupInfo *pSerInfo = &pMNEntry->ser_tup_info;
 
 	/*
@@ -163,7 +166,8 @@ createMotionLayerState(int maxMotNodeID)
 
 	if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
 		Gp_max_tuple_chunk_size = Gp_max_packet_size - sizeof(struct icpkthdr) - TUPLE_CHUNK_HEADER_SIZE;
-	else if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP)
+	else if (Gp_interconnect_type == INTERCONNECT_TYPE_TCP ||
+			 Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 		Gp_max_tuple_chunk_size = Gp_max_packet_size - PACKET_HEADER_SIZE - TUPLE_CHUNK_HEADER_SIZE;
 
 	/*
@@ -553,8 +557,13 @@ SendEndOfStream(MotionLayerState *mlStates,
 	statSendEOS(mlStates, pMNEntry);
 }
 
-/* An unordered receiver will call this with srcRoute == ANY_ROUTE */
-GenericTuple
+/*
+ * Receive one tuple from a sender. An unordered receiver will call this with
+ * srcRoute == ANY_ROUTE.
+ *
+ * The tuple is stored in *slot.
+ */
+MinimalTuple
 RecvTupleFrom(MotionLayerState *mlStates,
 			  ChunkTransportState *transportStates,
 			  int16 motNodeID,
@@ -563,7 +572,7 @@ RecvTupleFrom(MotionLayerState *mlStates,
 	MotionNodeEntry *pMNEntry;
 	ChunkSorterEntry *pCSEntry;
 	htup_fifo	ReadyList;
-	GenericTuple tuple = NULL;
+	MinimalTuple tuple = NULL;
 
 #ifdef AMS_VERBOSE_LOGGING
 	elog(DEBUG5, "RecvTupleFrom( motNodeID = %d, srcRoute = %d )", motNodeID, srcRoute);
@@ -643,6 +652,9 @@ processIncomingChunks(MotionLayerState *mlStates,
 	TupleChunkListItem tcItem,
 				tcNext;
 	MemoryContext oldCtxt;
+	ChunkSorterEntry *chunkSorterEntry;
+	ChunkTransportStateEntry *pEntry = NULL;
+	MotionConn *conn;
 
 	/* Keep track of processed chunk stats. */
 	int			numChunks,
@@ -659,6 +671,11 @@ processIncomingChunks(MotionLayerState *mlStates,
 		tcItem = transportStates->RecvTupleChunkFromAny(transportStates, motNodeID, &srcRoute);
 	else
 		tcItem = transportStates->RecvTupleChunkFrom(transportStates, motNodeID, srcRoute);
+
+	/* Look up various things related to the sender that we received chunks from. */
+	chunkSorterEntry = getChunkSorterEntry(mlStates, pMNEntry, srcRoute);
+	getChunkTransportState(transportStates, motNodeID, &pEntry);
+	conn = pEntry->conns + srcRoute;
 
 	numChunks = 0;
 	chunkBytes = 0;
@@ -686,7 +703,14 @@ processIncomingChunks(MotionLayerState *mlStates,
 		}
 
 		/* Stick the chunk into the sorter. */
-		addChunkToSorter(mlStates, transportStates, pMNEntry, tcItem, motNodeID, srcRoute);
+		addChunkToSorter(transportStates,
+						 pMNEntry,
+						 tcItem,
+						 motNodeID,
+						 chunkSorterEntry,
+						 pEntry,
+						 conn,
+						 srcRoute);
 
 		tcItem = tcNext;
 	}
@@ -721,7 +745,7 @@ EndMotionLayerNode(MotionLayerState *mlStates, int16 motNodeID, bool flushCommLa
 	 */
 	if (pMNEntry->preserve_order && pMNEntry->ready_tuple_lists != NULL)
 	{
-		for (i = 0; i < getgpsegmentCount(); i++)
+		for (i = 0; i < pMNEntry->num_senders; i++)
 		{
 			pCSEntry = &pMNEntry->ready_tuple_lists[i];
 
@@ -874,7 +898,7 @@ getChunkSorterEntry(MotionLayerState *mlStates,
 	AssertArg(motNodeEntry != NULL);
 
 	Assert(srcRoute >= 0);
-	Assert(srcRoute < getgpsegmentCount());
+	Assert(srcRoute < motNodeEntry->num_senders);
 
 	/* Do we have a sorter initialized ? */
 	if (motNodeEntry->ready_tuple_lists != NULL)
@@ -887,7 +911,7 @@ getChunkSorterEntry(MotionLayerState *mlStates,
 	oldCtxt = MemoryContextSwitchTo(mlStates->motion_layer_mctx);
 
 	if (motNodeEntry->ready_tuple_lists == NULL)
-		motNodeEntry->ready_tuple_lists = (ChunkSorterEntry *) palloc0(getgpsegmentCount() * sizeof(ChunkSorterEntry));
+		motNodeEntry->ready_tuple_lists = (ChunkSorterEntry *) palloc0(motNodeEntry->num_senders * sizeof(ChunkSorterEntry));
 
 	chunkSorterEntry = &motNodeEntry->ready_tuple_lists[srcRoute];
 
@@ -970,38 +994,24 @@ materializeChunk(TupleChunkListItem *tcItem)
 /*
  * Add another tuple-chunk to the chunk sorter.  If the new chunk
  * completes another HeapTuple, that tuple will be deserialized and
- * stored into a tuple-store.  If not, the chunk is added to the
+ * stored into a htfifo.  If not, the chunk is added to the
  * appropriate list of chunks.
- *
- * Return Values:
- *	 true  - if another HeapTuple is completed by this chunk.
- *	 false - if the chunk does not complete a HeapTuple.
  */
 static void
-addChunkToSorter(MotionLayerState *mlStates,
-				 ChunkTransportState *transportStates,
+addChunkToSorter(ChunkTransportState *transportStates,
 				 MotionNodeEntry *pMNEntry,
 				 TupleChunkListItem tcItem,
 				 int16 motNodeID,
+				 ChunkSorterEntry *chunkSorterEntry,
+				 ChunkTransportStateEntry *pEntry,
+				 MotionConn *conn,
 				 int16 srcRoute)
 {
-	MemoryContext oldCtxt;
-	ChunkSorterEntry *chunkSorterEntry;
 	TupleChunkType tcType;
-	ChunkTransportStateEntry *pEntry = NULL;
-	MotionConn *conn = NULL;
 
 	AssertArg(tcItem != NULL);
 
-	oldCtxt = MemoryContextSwitchTo(mlStates->motion_layer_mctx);
-
-	chunkSorterEntry = getChunkSorterEntry(mlStates, pMNEntry, srcRoute);
-
-	getChunkTransportState(transportStates, motNodeID, &pEntry);
-	conn = pEntry->conns + srcRoute;
-
 	/* Look at the chunk's type, to figure out what to do with it. */
-
 	GetChunkType(tcItem, &tcType);
 
 	switch (tcType)
@@ -1128,8 +1138,6 @@ addChunkToSorter(MotionLayerState *mlStates,
 					 errmsg("received tuple chunk of unrecognized type %d (len %d) from [src=%d,mn=%d]",
 							tcType, tcItem->chunk_length, srcRoute, motNodeID)));
 	}
-
-	MemoryContextSwitchTo(oldCtxt);
 }
 
 

@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2018 Pivotal, Inc.
+//	Copyright (C) 2018 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CSerializableOptimizerConfig.h
@@ -22,47 +22,41 @@ using namespace gpdxl;
 
 namespace gpopt
 {
+// fwd decl
+class COptimizerConfig;
 
-	// fwd decl
-	class COptimizerConfig;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CSerializableOptimizerConfig
-	//
-	//	@doc:
-	//		Serializable optimizer configuration object
-	//
-	//---------------------------------------------------------------------------
-	class CSerializableOptimizerConfig : public CSerializable
-	{
-		private:
+//---------------------------------------------------------------------------
+//	@class:
+//		CSerializableOptimizerConfig
+//
+//	@doc:
+//		Serializable optimizer configuration object
+//
+//---------------------------------------------------------------------------
+class CSerializableOptimizerConfig : public CSerializable
+{
+private:
+	CMemoryPool *m_mp;
 
-			CMemoryPool *m_mp;
+	// optimizer configurations
+	const COptimizerConfig *m_optimizer_config;
 
-			// optimizer configurations
-			const COptimizerConfig *m_optimizer_config;
+public:
+	CSerializableOptimizerConfig(const CSerializableOptimizerConfig &) = delete;
 
-			// private copy ctor
-			CSerializableOptimizerConfig(const CSerializableOptimizerConfig&);
-			
-		public:
+	// ctor
+	CSerializableOptimizerConfig(CMemoryPool *mp,
+								 const COptimizerConfig *optimizer_config);
 
-			// ctor
-			CSerializableOptimizerConfig(CMemoryPool *mp, const COptimizerConfig *optimizer_config);
+	// dtor
+	~CSerializableOptimizerConfig() override;
 
-			// dtor
-			virtual
-			~CSerializableOptimizerConfig();
+	// serialize object to passed stream
+	void Serialize(COstream &oos) override;
 
-			// serialize object to passed stream
-			virtual
-			void Serialize(COstream& oos);
+};	// class CSerializableOptimizerConfig
+}  // namespace gpopt
 
-	}; // class CSerializableOptimizerConfig
-}
-
-#endif // !GPOS_CSerializableOptimizerConfig_H
+#endif	// !GPOS_CSerializableOptimizerConfig_H
 
 // EOF
-

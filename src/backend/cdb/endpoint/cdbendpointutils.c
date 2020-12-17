@@ -355,7 +355,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 
 		/* build tuple descriptor */
 		TupleDesc	tupdesc =
-		CreateTemplateTupleDesc(GP_ENDPOINTS_INFO_ATTRNUM, false);
+		CreateTemplateTupleDesc(GP_ENDPOINTS_INFO_ATTRNUM);
 
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "auth_token", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "cursorname", TEXTOID, -1, 0);
@@ -583,7 +583,7 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
 		/* build tuple descriptor */
-		TupleDesc	tupdesc = CreateTemplateTupleDesc(10, false);
+		TupleDesc	tupdesc = CreateTemplateTupleDesc(10);
 
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "auth_token", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "databaseid", INT4OID, -1, 0);

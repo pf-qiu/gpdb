@@ -15,257 +15,265 @@
 
 namespace gpos
 {
-	enum EOptTraceFlag
-	{
-		// reserve range 100000-199999 for GPOPT
+enum EOptTraceFlag
+{
+	// reserve range 100000-199999 for GPOPT
 
-		////////////////////////////////////////////////////////
-		///////////////// debug printing flags /////////////////
-		////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////
+	///////////////// debug printing flags /////////////////
+	////////////////////////////////////////////////////////
 
-		// print input query
-		EopttracePrintQuery = 101000,
+	// print input query
+	EopttracePrintQuery = 101000,
 
-		// print output plan
-		EopttracePrintPlan = 101001,
+	// print output plan
+	EopttracePrintPlan = 101001,
 
-		// print xform info
-		EopttracePrintXform = 101002,
+	// print xform info
+	EopttracePrintXform = 101002,
 
-		// print input and output of xforms
-		EopttracePrintXformResults = 101003,
+	// print input and output of xforms
+	EopttracePrintXformResults = 101003,
 
-		// print MEMO after exploration
-		EopttracePrintMemoAfterExploration = 101004,
+	// print MEMO after exploration
+	EopttracePrintMemoAfterExploration = 101004,
 
-		// print MEMO after implementation
-		EopttracePrintMemoAfterImplementation = 101005,
+	// print MEMO after implementation
+	EopttracePrintMemoAfterImplementation = 101005,
 
-		// print MEMO after optimization
-		EopttracePrintMemoAfterOptimization = 101006,
+	// print MEMO after optimization
+	EopttracePrintMemoAfterOptimization = 101006,
 
-		// print jobs in scheduler on each job completion
-		EopttracePrintJobScheduler = 101007,
+	// print jobs in scheduler on each job completion
+	EopttracePrintJobScheduler = 101007,
 
-		// print expression properties
-		EopttracePrintExpressionProperties = 101008,
+	// print expression properties
+	EopttracePrintExpressionProperties = 101008,
 
-		// print group properties
-		EopttracePrintGroupProperties = 101009,
+	// print group properties
+	EopttracePrintGroupProperties = 101009,
 
-		// print optimization context
-		EopttracePrintOptimizationContext = 101010,
+	// print optimization context
+	EopttracePrintOptimizationContext = 101010,
 
-		// print xform pattern
-		EopttracePrintXformPattern = 101011,
+	// print xform pattern
+	EopttracePrintXformPattern = 101011,
 
-		// print optimizer's stats
-		EopttracePrintOptimizationStatistics = 101012,
+	// print optimizer's stats
+	EopttracePrintOptimizationStatistics = 101012,
 
-		// enable plan enumeration
-		EopttraceEnumeratePlans = 101013,
+	// enable plan enumeration
+	EopttraceEnumeratePlans = 101013,
 
-		// enable plan sampling
-		EopttraceSamplePlans = 101014,
+	// enable plan sampling
+	EopttraceSamplePlans = 101014,
 
-		// print MEMO during property enforcement process
-		EopttracePrintMemoEnforcement = 101015,
+	// print MEMO during property enforcement process
+	EopttracePrintMemoEnforcement = 101015,
 
-		///////////////////////////////////////////////////////
-		////////////////// transformations flags //////////////
-		///////////////////////////////////////////////////////
+	// print required columns
+	EopttracePrintRequiredColumns = 101016,
 
-		// base for calculating flag ID to disable xform;
-		// use: flag = EopttraceDisableXformBase + xformID;
-		EopttraceDisableXformBase = 102000,
+	// print equivalent distribution specs
+	EopttracePrintEquivDistrSpecs = 101017,
 
-		// range from 102000 - 102999 is reserved for xform disable flags
+	///////////////////////////////////////////////////////
+	////////////////// transformations flags //////////////
+	///////////////////////////////////////////////////////
 
-		///////////////////////////////////////////////////////
-		///////////////////// engine flags ////////////////////
-		///////////////////////////////////////////////////////
+	// base for calculating flag ID to disable xform;
+	// use: flag = EopttraceDisableXformBase + xformID;
+	EopttraceDisableXformBase = 102000,
 
-		// first engine flag
-		EopttraceFirstEngineFlag = 103000, // not currently used
+	// range from 102000 - 102999 is reserved for xform disable flags
 
-		// produce a minidump
-		EopttraceMinidump = 103001,
+	///////////////////////////////////////////////////////
+	///////////////////// engine flags ////////////////////
+	///////////////////////////////////////////////////////
 
-		// CTE inlining flags
-		EopttraceEnableCTEInlining = 103002,
+	// first engine flag
+	EopttraceFirstEngineFlag = 103000,	// not currently used
 
-		// Disable all Motion nodes
-		EopttraceDisableMotions = 103003,
+	// produce a minidump
+	EopttraceMinidump = 103001,
 
-		// Disable MotionBroadcast nodes
-		EopttraceDisableMotionBroadcast = 103004,
+	// CTE inlining flags
+	EopttraceEnableCTEInlining = 103002,
 
-		// Disable MotionGather nodes
-		EopttraceDisableMotionGather = 103005,
+	// Disable all Motion nodes
+	EopttraceDisableMotions = 103003,
 
-		// Disable MotionHashDistribute nodes
-		EopttraceDisableMotionHashDistribute = 103006,
+	// Disable MotionBroadcast nodes
+	EopttraceDisableMotionBroadcast = 103004,
 
-		// Disable MotionHashRandom nodes
-		EopttraceDisableMotionRandom = 103007,
+	// Disable MotionGather nodes
+	EopttraceDisableMotionGather = 103005,
 
-		// Disable MotionHashRoutedDistribute nodes
-		EopttraceDisableMotionRountedDistribute = 103008,
+	// Disable MotionHashDistribute nodes
+	EopttraceDisableMotionHashDistribute = 103006,
 
-		// Disable Sort nodes
-		EopttraceDisableSort = 103009,
+	// Disable MotionHashRandom nodes
+	EopttraceDisableMotionRandom = 103007,
 
-		// Disable Spool nodes
-		EopttraceDisableSpool = 103010,
+	// Disable MotionHashRoutedDistribute nodes
+	EopttraceDisableMotionRountedDistribute = 103008,
 
-		// Disable partition propagation
-		EopttraceDisablePartPropagation = 103011,
+	// Disable Sort nodes
+	EopttraceDisableSort = 103009,
 
-		// Disable partition selection
-		EopttraceDisablePartSelection = 103012,
+	// Disable Spool nodes
+	EopttraceDisableSpool = 103010,
 
-		// Disable outer-join To inner-join rewrite
-		EopttraceDisableOuterJoin2InnerJoinRewrite = 103013,
+	// Disable partition propagation
+	EopttraceDisablePartPropagation = 103011,
 
-		// Enable plan space pruning
-		EopttraceEnableSpacePruning = 103014,
+	// Disable partition selection
+	EopttraceDisablePartSelection = 103012,
 
-		// Always pick multi-stage aggregation whenever such a plan is generated
-		EopttraceForceMultiStageAgg = 103015,
+	// Disable outer-join To inner-join rewrite
+	EopttraceDisableOuterJoin2InnerJoinRewrite = 103013,
 
-		// Enable generating (Redistribute, Broadcast) alternative for hash join children
-		EopttraceEnableRedistributeBroadcastHashJoin = 103016,
+	// Enable plan space pruning
+	EopttraceEnableSpacePruning = 103014,
 
-		// Apply LeftOuter2InnerUnionAllLeftAntiSemiJoin without looking at stats
-		EopttraceApplyLeftOuter2InnerUnionAllLeftAntiSemiJoinDisregardingStats = 103017,
+	// Always pick multi-stage aggregation whenever such a plan is generated
+	EopttraceForceMultiStageAgg = 103015,
 
-		// Disable sort below Insert for Parquet tables
-		EopttraceDisableSortForDMLOnParquet = 103018,
+	// Enable generating (Redistribute, Broadcast) alternative for hash join children
+	EopttraceEnableRedistributeBroadcastHashJoin = 103016,
 
-		// Do not keep an order-by, even if it is right under a DML operator
-		EopttraceRemoveOrderBelowDML = 103019,
+	// Apply LeftOuter2InnerUnionAllLeftAntiSemiJoin without looking at stats
+	EopttraceApplyLeftOuter2InnerUnionAllLeftAntiSemiJoinDisregardingStats =
+		103017,
 
-		// prevent plan alternatives where NLJ's outer child is replicated
-		EopttraceDisableReplicateInnerNLJOuterChild = 103020,
+	// Disable sort below Insert for Parquet tables
+	EopttraceDisableSortForDMLOnParquet = 103018,
 
-		// enforce evaluating subqueries using correlated joins (subplans in GPDB)
-		EopttraceEnforceCorrelatedExecution = 103021,
+	// Do not keep an order-by, even if it is right under a DML operator
+	EopttraceRemoveOrderBelowDML = 103019,
 
-		// Always pick plans that expand multiple distinct qualified aggregates into join of single distinct aggregates
-		EopttraceForceExpandedMDQAs = 103022,
+	// prevent plan alternatives where NLJ's outer child is replicated
+	EopttraceDisableReplicateInnerNLJOuterChild = 103020,
 
-		// prevent optimizing CTE producer side based on requirements enforced on top of CTE consumer
-		EopttraceDisablePushingCTEConsumerReqsToCTEProducer = 103023,
+	// enforce evaluating subqueries using correlated joins (subplans in GPDB)
+	EopttraceEnforceCorrelatedExecution = 103021,
 
-		// prune unused computed columns
-		EopttraceDisablePruneUnusedComputedColumns = 103024,
+	// Always pick plans that expand multiple distinct qualified aggregates into join of single distinct aggregates
+	EopttraceForceExpandedMDQAs = 103022,
 
-		// enable parallel append
-		EopttraceEnableParallelAppend = 103025,
+	// prevent optimizing CTE producer side based on requirements enforced on top of CTE consumer
+	EopttraceDisablePushingCTEConsumerReqsToCTEProducer = 103023,
 
-		// create constraint intervals from array expressions in preprocessing
-		EopttraceArrayConstraints = 103026,
+	// prune unused computed columns
+	EopttraceDisablePruneUnusedComputedColumns = 103024,
 
-		// enable motion hazard handling during NLJ optimization
-		EopttraceMotionHazardHandling = 103027,
+	// enable parallel append
+	EopttraceEnableParallelAppend = 103025,
 
-		// non-master gather enforcement for DML queries
-		EopttraceDisableNonMasterGatherForDML = 103028,
+	// create constraint intervals from array expressions in preprocessing
+	EopttraceArrayConstraints = 103026,
 
-		// Force the optimizer to pick a plan that minimizes skew but adds an extra motion node when aggs are used
-		EopttraceForceAggSkewAvoidance = 103029,
+	// enable motion hazard handling during NLJ optimization
+	EopttraceMotionHazardHandling = 103027,
 
-		// Eager Agg 
-		EopttraceEnableEagerAgg = 103030,
+	// non-master gather enforcement for DML queries
+	EopttraceDisableNonMasterGatherForDML = 103028,
 
-		// Translate unused colrefs. specifically translate all colrefs, including ones
-		// that are not referenced in the query.
-		EopttraceTranslateUnusedColrefs = 103031,
+	// Force the optimizer to pick a plan that minimizes skew but adds an extra motion node when aggs are used
+	EopttraceForceAggSkewAvoidance = 103029,
 
-		// ExpandFullJoin
-		EopttraceExpandFullJoin = 103032,
+	// Eager Agg
+	EopttraceEnableEagerAgg = 103030,
 
-		// Expand LOJs in N-aryjoin
-		EopttraceEnableLOJInNAryJoin = 103033,
+	// Translate unused colrefs. specifically translate all colrefs, including ones
+	// that are not referenced in the query.
+	EopttraceTranslateUnusedColrefs = 103031,
 
-		// Generate only query join order in DPv2 transform
-		EopttraceQueryOnlyInDPv2 = 103034,
+	// ExpandFullJoin
+	EopttraceExpandFullJoin = 103032,
 
-		// Generate only Greedy join order in DPv2 transform
-		EopttraceGreedyOnlyInDPv2 = 103035,
+	// Expand LOJs in N-aryjoin
+	EopttraceEnableLOJInNAryJoin = 103033,
 
-		// Generate only MinCard join order in DPv2 transform
-		EopttraceMinCardOnlyInDPv2 = 103036,
+	// Generate only query join order in DPv2 transform
+	EopttraceQueryOnlyInDPv2 = 103034,
 
-		// Consider non-equality predicates in Dynamic partition selection
-		EopttraceAllowGeneralPredicatesforDPE = 103037,
+	// Generate only Greedy join order in DPv2 transform
+	EopttraceGreedyOnlyInDPv2 = 103035,
 
-		// Support Opfamilies in distribution specs
-		EopttraceConsiderOpfamiliesForDistribution = 103038,
+	// Generate only MinCard join order in DPv2 transform
+	EopttraceMinCardOnlyInDPv2 = 103036,
 
-		// Use legacy (cdbhash) opfamilies for compatibility
-		EopttraceUseLegacyOpfamilies = 103039,
+	// Consider non-equality predicates in Dynamic partition selection
+	EopttraceAllowGeneralPredicatesforDPE = 103037,
 
-		///////////////////////////////////////////////////////
-		///////////////////// statistics flags ////////////////
-		//////////////////////////////////////////////////////
+	// Support Opfamilies in distribution specs
+	EopttraceConsiderOpfamiliesForDistribution = 103038,
 
-		// extract statistics
-		EopttraceExtractDXLStats = 104000,
+	// Use legacy (cdbhash) opfamilies for compatibility
+	EopttraceUseLegacyOpfamilies = 103039,
 
-		// extract statistics for all physical DXL nodes
-		EopttraceExtractDXLStatsAllNodes = 104001,
+	///////////////////////////////////////////////////////
+	///////////////////// statistics flags ////////////////
+	//////////////////////////////////////////////////////
 
-		// derive new statistics for dynamic scans when partition elimination applies
-		EopttraceDeriveStatsForDPE = 104002,
+	// extract statistics
+	EopttraceExtractDXLStats = 104000,
 
-		// print information about columns with missing statistics
-		EopttracePrintColsWithMissingStats = 104003,
+	// extract statistics for all physical DXL nodes
+	EopttraceExtractDXLStatsAllNodes = 104001,
 
-		// do not trigger stats derivation for all groups after exploration
-		EopttraceDonotDeriveStatsForAllGroups = 104004,
+	// derive new statistics for dynamic scans when partition elimination applies
+	EopttraceDeriveStatsForDPE = 104002,
 
-		// Always pick plans that split scalar DQA into a plan with 3-stage aggregation
-		EopttraceForceThreeStageScalarDQA = 104005,
+	// print information about columns with missing statistics
+	EopttracePrintColsWithMissingStats = 104003,
 
-		// Penalize HashJoins with a skewed hash distribute under them
-		EopttracePenalizeSkewedHashJoin = 104006,
+	// do not trigger stats derivation for all groups after exploration
+	EopttraceDonotDeriveStatsForAllGroups = 104004,
 
-		// Use calibrated bitmap index cost model
-		EopttraceCalibratedBitmapIndexCostModel = 104007,
-		///////////////////////////////////////////////////////
-		/////////// constant expression evaluator flags ///////
-		///////////////////////////////////////////////////////
+	// Always pick plans that split scalar DQA into a plan with 3-stage aggregation
+	EopttraceForceThreeStageScalarDQA = 104005,
 
-		EopttraceEnableConstantExpressionEvaluation = 105000,
+	// Penalize HashJoins with a skewed hash distribute under them
+	EopttracePenalizeSkewedHashJoin = 104006,
 
-		// do not use the built-in evaluators for integers in constraint derivation
-		EopttraceUseExternalConstantExpressionEvaluationForInts = 105001,
+	// Use calibrated bitmap index cost model
+	EopttraceCalibratedBitmapIndexCostModel = 104007,
+	///////////////////////////////////////////////////////
+	/////////// constant expression evaluator flags ///////
+	///////////////////////////////////////////////////////
 
-		// is nestloop params enabled, it is only enabled in GPDB 6.x onwards.
-		EopttraceIndexedNLJOuterRefAsParams = 106000,
+	EopttraceEnableConstantExpressionEvaluation = 105000,
 
-		// max
-		EopttraceSentinel = 199999
-	};
+	// do not use the built-in evaluators for integers in constraint derivation
+	EopttraceUseExternalConstantExpressionEvaluationForInts = 105001,
+
+	// is nestloop params enabled, it is only enabled in GPDB 6.x onwards.
+	EopttraceIndexedNLJOuterRefAsParams = 106000,
+
+	// max
+	EopttraceSentinel = 199999
+};
 }
 
 #ifdef __cplusplus
-extern "C"
-{
-#endif // __cplusplus
+extern "C" {
+#endif	// __cplusplus
 
 // set trace flags based on given bit set, and return two output bit sets of old trace flags values
-void SetTraceflags(gpos::CMemoryPool *mp, const gpos::CBitSet *input_bitset, gpos::CBitSet **enable_bitset, gpos::CBitSet **disabled_bitset);
+void SetTraceflags(gpos::CMemoryPool *mp, const gpos::CBitSet *input_bitset,
+				   gpos::CBitSet **enable_bitset,
+				   gpos::CBitSet **disabled_bitset);
 
 // restore trace flags values based on given bit sets
-void ResetTraceflags(gpos::CBitSet *enable_bitset, gpos::CBitSet *disabled_bitset);
+void ResetTraceflags(gpos::CBitSet *enable_bitset,
+					 gpos::CBitSet *disabled_bitset);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif	// __cplusplus
 
-#endif // ! GPOPT_traceflags_H
+#endif	// ! GPOPT_traceflags_H
 
 // EOF
-

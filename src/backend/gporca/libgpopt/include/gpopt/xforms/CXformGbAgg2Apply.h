@@ -16,59 +16,51 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformGbAgg2Apply
-	//
-	//	@doc:
-	//		Transform GbAgg to Apply; this transformation is only applicable
-	//		to GbAgg expression with aggregate functions that have subquery
-	//		arguments
-	//
-	//---------------------------------------------------------------------------
-	class CXformGbAgg2Apply : public CXformSubqueryUnnest
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformGbAgg2Apply
+//
+//	@doc:
+//		Transform GbAgg to Apply; this transformation is only applicable
+//		to GbAgg expression with aggregate functions that have subquery
+//		arguments
+//
+//---------------------------------------------------------------------------
+class CXformGbAgg2Apply : public CXformSubqueryUnnest
+{
+private:
+public:
+	CXformGbAgg2Apply(const CXformGbAgg2Apply &) = delete;
+
+	// ctor
+	explicit CXformGbAgg2Apply(CMemoryPool *mp);
+
+	// dtor
+	~CXformGbAgg2Apply() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfGbAgg2Apply;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformGbAgg2Apply";
+	}
 
-			// private copy ctor
-			CXformGbAgg2Apply(const CXformGbAgg2Apply &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+};	// class CXformGbAgg2Apply
 
-			// ctor
-			explicit
-			CXformGbAgg2Apply(CMemoryPool *mp);
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformGbAgg2Apply()
-			{}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfGbAgg2Apply;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformGbAgg2Apply";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-	}; // class CXformGbAgg2Apply
-
-}
-
-#endif // !GPOPT_CXformGbAgg2Apply_H
+#endif	// !GPOPT_CXformGbAgg2Apply_H
 
 // EOF

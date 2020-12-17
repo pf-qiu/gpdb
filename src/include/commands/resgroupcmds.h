@@ -4,7 +4,7 @@
  *	  Commands for manipulating resource group.
  *
  * Portions Copyright (c) 2006-2017, Greenplum inc.
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  * IDENTIFICATION
  * 		src/include/commands/resgroupcmds.h
@@ -32,7 +32,7 @@ extern void DropResourceGroup(DropResourceGroupStmt *stmt);
 extern void AlterResourceGroup(AlterResourceGroupStmt *stmt);
 
 /* catalog access function */
-extern Oid GetResGroupIdForName(const char *name);
+extern Oid get_resgroup_oid(const char *name, bool missing_ok);
 extern char *GetResGroupNameForId(Oid oid);
 extern Oid GetResGroupIdForRole(Oid roleid);
 extern void GetResGroupCapabilities(Relation rel,

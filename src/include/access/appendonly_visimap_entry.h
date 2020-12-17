@@ -4,7 +4,7 @@
  *   responsibly for the internal handling and the usage
  *   of a single tuple in the visimap relation.
  *
- * Copyright (c) 2013-Present Pivotal Software, Inc.
+ * Copyright (c) 2013-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -17,8 +17,8 @@
 
 #include "access/appendonlytid.h"
 #include "access/htup.h"
+#include "access/tableam.h"
 #include "nodes/bitmapset.h"
-#include "utils/tqual.h"
 #include "utils/bitmap_compression.h"
 
 #define APPENDONLY_VISIMAP_DATA_BUFFER_SIZE (offsetof(AppendOnlyVisimapData, data) + \
@@ -123,7 +123,7 @@ bool AppendOnlyVisimapEntry_IsVisible(
 								 AppendOnlyVisimapEntry *visiMapEntry,
 								 AOTupleId *aoTupleId);
 
-HTSU_Result AppendOnlyVisimapEntry_HideTuple(
+TM_Result AppendOnlyVisimapEntry_HideTuple(
 								 AppendOnlyVisimapEntry *visiMapEntry,
 								 AOTupleId *aoTupleId);
 

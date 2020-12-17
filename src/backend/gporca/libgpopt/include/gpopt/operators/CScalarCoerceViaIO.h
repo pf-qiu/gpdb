@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarCoerceViaIO.h
@@ -25,83 +25,67 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarCoerceViaIO
-	//
-	//	@doc:
-	//		Scalar CoerceViaIO operator
-	//
-	//---------------------------------------------------------------------------
-	class CScalarCoerceViaIO : public CScalarCoerceBase
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarCoerceViaIO
+//
+//	@doc:
+//		Scalar CoerceViaIO operator
+//
+//---------------------------------------------------------------------------
+class CScalarCoerceViaIO : public CScalarCoerceBase
+{
+private:
+public:
+	CScalarCoerceViaIO(const CScalarCoerceViaIO &) = delete;
+
+	// ctor
+	CScalarCoerceViaIO(CMemoryPool *mp, IMDId *mdid_type, INT type_modifier,
+					   ECoercionForm dxl_coerce_format, INT location);
+
+	// dtor
+	~CScalarCoerceViaIO() override = default;
+
+	EOperatorId
+	Eopid() const override
 	{
+		return EopScalarCoerceViaIO;
+	}
 
-		private:
-			// private copy ctor
-			CScalarCoerceViaIO(const CScalarCoerceViaIO &);
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarCoerceViaIO";
+	}
 
-		public:
+	// match function
+	BOOL Matches(COperator *) const override;
 
-			// ctor
-			CScalarCoerceViaIO
-				(
-				CMemoryPool *mp,
-				IMDId *mdid_type,
-				INT type_modifier,
-				ECoercionForm dxl_coerce_format,
-				INT location
-				);
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// dtor
-			virtual
-			~CScalarCoerceViaIO()
-			{
-			}
+	// conversion function
+	static CScalarCoerceViaIO *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarCoerceViaIO == pop->Eopid());
 
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopScalarCoerceViaIO;
-			}
+		return dynamic_cast<CScalarCoerceViaIO *>(pop);
+	}
 
-			// return a string for operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CScalarCoerceViaIO";
-			}
+};	// class CScalarCoerceViaIO
 
-			// match function
-			virtual
-			BOOL Matches(COperator *) const;
-
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
-
-			// conversion function
-			static
-			CScalarCoerceViaIO *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarCoerceViaIO == pop->Eopid());
-
-				return dynamic_cast<CScalarCoerceViaIO*>(pop);
-			}
-
-	}; // class CScalarCoerceViaIO
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CScalarCoerceViaIO_H
+#endif	// !GPOPT_CScalarCoerceViaIO_H
 
 // EOF

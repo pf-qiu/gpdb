@@ -7,7 +7,7 @@
  * buffers efficiency.
  *        
  * Portions Copyright (c) 2007, greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -69,6 +69,9 @@ typedef struct BufferedRead
 	File 				 file;
     char				 *filePathName;
     int64                fileLen;
+
+	/* current read position */
+	off_t				 fileOff;
 
 	/*
 	 * Temporary limit support for random reading.

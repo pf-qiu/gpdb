@@ -4,7 +4,7 @@
  *	  Global DeadLock Detector - Helper Functions
  *
  *
- * Copyright (c) 2018-Present Pivotal Software, Inc.
+ * Copyright (c) 2018-Present VMware, Inc. or its affiliates.
  *
  *
  *-------------------------------------------------------------------------
@@ -102,7 +102,7 @@ gp_dist_wait_status(PG_FUNCTION_ARGS)
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
 		/* build tupdesc for result tuples */
-		tupdesc = CreateTemplateTupleDesc(10, false);
+		tupdesc = CreateTemplateTupleDesc(10);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "segid",
 						   INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "waiter_dxid",

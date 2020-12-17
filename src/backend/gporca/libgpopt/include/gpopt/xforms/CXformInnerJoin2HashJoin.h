@@ -16,67 +16,54 @@
 
 namespace gpopt
 {
-	using namespace gpos;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformInnerJoin2HashJoin
-	//
-	//	@doc:
-	//		Transform inner join to inner Hash Join
-	//
-	//---------------------------------------------------------------------------
-	class CXformInnerJoin2HashJoin : public CXformImplementation
+using namespace gpos;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformInnerJoin2HashJoin
+//
+//	@doc:
+//		Transform inner join to inner Hash Join
+//
+//---------------------------------------------------------------------------
+class CXformInnerJoin2HashJoin : public CXformImplementation
+{
+private:
+public:
+	CXformInnerJoin2HashJoin(const CXformInnerJoin2HashJoin &) = delete;
+
+	// ctor
+	explicit CXformInnerJoin2HashJoin(CMemoryPool *mp);
+
+	// dtor
+	~CXformInnerJoin2HashJoin() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfInnerJoin2HashJoin;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformInnerJoin2HashJoin";
+	}
 
-			// private copy ctor
-			CXformInnerJoin2HashJoin(const CXformInnerJoin2HashJoin &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-		public:
-		
-			// ctor
-			explicit
-			CXformInnerJoin2HashJoin(CMemoryPool *mp);
+};	// class CXformInnerJoin2HashJoin
 
-			// dtor
-			virtual 
-			~CXformInnerJoin2HashJoin() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfInnerJoin2HashJoin;
-			}
-			
-			// return a string for xform name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CXformInnerJoin2HashJoin";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				) 
-				const;
-
-	}; // class CXformInnerJoin2HashJoin
-
-}
+}  // namespace gpopt
 
 
-#endif // !GPOPT_CXformInnerJoin2HashJoin_H
+#endif	// !GPOPT_CXformInnerJoin2HashJoin_H
 
 // EOF

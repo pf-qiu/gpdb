@@ -17,66 +17,53 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformInlineCTEConsumer
-	//
-	//	@doc:
-	//		Transform logical CTE consumer to a copy of the expression under its
-	//		corresponding producer
-	//
-	//---------------------------------------------------------------------------
-	class CXformInlineCTEConsumer : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformInlineCTEConsumer
+//
+//	@doc:
+//		Transform logical CTE consumer to a copy of the expression under its
+//		corresponding producer
+//
+//---------------------------------------------------------------------------
+class CXformInlineCTEConsumer : public CXformExploration
+{
+private:
+public:
+	CXformInlineCTEConsumer(const CXformInlineCTEConsumer &) = delete;
+
+	// ctor
+	explicit CXformInlineCTEConsumer(CMemoryPool *mp);
+
+	// dtor
+	~CXformInlineCTEConsumer() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfInlineCTEConsumer;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformInlineCTEConsumer";
+	}
 
-			// private copy ctor
-			CXformInlineCTEConsumer(const CXformInlineCTEConsumer &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-		public:
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// ctor
-			explicit
-			CXformInlineCTEConsumer(CMemoryPool *mp);
+};	// class CXformInlineCTEConsumer
+}  // namespace gpopt
 
-			// dtor
-			virtual
-			~CXformInlineCTEConsumer() {}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfInlineCTEConsumer;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformInlineCTEConsumer";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			virtual
-			void Transform
-				(
-				CXformContext *pxfctxt,
-				CXformResult *pxfres,
-				CExpression *pexpr
-				)
-				const;
-
-	}; // class CXformInlineCTEConsumer
-}
-
-#endif // !GPOPT_CXformInlineCTEConsumer_H
+#endif	// !GPOPT_CXformInlineCTEConsumer_H
 
 // EOF

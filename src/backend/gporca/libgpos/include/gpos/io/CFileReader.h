@@ -17,58 +17,53 @@
 
 namespace gpos
 {
+//---------------------------------------------------------------------------
+//	@class:
+//		CFileReader
+//
+//	@doc:
+//		Implementation of file handler for raw input;
+//		does not provide thread-safety
+//
+//---------------------------------------------------------------------------
+class CFileReader : public CFileDescriptor
+{
+private:
+	// file size
+	ULLONG m_file_size;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CFileReader
-	//
-	//	@doc:
-	//		Implementation of file handler for raw input;
-	//		does not provide thread-safety
-	//
-	//---------------------------------------------------------------------------
-	class CFileReader : public CFileDescriptor
-	{
-		private:
+	// read size
+	ULLONG m_file_read_size;
 
-			// file size
-			ULLONG m_file_size;
+public:
+	CFileReader(const CFileReader &) = delete;
 
-			// read size
-			ULLONG m_file_read_size;
+	// ctor
+	CFileReader();
 
-			// no copy ctor
-			CFileReader(const CFileReader &);
+	// dtor
+	~CFileReader() override;
 
-		public:
+	// get file size
+	ULLONG FileSize() const;
 
-			// ctor
-			CFileReader();
+	// get file read size
+	ULLONG FileReadSize() const;
 
-			// dtor
-			virtual
-			~CFileReader();
+	// open file for reading
+	void Open(const CHAR *file_path, const ULONG permission_bits = S_IRUSR);
 
-			// get file size
-			ULLONG FileSize() const;
+	// close file
+	void Close();
 
-			// get file read size
-			ULLONG FileReadSize() const;
+	// read bytes to buffer
+	ULONG_PTR ReadBytesToBuffer(BYTE *read_buffer,
+								const ULONG_PTR file_read_size);
 
-			// open file for reading
-			void Open(const CHAR *file_path, const ULONG permission_bits =  S_IRUSR);
+};	// class CFileReader
 
-			// close file
-			void Close();
+}  // namespace gpos
 
-			// read bytes to buffer
-			ULONG_PTR ReadBytesToBuffer(BYTE *read_buffer, const ULONG_PTR file_read_size);
-
-	};	// class CFileReader
-
-}
-
-#endif // !GPOS_CFileReader_H
+#endif	// !GPOS_CFileReader_H
 
 // EOF
-

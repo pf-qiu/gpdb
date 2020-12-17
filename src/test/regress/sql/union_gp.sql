@@ -98,6 +98,23 @@ select a from base
 union all
 select a from base where a = 'foo';
 
+--
+-- Test union all two replicated tables with different numsegments
+--
+create table rep2(c1 int, c2 int) distributed replicated;
+create table rep3(c1 int, c2 int) distributed replicated;
+set allow_system_table_mods = on;
+update gp_distribution_policy set numsegments = 2
+  where localoid = 'rep2'::regclass;
+select localoid::regclass, policytype, numsegments
+  from gp_distribution_policy
+  where localoid::regclass in ('rep2', 'rep3');
+explain select * from rep2 union all select * from rep3;
+select * from rep2 union all select * from rep3;
+reset allow_system_table_mods;
+drop table rep2;
+drop table rep3;
+
 
 --
 -- Setup
@@ -119,7 +136,7 @@ CREATE TABLE T_random (c1 int, c2 int);
 INSERT INTO T_random SELECT i, i%5 from generate_series(1,30) i;
 
 --start_ignore
-create language plpythonu;
+create language plpython3u;
 --end_ignore
 
 create or replace function count_operator(query text, operator text) returns int as
@@ -133,7 +150,7 @@ for i in range(len(rv)):
         result = result+1
 return result
 $$
-language plpythonu;
+language plpython3u;
 
 --
 -- N-ary UNION ALL results
@@ -577,6 +594,71 @@ select x.aa/100 aaa, x.c, y.c from cte1 x join cte1 y on x.aa=y.aa;
 
 select from t2_ncols union select * from t2_ncols;
 
+-- Test the result of union of 2 tables distributed on different number of segments
+-- start_ignore
+drop schema if exists union_schema CASCADE;
+-- end_ignore
+create schema union_schema;
+create table union_schema.t1(a int, b int);
+create table union_schema.t2(a int, b int);
+create table union_schema.t3(a int, b int);
+
+set allow_system_table_mods = on;
+update gp_distribution_policy set numsegments = 1
+  where localoid = 'union_schema.t1'::regclass::oid;
+update gp_distribution_policy set numsegments = 2
+  where localoid = 'union_schema.t2'::regclass::oid;
+select relname, policytype, numsegments, distkey
+  from pg_class, gp_distribution_policy, pg_namespace ns
+  where pg_class.oid = localoid and relnamespace = ns.oid
+    and nspname = 'union_schema'
+    and relname in ('t1', 't2', 't3')
+  order by relname;
+
+insert into union_schema.t1 select i, i from generate_series(1,10)i;
+insert into union_schema.t2 select i, i from generate_series(1,20)i;
+analyze union_schema.t1;
+analyze union_schema.t2;
+
+explain select * from union_schema.t1 join union_schema.t2
+    on union_schema.t1.a = union_schema.t2.b;
+explain select union_schema.t1.a, union_schema.t2.b
+  from union_schema.t1 join union_schema.t2
+    on union_schema.t1.a = union_schema.t2.b
+  union all
+  select * from union_schema.t3;
+
+select * from union_schema.t1 join union_schema.t2
+  on union_schema.t1.a = union_schema.t2.b;
+select union_schema.t1.a, union_schema.t2.b
+  from union_schema.t1 join union_schema.t2
+    on union_schema.t1.a = union_schema.t2.b
+union all
+select * from union_schema.t3;
+
+truncate union_schema.t1, union_schema.t2;
+insert into union_schema.t1 select i, i from generate_series(1,20)i;
+insert into union_schema.t2 select i, i from generate_series(1,10)i;
+analyze union_schema.t1;
+analyze union_schema.t2;
+
+explain select * from union_schema.t1 join union_schema.t2
+    on union_schema.t1.a = union_schema.t2.b;
+explain select union_schema.t1.a, union_schema.t2.b
+    from union_schema.t1 join union_schema.t2
+	  on union_schema.t1.a = union_schema.t2.b
+  union all
+  select * from union_schema.t3;
+
+select * from union_schema.t1 join union_schema.t2
+  on union_schema.t1.a = union_schema.t2.b;
+select union_schema.t1.a, union_schema.t2.b
+  from union_schema.t1 join union_schema.t2
+    on union_schema.t1.a = union_schema.t2.b
+union all
+select * from union_schema.t3;
+
+reset allow_system_table_mods;
 --
 -- Clean up
 --
@@ -587,3 +669,4 @@ DROP TABLE IF EXISTS T_random CASCADE;
 DROP VIEW IF EXISTS v1_ncols CASCADE;
 DROP TABLE IF EXISTS t1_ncols CASCADE;
 DROP TABLE IF EXISTS t2_ncols CASCADE;
+DROP SCHEMA IF EXISTS union_schema CASCADE;

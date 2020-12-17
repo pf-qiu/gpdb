@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal, Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformImplementBitmapTableGet
@@ -9,7 +9,7 @@
 //		Implement BitmapTableGet
 //
 //	@owner:
-//		
+//
 //
 //	@test:
 //
@@ -24,62 +24,56 @@
 
 namespace gpopt
 {
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformImplementBitmapTableGet
-	//
-	//	@doc:
-	//		Implement CLogicalBitmapTableGet as a CPhysicalBitmapTableScan
-	//
-	//---------------------------------------------------------------------------
-	class CXformImplementBitmapTableGet : public CXformImplementation
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformImplementBitmapTableGet
+//
+//	@doc:
+//		Implement CLogicalBitmapTableGet as a CPhysicalBitmapTableScan
+//
+//---------------------------------------------------------------------------
+class CXformImplementBitmapTableGet : public CXformImplementation
+{
+private:
+public:
+	CXformImplementBitmapTableGet(const CXformImplementBitmapTableGet &) =
+		delete;
+
+	// ctor
+	explicit CXformImplementBitmapTableGet(CMemoryPool *mp);
+
+	// dtor
+	~CXformImplementBitmapTableGet() override = default;
+
+	// identifier
+	EXformId
+	Exfid() const override
 	{
-		private:
-			// disable copy ctor
-			CXformImplementBitmapTableGet(const CXformImplementBitmapTableGet &);
+		return ExfImplementBitmapTableGet;
+	}
 
-		public:
-			// ctor
-			explicit
-			CXformImplementBitmapTableGet(CMemoryPool *mp);
+	// xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformImplementBitmapTableGet";
+	}
 
-			// dtor
-			virtual
-			~CXformImplementBitmapTableGet()
-			{}
+	// compute xform promise for a given expression handle
+	EXformPromise
+	Exfp(CExpressionHandle &  // exprhdl
+	) const override
+	{
+		return CXform::ExfpHigh;
+	}
 
-			// identifier
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfImplementBitmapTableGet;
-			}
+	// actual transform
+	void Transform(CXformContext *pxfctxt, CXformResult *pxfres,
+				   CExpression *pexpr) const override;
 
-			// xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformImplementBitmapTableGet";
-			}
+};	// class CXformImplementBitmapTableGet
+}  // namespace gpopt
 
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp
-				(
-				CExpressionHandle & // exprhdl
-				)
-				const
-			{
-				return CXform::ExfpHigh;
-			}
-
-			// actual transform
-			virtual
-			void Transform(CXformContext *pxfctxt, CXformResult *pxfres, CExpression *pexpr) const;
-
-	};  // class CXformImplementBitmapTableGet
-}
-
-#endif  // !GPOPT_CXformImplementBitmapTableGet_H
+#endif	// !GPOPT_CXformImplementBitmapTableGet_H
 
 // EOF

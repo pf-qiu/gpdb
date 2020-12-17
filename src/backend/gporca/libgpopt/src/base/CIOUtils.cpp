@@ -9,12 +9,12 @@
 //		Implementation of optimizer I/O utilities
 //---------------------------------------------------------------------------
 
+#include "gpopt/base/CIOUtils.h"
+
 #include "gpos/base.h"
+#include "gpos/io/CFileWriter.h"
 #include "gpos/task/CAutoSuspendAbort.h"
 #include "gpos/task/CWorker.h"
-#include "gpos/io/COstreamFile.h"
-
-#include "gpopt/base/CIOUtils.h"
 
 using namespace gpopt;
 
@@ -29,11 +29,7 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 void
-CIOUtils::Dump
-	(
-	CHAR *file_name,
-	CHAR *sz
-	)
+CIOUtils::Dump(CHAR *file_name, CHAR *sz)
 {
 	CAutoSuspendAbort asa;
 
@@ -43,7 +39,7 @@ CIOUtils::Dump
 	{
 		CFileWriter fw;
 		fw.Open(file_name, ulWrPerms);
-		const BYTE *pb = reinterpret_cast<const BYTE*>(sz);
+		const BYTE *pb = reinterpret_cast<const BYTE *>(sz);
 		ULONG_PTR ulpLength = (ULONG_PTR) clib::Strlen(sz);
 		fw.Write(pb, ulpLength);
 		fw.Close();
@@ -58,4 +54,3 @@ CIOUtils::Dump
 
 
 // EOF
-

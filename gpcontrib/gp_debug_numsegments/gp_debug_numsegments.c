@@ -4,7 +4,7 @@
  *	  Debugging helpers to get / set default numsegment when creating tables.
  *
  *
- * Copyright (c) 2018-Present Pivotal Software, Inc.
+ * Copyright (c) 2018-Present VMware, Inc. or its affiliates.
  *
  *
  *-------------------------------------------------------------------------
@@ -15,7 +15,6 @@
 #include "fmgr.h"
 #include "utils/builtins.h"
 #include "cdb/cdbutil.h"
-#include "catalog/gp_policy.h"
 #include "catalog/pg_type.h"
 
 

@@ -4,7 +4,7 @@
  *	  Flattens subqueries, transforms them to joins.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -20,11 +20,10 @@
 #include "catalog/pg_type.h"
 #include "nodes/makefuncs.h"
 #include "optimizer/clauses.h"
+#include "optimizer/optimizer.h"
 #include "optimizer/subselect.h"	/* convert_testexpr() */
 #include "optimizer/tlist.h"
 #include "optimizer/prep.h"		/* canonicalize_qual() */
-#include "optimizer/subselect.h"
-#include "optimizer/var.h"		/* contain_vars_of_level_or_above() */
 #include "parser/parse_oper.h"	/* make_op() */
 #include "parser/parse_expr.h"
 #include "parser/parse_relation.h"	/* addRangeTableEntryForSubquery() */
@@ -68,8 +67,10 @@ typedef struct ConvertSubqueryToJoinContext
 } ConvertSubqueryToJoinContext;
 
 static void ProcessSubqueryToJoin(Query *subselect, ConvertSubqueryToJoinContext *context);
+static void ProcessSubqueryToJoin_walker(Node *jtree, ConvertSubqueryToJoinContext *context);
 static void SubqueryToJoinWalker(Node *node, ConvertSubqueryToJoinContext *context);
 static void RemoveInnerJoinQuals(Query *subselect);
+static void RemoveInnerJoinQuals_walker(Node *jtree);
 
 static bool find_nonnullable_vars_walker(Node *node, NonNullableVarsContext *context);
 static bool is_attribute_nonnullable(Oid relationOid, AttrNumber attrNumber);
@@ -242,7 +243,15 @@ IsCorrelatedEqualityOpExpr(OpExpr *opexp, Expr **innerExpr, Oid *eqOp, Oid *sort
 }
 
 /**
- * Process subquery to extract useful information to be able to convert it to a join
+ * Process subquery to extract useful information to be able to convert it to
+ * a join.
+ *
+ * This scans the join tree, and verifies that it consists entirely of inner
+ * joins. The inner joins can be represented as explicit JOIN_INNER JoinExprs*
+ * or as FromExprs. All the join quals are collected in context->innerQual.
+ *
+ * context->safeToConvert must be 'true' on entry. This sets it to false if
+ * there are any non-inner joins in the tree.
  */
 static void
 ProcessSubqueryToJoin(Query *subselect, ConvertSubqueryToJoinContext *context)
@@ -250,42 +259,58 @@ ProcessSubqueryToJoin(Query *subselect, ConvertSubqueryToJoinContext *context)
 	Assert(context);
 	Assert(context->safeToConvert);
 	Assert(subselect);
-	Assert(list_length(subselect->jointree->fromlist) == 1);
-	Node	   *joinQual = NULL;
 
-	/**
-	 * If subselect's join tree is not a plain relation or an inner join, we refuse to convert.
-	 */
-	Node	   *jtree = (Node *) list_nth(subselect->jointree->fromlist, 0);
+	ProcessSubqueryToJoin_walker((Node *) subselect->jointree, context);
+}
 
+static void
+ProcessSubqueryToJoin_walker(Node *jtree, ConvertSubqueryToJoinContext *context)
+{
 	if (IsA(jtree, JoinExpr))
 	{
 		JoinExpr   *je = (JoinExpr *) jtree;
 
+		/*
+		 * If subselect's join tree is not a plain relation or an inner join,
+		 * we refuse to convert.
+		 */
 		if (je->jointype != JOIN_INNER)
 		{
 			context->safeToConvert = false;
 			return;
 		}
-		joinQual = je->quals;
+
+		ProcessSubqueryToJoin_walker(je->larg, context);
+		if (!context->safeToConvert)
+			return;
+		ProcessSubqueryToJoin_walker(je->rarg, context);
+		if (!context->safeToConvert)
+			return;
+
+		SubqueryToJoinWalker(je->quals, context);
 	}
-
-	SubqueryToJoinWalker(subselect->jointree->quals, context);
-
-	if (context->safeToConvert)
+	else if (IsA(jtree, FromExpr))
 	{
-		SubqueryToJoinWalker(joinQual, context);
-	}
+		FromExpr   *fe = (FromExpr *) jtree;
+		ListCell   *lc;
 
-	/**
-	 * If we haven't been able to extract a proper joinQual, then it is not safe to convert
-	 */
-	if (!context->joinQual)
+		foreach(lc, fe->fromlist)
+		{
+			ProcessSubqueryToJoin_walker(lfirst(lc), context);
+			if (!context->safeToConvert)
+				return;
+		}
+
+		SubqueryToJoinWalker(fe->quals, context);
+	}
+	else if (IsA(jtree, RangeTblRef))
 	{
-		context->safeToConvert = false;
+		/* nothing to do */
 	}
-
-	return;
+	else
+	{
+		elog(ERROR, "unexpected node of type %d in join tree", jtree->type);
+	}
 }
 
 /**
@@ -294,21 +319,50 @@ ProcessSubqueryToJoin(Query *subselect, ConvertSubqueryToJoinContext *context)
 static void
 RemoveInnerJoinQuals(Query *subselect)
 {
-	Assert(subselect);
-	Assert(list_length(subselect->jointree->fromlist) == 1);
+	RemoveInnerJoinQuals_walker((Node *) subselect->jointree);
+}
 
-	subselect->jointree->quals = NULL;
-
-	Node	   *jtree = (Node *) list_nth(subselect->jointree->fromlist, 0);
-
+static void
+RemoveInnerJoinQuals_walker(Node *jtree)
+{
 	if (IsA(jtree, JoinExpr))
 	{
 		JoinExpr   *je = (JoinExpr *) jtree;
 
-		Assert(je->jointype == JOIN_INNER);
+		/*
+		 * We already checked in ProcessSubqueryToJoin() that there
+		 * are no outer joins, but doesn't hurt to check again.
+		 */
+		if (je->jointype != JOIN_INNER)
+		{
+			elog(ERROR, "unexpected join type encountered while converting subquery to join");
+		}
+
+		RemoveInnerJoinQuals_walker(je->larg);
+		RemoveInnerJoinQuals_walker(je->rarg);
+
 		je->quals = NULL;
 	}
-	return;
+	else if (IsA(jtree, FromExpr))
+	{
+		FromExpr   *fe = (FromExpr *) jtree;
+		ListCell   *lc;
+
+		foreach(lc, fe->fromlist)
+		{
+			RemoveInnerJoinQuals_walker(lfirst(lc));
+		}
+
+		fe->quals = NULL;
+	}
+	else if (IsA(jtree, RangeTblRef))
+	{
+		/* nothing to do */
+	}
+	else
+	{
+		elog(ERROR, "unexpected node of type %d in join tree", jtree->type);
+	}
 }
 
 /**
@@ -334,8 +388,8 @@ SubqueryToJoinWalker(Node *node, ConvertSubqueryToJoinContext *context)
 		/**
 		 * Be extremely conservative. If there are any outer vars under an or or a not expression, then give up.
 		 */
-		if (not_clause(node)
-			|| or_clause(node))
+		if (is_notclause(node)
+			|| is_orclause(node))
 		{
 			if (contain_vars_of_level_or_above(node, 1))
 			{
@@ -346,7 +400,7 @@ SubqueryToJoinWalker(Node *node, ConvertSubqueryToJoinContext *context)
 			return;
 		}
 
-		Assert(and_clause(node));
+		Assert(is_andclause(node));
 
 		BoolExpr   *bexp = (BoolExpr *) node;
 		ListCell   *lc = NULL;
@@ -593,13 +647,7 @@ convert_EXPR_to_join(PlannerInfo *root, OpExpr *opexp)
 		/**
 		 * Construct the join expression involving the new pulled up subselect.
 		 */
-		Assert(list_length(root->parse->jointree->fromlist) == 1);
-
-		/* represents the top-level join tree entry */
-		Assert(linitial(root->parse->jointree->fromlist) != NULL);
-
 		JoinExpr   *join_expr = make_join_expr(NULL, rteIndex, JOIN_INNER);
-
 		Node	   *joinQual = ctx1.joinQual;
 
 		/**
@@ -889,7 +937,7 @@ make_lasj_quals(PlannerInfo *root, SubLink *sublink, int subquery_indx)
 										  sublink->testexpr,
 										  subquery_vars);
 
-	join_pred = canonicalize_qual(make_notclause(join_pred));
+	join_pred = canonicalize_qual(make_notclause(join_pred), false);
 
 	Assert(join_pred != NULL);
 	return (Node *) join_pred;
@@ -1182,6 +1230,91 @@ find_nonnullable_vars_walker(Node *node, NonNullableVarsContext *context)
 }
 
 
+/*
+ * This function is used to determine whether the parameters of an expression in
+ * ALL Sublink can be NULL.
+ */
+static bool
+is_param_nullable(Node *node, Query *query, Value *oprname)
+{
+	bool result = false;
+	NonNullableVarsContext context;
+	Expr *expr;
+	ListCell *lc;
+	Expr *arg;
+
+	Assert(query);
+	context.query = query;
+	context.nonNullableVars = NIL;
+
+	/* Find nullable vars in the jointree */
+	expression_tree_walker((Node *) query->jointree, find_nonnullable_vars_walker, &context);
+
+	/*
+	 * A null value "not in / > all / < all" a non-empty set, the result is
+	 * always false, but a null value "not in / > all / < all" a empty set, the
+	 * result is always true. So if the param is nullable, we should not make
+	 * the locus as "Partitioned".
+	 * If the sql is "... a not in (select ...)", the node should be a BoolExpr.
+	 * if the sql is "... a < all (select ...), the node should be a OpExpr"
+	 */
+	if (nodeTag(node) == T_BoolExpr)
+	{
+		if(((BoolExpr *) node)->boolop != NOT_EXPR)
+			return false;
+		expr = lfirst(list_head(((BoolExpr*) node)->args));
+	}
+	else if (nodeTag(node) == T_OpExpr)
+	{
+		if(strcmp(oprname->val.str, "=") == 0)
+			return false;
+		expr = (Expr *) node;
+	}
+	else
+		return true;
+
+	if (nodeTag(expr) != T_OpExpr)
+		return true;
+
+	foreach(lc, ((OpExpr*)expr)->args)
+	{
+		arg = lfirst(lc);
+
+		if (nodeTag(arg) == T_RelabelType)
+			arg = ((RelabelType*)arg)->arg;
+
+		if (nodeTag(arg) == T_Param)
+			continue;
+		else if (nodeTag(arg) == T_Const)
+		{
+			/*
+			 * Is the constant entry in the targetlist null?
+			 */
+			Const	   *constant = (Const *) arg;
+
+			/*
+			 * Note: the 'dummy' column is not NULL, so we don't need any special handling for it
+			 */
+			if (constant->constisnull == true)
+				result = true;
+		}
+		else if (nodeTag(arg) == T_Var)
+		{
+			Var		   *var = (Var *) arg;
+
+			/* Was this var determined to be non-nullable? */
+			if (!list_member(context.nonNullableVars, var))
+			{
+				result = true;
+			}
+		}
+		else
+			result = true;
+	}
+
+	return result;
+}
+
 /**
  * This method determines if the targetlist of a query is nullable.
  * Consider a query of the form: select t1.x, t2.y from t1, t2 where t1.x > 5
@@ -1303,15 +1436,18 @@ convert_IN_to_antijoin(PlannerInfo *root, SubLink *sublink,
 		cdbsubselect_drop_orderby(subselect);
 		cdbsubselect_drop_distinct(subselect);
 
-		Assert(list_length(parse->jointree->fromlist) == 1);
-
 		int			subq_indx = add_notin_subquery_rte(parse, subselect);
 		bool		inner_nullable = is_targetlist_nullable(subselect);
+
+		ListCell   *lc = list_head(sublink->operName);
+		bool		outer_nullable = is_param_nullable(sublink->testexpr,
+										   root->parse,
+										   lc? list_head(sublink->operName)->data.ptr_value : NULL);
 		JoinExpr   *join_expr = make_join_expr(NULL, subq_indx, JOIN_LASJ_NOTIN);
 
 		join_expr->quals = make_lasj_quals(root, sublink, subq_indx);
 
-		if (inner_nullable)
+		if (inner_nullable || outer_nullable)
 		{
 			join_expr->quals = add_null_match_clause(join_expr->quals);
 		}

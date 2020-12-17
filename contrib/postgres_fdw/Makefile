@@ -5,12 +5,12 @@ OBJS = postgres_fdw.o option.o deparse.o connection.o shippable.o $(WIN32RES)
 PGFILEDESC = "postgres_fdw - foreign data wrapper for PostgreSQL"
 
 PG_CPPFLAGS = -I$(libpq_srcdir)
-SHLIB_LINK_INTERNAL = $(libpq)
+SHLIB_LINK_INTERNAL = -Wl,--exclude-libs=libpq.a -Wl,-Bstatic $(libpq) -Wl,-Bdynamic
 
 EXTENSION = postgres_fdw
 DATA = postgres_fdw--1.0.sql
 
-REGRESS = postgres_fdw
+REGRESS = postgres_fdw gp_postgres_fdw
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

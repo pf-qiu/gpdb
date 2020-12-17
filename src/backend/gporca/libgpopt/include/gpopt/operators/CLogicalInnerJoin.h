@@ -16,121 +16,100 @@
 
 namespace gpopt
 {
-	// fwd declaration
-	class CColRefSet;
-	
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CLogicalInnerJoin
-	//
-	//	@doc:
-	//		Inner join operator
-	//
-	//---------------------------------------------------------------------------
-	class CLogicalInnerJoin : public CLogicalJoin
+// fwd declaration
+class CColRefSet;
+
+//---------------------------------------------------------------------------
+//	@class:
+//		CLogicalInnerJoin
+//
+//	@doc:
+//		Inner join operator
+//
+//---------------------------------------------------------------------------
+class CLogicalInnerJoin : public CLogicalJoin
+{
+private:
+public:
+	CLogicalInnerJoin(const CLogicalInnerJoin &) = delete;
+
+	// ctor
+	explicit CLogicalInnerJoin(CMemoryPool *mp);
+
+	// dtor
+	~CLogicalInnerJoin() override = default;
+
+
+	// ident accessors
+	EOperatorId
+	Eopid() const override
 	{
-		private:
+		return EopLogicalInnerJoin;
+	}
 
-			// private copy ctor
-			CLogicalInnerJoin(const CLogicalInnerJoin &);
+	// return a string for operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CLogicalInnerJoin";
+	}
 
-		public:
+	//-------------------------------------------------------------------------------------
+	// Derived Relational Properties
+	//-------------------------------------------------------------------------------------
 
-			// ctor
-			explicit
-			CLogicalInnerJoin(CMemoryPool *mp);
+	// derive not nullable columns
+	CColRefSet *
+	DeriveNotNullColumns(CMemoryPool *mp,
+						 CExpressionHandle &exprhdl) const override
+	{
+		return PcrsDeriveNotNullCombineLogical(mp, exprhdl);
+	}
 
-			// dtor
-			virtual ~CLogicalInnerJoin() 
-			{}
+	// derive max card
+	CMaxCard DeriveMaxCard(CMemoryPool *mp,
+						   CExpressionHandle &exprhdl) const override;
 
+	// derive constraint property
+	CPropConstraint *
+	DerivePropertyConstraint(CMemoryPool *mp,
+							 CExpressionHandle &exprhdl) const override
+	{
+		return PpcDeriveConstraintFromPredicates(mp, exprhdl);
+	}
 
-			// ident accessors
-			virtual 
-			EOperatorId Eopid() const
-			{
-				return EopLogicalInnerJoin;
-			}
-			
-			// return a string for operator name
-			virtual 
-			const CHAR *SzId() const
-			{
-				return "CLogicalInnerJoin";
-			}
+	//-------------------------------------------------------------------------------------
+	// Transformations
+	//-------------------------------------------------------------------------------------
 
-			//-------------------------------------------------------------------------------------
-			// Derived Relational Properties
-			//-------------------------------------------------------------------------------------
+	// candidate set of xforms
+	CXformSet *PxfsCandidates(CMemoryPool *mp) const override;
 
-			// derive not nullable columns
-			virtual
-			CColRefSet *DeriveNotNullColumns
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PcrsDeriveNotNullCombineLogical(mp, exprhdl);
-			}
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
+	//-------------------------------------------------------------------------------------
 
-			// derive max card
-			virtual
-			CMaxCard DeriveMaxCard(CMemoryPool *mp, CExpressionHandle &exprhdl) const;
+	// conversion function
+	static CLogicalInnerJoin *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopLogicalInnerJoin == pop->Eopid());
 
-			// derive constraint property
-			virtual
-			CPropConstraint *DerivePropertyConstraint
-				(
-				CMemoryPool *mp,
-				CExpressionHandle &exprhdl
-				)
-				const
-			{
-				return PpcDeriveConstraintFromPredicates(mp, exprhdl);
-			}
+		return dynamic_cast<CLogicalInnerJoin *>(pop);
+	}
 
-			//-------------------------------------------------------------------------------------
-			// Transformations
-			//-------------------------------------------------------------------------------------
-
-			// candidate set of xforms
-			CXformSet *PxfsCandidates(CMemoryPool *mp) const;
-
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-			//-------------------------------------------------------------------------------------
-
-			// conversion function
-			static
-			CLogicalInnerJoin *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopLogicalInnerJoin == pop->Eopid());
-				
-				return dynamic_cast<CLogicalInnerJoin*>(pop);
-			}
-
-			// determine if an innerJoin group expression has
-			// less conjuncts than another
-			static
-			BOOL FFewerConj
-				(
-				CMemoryPool *mp,
-				CGroupExpression *pgexprFst,
-				CGroupExpression *pgexprSnd
-				);
+	// determine if an innerJoin group expression has
+	// less conjuncts than another
+	static BOOL FFewerConj(CMemoryPool *mp, CGroupExpression *pgexprFst,
+						   CGroupExpression *pgexprSnd);
 
 
-	}; // class CLogicalInnerJoin
+};	// class CLogicalInnerJoin
 
-}
+}  // namespace gpopt
 
 
-#endif // !GPOS_CLogicalInnerJoin_H
+#endif	// !GPOS_CLogicalInnerJoin_H
 
 // EOF

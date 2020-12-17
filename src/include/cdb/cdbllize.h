@@ -4,7 +4,7 @@
  *	  definitions for parallelizing a PostgreSQL sequential plan tree.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -17,8 +17,10 @@
 #define CDBLLIZE_H
 
 #include "nodes/nodes.h"
+#include "nodes/pathnodes.h"
 #include "nodes/plannodes.h"
-#include "nodes/relation.h"
+
+extern CdbPathLocus cdbllize_get_final_locus(PlannerInfo *root, PathTarget *target);
 
 extern Path *cdbllize_adjust_top_path(PlannerInfo *root, Path *best_path, PlanSlice *topslice, bool isParallelCursor);
 extern Path *cdbllize_adjust_init_plan_path(PlannerInfo *root, Path *best_path);

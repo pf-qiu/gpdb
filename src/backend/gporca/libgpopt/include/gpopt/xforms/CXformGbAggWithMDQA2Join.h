@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformGbAggWithMDQA2Join.h
@@ -17,76 +17,66 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformGbAggWithMDQA2Join
-	//
-	//	@doc:
-	//		Transform a GbAgg with multiple distinct qualified aggregates (MDQAs)
-	//		to a join tree with single DQA leaves
-	//
-	//---------------------------------------------------------------------------
-	class CXformGbAggWithMDQA2Join : public CXformExploration
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformGbAggWithMDQA2Join
+//
+//	@doc:
+//		Transform a GbAgg with multiple distinct qualified aggregates (MDQAs)
+//		to a join tree with single DQA leaves
+//
+//---------------------------------------------------------------------------
+class CXformGbAggWithMDQA2Join : public CXformExploration
+{
+private:
+	static CExpression *PexprMDQAs2Join(CMemoryPool *mp, CExpression *pexpr);
+
+	// expand GbAgg with multiple distinct aggregates into a join of single distinct
+	// aggregates
+	static CExpression *PexprExpandMDQAs(CMemoryPool *mp, CExpression *pexpr);
+
+	// main transformation function driver
+	static CExpression *PexprTransform(CMemoryPool *mp, CExpression *pexpr);
+
+public:
+	CXformGbAggWithMDQA2Join(const CXformGbAggWithMDQA2Join &) = delete;
+
+	// ctor
+	explicit CXformGbAggWithMDQA2Join(CMemoryPool *mp);
+
+	// dtor
+	~CXformGbAggWithMDQA2Join() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfGbAggWithMDQA2Join;
+	}
 
-		private:
+	// return a string for xform name
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformGbAggWithMDQA2Join";
+	}
 
-			// private copy ctor
-			CXformGbAggWithMDQA2Join(const CXformGbAggWithMDQA2Join &);
+	// compute xform promise for a given expression handle
+	EXformPromise Exfp(CExpressionHandle &exprhdl) const override;
 
-			static
-			CExpression *PexprMDQAs2Join(CMemoryPool *mp, CExpression *pexpr);
+	// actual transform
+	void Transform(CXformContext *, CXformResult *,
+				   CExpression *) const override;
 
-			// expand GbAgg with multiple distinct aggregates into a join of single distinct aggregates
-			static
-			CExpression *PexprExpandMDQAs(CMemoryPool *mp, CExpression *pexpr);
+	// return true if xform should be applied only once
+	BOOL IsApplyOnce() override;
 
-			// main transformation function driver
-			static
-			CExpression *PexprTransform(CMemoryPool *mp, CExpression *pexpr);
+};	// class CXformGbAggWithMDQA2Join
 
-		public:
+}  // namespace gpopt
 
-			// ctor
-			explicit
-			CXformGbAggWithMDQA2Join(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformGbAggWithMDQA2Join()
-			{}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfGbAggWithMDQA2Join;
-			}
-
-			// return a string for xform name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformGbAggWithMDQA2Join";
-			}
-
-			// compute xform promise for a given expression handle
-			virtual
-			EXformPromise Exfp(CExpressionHandle &exprhdl) const;
-
-			// actual transform
-			void Transform(CXformContext *, CXformResult *, CExpression *) const;
-
-			// return true if xform should be applied only once
-			virtual
-			BOOL IsApplyOnce();
-
-	}; // class CXformGbAggWithMDQA2Join
-
-}
-
-#endif // !GPOPT_CXformGbAggWithMDQA2Join_H
+#endif	// !GPOPT_CXformGbAggWithMDQA2Join_H
 
 // EOF

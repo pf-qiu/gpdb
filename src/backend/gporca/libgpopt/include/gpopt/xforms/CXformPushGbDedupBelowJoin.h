@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2013 Pivotal, Inc.
+//	Copyright (C) 2013 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CXformPushGbDedupBelowJoin.h
@@ -16,52 +16,45 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CXformPushGbDedupBelowJoin
-	//
-	//	@doc:
-	//		Push dedup group by below join transform
-	//
-	//---------------------------------------------------------------------------
-	class CXformPushGbDedupBelowJoin : public CXformPushGbBelowJoin
+//---------------------------------------------------------------------------
+//	@class:
+//		CXformPushGbDedupBelowJoin
+//
+//	@doc:
+//		Push dedup group by below join transform
+//
+//---------------------------------------------------------------------------
+class CXformPushGbDedupBelowJoin : public CXformPushGbBelowJoin
+{
+private:
+public:
+	CXformPushGbDedupBelowJoin(const CXformPushGbDedupBelowJoin &) = delete;
+
+	// ctor
+	explicit CXformPushGbDedupBelowJoin(CMemoryPool *mp);
+
+	// dtor
+	~CXformPushGbDedupBelowJoin() override = default;
+
+	// ident accessors
+	EXformId
+	Exfid() const override
 	{
+		return ExfPushGbDedupBelowJoin;
+	}
 
-		private:
+	const CHAR *
+	SzId() const override
+	{
+		return "CXformPushGbDedupBelowJoin";
+	}
 
-			// private copy ctor
-			CXformPushGbDedupBelowJoin(const CXformPushGbDedupBelowJoin &);
+};	// class CXformPushGbDedupBelowJoin
 
-		public:
+}  // namespace gpopt
 
-			// ctor
-			explicit
-			CXformPushGbDedupBelowJoin(CMemoryPool *mp);
-
-			// dtor
-			virtual
-			~CXformPushGbDedupBelowJoin()
-			{}
-
-			// ident accessors
-			virtual
-			EXformId Exfid() const
-			{
-				return ExfPushGbDedupBelowJoin;
-			}
-
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CXformPushGbDedupBelowJoin";
-			}
-
-	}; // class CXformPushGbDedupBelowJoin
-
-}
-
-#endif // !GPOPT_CXformPushGbDedupBelowJoin_H
+#endif	// !GPOPT_CXformPushGbDedupBelowJoin_H
 
 // EOF

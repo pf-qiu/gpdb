@@ -17,51 +17,47 @@
 
 namespace gpnaucrates
 {
-	using namespace gpos;
-	using namespace gpmd;
+using namespace gpos;
+using namespace gpmd;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		IBucket
-	//
-	//	@doc:
-	//		Simple bucket interface. Has a lower point and upper point
-	//
-	//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+//	@class:
+//		IBucket
+//
+//	@doc:
+//		Simple bucket interface. Has a lower point and upper point
+//
+//---------------------------------------------------------------------------
 
-	class IBucket
+class IBucket
+{
+private:
+public:
+	IBucket &operator=(const IBucket &) = delete;
+
+	IBucket(const IBucket &) = delete;
+
+	// c'tor
+	IBucket() = default;
+
+	// lower point
+	virtual CPoint *GetLowerBound() const = 0;
+
+	// upper point
+	virtual CPoint *GetUpperBound() const = 0;
+
+	// is bucket singleton?
+	BOOL
+	IsSingleton() const
 	{
-		private:
+		return GetLowerBound()->Equals(GetUpperBound());
+	}
 
-			// private copy constructor
-			IBucket(const IBucket &);
+	// d'tor
+	virtual ~IBucket() = default;
+};
+}  // namespace gpnaucrates
 
-			// private assignment operator
-			IBucket& operator=(const IBucket &);
-
-		public:
-			// c'tor
-			IBucket() {}
-
-			// lower point
-			virtual
-			CPoint *GetLowerBound() const = 0;
-
-			// upper point
-			virtual
-			CPoint *GetUpperBound() const = 0;
-
-			// is bucket singleton?
-			BOOL IsSingleton() const
-			{
-				return GetLowerBound()->Equals(GetUpperBound());
-			}
-
-			// d'tor
-			virtual ~IBucket() {}
-	};
-}
-
-#endif // !GPNAUCRATES_IBucket_H
+#endif	// !GPNAUCRATES_IBucket_H
 
 // EOF

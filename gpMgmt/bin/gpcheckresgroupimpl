@@ -1,12 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
-# Copyright (c) 2017, Pivotal Software Inc.
+# Copyright (c) 2017, VMware, Inc. or its affiliates.
 #
 
 import os
 import sys
 from gppylib.commands import gp
 from gppylib import gpversion
+from functools import reduce
 
 gpverstr = gp.GpVersion.local("", os.getenv("GPHOME"))
 gpver = gpversion.GpVersion(gpverstr)
@@ -75,6 +76,8 @@ class cgroup(object):
             self.validate_permission("cpuset", "gpdb/cpuset.cpus", "rw")
             self.validate_permission("cpuset", "gpdb/cpuset.mems", "rw")
 
+            self.validate_comp_hierarchy();
+
     def die(self, msg):
         exit(self.impl + self.error_prefix + msg)
 
@@ -91,7 +94,7 @@ class cgroup(object):
             fullpath = os.path.join(self.mount_point, comp, compdir, path)
             pathtype = path[-1] == "/" and "directory" or "file"
             modebits = reduce(lambda x, y: x | y,
-                              map(lambda x: self.tab[x], mode), 0)
+                              [self.tab[x] for x in mode], 0)
 
             if not os.path.exists(fullpath):
                 self.die("%s '%s' does not exist" % (pathtype, fullpath))
@@ -99,7 +102,7 @@ class cgroup(object):
             if not os.access(fullpath, modebits):
                 self.die("%s '%s' permission denied: require permission '%s'" \
                          % (pathtype, fullpath, mode))
-        except IOError, e:
+        except IOError as e:
             self.die("can't check permission on %s '%s': %s" \
                      % (pathtype, fullpath, str(e)))
 
@@ -122,6 +125,27 @@ class cgroup(object):
                 return False
 
         return True
+
+    def validate_comp_hierarchy(self):
+        """
+        Validate the mount hierarchy of cpu and cpuset subsystem.
+
+        Raise an error if cpu and cpuset are mounted on the same hierarchy.
+        """
+
+        path = "/proc/1/cgroup"
+        if not os.path.exists(path):
+            self.die("can't check component mount hierarchy: \
+                     file '/proc/1/cgroup' doesn't exist")
+
+        for line in open(path):
+            line = line.strip()
+            compid, compnames, comppath = line.split(":")
+            if not compnames or '=' in compnames:
+                continue
+            complist = compnames.split(',')
+            if "cpu" in complist and "cpuset" in complist:
+                self.die("can't mount 'cpu' and 'cpuset' on the same hierarchy")
 
     def detect_cgroup_mount_point(self):
         proc_mounts_path = "/proc/self/mounts"

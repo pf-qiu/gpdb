@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2014 Pivotal Inc.
+//	Copyright (C) 2014 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CDatumInt2GPDB.h
@@ -18,83 +18,68 @@
 
 namespace gpnaucrates
 {
-
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CDatumInt2GPDB
-	//
-	//	@doc:
-	//		GPDB-specific int2 representation
-	//
-	//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+//	@class:
+//		CDatumInt2GPDB
+//
+//	@doc:
+//		GPDB-specific int2 representation
+//
+//---------------------------------------------------------------------------
 class CDatumInt2GPDB : public IDatumInt2
 {
+private:
+	// type information
+	IMDId *m_mdid;
 
-	private:
+	// integer value
+	SINT m_val;
 
-		// type information
-		IMDId *m_mdid;
-	
-		// integer value
-		SINT m_val;
+	// is null
+	BOOL m_is_null;
 
-		// is null
-		BOOL m_is_null;
+public:
+	CDatumInt2GPDB(const CDatumInt2GPDB &) = delete;
 
-		// private copy ctor
-		CDatumInt2GPDB(const CDatumInt2GPDB &);
-		
-	public:
+	// ctors
+	CDatumInt2GPDB(CSystemId sysid, SINT val, BOOL is_null = false);
+	CDatumInt2GPDB(IMDId *mdid, SINT val, BOOL is_null = false);
 
-		// ctors
-		CDatumInt2GPDB(CSystemId sysid, SINT val, BOOL is_null = false);
-		CDatumInt2GPDB(IMDId *mdid, SINT val, BOOL is_null = false);
+	// dtor
+	~CDatumInt2GPDB() override;
 
-		// dtor
-		virtual
-		~CDatumInt2GPDB();
+	// accessor of metadata type id
+	IMDId *MDId() const override;
 
-		// accessor of metadata type id
-		virtual
-		IMDId *MDId() const;
+	// accessor of size
+	ULONG Size() const override;
 
-		// accessor of size
-		virtual
-		ULONG Size() const;
+	// accessor of integer value
+	SINT Value() const override;
 
-		// accessor of integer value
-		virtual
-		SINT Value() const;
+	// accessor of is null
+	BOOL IsNull() const override;
 
-		// accessor of is null
-		virtual
-		BOOL IsNull() const;
+	// return string representation
+	const CWStringConst *GetStrRepr(CMemoryPool *mp) const override;
 
-		// return string representation
-		virtual
-		const CWStringConst *GetStrRepr(CMemoryPool *mp) const;
+	// hash function
+	ULONG HashValue() const override;
 
-		// hash function
-		virtual
-		ULONG HashValue() const;
+	// match function for datums
+	BOOL Matches(const IDatum *) const override;
 
-		// match function for datums
-		virtual
-		BOOL Matches(const IDatum *) const;
+	// copy datum
+	IDatum *MakeCopy(CMemoryPool *mp) const override;
 
-		// copy datum
-		virtual
-		IDatum *MakeCopy(CMemoryPool *mp) const;
-		
-		// print function
-		virtual
-		IOstream &OsPrint(IOstream &os) const;
+	// print function
+	IOstream &OsPrint(IOstream &os) const override;
 
-	}; // class CDatumInt2GPDB
+};	// class CDatumInt2GPDB
 
-}
+}  // namespace gpnaucrates
 
 
-#endif // !GPNAUCRATES_CDatumInt2GPDB_H
+#endif	// !GPNAUCRATES_CDatumInt2GPDB_H
 
 // EOF

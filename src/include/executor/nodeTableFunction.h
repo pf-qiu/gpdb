@@ -3,7 +3,7 @@
  * nodeTableFunction.h
  *
  * Portions Copyright (c) 2011 - present, EMC
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  *
  * IDENTIFICATION
@@ -17,7 +17,6 @@
 
 #include "nodes/execnodes.h"
 
-extern TupleTableSlot *ExecTableFunction(TableFunctionState *repeatstate);
 extern TableFunctionState *ExecInitTableFunction(TableFunctionScan *node, 
 												 EState *estate, 
 												 int eflags);

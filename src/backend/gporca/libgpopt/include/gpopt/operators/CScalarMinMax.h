@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------
 //	Greenplum Database
-//	Copyright (C) 2015 Pivotal Inc.
+//	Copyright (C) 2015 VMware, Inc. or its affiliates.
 //
 //	@filename:
 //		CScalarMinMax.h
@@ -21,139 +21,122 @@
 
 namespace gpopt
 {
-	using namespace gpos;
+using namespace gpos;
 
-	//---------------------------------------------------------------------------
-	//	@class:
-	//		CScalarMinMax
-	//
-	//	@doc:
-	//		Scalar MinMax operator
-	//
-	//---------------------------------------------------------------------------
-	class CScalarMinMax : public CScalar
+//---------------------------------------------------------------------------
+//	@class:
+//		CScalarMinMax
+//
+//	@doc:
+//		Scalar MinMax operator
+//
+//---------------------------------------------------------------------------
+class CScalarMinMax : public CScalar
+{
+public:
+	// types of operations: either min or max
+	enum EScalarMinMaxType
 	{
+		EsmmtMin,
+		EsmmtMax,
+		EsmmtSentinel
+	};
 
-		public:
+private:
+	// return type
+	IMDId *m_mdid_type;
 
-			// types of operations: either min or max
-			enum EScalarMinMaxType
-				{
-					EsmmtMin,
-					EsmmtMax,
-					EsmmtSentinel
-				};
+	// min/max type
+	EScalarMinMaxType m_esmmt;
 
-		private:
+	// is operator return type BOOL?
+	BOOL m_fBoolReturnType;
 
-			// return type
-			IMDId *m_mdid_type;
+public:
+	CScalarMinMax(const CScalarMinMax &) = delete;
 
-			// min/max type
-			EScalarMinMaxType m_esmmt;
+	// ctor
+	CScalarMinMax(CMemoryPool *mp, IMDId *mdid_type, EScalarMinMaxType esmmt);
 
-			// is operator return type BOOL?
-			BOOL m_fBoolReturnType;
+	// dtor
+	~CScalarMinMax() override;
 
-			// private copy ctor
-			CScalarMinMax(const CScalarMinMax &);
+	// ident accessors
+	EOperatorId
+	Eopid() const override
+	{
+		return EopScalarMinMax;
+	}
 
-		public:
+	// operator name
+	const CHAR *
+	SzId() const override
+	{
+		return "CScalarMinMax";
+	}
 
-			// ctor
-			CScalarMinMax(CMemoryPool *mp, IMDId *mdid_type, EScalarMinMaxType esmmt);
+	// return type
+	IMDId *
+	MdidType() const override
+	{
+		return m_mdid_type;
+	}
 
-			// dtor
-			virtual
-			~CScalarMinMax();
+	// min/max type
+	EScalarMinMaxType
+	Esmmt() const
+	{
+		return m_esmmt;
+	}
 
-			// ident accessors
-			virtual
-			EOperatorId Eopid() const
-			{
-				return EopScalarMinMax;
-			}
+	// operator specific hash function
+	ULONG HashValue() const override;
 
-			// operator name
-			virtual
-			const CHAR *SzId() const
-			{
-				return "CScalarMinMax";
-			}
+	// match function
+	BOOL Matches(COperator *pop) const override;
 
-			// return type
-			virtual
-			IMDId *MdidType() const
-			{
-				return m_mdid_type;
-			}
+	// sensitivity to order of inputs
+	BOOL
+	FInputOrderSensitive() const override
+	{
+		return false;
+	}
 
-			// min/max type
-			EScalarMinMaxType Esmmt() const
-			{
-				return m_esmmt;
-			}
+	// return a copy of the operator with remapped columns
+	COperator *
+	PopCopyWithRemappedColumns(CMemoryPool *,		//mp,
+							   UlongToColRefMap *,	//colref_mapping,
+							   BOOL					//must_exist
+							   ) override
+	{
+		return PopCopyDefault();
+	}
 
-			// operator specific hash function
-			virtual
-			ULONG HashValue() const;
+	// boolean expression evaluation
+	EBoolEvalResult
+	Eber(ULongPtrArray *pdrgpulChildren) const override
+	{
+		// MinMax returns Null only if all children are Null
+		return EberNullOnAllNullChildren(pdrgpulChildren);
+	}
 
-			// match function
-			virtual
-			BOOL Matches(COperator *pop) const;
+	// print
+	IOstream &OsPrint(IOstream &os) const override;
 
-			// sensitivity to order of inputs
-			virtual
-			BOOL FInputOrderSensitive() const
-			{
-				return false;
-			}
+	// conversion function
+	static CScalarMinMax *
+	PopConvert(COperator *pop)
+	{
+		GPOS_ASSERT(NULL != pop);
+		GPOS_ASSERT(EopScalarMinMax == pop->Eopid());
 
-			// return a copy of the operator with remapped columns
-			virtual
-			COperator *PopCopyWithRemappedColumns
-						(
-						CMemoryPool *, //mp,
-						UlongToColRefMap *, //colref_mapping,
-						BOOL //must_exist
-						)
-			{
-				return PopCopyDefault();
-			}
+		return dynamic_cast<CScalarMinMax *>(pop);
+	}
 
-			// boolean expression evaluation
-			virtual
-			EBoolEvalResult Eber
-				(
-				ULongPtrArray *pdrgpulChildren
-				)
-				const
-			{
-				// MinMax returns Null only if all children are Null
-				return EberNullOnAllNullChildren(pdrgpulChildren);
-			}
+};	// class CScalarMinMax
 
-			// print
-			virtual
-			IOstream &OsPrint(IOstream &os) const;
+}  // namespace gpopt
 
-			// conversion function
-			static
-			CScalarMinMax *PopConvert
-				(
-				COperator *pop
-				)
-			{
-				GPOS_ASSERT(NULL != pop);
-				GPOS_ASSERT(EopScalarMinMax == pop->Eopid());
-
-				return dynamic_cast<CScalarMinMax*>(pop);
-			}
-
-	}; // class CScalarMinMax
-
-}
-
-#endif // !GPOPT_CScalarMinMax_H
+#endif	// !GPOPT_CScalarMinMax_H
 
 // EOF

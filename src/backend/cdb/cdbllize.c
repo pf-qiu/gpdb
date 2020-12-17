@@ -4,7 +4,7 @@
  *	  Parallelize a PostgreSQL sequential plan tree.
  *
  * Portions Copyright (c) 2005-2008, Greenplum inc
- * Portions Copyright (c) 2012-Present Pivotal Software, Inc.
+ * Portions Copyright (c) 2012-Present VMware, Inc. or its affiliates.
  *
  * This file contains functions to process plan tree, at various stages in
  * planning, to produce a parallelize MPP plan. Outline of the stages,
@@ -65,7 +65,6 @@
 
 #include "optimizer/paths.h"
 #include "optimizer/planmain.h" /* for make_result() */
-#include "optimizer/var.h"
 #include "parser/parsetree.h"	/* for rt_fetch() */
 #include "nodes/makefuncs.h"	/* for makeTargetEntry() */
 #include "utils/guc.h"			/* for Debug_pretty_print */
@@ -299,6 +298,72 @@ get_partitioned_policy_from_path(PlannerInfo *root, Path *path)
 }
 
 /*
+ * Get a locus that represents the desired distribution of the query result.
+ *
+ * This is a stripped down version of the logic in cdbllize_adjut_top_path(),
+ * used to hint the planner on where the result is needed. Sometimes, the
+ * final distribution is not representable as a locus, a Null locus
+ * returned in that case.
+ *
+ * TODO: This only handles a few cases. For example, INSERT INTO SELECT ...
+ * is not handled, because the parser injects a subquery for ti which makes
+ * it tricky.
+ */
+CdbPathLocus
+cdbllize_get_final_locus(PlannerInfo *root, PathTarget *target)
+{
+	CdbPathLocus nullLocus;
+	Query	   *query = root->parse;
+
+	if (query->commandType == CMD_SELECT &&
+		(query->parentStmtType == PARENTSTMTTYPE_CTAS ||
+		 query->parentStmtType == PARENTSTMTTYPE_REFRESH_MATVIEW))
+	{
+		/* CREATE TABLE AS or SELECT INTO or REFERSH MATERIALIZED VIEW */
+		GpPolicy   *intoPolicy = query->intoPolicy;
+
+		if (intoPolicy != NULL)
+		{
+			Assert(intoPolicy->ptype != POLICYTYPE_ENTRY);
+			Assert(intoPolicy->nattrs >= 0);
+			Assert(intoPolicy->nattrs <= MaxPolicyAttributeNumber);
+
+			if (intoPolicy->ptype == POLICYTYPE_PARTITIONED &&
+				intoPolicy->nattrs > 0)
+			{
+				return cdbpathlocus_for_insert(root, intoPolicy, target);
+			}
+			else if (intoPolicy->ptype == POLICYTYPE_REPLICATED)
+			{
+				CdbPathLocus locus;
+
+				CdbPathLocus_MakeReplicated(&locus, intoPolicy->numsegments);
+				return locus;
+			}
+		}
+	}
+	else if (query->commandType == CMD_SELECT && query->parentStmtType == PARENTSTMTTYPE_NONE)
+	{
+		/*
+		 * Query result needs to be brought back to the QD.
+		 *
+		 * NOTE: we don't do this for RETURNING list, like cdbllize_adjust_top_path()
+		 * does below. The locus we construct here is for the plan result before
+		 * evaluating possible RETURNING clauses.
+		 */
+		CdbPathLocus entryLocus;
+
+		CdbPathLocus_MakeEntry(&entryLocus);
+
+		return entryLocus;
+	}
+
+	CdbPathLocus_MakeNull(&nullLocus);
+
+	return nullLocus;
+}
+
+/*
  * cdbllize_adjust_top_path -- Adjust top Path for MPP
  *
  * Add a Motion to the top of the query path, so that the final result
@@ -313,6 +378,8 @@ get_partitioned_policy_from_path(PlannerInfo *root, Path *path)
  * The input is a Path, produced by subquery_planner(). The result is a
  * Path, with a Motion added on top, if needed. Also, *topslice is adjusted
  * to reflect how/where the top slice needs to be executed.
+ *
+ * NB: keep cdbllize_get_final_locus() up to date with any changes here!
  */
 Path *
 cdbllize_adjust_top_path(PlannerInfo *root, Path *best_path,
@@ -1014,11 +1081,23 @@ void
 cdbllize_build_slice_table(PlannerInfo *root, Plan *top_plan,
 						   PlanSlice *top_slice)
 {
+	PlannerGlobal *glob = root->glob;
 	Query	   *query = root->parse;
 	build_slice_table_context cxt;
 	ListCell   *lc;
 	int			sliceIndex;
 	bool		all_root_slices;
+
+	/*
+	 * This can modify nodes, so the nodes we memorized earlier are no longer
+	 * valid. Clear this array just to be sure we don't accidentally use the
+	 * obsolete copies of the nodes later on.
+	 */
+	if (glob->share.shared_plans)
+	{
+		pfree(glob->share.shared_plans);
+		glob->share.shared_plans = NULL;
+	}
 
 	/* subplan_sliceIds array needs to exist, even in non-dispatcher mode */
 	root->glob->subplan_sliceIds = palloc(list_length(root->glob->subplans) * sizeof(int));
@@ -1478,9 +1557,7 @@ motion_sanity_check(PlannerInfo *root, Plan *plan)
 	elog(DEBUG5, "Motion Deadlock Sanity Check");
 
 	if (motion_sanity_walker((Node *) plan, &sanity_result))
-	{
-		Insist(0);
-	}
+		elog(ERROR, "motion sanity walker returned true");
 
 	if (sanity_result.flags & SANITY_DEADLOCK)
 		elog(ERROR, "Post-planning sanity check detected motion deadlock.");

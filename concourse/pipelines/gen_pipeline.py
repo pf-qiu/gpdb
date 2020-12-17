@@ -53,7 +53,7 @@ BASE_BRANCH = "master"  # when branching gpdb update to 7X_STABLE, 6X_STABLE, et
 SECRETS_PATH = os.path.expanduser('~/workspace/gp-continuous-integration/secrets')
 
 # Variables that govern pipeline validation
-RELEASE_VALIDATOR_JOB = ['Release_Candidate']
+RELEASE_VALIDATOR_JOB = ['Release_Candidate', 'Build_Release_Candidate_RPMs']
 JOBS_THAT_ARE_GATES = [
     'gate_icw_start',
     'gate_icw_end',
@@ -68,20 +68,14 @@ JOBS_THAT_ARE_GATES = [
 JOBS_THAT_SHOULD_NOT_BLOCK_RELEASE = (
     [
         'combine_cli_coverage',
-        'compile_gpdb_binary_swap_centos6',
+        'compile_gpdb_binary_swap_centos7',
         'compile_gpdb_clients_windows',
         'concourse_unit_tests',
-        'test_gpdb_clients_windows',
         'walrep_2',
         'madlib_build_gppkg',
-        'MADlib_Test_planner_centos6',
-        'MADlib_Test_orca_centos6',
         'MADlib_Test_planner_centos7',
         'MADlib_Test_orca_centos7',
         'Publish Server Builds',
-        'compile_gpdb_sles12',
-        'icw_gporca_sles12',
-        'icw_planner_sles12',
     ] + RELEASE_VALIDATOR_JOB + JOBS_THAT_ARE_GATES
 )
 
@@ -218,15 +212,16 @@ def gen_pipeline(args, pipeline_name, secret_files,
         'branch': git_branch,
     }
 
-    return '''fly -t {target} \
+    return '''fly --target {target} \
 set-pipeline \
--p {name} \
--c {output_path} \
--l {secrets_path}/gpdb_common-ci-secrets.yml \
+--check-creds \
+--pipeline {name} \
+--config {output_path} \
+--load-vars-from {secrets_path}/gpdb_common-ci-secrets.yml \
 {secrets} \
--v gpdb-git-remote={remote} \
--v gpdb-git-branch={branch} \
--v pipeline-name={name} \
+--var gpdb-git-remote={remote} \
+--var gpdb-git-branch={branch} \
+--var pipeline-name={name} \
 
 '''.format(**format_args)
 
@@ -299,8 +294,8 @@ def main():
         '--os_types',
         action='store',
         dest='os_types',
-        default=['centos6'],
-        choices=['centos6', 'centos7', 'ubuntu18.04', 'sles12', 'win'],
+        default=['centos7'],
+        choices=['centos7', 'ubuntu18.04', 'win'],
         nargs='+',
         help='List of OS values to support'
     )
@@ -376,7 +371,7 @@ def main():
         args.pipeline_configuration = 'prod'
 
     if args.pipeline_configuration == 'prod' or args.pipeline_configuration == 'full':
-        args.os_types = ['centos6', 'centos7', 'ubuntu18.04', 'sles12', 'win']
+        args.os_types = ['centos6', 'centos7', 'ubuntu18.04', 'win']
         args.test_sections = [
             'ICW',
             'Replication',

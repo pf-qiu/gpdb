@@ -10,7 +10,7 @@
  *	AS '$libdir/gp_session_state', 'gp_session_state_memory_entries'
  *	LANGUAGE C IMMUTABLE;
  *
- * Copyright (c) 2014-Present Pivotal Software, Inc.
+ * Copyright (c) 2014-Present VMware, Inc. or its affiliates.
  *
  * IDENTIFICATION
  *	    contrib/gp_internal_tools/gp_session_state_memory_stats.c
@@ -53,7 +53,7 @@ gp_session_state_memory_entries(PG_FUNCTION_ARGS)
 		MemoryContext oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
 		/* Build a tuple descriptor for our result type. */
-		TupleDesc tupdesc = CreateTemplateTupleDesc(NUM_SESSION_STATE_MEMORY_ELEM, false /* hasoid */);
+		TupleDesc tupdesc = CreateTemplateTupleDesc(NUM_SESSION_STATE_MEMORY_ELEM);
 
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "segid",
 				INT4OID, -1 /* typmod */, 0 /* attdim */);
