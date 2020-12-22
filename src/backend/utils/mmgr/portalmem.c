@@ -1283,10 +1283,10 @@ pg_cursor(PG_FUNCTION_ARGS)
 					   BOOLOID, -1, 0);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 5, "is_scrollable",
 					   BOOLOID, -1, 0);
-	TupleDescInitEntry(tupdesc, (AttrNumber) 6, "is_parallel",
-					   BOOLOID, -1, 0);
-	TupleDescInitEntry(tupdesc, (AttrNumber) 7, "creation_time",
+	TupleDescInitEntry(tupdesc, (AttrNumber) 6, "creation_time",
 					   TIMESTAMPTZOID, -1, 0);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 7, "is_parallel",
+					   BOOLOID, -1, 0);
 
 	/*
 	 * We put all the tuples into a tuplestore in one scan of the hashtable.
@@ -1317,8 +1317,8 @@ pg_cursor(PG_FUNCTION_ARGS)
 		values[2] = BoolGetDatum(portal->cursorOptions & CURSOR_OPT_HOLD);
 		values[3] = BoolGetDatum(portal->cursorOptions & CURSOR_OPT_BINARY);
 		values[4] = BoolGetDatum(portal->cursorOptions & CURSOR_OPT_SCROLL);
-		values[5] = BoolGetDatum(PortalIsParallelRetrieve());
-		values[6] = TimestampTzGetDatum(portal->creation_time);
+		values[5] = TimestampTzGetDatum(portal->creation_time);
+		values[6] = BoolGetDatum(PortalIsParallelRetrieve());
 
 		tuplestore_putvalues(tupstore, tupdesc, values, nulls);
 	}
