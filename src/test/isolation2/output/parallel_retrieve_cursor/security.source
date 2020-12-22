@@ -31,14 +31,12 @@ DECLARE
  endpoint_id1_3 | token_id | host_id | port_id | READY
 (3 rows)
 
--- Test: Should not change gp_session_role and gp_role in retrieve mode
-0R: set gp_session_role to 'utility';
-ERROR:  Only allow RETRIEVE statement for retrieve role
+-- Test: Should not change gp_role in retrieve mode
 0R: set gp_role to 'utility';
 ERROR:  Only allow RETRIEVE statement for retrieve role
 
 -- Test: limit all statement which is supported in utility sesssion
-0R: show gp_session_role;
+0R: show gp_role;
 ERROR:  Only allow RETRIEVE statement for retrieve role
 
 0R: begin;

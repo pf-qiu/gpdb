@@ -311,9 +311,9 @@ main(int argc, char **argv)
 	pgport = NULL;				/* port of the backend */
 	pgoptions = NULL;			/* special options to start up the backend
 								 * server */
-	pgoptions_retrieve_mode = "-c gp_session_role=retrieve";	/* specify this
-																 * connection is in the
-																 * retrieve mode */
+	pgoptions_retrieve_mode = "-c gp_role=retrieve";	/* specify this
+														 * connection is in the
+														 * retrieve mode */
 	pgtty = NULL;				/* debugging tty for the backend */
 
 	/* make a connection to the database */

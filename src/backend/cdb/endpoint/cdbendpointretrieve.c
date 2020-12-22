@@ -8,7 +8,7 @@
  *
  * To start a retrieve session, the endpoint's token is needed as the password for
  * authentication. The user should be the same as the one who declares the
- * parallel retrieve cursor. Also a runtime parameter gp_session_role=retrieve
+ * parallel retrieve cursor. Also a runtime parameter gp_role=retrieve
  * needs to be set to start the session. Besides the user and password should match,
  * the user also needs login permission. Otherwise this role is not allowed to login,
  * even with correct password.

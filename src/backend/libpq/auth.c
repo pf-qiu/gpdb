@@ -367,7 +367,7 @@ auth_failed(Port *port, int status, char *logdetail)
 }
 
 /*
- * Return true if command line contains gp_session_role=RETRIEVE
+ * Return true if command line contains gp_role=RETRIEVE
  */
 static bool
 use_retrieve_mode(char* cmd_options)
@@ -402,7 +402,7 @@ use_retrieve_mode(char* cmd_options)
 #endif
 
 	/*
-	 *  ignore other arguments, just care about gp_session_role
+	 *  ignore other arguments, just care about gp_role
 	 */
 	while ((flag = getopt(ac, av, "B:bc:C:D:d:EeFf:h:ijk:lMm:N:nOo:Pp:r:S:sTt:v:W:-:")) != -1)
 	{
@@ -428,9 +428,9 @@ use_retrieve_mode(char* cmd_options)
 					}
 
 					/*
-					 * only check if gp_session_role is set to retrieve
+					 * only check if gp_role is set to retrieve
 					 */
-					if (guc_name_compare(name, "gp_session_role") == 0)
+					if (guc_name_compare(name, "gp_role") == 0)
 					{
 						if (guc_name_compare(value, "retrieve") == 0)
 						{
@@ -610,7 +610,7 @@ ClientAuthentication(Port *port)
 
 	/*
 	 * For parallel retrieve cursor,
-	 * if gp_session_role is set to RETRIEVE mode,
+	 * if gp_role is set to RETRIEVE mode,
 	 * retrieve token authentication is performed.
 	 */
 	if (use_retrieve_mode(port->cmdline_options))

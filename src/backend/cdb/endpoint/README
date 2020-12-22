@@ -138,12 +138,12 @@ be started on each endpoint's host by using the endpoint's token as the
 session authentication password. The user of this retrieve session is the session user 
 who declares this parallel retrieve cursor. 
  
-Parameter "gp_session_role=retrieve" needs to be provided to start retrieve
+Parameter "gp_role=retrieve" needs to be provided to start retrieve
 session.
 
 Examples:
 
-$> PGOPTIONS="-c gp_session_role=retrieve" psql -h mdw -p 25432 -d postgres -U user1
+$> PGOPTIONS="-c gp_role=retrieve" psql -h mdw -p 25432 -d postgres -U user1
 Password: tk071500004015dc6da471b20417afed65
 postgres=#
 
@@ -228,7 +228,7 @@ gp_endpoints_status_info Columns:
 Examples:
 
 # Connect the segment in utility mode
-$> PGOPTIONS="-c gp_session_role=utility" psql -h mdw -p 25432 -d postgres
+$> PGOPTIONS="-c gp_role=utility" psql -h mdw -p 25432 -d postgres
 
 postgres=# select * from gp_endpoints_status_info();
              auth_token             | databaseid | senderpid | receiverpid | status | dbid | sessionid | userid |     endpointname     | cursorname
@@ -360,8 +360,8 @@ master=# SELECT * FROM GP_ENDPOINTS;
 
 Now start a retrieve session on mdw:25432:
 
-# gp_session_role=retrieve is needed as the runtime parameter
-$> PGOPTIONS="-c gp_session_role=retrieve" psql -h mdw -p 25432 -d postgres
+# gp_role=retrieve is needed as the runtime parameter
+$> PGOPTIONS="-c gp_role=retrieve" psql -h mdw -p 25432 -d postgres
 Password: tk071500004015dc6da471b20417afed65
 
 -- Retrieve all rows on this endpoint
@@ -387,7 +387,7 @@ master=# SELECT * FROM GP_ENDPOINTS;
 
 Start another retrieve session on mdw:25433
 
-$> PGOPTIONS="-c gp_session_role=retrieve" psql -h mdw -p 25432 -d postgres
+$> PGOPTIONS="-c gp_role=retrieve" psql -h mdw -p 25432 -d postgres
 Password: tk071500004015dc6da471b20417afed65
 
 -- Retrieve 1 row on this endpoint

@@ -375,7 +375,7 @@ class SQLIsolationExecutor(object):
                 self.con = self.connectdb(given_dbname=self.dbname,
                                           given_host=hostname,
                                           given_port=port,
-                                          given_opt="-c gp_session_role=retrieve",
+                                          given_opt="-c gp_role=retrieve",
                                           given_user=user,
                                           given_passwd=passwd)
             else:
