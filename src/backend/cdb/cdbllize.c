@@ -383,7 +383,7 @@ cdbllize_get_final_locus(PlannerInfo *root, PathTarget *target)
  */
 Path *
 cdbllize_adjust_top_path(PlannerInfo *root, Path *best_path,
-		PlanSlice *topslice, bool isParallelCursor)
+		PlanSlice *topslice)
 {
 	Query	   *query = root->parse;
 	GpPolicy   *targetPolicy = NULL;
@@ -593,7 +593,7 @@ cdbllize_adjust_top_path(PlannerInfo *root, Path *best_path,
 
 		if (query->commandType == CMD_SELECT || query->returningList)
 		{
-			if (!isParallelCursor)
+			if (!root->glob->is_parallel_cursor)
 			{
 				/*
 				 * Query result needs to be brought back to the QD. Ask for
@@ -626,9 +626,7 @@ cdbllize_adjust_top_path(PlannerInfo *root, Path *best_path,
 				topslice->gangType = GANGTYPE_UNALLOCATED;
 			}
 			else
-			{
 				adjust_top_path_for_parallel_retrieve_cursor(best_path, topslice);
-			}
 		}
 		else
 		{

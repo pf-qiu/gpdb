@@ -344,7 +344,6 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	PlannerConfig *config;
 	instr_time		starttime;
 	instr_time		endtime;
-	bool		isParallelCursor = false;
 
 	/*
 	 * Use ORCA only if it is enabled and we are in a master QD process.
@@ -394,6 +393,7 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	glob = makeNode(PlannerGlobal);
 
 	glob->boundParams = boundParams;
+	glob->is_parallel_cursor = !!(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE);
 	glob->subplans = NIL;
 	glob->subroots = NIL;
 	glob->rewindPlanIDs = NULL;
@@ -539,13 +539,10 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	final_rel = fetch_upper_rel(root, UPPERREL_FINAL, NULL);
 	best_path = get_cheapest_fractional_path(final_rel, tuple_fraction);
 
-	if ((cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) != 0)
-		isParallelCursor = true;
-
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
 		Assert(root->curSlice == NULL);
-		best_path = cdbllize_adjust_top_path(root, best_path, top_slice, isParallelCursor);
+		best_path = cdbllize_adjust_top_path(root, best_path, top_slice);
 	}
 
 	top_plan = create_plan(root, best_path, top_slice);
@@ -2921,10 +2918,11 @@ grouping_planner(PlannerInfo *root, bool inheritance_update,
 		 * allows the cost of the Motion to be taken into account when
 		 * deciding which path is the cheapest.
 		 */
-		if (CdbPathLocus_IsHashed(root->final_locus) ||
+		if ((CdbPathLocus_IsHashed(root->final_locus) ||
 			CdbPathLocus_IsSingleQE(root->final_locus) ||
 			CdbPathLocus_IsEntry(root->final_locus) ||
-			CdbPathLocus_IsReplicated(root->final_locus))
+			CdbPathLocus_IsReplicated(root->final_locus)) &&
+			!root->glob->is_parallel_cursor)
 		{
 			Path	   *orig_path = path;
 
