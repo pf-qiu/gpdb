@@ -1066,12 +1066,7 @@ cdb_setup(void)
 {
 	elog(DEBUG1, "Initializing Greenplum components...");
 
-	/*
-	 * RETRIEVE is used to fetch data from endpoints.
-	 * If gp_role is UTILITY or RETRIEVE,
-	 * there is no need to setup motion layer, so skip this call.
-	 */
-	if (Gp_role != GP_ROLE_UTILITY && Gp_role != GP_ROLE_RETRIEVE)
+	if (Gp_role != GP_ROLE_UTILITY)
 	{
 		ensureInterconnectAddress();
 		/* Initialize the Motion Layer IPC subsystem. */
@@ -1125,7 +1120,7 @@ cdb_cleanup(int code pg_attribute_unused(), Datum arg
 		}
 	}
 
-	if (Gp_role != GP_ROLE_UTILITY && Gp_role != GP_ROLE_RETRIEVE)
+	if (Gp_role != GP_ROLE_UTILITY)
 	{
 		/* shutdown our listener socket */
 		CleanUpMotionLayerIPC();

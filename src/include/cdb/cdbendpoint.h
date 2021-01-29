@@ -62,6 +62,9 @@ enum EndPointExecPosition
 	ENDPOINT_ON_ALL_QE
 };
 
+extern bool am_cursor_retrieve_handler;
+extern bool retrieve_connect_authenticated;
+
 /* cbdendpoint.c */
 /* Endpoint shared memory context init */
 extern Size EndpointShmemSize(void);

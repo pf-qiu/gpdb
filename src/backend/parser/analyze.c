@@ -55,6 +55,7 @@
 #include "cdb/cdbhash.h"
 #include "cdb/cdbvars.h"
 #include "cdb/cdbutil.h"
+#include "cdb/cdbendpoint.h"
 #include "catalog/gp_distribution_policy.h"
 #include "commands/defrem.h"
 #include "access/htup_details.h"
@@ -258,23 +259,12 @@ transformOptionalSelectInto(ParseState *pstate, Node *parseTree)
 {
 	Query *q;
 
-	/*
-	 * For parallel retrieve cursor, only RETRIEVE statement
-	 * is allowed for RETRIEVE role.
-	 */
-	if (Gp_role == GP_ROLE_RETRIEVE && !IsA(parseTree, RetrieveStmt))
-	{
+	if (am_cursor_retrieve_handler != IsA(parseTree, RetrieveStmt))
 		ereport(ERROR,
 				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				errmsg("Only allow RETRIEVE statement for retrieve role")));
-	}
-
-	if (Gp_role != GP_ROLE_RETRIEVE && IsA(parseTree, RetrieveStmt))
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_GP_COMMAND_ERROR),
-					errmsg("RETRIEVE command can only run in retrieve mode")));
-	}
+				errmsg("This is %sretrieve connection, but query is %sretrieve.",
+					   am_cursor_retrieve_handler ? "" : "not ",
+					   IsA(parseTree, RetrieveStmt) ? "" : "not ")));
 
 	if (IsA(parseTree, SelectStmt))
 	{

@@ -271,11 +271,6 @@ HandleFunctionRequest(StringInfo msgBuf)
 	bool		was_logged = false;
 	char		msec_str[32];
 
-	if (Gp_role == GP_ROLE_RETRIEVE)
-		ereport(ERROR,
-				(errcode(ERRCODE_GP_COMMAND_ERROR),
-				 errmsg("function call is not allowed in retrieve mode")));
-
 	/*
 	 * We only accept COMMIT/ABORT if we are in an aborted transaction, and
 	 * COMMIT/ABORT cannot be executed through the fastpath interface.

@@ -6,12 +6,12 @@
  * retrieve session directly on QE. A retrieve session is a special mode session
  * on QE which can only execute endpoint related statements.
  *
- * To start a retrieve session, the endpoint's token is needed as the password for
- * authentication. The user should be the same as the one who declares the
- * parallel retrieve cursor. Also a runtime parameter gp_role=retrieve
- * needs to be set to start the session. Besides the user and password should match,
- * the user also needs login permission. Otherwise this role is not allowed to login,
- * even with correct password.
+ * To start a retrieve session, the endpoint's token is needed as the password
+ * for authentication. The user should be the same as the one who declares the
+ * parallel retrieve cursor. Also the retrieve GPCONN_TYPE needs to be set to
+ * start the session, Besides the user and password should match, the user also
+ * needs login permission. Otherwise this role is not allowed to login, even
+ * with correct password.
  *
  * As long as login succeeds, the retrieve
  * session will be able to retrieve from all endpoints which have the same token.
@@ -54,6 +54,9 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
+
+bool am_cursor_retrieve_handler = false;
+bool retrieve_connect_authenticated = false;
 
 /*
  * For receiver, we have a hash table to store connected endpoint's shared message

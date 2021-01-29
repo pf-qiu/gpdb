@@ -360,7 +360,7 @@ class SQLIsolationExecutor(object):
                                           given_user=user,
                                           given_passwd=passwd)
             elif self.mode == "standby":
-                # Connect to standby even when it's role is recorded
+                # Connect to standby even when its role is recorded
                 # as mirror.  This is useful for scenarios where a
                 # test needs to promote a standby without using
                 # gpactivatestandby.
@@ -375,7 +375,7 @@ class SQLIsolationExecutor(object):
                 self.con = self.connectdb(given_dbname=self.dbname,
                                           given_host=hostname,
                                           given_port=port,
-                                          given_opt="-c gp_role=retrieve",
+                                          given_opt="-c gp_retrieve_conn=true",
                                           given_user=user,
                                           given_passwd=passwd)
             else:

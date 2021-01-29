@@ -66,6 +66,7 @@
 #include "utils/sharedsnapshot.h"  /*SharedLocalSnapshotSlot*/
 
 #include "cdb/cdblocaldistribxact.h"
+#include "cdb/cdbendpoint.h" /* am_cursor_retrieve_handler */
 #include "cdb/cdbtm.h"
 #include "cdb/cdbvars.h"  /*Gp_is_writer*/
 #include "port/atomics.h"
@@ -341,12 +342,11 @@ InitProcess(void)
 	PGPROC	   *volatile *procgloballist;
 
 	/*
-	 * WAL sender, FTS handler and FTS daemon processes are marked
-	 * as GP_ROLE_UTILITY to prevent unwanted GP_ROLE_DISPATCH MyProc settings
-	 * such as mppSessionId being valid and mppIsWriter set to true.
+	 * WAL sender, etc are marked as GP_ROLE_UTILITY to prevent unwanted
+	 * GP_ROLE_DISPATCH MyProc settings such as mppSessionId being valid and
+	 * mppIsWriter set to true.
 	 */
-	if (am_walsender || am_ftshandler ||
-		IsFaultHandler)
+	if (am_walsender || am_ftshandler || am_faulthandler || am_cursor_retrieve_handler)
 		Gp_role = GP_ROLE_UTILITY;
 
 	/*

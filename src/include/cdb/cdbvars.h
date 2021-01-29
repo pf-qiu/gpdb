@@ -64,7 +64,6 @@ typedef enum
 	GP_ROLE_UTILITY,			/* Operating as a simple database engine */
 	GP_ROLE_DISPATCH,			/* Operating as the parallel query dispatcher */
 	GP_ROLE_EXECUTE,			/* Operating as a parallel query executor */
-	GP_ROLE_RETRIEVE,			/* Operating as simple database retrieve role from endpoint(cdbendpoint.c) */
 } GpRoleValue;
 
 extern GpRoleValue Gp_role;	/* GUC var - server operating mode.  */

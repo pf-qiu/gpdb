@@ -367,10 +367,10 @@ auth_failed(Port *port, int status, char *logdetail)
 }
 
 /*
- * Return true if command line contains gp_role=RETRIEVE
+ * Return true if command line contains gp_retrieve_conn=true
  */
 static bool
-use_retrieve_mode(char* cmd_options)
+cmd_options_include_retrieve_conn(char* cmd_options)
 {
 	char	  **av;
 	int			maxac;
@@ -386,7 +386,7 @@ use_retrieve_mode(char* cmd_options)
 	av = (char **) palloc(maxac * sizeof(char *));
 	ac = 0;
 
-	av[ac++] = "psql";
+	av[ac++] = "dummy";
 
 	pg_split_opts(av, &ac, cmd_options);
 
@@ -401,10 +401,7 @@ use_retrieve_mode(char* cmd_options)
 	opterr = 0;
 #endif
 
-	/*
-	 *  ignore other arguments, just care about gp_role
-	 */
-	while ((flag = getopt(ac, av, "B:bc:C:D:d:EeFf:h:ijk:lMm:N:nOo:Pp:r:S:sTt:v:W:-:")) != -1)
+	while ((flag = getopt(ac, av, "c:-:")) != -1)
 	{
 		switch (flag)
 		{
@@ -428,23 +425,20 @@ use_retrieve_mode(char* cmd_options)
 					}
 
 					/*
-					 * only check if gp_role is set to retrieve
+					 * Only check if gp_role is set to retrieve, but do not
+					 * break in case there are more than one such option.
 					 */
-					if (guc_name_compare(name, "gp_role") == 0)
+					if ((guc_name_compare(name, "gp_retrieve_conn") == 0) &&
+						!parse_bool(value, &ret))
 					{
-						if (guc_name_compare(value, "retrieve") == 0)
-						{
-							ret = true;
-						}
-						free(name);
-						if (value)
-							free(value);
-						goto finish;
+						ereport(ERROR,
+								(errcode(ERRCODE_SYNTAX_ERROR),
+								 errmsg("invalid value for guc gp_retrieve_conn: \"%s\"",
+										value)));
 					}
 
 					free(name);
-					if (value)
-						free(value);
+					free(value);
 					break;
 				}
 
@@ -453,7 +447,6 @@ use_retrieve_mode(char* cmd_options)
 		}
 	}
 
-finish:
 	/*
 	 * Reset getopt(3) library so that it will work correctly in subprocesses
 	 * or when this function is called a second time with another array.
@@ -462,6 +455,39 @@ finish:
 #ifdef HAVE_INT_OPTRESET
 	optreset = 1;	/* some systems need this too */
 #endif
+
+	return ret;
+}
+
+static bool
+guc_options_include_retrieve_conn(List *guc_options)
+{
+	ListCell   *gucopts;
+	bool		ret = false;
+
+	gucopts = list_head(guc_options);
+	while (gucopts)
+	{
+		char       *name;
+		char       *value;
+
+		name = lfirst(gucopts);
+		gucopts = lnext(gucopts);
+
+		value = lfirst(gucopts);
+		gucopts = lnext(gucopts);
+
+		if (guc_name_compare(name, "gp_retrieve_conn") == 0)
+		{
+			/* Do not break in case there are more than one such option. */
+			if (!parse_bool(value, &ret))
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("invalid value for guc gp_retrieve_conn: \"%s\"",
+								value)));
+
+		}
+	}
 
 	return ret;
 }
@@ -610,12 +636,14 @@ ClientAuthentication(Port *port)
 
 	/*
 	 * For parallel retrieve cursor,
-	 * if gp_role is set to RETRIEVE mode,
 	 * retrieve token authentication is performed.
 	 */
-	if (use_retrieve_mode(port->cmdline_options))
+	retrieve_connect_authenticated = false;
+	if (cmd_options_include_retrieve_conn(port->cmdline_options) ||
+		guc_options_include_retrieve_conn(port->guc_options))
 	{
 		retrieve_role_authentication(port);
+		retrieve_connect_authenticated = true;
 		return;
 	}
 

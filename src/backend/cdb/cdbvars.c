@@ -378,8 +378,6 @@ string_to_role(const char *string)
 		role = GP_ROLE_EXECUTE;
 	else if (pg_strcasecmp(string, "utility") == 0)
 		role = GP_ROLE_UTILITY;
-	else if (pg_strcasecmp(string, "retrieve") == 0)
-		role = GP_ROLE_RETRIEVE;
 
 	return role;
 }
@@ -399,8 +397,6 @@ role_to_string(GpRoleValue role)
 			return "execute";
 		case GP_ROLE_UTILITY:
 			return "utility";
-		case GP_ROLE_RETRIEVE:
-			return "retrieve";
 		case GP_ROLE_UNDEFINED:
 		default:
 			return "undefined";

@@ -4593,7 +4593,7 @@ process_postgres_switches(int argc, char *argv[], GucContext ctx,
 static void
 check_forbidden_in_gpdb_handlers(char firstchar)
 {
-	if (am_ftshandler || IsFaultHandler)
+	if (am_ftshandler || am_faulthandler)
 	{
 		switch (firstchar)
 		{
@@ -4608,6 +4608,25 @@ check_forbidden_in_gpdb_handlers(char firstchar)
 								firstchar)));
 		}
 	}
+	else if (am_cursor_retrieve_handler)
+	{
+		switch (firstchar)
+		{
+			case 'Q':
+			case 'P':
+			case 'B':
+			case 'E':
+			case 'X':
+			case EOF:
+				return;
+			default:
+				ereport(ERROR,
+						(errcode(ERRCODE_PROTOCOL_VIOLATION),
+						 errmsg("protocol '%c' is not supported in a GPDB parallel retrieve cursor connection",
+								firstchar)));
+		}
+	}
+
 }
 
 
@@ -4872,7 +4891,7 @@ PostgresMain(int argc, char *argv[],
 	}
 
 	/* Also send GPDB QE-backend startup info (motion listener, version). */
-	if (!(am_ftshandler || IsFaultHandler) && Gp_role == GP_ROLE_EXECUTE)
+	if (!(am_ftshandler || am_faulthandler) && Gp_role == GP_ROLE_EXECUTE)
 	{
 #ifdef FAULT_INJECTOR
 		if (SIMPLE_FAULT_INJECTOR("send_qe_details_init_backend") != FaultInjectorTypeSkip)
@@ -5264,7 +5283,7 @@ PostgresMain(int argc, char *argv[],
 					}
 					else if (am_ftshandler)
 						HandleFtsMessage(query_string);
-					else if (IsFaultHandler)
+					else if (am_faulthandler)
 						HandleFaultMessage(query_string);
 					else
 						exec_simple_query(query_string);
