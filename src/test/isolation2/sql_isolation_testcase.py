@@ -54,7 +54,7 @@ class ConnectionInfo(object):
 
         query = ("SELECT content, hostname, port, role FROM gp_segment_configuration")
 
-        con = pygresql.pg.connect(dbname="postgres")
+        con = pg.connect(dbname="postgres")
         self._conn_map = con.query(query).getresult()
         con.close()
 
@@ -126,8 +126,8 @@ class GlobalShellExecutor(object):
     def __run_command(self, sh_cmd):
         # Strip the newlines at the end. It will be added later.
         sh_cmd = sh_cmd.rstrip()
-        bytes_written = os.write(self.master_fd, sh_cmd)
-        bytes_written += os.write(self.master_fd, '\n')
+        bytes_written = os.write(self.master_fd, sh_cmd.encode())
+        bytes_written += os.write(self.master_fd, b'\n')
 
         output = ""
         while self.sh_proc.poll() is None:
@@ -142,7 +142,7 @@ class GlobalShellExecutor(object):
                 raise GlobalShellExecutor.ExecutionError("Error happened to the bash daemon, see %s for details." % self.bash_log_file.name)
 
             if r:
-                o = os.read(self.master_fd, 10240)
+                o = os.read(self.master_fd, 10240).decode()
                 self.bash_log_file.write(o)
                 self.bash_log_file.flush()
                 output += o
@@ -411,7 +411,8 @@ class SQLIsolationExecutor(object):
                         time.sleep(0.1)
                     else:
                         raise
-            con.set_notice_receiver(null_notice_receiver)
+            if con is not None:
+                con.set_notice_receiver(null_notice_receiver)
             return con
 
         def printout_result(self, r):

@@ -103,7 +103,7 @@ installcheck-parallel-retrieve-cursor: install installcheck-parallel-retrieve-cu
 		./pg_isolation2_regress $(EXTRA_REGRESS_OPTS) --init-file=$(top_builddir)/src/test/regress/init_file --init-file=./init_file_parallel_retrieve_cursor --bindir='$(bindir)' --inputdir=$(srcdir) --dbname=isolation2parallelretrcursor --load-extension=gp_inject_fault --schedule=$(srcdir)/parallel_retrieve_cursor_schedule ; \
 		ret1=$$? ; \
 	fi; \
-	./test_parallel_retrieve_cursor_extended_query "gpadmin" "postgres" > test_parallel_retrieve_cursor_extended_query.log 2>&1 ; \
+	./test_parallel_retrieve_cursor_extended_query $${USER} "postgres" > test_parallel_retrieve_cursor_extended_query.log 2>&1 ; \
 	ret2=$$? ; \
 	if [ "$${ret2}" == 0 ]; then \
 		echo "[PASS]: test_parallel_retrieve_cursor_extended_query test pass. See test_parallel_retrieve_cursor_extended_query.log." ; echo "" ; \
@@ -111,7 +111,7 @@ installcheck-parallel-retrieve-cursor: install installcheck-parallel-retrieve-cu
 		echo "[ERROR]: test_parallel_retrieve_cursor_extended_query test failed." ; \
 		cat test_parallel_retrieve_cursor_extended_query.log ; echo "" ; \
 	fi; \
-	./test_parallel_retrieve_cursor_extended_query_error "gpadmin" "postgres" > test_parallel_retrieve_cursor_extended_query_error.log 2>&1 ; \
+	./test_parallel_retrieve_cursor_extended_query_error $${USER} "postgres" > test_parallel_retrieve_cursor_extended_query_error.log 2>&1 ; \
 	ret3=$$? ; \
 	if [ "$${ret3}" == 0 ]; then \
 		echo "[PASS]: test_parallel_retrieve_cursor_extended_query_error test pass. See test_parallel_retrieve_cursor_extended_query_error.log." ; echo "" ; \
