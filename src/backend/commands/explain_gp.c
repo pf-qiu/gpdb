@@ -2212,65 +2212,55 @@ show_motion_keys(PlanState *planstate, List *hashExpr, int nkeys, AttrNumber *ke
  */
 void ExplainParallelRetrieveCursor(ExplainState *es, QueryDesc* queryDesc)
 {
-	PlannedStmt *plan;
-	int	cursorOptions = 0;
-
-	plan = queryDesc->plannedstmt;
-	if (plan->utilityStmt && IsA(plan->utilityStmt, DeclareCursorStmt))
-		cursorOptions |= ((DeclareCursorStmt *) plan->utilityStmt)->options;
-
+	PlannedStmt *plan = queryDesc->plannedstmt;
 	SliceTable *sliceTable = queryDesc->estate->es_sliceTable;
+	StringInfoData            endpointInfoStr;
+	enum EndPointExecPosition endPointExecPosition;
 
-	if (cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE)
+	initStringInfo(&endpointInfoStr);
+
+	endPointExecPosition = GetParallelCursorEndpointPosition(plan);
+	ExplainOpenGroup("Cursor", "Cursor", true, es);
+	switch(endPointExecPosition)
 	{
-		StringInfoData            endpointInfoStr;
-		enum EndPointExecPosition endPointExecPosition;
-
-		initStringInfo(&endpointInfoStr);
-
-		endPointExecPosition =
-			GetParallelCursorEndpointPosition(plan);
-		ExplainOpenGroup("Cursor", "Cursor", true, es);
-		switch(endPointExecPosition)
+		case ENDPOINT_ON_ENTRY_DB:
 		{
-			case ENDPOINT_ON_ENTRY_DB:
-			{
-				appendStringInfo(&endpointInfoStr, "\"on master\"");
-				break;
-			}
-			case ENDPOINT_ON_SINGLE_QE:
-			{
-				appendStringInfo(
-					&endpointInfoStr, "\"on segment: contentid [%d]\"",
-					gp_session_id % plan->planTree->flow->numsegments);
-				break;
-			}
-			case ENDPOINT_ON_SOME_QE:
-			{
-				ListCell * cell;
-				bool isFirst = true;
-				appendStringInfo(&endpointInfoStr, "on segments: contentid [");
-				ExecSlice *slice = &sliceTable->slices[0];
-				foreach(cell, slice->segments)
-				{
-					int contentid = lfirst_int(cell);
-					appendStringInfo(&endpointInfoStr, (isFirst)?"%d":", %d", contentid);
-					isFirst = false;
-				}
-				appendStringInfo(&endpointInfoStr, "]");
-				break;
-			}
-			case ENDPOINT_ON_ALL_QE:
-			{
-				appendStringInfo(&endpointInfoStr, "on all %d segments", getgpsegmentCount());
-				break;
-			}
-			default:
-			{
-				elog(ERROR, "invalid endpoint position : %d", endPointExecPosition);
-			}
+			appendStringInfo(&endpointInfoStr, "\"on coordinator\"");
+			break;
 		}
-		ExplainPropertyText("Endpoint", endpointInfoStr.data, es);
-		ExplainCloseGroup("Cursor", "Cursor", true, es);
+		case ENDPOINT_ON_SINGLE_QE:
+		{
+			appendStringInfo(
+							 &endpointInfoStr, "\"on segment: contentid [%d]\"",
+							 gp_session_id % plan->planTree->flow->numsegments);
+			break;
+		}
+		case ENDPOINT_ON_SOME_QE:
+		{
+			ListCell * cell;
+			bool isFirst = true;
+			appendStringInfo(&endpointInfoStr, "on segments: contentid [");
+			ExecSlice *slice = &sliceTable->slices[0];
+			foreach(cell, slice->segments)
+			{
+				int contentid = lfirst_int(cell);
+				appendStringInfo(&endpointInfoStr, (isFirst)?"%d":", %d", contentid);
+				isFirst = false;
+			}
+			appendStringInfo(&endpointInfoStr, "]");
+			break;
+		}
+		case ENDPOINT_ON_ALL_QE:
+		{
+			appendStringInfo(&endpointInfoStr, "on all %d segments", getgpsegmentCount());
+			break;
+		}
+		default:
+		{
+			elog(ERROR, "invalid endpoint position : %d", endPointExecPosition);
+			break;
+		}
 	}
+	ExplainPropertyText("Endpoint", endpointInfoStr.data, es);
+	ExplainCloseGroup("Cursor", "Cursor", true, es);
 }

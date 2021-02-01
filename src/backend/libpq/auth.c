@@ -505,9 +505,7 @@ retrieve_role_authentication(Port *port)
 	sendAuthRequest(port, AUTH_REQ_PASSWORD, NULL, 0);
 	passwd = recv_password_packet(port);
 	if (passwd == NULL)
-	{
 		ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD), errmsg("%s", msg)));
-	}
 
 	/*
 	 * verify that the username is same as the owner of PARALLEL RETRIEVE CURSOR and the
@@ -515,9 +513,7 @@ retrieve_role_authentication(Port *port)
 	 */
 	owner_uid = get_role_oid(port->user_name, false);
 	if (!AuthEndpoint(owner_uid, passwd))
-	{
 		ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD), errmsg("%s", msg)));
-	}
 
 	FakeClientAuthentication(port);
 }

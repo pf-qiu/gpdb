@@ -464,7 +464,7 @@ ExplainOneQuery(Query *query, int cursorOptions,
 
 		/* run it (if needed) and produce output */
 		ExplainOnePlan(plan, into, es, queryString, params, queryEnv,
-					   &planduration);
+					   &planduration, cursorOptions);
 	}
 }
 
@@ -557,7 +557,8 @@ ExplainOneUtility(Node *utilityStmt, IntoClause *into, ExplainState *es,
 void
 ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 			   const char *queryString, ParamListInfo params,
-			   QueryEnvironment *queryEnv, const instr_time *planduration)
+			   QueryEnvironment *queryEnv, const instr_time *planduration,
+			   int cursorOptions)
 {
 	DestReceiver *dest;
 	QueryDesc  *queryDesc;
@@ -668,9 +669,9 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	/* Create textual dump of plan tree */
 	ExplainPrintPlan(es, queryDesc);
 
-	ExplainParallelRetrieveCursor(es, queryDesc);
+	if (cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE)
+		ExplainParallelRetrieveCursor(es, queryDesc);
 
-	/* Print info about runtime of triggers */
 	if (es->summary && planduration)
 	{
 		double		plantime = INSTR_TIME_GET_DOUBLE(*planduration);

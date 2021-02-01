@@ -2585,14 +2585,10 @@ CreateCommandTag(Node *parsetree)
 			{
 				DeclareCursorStmt *stmt = (DeclareCursorStmt *) parsetree;
 
-				if ((stmt->options & CURSOR_OPT_PARALLEL_RETRIEVE) != 0)
-				{
+				if (stmt->options & CURSOR_OPT_PARALLEL_RETRIEVE)
 					tag = "DECLARE PARALLEL RETRIEVE CURSOR";
-				}
 				else
-				{
 					tag = "DECLARE CURSOR";
-				}
 			}
 			break;
 
