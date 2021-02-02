@@ -10986,7 +10986,7 @@
    proname => 'get_ao_compression_ratio', provolatile => 'v', proparallel => 'u', prorettype => 'float8', proargtypes => 'regclass', prosrc => 'get_ao_compression_ratio', prodataaccess => 'r' },
 
 { oid => 7180, descr => 'get mpp endpoints information',
-   proname => 'gp_endpoints_info', prorows => '1000', proretset => 't', provolatile => 'v', proparallel => 'u', prorettype => 'record', proargtypes => 'bool', proallargtypes => '{bool,text,text,int4,text,int4,int4,oid,text,text}', proargmodes => '{i,o,o,o,o,o,o,o,o,o}', proargnames => '{isall,auth_token,cursorname,sessionid,hostname,port,dbid,userid,status,endpointname}', prosrc => 'gp_endpoints_info', proexeclocation => 'm' },
+   proname => 'gp_endpoints_info', prorows => '1000', proretset => 't', provolatile => 'v', proparallel => 'u', prorettype => 'record', proargtypes => 'bool', proallargtypes => '{bool,text,text,int4,text,int4,int4,oid,text,text}', proargmodes => '{i,o,o,o,o,o,o,o,o,o}', proargnames => '{isall,auth_token,cursorname,sessionid,hostname,port,dbid,userid,status,endpointname}', prosrc => 'gp_endpoints_info', proexeclocation => 'c' },
 
 { oid => 7181, descr => 'get endpoints status information',
    proname => 'gp_endpoints_status_info', prorows => '1000', proretset => 't', provolatile => 'v', proparallel => 'u', prorettype => 'record', proargtypes => '', proallargtypes => '{text,int4,int4,int4,text,int4,int4,oid,text,text}', proargmodes => '{o,o,o,o,o,o,o,o,o,o}', proargnames => '{auth_token,databaseid,senderpid,receiverpid,status,dbid,sessionid,userid,endpointname,cursorname}', prosrc => 'gp_endpoints_status_info' },

@@ -68,27 +68,15 @@ installcheck: install installcheck-parallel-retrieve-cursor
 installcheck-resgroup: install
 	$(pg_isolation2_regress_installcheck) --init-file=$(top_builddir)/src/test/regress/init_file --init-file=./init_file_resgroup --dbname=isolation2resgrouptest --schedule=$(srcdir)/isolation2_resgroup_schedule
 
-# PARALLEL RETRIEVE CURSOR related tests require 3 running segment. Some issues have been seen on CI that
-# one segment is not running during the test. Add check here to make it fails earlier.
-installcheck-parallel-retrieve-cursor-check-segments:
-	gp_state=$$(gpstate) && \
-	seg_count=$$(echo "$${gp_state}" | grep "Total primary segment valid (at master)" | awk '{print $$NF}') ; \
-	if [ -z "$${seg_count}" ] || [ "$${seg_count}" != 3 ] ; then \
-		echo "The tests require 3 valid segments." ; \
-		echo "gpstate is: \n $${gp_state}" ; \
-		echo "seg_count is: \n $${seg_count}" ; \
-		exit -1 ; \
-	fi
-
-installcheck-parallel-retrieve-cursor: install installcheck-parallel-retrieve-cursor-check-segments test_parallel_retrieve_cursor_extended_query test_parallel_retrieve_cursor_extended_query_error
+installcheck-parallel-retrieve-cursor: install test_parallel_retrieve_cursor_extended_query test_parallel_retrieve_cursor_extended_query_error
 	# Before running test, set statement_timeout to 1 minute so that even if some
 	# error make 'gp_wait_parallel_retrieve_cursor()' hang, it will be canceled when timeout.
 	#
 	# And also add test for test_parallel_retrieve_cursor_extended_query, only need to check command rc==0
-	default_master_timeout=$$(gpconfig -s statement_timeout | grep "Master" | cut -d':' -f2) && \
+	default_coordinator_timeout=$$(gpconfig -s statement_timeout | grep "Coordinator" | cut -d':' -f2) && \
 	default_segment_timeout=$$(gpconfig -s statement_timeout | grep "Segment" | cut -d':' -f2) && \
-	if [ -z "$${default_master_timeout}" ] || [ -z "$${default_segment_timeout}" ] ; then \
-	  echo " --- default_master_timeout is: $${default_master_timeout} ---"; \
+	if [ -z "$${default_coordinator_timeout}" ] || [ -z "$${default_segment_timeout}" ] ; then \
+	  echo " --- default_coordinator_timeout is: $${default_coordinator_timeout} ---"; \
 	  echo " --- default_segment_timeout is: $${default_segment_timeout} ---"; \
 	  echo " Get gpconfig returns empty result " && exit -1; \
 	fi; \
@@ -119,7 +107,7 @@ installcheck-parallel-retrieve-cursor: install installcheck-parallel-retrieve-cu
 		echo "[ERROR]: test_parallel_retrieve_cursor_extended_query_error test failed." ; \
 		cat test_parallel_retrieve_cursor_extended_query_error.log ; echo "" ; \
 	fi; \
-	gpconfig -c statement_timeout -v $${default_segment_timeout} -m $${default_master_timeout} && \
+	gpconfig -c statement_timeout -v $${default_segment_timeout} -m $${default_coordinator_timeout} && \
 	gpstop -u && \
 	gpconfig -s statement_timeout && \
 	exit "$$(( $${ret1} || $${ret2} || $${ret3} ))"
