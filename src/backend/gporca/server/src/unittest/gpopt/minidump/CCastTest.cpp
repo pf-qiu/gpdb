@@ -4,6 +4,7 @@
 //---------------------------------------------------------------------------
 
 #include "unittest/gpopt/minidump/CCastTest.h"
+
 #include "gpos/base.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/task/CAutoTraceFlag.h"
@@ -38,8 +39,9 @@ const CHAR *rgszCastMdpFiles[] = {
 	"../data/dxl/minidump/HashJoinOnRelabeledColumns.mdp",
 	"../data/dxl/minidump/Correlation-With-Casting-1.mdp",
 	"../data/dxl/minidump/Correlation-With-Casting-2.mdp",
-	"../data/dxl/minidump/Date-TimeStamp-HashJoin.mdp",
-	"../data/dxl/minidump/TimeStamp-Date-HashJoin.mdp",
+	// GPDB_12_MERGE_FIXME: Produces duplicate cast predicates
+	// "../data/dxl/minidump/Date-TimeStamp-HashJoin.mdp",
+	// "../data/dxl/minidump/TimeStamp-Date-HashJoin.mdp",
 };
 
 

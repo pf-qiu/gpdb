@@ -9,29 +9,31 @@
 //		Implementation of GPDB cost model
 //---------------------------------------------------------------------------
 
+#include "gpdbcost/CCostModelGPDB.h"
+
 #include <limits>
 
 #include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/COrderSpec.h"
 #include "gpopt/base/CWindowFrame.h"
-#include "gpopt/metadata/CTableDescriptor.h"
+#include "gpopt/engine/CHint.h"
 #include "gpopt/metadata/CIndexDescriptor.h"
+#include "gpopt/metadata/CPartConstraint.h"
+#include "gpopt/metadata/CTableDescriptor.h"
+#include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/operators/CPhysicalSequenceProject.h"
-#include "gpopt/operators/CPhysicalIndexScan.h"
-#include "gpopt/operators/CPhysicalIndexOnlyScan.h"
 #include "gpopt/operators/CPhysicalDynamicIndexScan.h"
 #include "gpopt/operators/CPhysicalHashAgg.h"
-#include "gpopt/operators/CPhysicalUnionAll.h"
+#include "gpopt/operators/CPhysicalIndexOnlyScan.h"
+#include "gpopt/operators/CPhysicalIndexScan.h"
 #include "gpopt/operators/CPhysicalMotion.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
+#include "gpopt/operators/CPhysicalSequenceProject.h"
+#include "gpopt/operators/CPhysicalUnionAll.h"
 #include "gpopt/operators/CPredicateUtils.h"
 #include "gpopt/operators/CScalarBitmapIndexProbe.h"
-#include "naucrates/statistics/CStatisticsUtils.h"
-#include "gpopt/operators/CExpression.h"
-#include "gpdbcost/CCostModelGPDB.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
-#include "gpopt/engine/CHint.h"
+#include "naucrates/statistics/CStatisticsUtils.h"
 
 using namespace gpos;
 using namespace gpdbcost;
@@ -1687,7 +1689,7 @@ CCostModelGPDB::CostBitmapTableScan(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			pexprIndexCond->Pop()->Eopid() ||
 		1 < pcrsLocalUsed->Size() ||
 		(isInPredOnBtreeIndex && rows > 2.0 &&
-		 !GPOS_FTRACE(EopttraceCalibratedBitmapIndexCostModel)))
+		 GPOS_FTRACE(EopttraceLegacyCostModel)))
 	{
 		// Child is Bitmap AND/OR, or we use Multi column index or this is an IN predicate
 		// that's used with the "calibrated" cost model.
@@ -1762,9 +1764,9 @@ CCostModelGPDB::CostBitmapTableScan(CMemoryPool *mp, CExpressionHandle &exprhdl,
 			}
 		}
 
-		if (!GPOS_FTRACE(EopttraceCalibratedBitmapIndexCostModel))
+		if (GPOS_FTRACE(EopttraceLegacyCostModel))
 		{
-			// optimizer_cost_model = 'calibrated'
+			// optimizer_cost_model = 'legacy'
 			if (dNDVThreshold <= dNDV)
 			{
 				result = CostBitmapLargeNDV(pcmgpdb, pci, dNDV);
@@ -1776,7 +1778,7 @@ CCostModelGPDB::CostBitmapTableScan(CMemoryPool *mp, CExpressionHandle &exprhdl,
 		}
 		else
 		{
-			// optimizer_cost_model = 'experimental'
+			// optimizer_cost_model = 'calibrated'|'experimental'
 			CDouble dBitmapIO =
 				pcmgpdb->GetCostModelParams()
 					->PcpLookup(CCostModelParamsGPDB::EcpBitmapIOCostSmallNDV)

@@ -64,4 +64,5 @@ DistributedLogTruncateLock			54
 TwophaseCommitLock				55
 ShareInputScanLock				56
 FTSReplicationStatusLock			57
-ParallelCursorEndpointLock			58
+GxidBumpLock						58
+ParallelCursorEndpointLock			59
