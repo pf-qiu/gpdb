@@ -66,7 +66,6 @@
 #include "utils/sharedsnapshot.h"  /*SharedLocalSnapshotSlot*/
 
 #include "cdb/cdblocaldistribxact.h"
-#include "cdb/cdbendpoint.h" /* am_cursor_retrieve_handler */
 #include "cdb/cdbtm.h"
 #include "cdb/cdbvars.h"  /*Gp_is_writer*/
 #include "port/atomics.h"

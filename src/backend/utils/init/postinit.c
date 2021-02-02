@@ -1197,7 +1197,7 @@ InitPostgres(const char *in_dbname, Oid dboid, const char *username,
 		Gp_role = GP_ROLE_UTILITY;
 
 		/* Sanity check for security: This should not happen but in case ... */
-		if (!retrieve_connect_authenticated)
+		if (!retrieve_conn_authenticated)
 			ereport(FATAL,
 					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 					 errmsg("retrieve connection was not authenticated for unknown reason")));

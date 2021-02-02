@@ -56,7 +56,7 @@
 #endif
 
 bool am_cursor_retrieve_handler = false;
-bool retrieve_connect_authenticated = false;
+bool retrieve_conn_authenticated = false;
 
 /*
  * For receiver, we have a hash table to store connected endpoint's shared message

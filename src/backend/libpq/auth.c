@@ -496,7 +496,7 @@ guc_options_include_retrieve_conn(List *guc_options)
  * Retrieve role directly uses the token of PARALLEL RETRIEVE CURSOR as password to authenticate.
  */
 static void
-retrieve_role_authentication(Port *port)
+retrieve_conn_authentication(Port *port)
 {
 	char	   *passwd;
 	Oid        owner_uid;
@@ -634,12 +634,12 @@ ClientAuthentication(Port *port)
 	 * For parallel retrieve cursor,
 	 * retrieve token authentication is performed.
 	 */
-	retrieve_connect_authenticated = false;
+	retrieve_conn_authenticated = false;
 	if (cmd_options_include_retrieve_conn(port->cmdline_options) ||
 		guc_options_include_retrieve_conn(port->guc_options))
 	{
-		retrieve_role_authentication(port);
-		retrieve_connect_authenticated = true;
+		retrieve_conn_authentication(port);
+		retrieve_conn_authenticated = true;
 		return;
 	}
 

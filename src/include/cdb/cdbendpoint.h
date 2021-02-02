@@ -63,7 +63,7 @@ enum EndPointExecPosition
 };
 
 extern bool am_cursor_retrieve_handler;
-extern bool retrieve_connect_authenticated;
+extern bool retrieve_conn_authenticated;
 
 /* cbdendpoint.c */
 /* Endpoint shared memory context init */
