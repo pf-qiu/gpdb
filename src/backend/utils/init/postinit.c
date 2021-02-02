@@ -1001,12 +1001,6 @@ InitPostgres(const char *in_dbname, Oid dboid, const char *username,
 		return;
 	}
 
-	/* Sanity check: This should not happen but in case ... */
-	if (am_cursor_retrieve_handler && !retrieve_connect_authenticated)
-		ereport(FATAL,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("retrieve connection but not authenticated for unknown reason")));
-
 	/*
 	 * Set up the global variables holding database id and default tablespace.
 	 * But note we won't actually try to touch the database just yet.
@@ -1193,6 +1187,21 @@ InitPostgres(const char *in_dbname, Oid dboid, const char *username,
 	 */
 	if (MyProcPort != NULL)
 		process_startup_options(MyProcPort, am_superuser);
+
+	/*
+	 * am_cursor_retrieve_handler is set by guc so need to judge after calling
+	 * process_startup_options().
+	 */
+	if (am_cursor_retrieve_handler)
+	{
+		Gp_role = GP_ROLE_UTILITY;
+
+		/* Sanity check for security: This should not happen but in case ... */
+		if (!retrieve_connect_authenticated)
+			ereport(FATAL,
+					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+					 errmsg("retrieve connection was not authenticated for unknown reason")));
+	}
 
 	/*
 	 * Maintenance Mode: allow superuser to connect when

@@ -729,7 +729,7 @@ class SQLIsolationExecutor(object):
                     (retrieve_user, retrieve_token) = self.__get_retrieve_user_token(name, global_sh_executor)
                     self.get_process(output_file, name, con_mode, dbname=dbname, user=retrieve_user, passwd=retrieve_token).query(sql_new, out_sh_cmd, global_sh_executor)
                 except SQLIsolationExecutor.SessionError as e:
-                    print >>output_file, str(e)
+                    print (str(e), file=output_file)
                     self.processes[(e.name, e.mode)].terminate()
                     del self.processes[(e.name, e.mode)]
         elif flag == "R&":

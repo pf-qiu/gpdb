@@ -346,7 +346,7 @@ InitProcess(void)
 	 * GP_ROLE_DISPATCH MyProc settings such as mppSessionId being valid and
 	 * mppIsWriter set to true.
 	 */
-	if (am_walsender || am_ftshandler || am_faulthandler || am_cursor_retrieve_handler)
+	if (am_walsender || am_ftshandler || am_faulthandler)
 		Gp_role = GP_ROLE_UTILITY;
 
 	/*
