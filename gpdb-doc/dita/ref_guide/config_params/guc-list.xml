@@ -253,9 +253,6 @@
               <xref href="#gp_fts_probe_retries"/>
             </li>
             <li>
-              <xref href="#gp_fts_probe_threadcount"/>
-            </li>
-            <li>
               <xref href="#gp_fts_probe_timeout"/>
             </li>
             <li>
@@ -3276,34 +3273,6 @@
             <row>
               <entry colname="col1">integer</entry>
               <entry colname="col2">5</entry>
-              <entry colname="col3">master<p>system</p><p>restart</p></entry>
-            </row>
-          </tbody>
-        </tgroup>
-      </table>
-    </body>
-  </topic>
-  <topic id="gp_fts_probe_threadcount">
-    <title>gp_fts_probe_threadcount</title>
-    <body>
-      <p>Specifies the number of <codeph>ftsprobe</codeph> threads to create. This parameter should
-        be set to a value equal to or greater than the number of segments per host. </p>
-      <table id="gp_fts_probe_threadcount_table">
-        <tgroup cols="3">
-          <colspec colnum="1" colname="col1" colwidth="1*"/>
-          <colspec colnum="2" colname="col2" colwidth="1*"/>
-          <colspec colnum="3" colname="col3" colwidth="1*"/>
-          <thead>
-            <row>
-              <entry colname="col1">Value Range</entry>
-              <entry colname="col2">Default</entry>
-              <entry colname="col3">Set Classifications</entry>
-            </row>
-          </thead>
-          <tbody>
-            <row>
-              <entry colname="col1">1 - 128</entry>
-              <entry colname="col2">16</entry>
               <entry colname="col3">master<p>system</p><p>restart</p></entry>
             </row>
           </tbody>
@@ -6842,7 +6811,14 @@
       <p>When GPORCA is enabled (the default), this parameter controls the cost
         model that GPORCA chooses for bitmap scans used with bitmap indexes or
         with btree indexes on AO tables.</p>
-      <p>The <codeph>experimental</codeph> cost model is more likely to choose
+      <ul>
+        <li><codeph>legacy</codeph> - preserves the calibrated cost model used by GPORCA
+          in Greenplum Database releases 6.13 and earlier</li>
+        <li><codeph>calibrated</codeph> - improves cost estimates for indexes</li>
+        <li><codeph>experimental</codeph> - reserved for future experimental cost models;
+           currently equivalent to the <codeph>calibrated</codeph> model</li>
+      </ul>
+      <p>The default cost model, <codeph>calibrated</codeph>, is more likely to choose
         a faster bitmap index with nested loop joins instead of hash joins.</p>
       <table id="optimizer_cost_model_table">
         <tgroup cols="3">

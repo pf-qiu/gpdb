@@ -44,16 +44,16 @@ public:
 
 private:
 	// test type
-	ETestType m_ett;
+	ETestType m_ett{EttSpawn};
 
 	// number of job spawning rounds
-	ULONG m_ulRounds;
+	ULONG m_ulRounds{gpos::ulong_max};
 
 	// spawning fanout
-	ULONG m_ulFanout;
+	ULONG m_ulFanout{gpos::ulong_max};
 
 	// CPU-burning iterations per job
-	ULONG m_ulIters;
+	ULONG m_ulIters{gpos::ulong_max};
 
 	// iteration counter
 	static ULONG_PTR m_ulpCnt;
@@ -119,7 +119,7 @@ public:
 	static CJobTest *
 	PjConvert(CJob *pj)
 	{
-		GPOS_ASSERT(NULL != pj);
+		GPOS_ASSERT(nullptr != pj);
 		GPOS_ASSERT(EjtTest == pj->Ejt());
 
 		return dynamic_cast<CJobTest *>(pj);

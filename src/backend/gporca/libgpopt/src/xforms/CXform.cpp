@@ -29,7 +29,7 @@ using namespace gpopt;
 //---------------------------------------------------------------------------
 CXform::CXform(CExpression *pexpr) : m_pexpr(pexpr)
 {
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pexpr);
 	GPOS_ASSERT(FCheckPattern(pexpr));
 }
 
@@ -98,12 +98,12 @@ CXform::FCheckPattern(CExpression *pexpr) const
 BOOL
 CXform::FPromising(CMemoryPool *mp, const CXform *pxform, CExpression *pexpr)
 {
-	GPOS_ASSERT(NULL != pxform);
-	GPOS_ASSERT(NULL != pexpr);
+	GPOS_ASSERT(nullptr != pxform);
+	GPOS_ASSERT(nullptr != pexpr);
 
 	CExpressionHandle exprhdl(mp);
 	exprhdl.Attach(pexpr);
-	exprhdl.DeriveProps(NULL /*pdpctxt*/);
+	exprhdl.DeriveProps(nullptr /*pdpctxt*/);
 
 	return ExfpNone < pxform->Exfp(exprhdl);
 }
@@ -186,7 +186,11 @@ CXform::PbsHashJoinXforms(CMemoryPool *mp)
 		GPOPT_DISABLE_XFORM_TF(CXform::ExfLeftAntiSemiJoin2HashJoin));
 	(void) pbs->ExchangeSet(
 		GPOPT_DISABLE_XFORM_TF(CXform::ExfLeftAntiSemiJoinNotIn2HashJoinNotIn));
-
+	(void) pbs->ExchangeSet(
+		GPOPT_DISABLE_XFORM_TF(CXform::ExfRightOuterJoin2HashJoin));
+	(void) pbs->ExchangeSet(GPOPT_DISABLE_XFORM_TF(
+		CXform::
+			ExfLeftJoin2RightJoin));  // Right joins are only used with hash joins, so disable this too
 	return pbs;
 }
 

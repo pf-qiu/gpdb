@@ -27,10 +27,7 @@ using namespace gpos;
 //		Ctor
 //
 //---------------------------------------------------------------------------
-CMiniDumper::CMiniDumper()
-	: m_initialized(false), m_finalized(false), m_oos(NULL)
-{
-}
+CMiniDumper::CMiniDumper() = default;
 
 
 //---------------------------------------------------------------------------
@@ -47,7 +44,7 @@ CMiniDumper::~CMiniDumper()
 	{
 		CTask *task = CTask::Self();
 
-		GPOS_ASSERT(NULL != task);
+		GPOS_ASSERT(nullptr != task);
 
 		task->ConvertErrCtxt()->Unregister(
 #ifdef GPOS_DEBUG
@@ -74,7 +71,7 @@ CMiniDumper::Init(COstream *oos)
 
 	CTask *task = CTask::Self();
 
-	GPOS_ASSERT(NULL != task);
+	GPOS_ASSERT(nullptr != task);
 
 	m_oos = oos;
 

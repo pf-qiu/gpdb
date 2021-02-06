@@ -46,28 +46,25 @@ class CReqdPropPlan : public CReqdProp
 {
 private:
 	// required columns
-	CColRefSet *m_pcrs;
+	CColRefSet *m_pcrs{nullptr};
 
 	// required sort order
-	CEnfdOrder *m_peo;
+	CEnfdOrder *m_peo{nullptr};
 
 	// required distribution
-	CEnfdDistribution *m_ped;
+	CEnfdDistribution *m_ped{nullptr};
 
 	// required rewindability
-	CEnfdRewindability *m_per;
+	CEnfdRewindability *m_per{nullptr};
 
 	// required ctes
-	CCTEReq *m_pcter;
+	CCTEReq *m_pcter{nullptr};
 
 public:
 	CReqdPropPlan(const CReqdPropPlan &) = delete;
 
 	// default ctor
-	CReqdPropPlan()
-		: m_pcrs(NULL), m_peo(NULL), m_ped(NULL), m_per(NULL), m_pcter(NULL)
-	{
-	}
+	CReqdPropPlan() = default;
 
 	// ctor
 	CReqdPropPlan(CColRefSet *pcrs, CEnfdOrder *peo, CEnfdDistribution *ped,
@@ -160,7 +157,7 @@ public:
 	static CReqdPropPlan *
 	Prpp(CReqdProp *prp)
 	{
-		GPOS_ASSERT(NULL != prp);
+		GPOS_ASSERT(nullptr != prp);
 
 		return dynamic_cast<CReqdPropPlan *>(prp);
 	}

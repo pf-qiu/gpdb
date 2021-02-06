@@ -57,6 +57,9 @@ endfunction()
 # IN-ArrayCmp
 # NOT-IN-ArrayCmp
 
+# GPDB_12_MERGE_FIXME: re-add the following test to Right Join once DPE is supported
+# RightJoinDPS PartTbl-RightOuterHashJoin-DPE-IsNull
+
 # minidump tests must follow rule:
 # "CxxxTest: file1 file2; CxxxTest: file3 file4"
 # each test case should end with ";", EXCEPT LAST ONE.
@@ -87,7 +90,7 @@ Join-With-Subq-Preds-1 Non-Hashjoinable-Pred Non-Hashjoinable-Pred-2 Factorized-
 NLJ-DistCol-No-Broadcast NLJ-EqAllCol-No-Broadcast NLJ-EqDistCol-InEqNonDistCol-No-Broadcast
 NLJ-InEqDistCol-EqNonDistCol-Redistribute CorrelatedNLJWithTrueCondition InferPredicatesInnerOfLOJ
 InferredPredicatesConstraintSimplification NoPushdownPredicateWithCTEAnchor
-InferPredicatesForPartSQ InferPredicatesForQuantifiedSQ;
+InferPredicatesForPartSQ InferPredicatesForQuantifiedSQ InferPredicatesForProcessedColumn;
 
 CLikeIDFTest:
 LIKE-Pattern-green LIKE-Pattern-green-2 LIKE-Pattern-Empty Nested-Or-Predicates Join-IDF
@@ -279,7 +282,10 @@ Subq2PartialDecorrelate Subq2CorrSQInLOJOn Subq2NotInWhereLOJ Subq2OuterRef2InJo
 Index-Join-With-Subquery-In-Pred;
 
 CIndexOnlyScanTest:
-IndexOnlyScan-NoDistKeyInIndex
+IndexOnlyScan-NoDistKeyInIndex;
+
+CRightJoinTest:
+RightJoinHashed RightJoinRedistribute RightJoinReplicated RightJoinBothReplicated RightJoinNoDPSNonDistKey RightJoinTVF
 ")
 
 set(mdp_dir "../data/dxl/minidump/")
@@ -392,14 +398,25 @@ add_orca_test(CMinidumpWithConstExprEvaluatorTest)
 add_orca_test(CParseHandlerManagerTest)
 add_orca_test(CParseHandlerTest)
 add_orca_test(CParseHandlerCostModelTest)
-add_orca_test(CParseHandlerOptimizerConfigTest)
+# FIXME: this following test was first introduced (but as a typo) in
+# greenplum-db/gporca#355. I've corrected the typo but it's not clear whether
+# it ever passed, but we should give it a best-effort resurrection.
+if (FALSE)
+add_orca_test(CParseHandlerOptimizerConfigSerializeTest)
+endif()
 add_orca_test(CStatisticsTest)
 add_orca_test(CPointTest)
 add_orca_test(CBucketTest)
 add_orca_test(CHistogramTest)
 add_orca_test(CMCVTest)
 add_orca_test(CJoinCardinalityTest)
+# FIXME: the following test was first introduced in greenplum-db/gporca#360,
+# reverted in greenplum-db/gporca#442, and re-added in
+# greenplum-db/gporca#506 (NOT! because only the CMakeLists.txt part was
+# added back). Resurrect this.
+if (FALSE)
 add_orca_test(CJoinCardinalityNDVBasedEqPredTest)
+endif()
 add_orca_test(CFilterCardinalityTest)
 add_orca_test(CTranslatorDXLToExprTest)
 add_orca_test(CTranslatorExprToDXLTest)

@@ -176,13 +176,10 @@ private:
 	// this identifies a group and one expression belonging to that group
 	struct SGroupAndExpression
 	{
-		SGroupInfo *m_group_info;
-		ULONG m_expr_index;
+		SGroupInfo *m_group_info{nullptr};
+		ULONG m_expr_index{gpos::ulong_max};
 
-		SGroupAndExpression()
-			: m_group_info(NULL), m_expr_index(gpos::ulong_max)
-		{
-		}
+		SGroupAndExpression() = default;
 		SGroupAndExpression(SGroupInfo *g, ULONG ix)
 			: m_group_info(g), m_expr_index(ix)
 		{
@@ -192,13 +189,13 @@ private:
 		GetExprInfo() const
 		{
 			return m_expr_index == gpos::ulong_max
-					   ? NULL
+					   ? nullptr
 					   : (*m_group_info->m_best_expr_info_array)[m_expr_index];
 		}
 		BOOL
 		IsValid()
 		{
-			return NULL != m_group_info && gpos::ulong_max != m_expr_index;
+			return nullptr != m_group_info && gpos::ulong_max != m_expr_index;
 		}
 		BOOL
 		operator==(const SGroupAndExpression &other) const
@@ -249,11 +246,11 @@ private:
 			  m_left_child_expr(left_child_expr_info),
 			  m_right_child_expr(right_child_expr_info),
 			  m_properties(properties),
-			  m_atom_part_keys_array(NULL),
+			  m_atom_part_keys_array(nullptr),
 			  m_cost(0.0),
 			  m_cost_adj_PS(0.0),
 			  m_atom_base_table_rows(-1.0),
-			  m_contain_PS(NULL)
+			  m_contain_PS(nullptr)
 
 		{
 			m_contain_PS = GPOS_NEW(mp) CBitSet(mp);
@@ -265,11 +262,11 @@ private:
 						SExpressionProperties &properties)
 			: m_expr(expr),
 			  m_properties(properties),
-			  m_atom_part_keys_array(NULL),
+			  m_atom_part_keys_array(nullptr),
 			  m_cost(0.0),
 			  m_cost_adj_PS(0.0),
 			  m_atom_base_table_rows(-1.0),
-			  m_contain_PS(NULL)
+			  m_contain_PS(nullptr)
 		{
 			m_contain_PS = GPOS_NEW(mp) CBitSet(mp);
 		}
@@ -363,7 +360,7 @@ private:
 		CKHeap<SGroupInfoArray, SGroupInfo> *m_top_k_groups;
 
 		SLevelInfo(ULONG level, SGroupInfoArray *groups)
-			: m_level(level), m_groups(groups), m_top_k_groups(NULL)
+			: m_level(level), m_groups(groups), m_top_k_groups(nullptr)
 		{
 		}
 
@@ -378,7 +375,7 @@ private:
 	static ULONG
 	UlHashBitSet(const CBitSet *pbs)
 	{
-		GPOS_ASSERT(NULL != pbs);
+		GPOS_ASSERT(nullptr != pbs);
 
 		return pbs->HashValue();
 	}
@@ -387,8 +384,8 @@ private:
 	static BOOL
 	FEqualBitSet(const CBitSet *pbsFst, const CBitSet *pbsSnd)
 	{
-		GPOS_ASSERT(NULL != pbsFst);
-		GPOS_ASSERT(NULL != pbsSnd);
+		GPOS_ASSERT(nullptr != pbsFst);
+		GPOS_ASSERT(nullptr != pbsSnd);
 
 		return pbsFst->Equals(pbsSnd);
 	}
@@ -554,8 +551,8 @@ public:
 
 	// check for NIJs
 	BOOL IsRightChildOfNIJ(SGroupInfo *groupInfo,
-						   CExpression **onPredToUse = NULL,
-						   CBitSet **requiredBitsOnLeft = NULL);
+						   CExpression **onPredToUse = nullptr,
+						   CBitSet **requiredBitsOnLeft = nullptr);
 
 	// print function
 	IOstream &OsPrint(IOstream &) const;

@@ -34,7 +34,7 @@ class CDistributionSpecNonSingleton : public CDistributionSpec
 {
 private:
 	// should Replicated distribution satisfy current distribution
-	BOOL m_fAllowReplicated;
+	BOOL m_fAllowReplicated{true};
 
 public:
 	CDistributionSpecNonSingleton(const CDistributionSpecNonSingleton &) =
@@ -90,7 +90,7 @@ public:
 	static CDistributionSpecNonSingleton *
 	PdsConvert(CDistributionSpec *pds)
 	{
-		GPOS_ASSERT(NULL != pds);
+		GPOS_ASSERT(nullptr != pds);
 		GPOS_ASSERT(EdtNonSingleton == pds->Edt());
 
 		return dynamic_cast<CDistributionSpecNonSingleton *>(pds);
@@ -100,7 +100,7 @@ public:
 	static const CDistributionSpecNonSingleton *
 	PdsConvert(const CDistributionSpec *pds)
 	{
-		GPOS_ASSERT(NULL != pds);
+		GPOS_ASSERT(nullptr != pds);
 		GPOS_ASSERT(EdtNonSingleton == pds->Edt());
 
 		return dynamic_cast<const CDistributionSpecNonSingleton *>(pds);

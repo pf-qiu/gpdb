@@ -34,10 +34,7 @@ GPOS_CPL_ASSERT(GPOS_ERROR_MESSAGE_BUFFER_SIZE <= GPOS_LOG_ENTRY_BUFFER_SIZE);
 //---------------------------------------------------------------------------
 CErrorContext::CErrorContext(CMiniDumper *mini_dumper_handle)
 	: m_exception(CException::m_invalid_exception),
-	  m_severity(CException::ExsevError),
-	  m_pending(false),
-	  m_rethrown(false),
-	  m_serializing(false),
+
 	  m_static_buffer(m_error_msg, GPOS_ARRAY_SIZE(m_error_msg)),
 	  m_mini_dumper_handle(mini_dumper_handle)
 {
@@ -192,7 +189,8 @@ CErrorContext::Serialize()
 	if (m_serializing)
 		return;
 
-	if (NULL == m_mini_dumper_handle || m_serializable_objects_list.IsEmpty())
+	if (nullptr == m_mini_dumper_handle ||
+		m_serializable_objects_list.IsEmpty())
 	{
 		return;
 	}
@@ -209,7 +207,7 @@ CErrorContext::Serialize()
 	m_mini_dumper_handle->SerializeEntryHeader();
 
 	for (CSerializable *serializable_obj = m_serializable_objects_list.First();
-		 NULL != serializable_obj;
+		 nullptr != serializable_obj;
 		 serializable_obj = m_serializable_objects_list.Next(serializable_obj))
 	{
 		serializable_obj->Serialize(oos);

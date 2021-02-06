@@ -54,7 +54,7 @@ private:
 	// number of deletion locks -- each MDAccessor adds a new deletion lock if it uses
 	// an MDId object in its internal hash-table, the deletion lock is released when
 	// MDAccessor is destroyed
-	ULONG_PTR m_deletion_locks;
+	ULONG_PTR m_deletion_locks{0};
 
 public:
 	//------------------------------------------------------------------
@@ -76,9 +76,7 @@ public:
 	};
 
 	// ctor
-	IMDId() : m_deletion_locks(0)
-	{
-	}
+	IMDId() = default;
 
 	// dtor
 	~IMDId() override = default;
@@ -134,7 +132,7 @@ public:
 	static ULONG
 	MDIdHash(const IMDId *mdid)
 	{
-		GPOS_ASSERT(NULL != mdid);
+		GPOS_ASSERT(nullptr != mdid);
 		return mdid->HashValue();
 	}
 
@@ -143,7 +141,7 @@ public:
 	static BOOL
 	MDIdCompare(const IMDId *left_mdid, const IMDId *right_mdid)
 	{
-		GPOS_ASSERT(NULL != left_mdid && NULL != right_mdid);
+		GPOS_ASSERT(nullptr != left_mdid && nullptr != right_mdid);
 		return left_mdid->Equals(right_mdid);
 	}
 
@@ -159,7 +157,7 @@ public:
 	static BOOL
 	IsValid(const IMDId *mdid)
 	{
-		return NULL != mdid && mdid->IsValid();
+		return nullptr != mdid && mdid->IsValid();
 	}
 
 	virtual gpos::IOstream &OsPrint(gpos::IOstream &os) const = 0;

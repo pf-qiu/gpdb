@@ -85,13 +85,13 @@ private:
 	SBucket *m_buckets;
 
 	// number of ht buckets
-	ULONG m_nbuckets;
+	ULONG m_nbuckets{0};
 
 	// number of ht entries
-	ULONG_PTR m_size;
+	ULONG_PTR m_size{0};
 
 	// offset of key
-	ULONG m_key_offset;
+	ULONG m_key_offset{gpos::ulong_max};
 
 	// invalid key - needed for iteration
 	const K *m_invalid_key;
@@ -145,11 +145,9 @@ public:
 
 	// ctor
 	CSyncHashtable<T, K>()
-		: m_buckets(NULL),
-		  m_nbuckets(0),
-		  m_size(0),
-		  m_key_offset(gpos::ulong_max),
-		  m_invalid_key(NULL)
+		: m_buckets(nullptr),
+
+		  m_invalid_key(nullptr)
 	{
 	}
 
@@ -167,11 +165,11 @@ public:
 		 const K *invalid_key, ULONG (*func_hash)(const K &),
 		 BOOL (*func_equal)(const K &, const K &))
 	{
-		GPOS_ASSERT(NULL == m_buckets);
+		GPOS_ASSERT(nullptr == m_buckets);
 		GPOS_ASSERT(0 == m_nbuckets);
-		GPOS_ASSERT(NULL != invalid_key);
-		GPOS_ASSERT(NULL != func_hash);
-		GPOS_ASSERT(NULL != func_equal);
+		GPOS_ASSERT(nullptr != invalid_key);
+		GPOS_ASSERT(nullptr != func_hash);
+		GPOS_ASSERT(nullptr != func_equal);
 
 		m_nbuckets = size;
 		m_key_offset = key_offset;
@@ -205,7 +203,7 @@ public:
 	Cleanup()
 	{
 		GPOS_DELETE_ARRAY(m_buckets);
-		m_buckets = NULL;
+		m_buckets = nullptr;
 
 		m_nbuckets = 0;
 	}
@@ -217,22 +215,22 @@ public:
 		// need to suspend cancellation while cleaning up
 		CAutoSuspendAbort asa;
 
-		T *value = NULL;
+		T *value = nullptr;
 		CSyncHashtableIter<T, K> it(*this);
 
 		// since removing an entry will automatically advance iter's
 		// position, we need to make sure that advance iter is called
 		// only when we do not have an entry to delete
-		while (NULL != value || it.Advance())
+		while (nullptr != value || it.Advance())
 		{
-			if (NULL != value)
+			if (nullptr != value)
 			{
 				pfunc_destroy(value);
 			}
 
 			{
 				CSyncHashtableAccessByIter<T, K> acc(it);
-				if (NULL != (value = acc.Value()))
+				if (nullptr != (value = acc.Value()))
 				{
 					acc.Remove(value);
 				}
