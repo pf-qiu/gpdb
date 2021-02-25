@@ -1802,8 +1802,8 @@ CLOSE
 1: ROLLBACK TO s1;
 ROLLBACK
 1: SELECT * FROM pg_cursors WHERE name='c1';
- name | statement | is_holdable | is_binary | is_scrollable | is_parallel_retrieve | creation_time 
-------+-----------+-------------+-----------+---------------+----------------------+---------------
+ name | statement | is_holdable | is_binary | is_scrollable | creation_time | is_parallel 
+------+-----------+-------------+-----------+---------------+---------------+-------------
 (0 rows)
 1: COMMIT;
 COMMIT
@@ -2105,11 +2105,11 @@ DECLARE
 
 -- connect again and retrieve twice
 2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
-ERROR:  endpoint endpoint_id26_3 is already attached by receiver(pid: PID)
-DETAIL:  An endpoint can only be attached by one retrieving session.
+ERROR:  endpoint endpoint_id26_3 was used by another retrieve session (pid: 78042)
+DETAIL:  If pid is -1, the previous session has been detached.
 2R: @in_sh 'sub_endpoint_name @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
-ERROR:  endpoint endpoint_id26_3 is already attached by receiver(pid: PID)
-DETAIL:  An endpoint can only be attached by one retrieving session.
+ERROR:  endpoint endpoint_id26_3 was used by another retrieve session (pid: 78042)
+DETAIL:  If pid is -1, the previous session has been detached.
 2Rq: ... <quitting>
 
 -- check no endpoint info

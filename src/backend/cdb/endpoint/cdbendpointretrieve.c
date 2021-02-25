@@ -191,9 +191,8 @@ ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
 		{
 			result = receive_tuple_slot(EndpointCtl.receiver.currentMQEntry);
 			if (!result)
-			{
 				break;
-			}
+
 			(*dest->receiveSlot) (result, dest);
 			if (!(stmt->is_all))
 				retrieveCount--;
@@ -257,7 +256,7 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
 static MsgQueueStatusEntry *
 start_retrieve(const char *endpointName)
 {
-	bool		isFound;
+	bool		found;
 	Endpoint	endpointDesc;
 	MsgQueueStatusEntry *entry;
 	dsm_handle	handle = DSM_HANDLE_INVALID;
@@ -281,31 +280,27 @@ start_retrieve(const char *endpointName)
 								  (HASH_ELEM | HASH_FUNCTION));
 	}
 
-	entry = hash_search(mqStatusHTB, endpointName, HASH_FIND, &isFound);
+	entry = hash_search(mqStatusHTB, endpointName, HASH_FIND, &found);
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
-	if (isFound)
-	{
-		Assert(entry != NULL);
+	if (found)
 		endpointDesc = get_endpoint_from_mq_status_entry(entry);
-	}
 	else
-	{
 		endpointDesc = find_endpoint(endpointName, EndpointCtl.sessionID);
-	}
+
 	if (!endpointDesc)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 						errmsg("failed to attach non-existing endpoint %s",
 							   endpointName)));
 	}
-	if (!isFound)
+	if (!found)
 	{
 		/* if endpoint was not retrieved before, validate endpoint info */
 		validate_retrieve_endpoint(endpointDesc, endpointName);
 		endpointDesc->receiverPid = MyProcPid;
 		handle = endpointDesc->mqDsmHandle;
 		/* insert it into hashtable */
-		entry = hash_search(mqStatusHTB, endpointName, HASH_ENTER, &isFound);
+		entry = hash_search(mqStatusHTB, endpointName, HASH_ENTER, &found);
 		init_msg_queue_status_entry(entry);
 	}
 
@@ -317,16 +312,15 @@ start_retrieve(const char *endpointName)
 	}
 	LWLockRelease(ParallelCursorEndpointLock);
 	entry->endpoint = endpointDesc;
-	if (!isFound)
-	{
+	if (!found)
 		attach_receiver_mq(entry, handle);
-	}
+
 	return entry;
 }
 
 /*
  * validate_retrieve_endpoint - after find the retrieve endpoint,
- * validate whether it fulfill the requirements.
+ * validate whether it meets the requirements.
  */
 static void
 validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
@@ -347,6 +341,17 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 								"RETRIEVE CURSOR creator to retrieve.")));
 	}
 
+	if (!(endpointDesc->attachStatus == Status_Ready ||
+		endpointDesc->attachStatus == Status_Attached))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("endpoint %s was used by another retrieve session (pid: %d)",
+					  endpointName, endpointDesc->receiverPid),
+				 errdetail("If pid is -1, the previous session has been detached.")));
+
+	}
+
 	if (endpointDesc->receiverPid != InvalidPid &&
 		endpointDesc->receiverPid != MyProcPid)
 	{
@@ -356,12 +361,6 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 			   errmsg("endpoint %s is already attached by receiver(pid: %d)",
 					  endpointName, endpointDesc->receiverPid),
 				 errdetail("An endpoint can only be attached by one retrieving session.")));
-	}
-
-	if (endpointDesc->senderPid == InvalidPid)
-	{
-		/* Should not happen. */
-		Assert(endpointDesc->attachStatus == Status_Finished);
 	}
 }
 
@@ -396,7 +395,7 @@ attach_receiver_mq(MsgQueueStatusEntry * entry, dsm_handle dsmHandle)
 
 	dsm_pin_mapping(dsmSeg);
 	shm_toc    *toc =
-	shm_toc_attach(ENDPOINT_MSG_QUEUE_MAGIC, dsm_segment_address(dsmSeg));
+		shm_toc_attach(ENDPOINT_MSG_QUEUE_MAGIC, dsm_segment_address(dsmSeg));
 	shm_mq	   *mq = shm_toc_lookup(toc, ENDPOINT_KEY_TUPLE_QUEUE, false);
 
 	shm_mq_set_receiver(mq, MyProc);
@@ -409,9 +408,8 @@ attach_receiver_mq(MsgQueueStatusEntry * entry, dsm_handle dsmHandle)
 	if (entry->retrieveTs != NULL)
 		ExecClearTuple(entry->retrieveTs);
 	else
-		entry->retrieveTs = MakeTupleTableSlot(td, &TTSOpsVirtual); /* TODO: TTSOpsVirtual or others? */
+		entry->retrieveTs = MakeTupleTableSlot(td, &TTSOpsHeapTuple);
 
-	ExecSetSlotDescriptor(entry->retrieveTs, td);
 	entry->retrieveStatus = RETRIEVE_STATUS_GET_TUPLEDSCR;
 
 	MemoryContextSwitchTo(oldcontext);
@@ -618,9 +616,7 @@ finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 						endpoint->receiverPid)));
 
 	if (resetPID)
-	{
 		endpoint->receiverPid = InvalidPid;
-	}
 
 	/* Don't set if Status_Finished */
 	if (endpoint->attachStatus == Status_Retrieving)
@@ -630,13 +626,9 @@ finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 		 * the endpoint to ATTACHED.
 		 */
 		if (entry->retrieveStatus == RETRIEVE_STATUS_FINISH)
-		{
 			endpoint->attachStatus = Status_Finished;
-		}
 		else
-		{
 			endpoint->attachStatus = Status_Attached;
-		}
 	}
 
 	LWLockRelease(ParallelCursorEndpointLock);
@@ -730,9 +722,7 @@ retrieve_exit_callback(int code, Datum arg)
 
 	/* If the MQ entry has not be retrieved in this run. */
 	if (EndpointCtl.receiver.currentMQEntry)
-	{
 		finish_retrieve(EndpointCtl.receiver.currentMQEntry, true);
-	}
 
 	/* Cancel all partially retrieved endpoints in this retrieve session */
 	hash_seq_init(&status, mqStatusHTB);
@@ -789,7 +779,5 @@ retrieve_subxact_abort_callback(SubXactEvent event, SubTransactionId mySubid,
 								SubTransactionId parentSubid, void *arg)
 {
 	if (event == SUBXACT_EVENT_ABORT_SUB)
-	{
 		retrieve_xact_abort_callback(XACT_EVENT_ABORT, NULL);
-	}
 }
