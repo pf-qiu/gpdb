@@ -7,7 +7,6 @@
 /pg_basebackup.out
 /pg_basebackup_with_tablespaces.out
 /pt_io_in_progress_deadlock.out
-/parallel_retrieve_cursor/*
 
 # ignores including sub-directories
 autovacuum-analyze.out

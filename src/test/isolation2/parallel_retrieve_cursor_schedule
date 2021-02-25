@@ -1,3 +1,5 @@
+test: parallel_retrieve_cursor/set
+test: parallel_retrieve_cursor/extended_query
 test: parallel_retrieve_cursor/corner
 test: parallel_retrieve_cursor/explain
 test: parallel_retrieve_cursor/replicated_table
@@ -11,3 +13,4 @@ test: parallel_retrieve_cursor/fault_inject
 test: parallel_retrieve_cursor/fault_inject_2
 test: parallel_retrieve_cursor/security
 test: parallel_retrieve_cursor/privilege
+test: parallel_retrieve_cursor/unset
