@@ -592,17 +592,6 @@ class GpRecoverSegmentProgram:
                 raise ProgramArgumentValidationException( \
                     "Invalid value for recover hosts: %s" % ex)
 
-        # If it's a rebalance operation, make sure we are in an acceptable state to do that
-        # Acceptable state is:
-        #    - No segments down
-        #    - No segments in change tracking or unsynchronized state
-        if self.__options.rebalanceSegments:
-            if len(gpArray.get_invalid_segdbs()) > 0:
-                raise Exception("Down segments still exist.  All segments must be up to rebalance.")
-            if len(gpArray.get_synchronized_segdbs()) != len(gpArray.getSegDbList()):
-                raise Exception(
-                    "Some segments are not yet synchronized.  All segments must be synchronized to rebalance.")
-
         # retain list of hosts that were existing in the system prior to getRecoverActions...
         # this will be needed for later calculations that determine whether
         # new hosts were added into the system
@@ -667,11 +656,9 @@ class GpRecoverSegmentProgram:
 
             self.trigger_fts_probe(port=gpEnv.getCoordinatorPort())
 
-            self.logger.info("******************************************************************")
-            self.logger.info("Updating segments for streaming is completed.")
-            self.logger.info("For segments updated successfully, streaming will continue in the background.")
-            self.logger.info("Use  gpstate -s  to check the streaming progress.")
-            self.logger.info("******************************************************************")
+            self.logger.info("********************************")
+            self.logger.info("Segments successfully recovered.")
+            self.logger.info("********************************")
 
         sys.exit(0)
 

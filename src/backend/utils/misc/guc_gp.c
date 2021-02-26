@@ -383,7 +383,6 @@ bool		optimizer_enable_range_predicate_dpe;
 /* Analyze related GUCs for Optimizer */
 bool		optimizer_analyze_root_partition;
 bool		optimizer_analyze_midlevel_partition;
-bool		optimizer_analyze_enable_merge_of_leaf_stats;
 
 /* GUCs for replicated table */
 bool		optimizer_replicated_table_insert;
@@ -2460,17 +2459,6 @@ struct config_bool ConfigureNamesBool_gp[] =
 	},
 
 	{
-		{"optimizer_analyze_enable_merge_of_leaf_stats", PGC_USERSET, STATS_ANALYZE,
-			gettext_noop("Enable merging of leaf stats into the root stats during ANALYZE when analyzing partitions"),
-			NULL,
-			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
-		},
-		&optimizer_analyze_enable_merge_of_leaf_stats,
-		true,
-		NULL, NULL, NULL
-	},
-
-	{
 		{"optimizer_enable_constant_expression_evaluation", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Enable constant expression evaluation in the optimizer"),
 			NULL,
@@ -2829,12 +2817,12 @@ struct config_int ConfigureNamesInt_gp[] =
 	},
 
 	{
-		{"write_to_gpfdist_timeout", PGC_USERSET, EXTERNAL_TABLES,
+		{"gpfdist_retry_timeout", PGC_USERSET, EXTERNAL_TABLES,
 			gettext_noop("Timeout (in seconds) for writing data to gpfdist server."),
 			gettext_noop("Default value is 300."),
 			GUC_UNIT_S | GUC_NOT_IN_SAMPLE
 		},
-		&write_to_gpfdist_timeout,
+		&gpfdist_retry_timeout,
 		300, 1, 7200,
 		NULL, NULL, NULL
 	},
@@ -4071,12 +4059,12 @@ struct config_real ConfigureNamesReal_gp[] =
 
 	{
 		{"optimizer_damping_factor_join", PGC_USERSET, QUERY_TUNING_METHOD,
-			gettext_noop("join predicate damping factor in optimizer, 1.0 means no damping"),
+			gettext_noop("join predicate damping factor in optimizer, 1.0 means no damping, 0.0 means square root method"),
 			NULL,
 			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
 		},
 		&optimizer_damping_factor_join,
-		0.01, 0.0, 1.0,
+		0.0, 0.0, 1.0,
 		NULL, NULL, NULL
 	},
 	{
@@ -4523,7 +4511,7 @@ struct config_enum ConfigureNamesEnum_gp[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&optimizer_join_order,
-		JOIN_ORDER_EXHAUSTIVE_SEARCH, optimizer_join_order_options,
+		JOIN_ORDER_EXHAUSTIVE2_SEARCH, optimizer_join_order_options,
 		NULL, NULL, NULL
 	},
 

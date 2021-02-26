@@ -731,7 +731,7 @@ class GpStart(Command):
     def __init__(self, name, coordinatorOnly=False, restricted=False, verbose=False,ctxt=LOCAL, remoteHost=None):
         self.cmdStr="$GPHOME/bin/gpstart -a"
         if coordinatorOnly:
-            self.cmdStr += " -m"
+            self.cmdStr += " -c"
             self.propagate_env_map['GPSTART_INTERNAL_COORDINATOR_ONLY'] = 1
         if restricted:
             self.cmdStr += " -R"
@@ -749,7 +749,7 @@ class NewGpStart(Command):
     def __init__(self, name, coordinatorOnly=False, restricted=False, verbose=False,nostandby=False,ctxt=LOCAL, remoteHost=None, coordinatorDirectory=None):
         self.cmdStr="$GPHOME/bin/gpstart -a"
         if coordinatorOnly:
-            self.cmdStr += " -m"
+            self.cmdStr += " -c"
             self.propagate_env_map['GPSTART_INTERNAL_COORDINATOR_ONLY'] = 1
         if restricted:
             self.cmdStr += " -R"
@@ -774,7 +774,7 @@ class NewGpStop(Command):
     def __init__(self, name, coordinatorOnly=False, restart=False, fast=False, force=False, verbose=False, ctxt=LOCAL, remoteHost=None):
         self.cmdStr="$GPHOME/bin/gpstop -a"
         if coordinatorOnly:
-            self.cmdStr += " -m"
+            self.cmdStr += " -c"
         if verbose or logging_is_verbose():
             self.cmdStr += " -v"
         if fast:
@@ -795,7 +795,7 @@ class GpStop(Command):
     def __init__(self, name, coordinatorOnly=False, verbose=False, quiet=False, restart=False, fast=False, force=False, datadir=None, parallel=None, reload=False, ctxt=LOCAL, remoteHost=None, logfileDirectory=False):
         self.cmdStr="$GPHOME/bin/gpstop -a"
         if coordinatorOnly:
-            self.cmdStr += " -m"
+            self.cmdStr += " -c"
         if restart:
             self.cmdStr += " -r"
         if fast:

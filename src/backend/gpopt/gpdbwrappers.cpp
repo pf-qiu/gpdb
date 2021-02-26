@@ -32,6 +32,7 @@
 #include "catalog/pg_collation.h"
 extern "C" {
 #include "access/external.h"
+#include "catalog/pg_inherits.h"
 #include "nodes/nodeFuncs.h"
 #include "optimizer/clauses.h"
 #include "optimizer/optimizer.h"
@@ -2031,37 +2032,6 @@ gpdb::GetRelationIndexes(Relation relation)
 	GP_WRAP_END;
 	return NIL;
 }
-#if 0
-LogicalIndexes *
-gpdb::GetLogicalPartIndexes
-	(
-	Oid oid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_partition, pg_partition_rule, pg_index */
-		return BuildLogicalIndexInfo(oid);
-	}
-	GP_WRAP_END;
-	return NULL;
-}
-LogicalIndexInfo *
-gpdb::GetLogicalIndexInfo
-	(
-	Oid root_oid,
-	Oid index_oid
-	)
-{
-	GP_WRAP_START;
-	{
-		/* catalog tables: pg_index */
-		return logicalIndexInfoForIndexOid(root_oid, index_oid);
-	}
-	GP_WRAP_END;
-	return NULL;
-}
-#endif
 
 gpdb::RelationWrapper
 gpdb::GetRelation(Oid rel_oid)
@@ -2823,6 +2793,33 @@ gpdb::RelIsPartitioned(Oid relid)
 		return relation_is_partitioned(relid);
 	}
 	GP_WRAP_END;
+}
+
+bool
+gpdb::IndexIsPartitioned(Oid relid)
+{
+	GP_WRAP_START;
+	{
+		return index_is_partitioned(relid);
+	}
+	GP_WRAP_END;
+}
+
+List *
+gpdb::GetRelChildIndexes(Oid reloid)
+{
+	List *partoids = NIL;
+	GP_WRAP_START;
+	{
+		if (InvalidOid == reloid)
+		{
+			return NIL;
+		}
+		partoids = find_inheritance_children(reloid, NoLock);
+	}
+	GP_WRAP_END;
+
+	return partoids;
 }
 
 void

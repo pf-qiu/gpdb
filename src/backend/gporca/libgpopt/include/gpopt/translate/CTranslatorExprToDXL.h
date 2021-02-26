@@ -21,6 +21,7 @@
 #include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/ops.h"
 #include "naucrates/dxl/operators/CDXLColRef.h"
+#include "naucrates/dxl/operators/CDXLIndexDescr.h"
 #include "naucrates/dxl/operators/CDXLPhysicalAgg.h"
 #include "naucrates/dxl/operators/CDXLPhysicalDML.h"
 #include "naucrates/dxl/operators/CDXLPhysicalMotion.h"
@@ -66,40 +67,6 @@ typedef CHashMap<CColRef, CDXLNode, CColRef::HashValue, CColRef::Equals,
 class CTranslatorExprToDXL
 {
 private:
-	// shorthand for functions for translating scalar expressions
-	typedef CDXLNode *(CTranslatorExprToDXL::*PfPdxlnScalar)(
-		CExpression *pexpr);
-
-	// shorthand for functions for translating physical expressions
-	typedef CDXLNode *(CTranslatorExprToDXL::*PfPdxlnPhysical)(
-		CExpression *pexpr, CColRefArray *colref_array,
-		CDistributionSpecArray *
-			pdrgpdsBaseTables,	// output: array of base table hash distributions
-		ULONG
-			*pulNonGatherMotions,  // output: number of non-Gather motion nodes
-		BOOL *pfDML				   // output: is this a DML operation
-	);
-
-	// pair of scalar operator type and the corresponding translator
-	struct SScTranslatorMapping
-	{
-		// type
-		COperator::EOperatorId op_id;
-
-		// translator function pointer
-		PfPdxlnScalar pf;
-	};
-
-	// pair of physical operator type and the corresponding translator
-	struct SPhTranslatorMapping
-	{
-		// type
-		COperator::EOperatorId op_id;
-
-		// translator function pointer
-		PfPdxlnPhysical pf;
-	};
-
 	// memory pool
 	CMemoryPool *m_mp;
 
@@ -128,20 +95,8 @@ private:
 	// id of master node
 	INT m_iMasterId;
 
-	// scalar expression translators indexed by the operator id
-	PfPdxlnScalar m_rgpfScalarTranslators[COperator::EopSentinel];
-
-	// physical expression translators indexed by the operator id
-	PfPdxlnPhysical m_rgpfPhysicalTranslators[COperator::EopSentinel];
-
 	// private copy ctor
 	CTranslatorExprToDXL(const CTranslatorExprToDXL &);
-
-	// initialize index of scalar translators
-	void InitScalarTranslators();
-
-	// initialize index of physical translators
-	void InitPhysicalTranslators();
 
 	EdxlBoolExprType Edxlbooltype(
 		const CScalarBoolOp::EBoolOperator eboolop) const;
@@ -380,6 +335,12 @@ private:
 	// Construct a table descr for a child partition
 	CTableDescriptor *MakeTableDescForPart(const IMDRelation *part,
 										   CTableDescriptor *root_table_desc);
+
+	// Construct a dxl index descriptor for a child partition
+	CDXLIndexDescr *PdxlnIndexDescForPart(CMemoryPool *m_mp,
+										  MdidHashSet *child_index_mdids_set,
+										  const IMDRelation *part,
+										  const CWStringConst *index_name);
 
 	// translate a dynamic bitmap table scan
 	CDXLNode *PdxlnDynamicBitmapTableScan(
@@ -652,10 +613,20 @@ private:
 		const CColRefArray *colref_array);
 
 	// translate a filter expr on the root for a child partition
-	CDXLNode *PdxlnFilterForChildPart(const ColRefToUlongMap *root_col_mapping,
-									  const CColRefArray *part_colrefs,
-									  const CColRefArray *root_colrefs,
-									  CExpression *pred);
+	CDXLNode *PdxlnCondForChildPart(const ColRefToUlongMap *root_col_mapping,
+									const CColRefArray *part_colrefs,
+									const CColRefArray *root_colrefs,
+									CExpression *pred);
+
+	CDXLNode *PdxlnBitmapIndexProbeForChildPart(
+		const ColRefToUlongMap *root_col_mapping,
+		const CColRefArray *part_colrefs, const CColRefArray *root_colrefs,
+		const IMDRelation *part, CExpression *pexprBitmapIndexProbe);
+
+	CDXLNode *PdxlnBitmapIndexPathForChildPart(
+		const ColRefToUlongMap *root_col_mapping,
+		const CColRefArray *part_colrefs, const CColRefArray *root_colrefs,
+		const IMDRelation *part, CExpression *pexprBitmapIndexPath);
 
 	// translate a project list expression into a DXL proj list node
 	// according to the order specified in the dynamic array

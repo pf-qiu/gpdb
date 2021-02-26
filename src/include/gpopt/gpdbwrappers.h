@@ -48,7 +48,6 @@ struct CdbComponentDatabases;
 struct StringInfoData;
 typedef StringInfoData *StringInfo;
 struct LogicalIndexes;
-struct LogicalIndexInfo;
 struct ParseState;
 struct DefElem;
 struct GpPolicy;
@@ -545,6 +544,8 @@ Node *MutateQueryOrExpressionTree(Node *node, Node *(*mutator)(), void *context,
 
 bool RelIsPartitioned(Oid relid);
 
+bool IndexIsPartitioned(Oid relid);
+
 // check whether table with the given oid is a regular table and not part of a partitioned table
 bool RelPartIsNone(Oid relid);
 
@@ -579,14 +580,6 @@ double CdbEstimatePartitionedNumTuples(Relation rel);
 
 // close the given relation
 void CloseRelation(Relation rel);
-
-#if 0
-	// return the logical indexes for a partitioned table
-	LogicalIndexes *GetLogicalPartIndexes(Oid oid);
-	
-	// return the logical info structure for a given logical index oid
-	LogicalIndexInfo *GetLogicalIndexInfo(Oid root_oid, Oid index_oid);
-#endif
 
 // return a list of index oids for a given relation
 List *GetRelationIndexes(Relation relation);
@@ -748,6 +741,8 @@ void *GPDBMemoryContextAlloc(MemoryContext context, Size size);
 MemoryContext GPDBAllocSetContextCreate();
 
 void GPDBMemoryContextDelete(MemoryContext context);
+
+List *GetRelChildIndexes(Oid reloid);
 
 void GPDBLockRelationOid(Oid reloid, int lockmode);
 

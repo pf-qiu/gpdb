@@ -120,14 +120,9 @@ CXformSelect2DynamicIndexGet::Transform(CXformContext *pxfctxt,
 	{
 		IMDId *pmdidIndex = pmdrel->IndexMDidAt(ul);
 		const IMDIndex *pmdindex = md_accessor->RetrieveIndex(pmdidIndex);
-		CPartConstraint *ppartcnstrIndex = CUtils::PpartcnstrFromMDPartCnstr(
-			mp, COptCtxt::PoctxtFromTLS()->Pmda(),
-			popDynamicGet->PdrgpdrgpcrPart(), pmdindex->MDPartConstraint(),
-			popDynamicGet->PdrgpcrOutput());
 		CExpression *pexprDynamicIndexGet = CXformUtils::PexprLogicalIndexGet(
 			mp, md_accessor, pexprRelational, pexpr->Pop()->UlOpId(), pdrgpexpr,
-			pcrsReqd, pcrsScalarExpr, nullptr /*outer_refs*/, pmdindex, pmdrel,
-			ppartcnstrIndex);
+			pcrsReqd, pcrsScalarExpr, nullptr /*outer_refs*/, pmdindex, pmdrel);
 		if (nullptr != pexprDynamicIndexGet)
 		{
 			// create a redundant SELECT on top of DynamicIndexGet to be able to use predicate in partition elimination

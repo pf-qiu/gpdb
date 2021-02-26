@@ -1490,7 +1490,7 @@ exec_mpp_query(const char *query_string,
 		case 1:
 			ereport(LOG,
 					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
+					 errhidestmt(false)));
 			break;
 		case 2:
 			ereport(LOG,
@@ -1991,7 +1991,7 @@ exec_simple_query(const char *query_string)
 		case 1:
 			ereport(LOG,
 					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
+					 errhidestmt(false)));
 			break;
 		case 2:
 			ereport(LOG,
@@ -2893,7 +2893,7 @@ exec_execute_message(const char *portal_name, int64 max_rows)
 		case 1:
 			ereport(LOG,
 					(errmsg("duration: %s ms", msec_str),
-					 errhidestmt(true)));
+					 errhidestmt(false)));
 			break;
 		case 2:
 			ereport(LOG,

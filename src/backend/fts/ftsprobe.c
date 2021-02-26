@@ -796,7 +796,7 @@ retryForFtsFailed(fts_segment_info *ftsInfo, pg_time_t now)
 }
 
 /*
- * If retry attempts are available, transition the sgement to the start state
+ * If retry attempts are available, transition the segments to the start state
  * corresponding to their failure state.  If retries have exhausted, leave the
  * segment in the failure state.
  */
@@ -925,7 +925,6 @@ updateConfiguration(CdbComponentDatabaseInfo *primary,
 		 * dispatcher, now that changes has been persisted to catalog.
 		 */
 		Assert(ftsProbeInfo);
-		ftsLock();
 		if (IsPrimaryAlive)
 			FTS_STATUS_SET_UP(ftsProbeInfo->status[primary->config->dbid]);
 		else
@@ -935,14 +934,13 @@ updateConfiguration(CdbComponentDatabaseInfo *primary,
 			FTS_STATUS_SET_UP(ftsProbeInfo->status[mirror->config->dbid]);
 		else
 			FTS_STATUS_SET_DOWN(ftsProbeInfo->status[mirror->config->dbid]);
-		ftsUnlock();
 	}
 
 	return UpdateNeeded;
 }
 
 /*
- * Process resonses from primary segments:
+ * Process responses from primary segments:
  * (a) Transition internal state so that segments can be messaged subsequently
  * (e.g. promotion and turning off syncrep).
  * (b) Update gp_segment_configuration catalog table, if needed.
@@ -1140,7 +1138,7 @@ processResponse(fts_context *context)
 			case FTS_PROMOTE_SUCCESS:
 				elogif(gp_log_fts >= GPVARS_VERBOSITY_VERBOSE, LOG,
 					   "FTS mirror (content=%d, dbid=%d) promotion "
-					   "triggerred successfully",
+					   "triggered successfully",
 					   primary->config->segindex, primary->config->dbid);
 				ftsInfo->state = FTS_RESPONSE_PROCESSED;
 				break;

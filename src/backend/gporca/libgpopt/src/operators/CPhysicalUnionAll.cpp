@@ -19,7 +19,7 @@ static BOOL Equals(ULongPtrArray *pdrgpulFst, ULongPtrArray *pdrgpulSnd);
 // helper to assert distribution delivered by UnionAll children
 static void AssertValidChildDistributions(
 	CMemoryPool *mp, CExpressionHandle &exprhdl,
-	CDistributionSpec::EDistributionType
+	const CDistributionSpec::EDistributionType
 		*pedt,		 // array of distribution types to check
 	ULONG ulDistrs,	 // number of distribution types to check
 	const CHAR *szAssertMsg);
@@ -66,12 +66,10 @@ CPhysicalUnionAll::FInputOrderSensitive() const
 
 CPhysicalUnionAll::CPhysicalUnionAll(CMemoryPool *mp,
 									 CColRefArray *pdrgpcrOutput,
-									 CColRef2dArray *pdrgpdrgpcrInput,
-									 ULONG ulScanIdPartialIndex)
+									 CColRef2dArray *pdrgpdrgpcrInput)
 	: CPhysical(mp),
 	  m_pdrgpcrOutput(pdrgpcrOutput),
 	  m_pdrgpdrgpcrInput(pdrgpdrgpcrInput),
-	  m_ulScanIdPartialIndex(ulScanIdPartialIndex),
 	  m_pdrgpcrsInput(nullptr),
 	  m_pdrgpds(nullptr)
 {
@@ -150,21 +148,6 @@ CPhysicalUnionAll::PdrgpdrgpcrInput() const
 	return m_pdrgpdrgpcrInput;
 }
 
-// if this unionall is needed for partial indexes then return the scan
-// id, otherwise return gpos::ulong_max
-ULONG
-CPhysicalUnionAll::UlScanIdPartialIndex() const
-{
-	return m_ulScanIdPartialIndex;
-}
-
-// is this unionall needed for a partial index
-BOOL
-CPhysicalUnionAll::IsPartialIndex() const
-{
-	return (gpos::ulong_max > m_ulScanIdPartialIndex);
-}
-
 CPhysicalUnionAll *
 CPhysicalUnionAll::PopConvert(COperator *pop)
 {
@@ -192,8 +175,7 @@ CPhysicalUnionAll::Matches(COperator *pop) const
 	{
 		CPhysicalUnionAll *popUnionAll = CPhysicalUnionAll::PopConvert(pop);
 
-		return PdrgpcrOutput()->Equals(popUnionAll->PdrgpcrOutput()) &&
-			   UlScanIdPartialIndex() == popUnionAll->UlScanIdPartialIndex();
+		return PdrgpcrOutput()->Equals(popUnionAll->PdrgpcrOutput());
 	}
 
 	return false;
@@ -849,7 +831,7 @@ CPhysicalUnionAll::MapOutputColRefsToInput(CMemoryPool *mp,
 void
 AssertValidChildDistributions(
 	CMemoryPool *mp, CExpressionHandle &exprhdl,
-	CDistributionSpec::EDistributionType
+	const CDistributionSpec::EDistributionType
 		*pedt,		 // array of distribution types to check
 	ULONG ulDistrs,	 // number of distribution types to check
 	const CHAR *szAssertMsg)

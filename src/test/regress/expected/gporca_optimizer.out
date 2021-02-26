@@ -13633,6 +13633,7 @@ DETAIL:  Feature not supported: Partitioned table with heterogeneous storage typ
 (10 rows)
 
 -- negative test, make sure we don't use a btree scan on an AO table
+-- start_ignore
 select disable_xform('CXformSelect2BitmapBoolOp');
              disable_xform             
 ---------------------------------------
@@ -13656,7 +13657,7 @@ select disable_xform('CXformInnerJoin2NLJoin');
 ------------------------------------
  CXformInnerJoin2NLJoin is disabled
 (1 row)
-
+-- end_ignore
 -- Make sure we don't allow a regular (btree) index scan or index join for an AO table
 -- We disabled hash join, and bitmap index joins, NLJs, so this should leave ORCA no other choices
 -- expect a sequential scan, not an index scan, from these two queries
@@ -13672,8 +13673,8 @@ explain (costs off) select * from t_ao_btree where a = 3 and b = 3;
 explain (costs off) select * from tpart_ao_btree where a = 3 and b = 3;
 INFO:  GPORCA failed to produce a plan, falling back to planner
 DETAIL:  Feature not supported: Partitioned table with heterogeneous storage types
-                   QUERY PLAN                   
-------------------------------------------------
+                           QUERY PLAN                            
+-----------------------------------------------------------------
  Gather Motion 1:1  (slice1; segments: 1)
    ->  Bitmap Heap Scan on tpart_ao_btree_1_prt_1
          Recheck Cond: ((a = 3) AND (b = 3))
@@ -13699,6 +13700,7 @@ DETAIL:  Feature not supported: Partitioned table with heterogeneous storage typ
  1 | 1 | 1 | 1
 (1 row)
 
+-- start_ignore
 select enable_xform('CXformSelect2BitmapBoolOp');
              enable_xform             
 --------------------------------------
@@ -13722,7 +13724,7 @@ select enable_xform('CXformInnerJoin2NLJoin');
 -----------------------------------
  CXformInnerJoin2NLJoin is enabled
 (1 row)
-
+-- end_ignore
 reset optimizer_enable_hashjoin;
 reset optimizer_trace_fallback;
 -- Tests converted from MDPs that use tables partitioned on text columns and similar types,
@@ -13808,22 +13810,32 @@ default partition def);
 create INDEX y_idx on y (j);
 set optimizer_enable_indexjoin=on;
 explain (costs off) select count(*) from x, y where (x.i > y.j AND x.j <= y.i);
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
+                                QUERY PLAN                                 
+---------------------------------------------------------------------------
  Aggregate
    ->  Gather Motion 3:1  (slice1; segments: 3)
          ->  Nested Loop
-               Join Filter: ((x.i > y_1_prt_p0.j) AND (x.j <= y_1_prt_p0.i))
+               Join Filter: true
                ->  Broadcast Motion 3:3  (slice2; segments: 3)
                      ->  Seq Scan on x
                ->  Append
-                     ->  Seq Scan on y_1_prt_p0
-                     ->  Seq Scan on y_1_prt_p1
-                     ->  Seq Scan on y_1_prt_p2
-                     ->  Seq Scan on y_1_prt_p3
-                     ->  Seq Scan on y_1_prt_def
+                     ->  Index Scan using y_1_prt_p0_j_idx on y_1_prt_p0
+                           Index Cond: (j < x.i)
+                           Filter: ((j < x.i) AND (x.j <= i))
+                     ->  Index Scan using y_1_prt_p1_j_idx on y_1_prt_p1
+                           Index Cond: (j < x.i)
+                           Filter: ((j < x.i) AND (x.j <= i))
+                     ->  Index Scan using y_1_prt_p2_j_idx on y_1_prt_p2
+                           Index Cond: (j < x.i)
+                           Filter: ((j < x.i) AND (x.j <= i))
+                     ->  Index Scan using y_1_prt_p3_j_idx on y_1_prt_p3
+                           Index Cond: (j < x.i)
+                           Filter: ((j < x.i) AND (x.j <= i))
+                     ->  Index Scan using y_1_prt_def_j_idx on y_1_prt_def
+                           Index Cond: (j < x.i)
+                           Filter: ((j < x.i) AND (x.j <= i))
  Optimizer: Pivotal Optimizer (GPORCA)
-(13 rows)
+(23 rows)
 
 reset optimizer_enable_indexjoin;
 -- InferPredicatesBCC-vcpart-txt.mdp
