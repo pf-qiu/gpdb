@@ -402,7 +402,7 @@ main(int argc, char **argv)
 		 */
 		if (exec_check_parallel_cursor(master_conn, 0))
 		{
-			fprintf(stderr, "Error during check the PARALLEL RETRIEVE CURSOR\n");
+			fprintf(stderr, "Error when checking the PARALLEL RETRIEVE CURSOR\n");
 			goto LABEL_ERR;
 		}
 

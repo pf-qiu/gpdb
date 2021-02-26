@@ -4608,27 +4608,17 @@ check_forbidden_in_gpdb_handlers(char firstchar)
 								firstchar)));
 		}
 	}
-	else if (am_cursor_retrieve_handler)
-	{
-		switch (firstchar)
-		{
-			case 'Q':
-			case 'P':
-			case 'B':
-			case 'E':
-			case 'X':
-			case EOF:
-				return;
-			default:
-				ereport(ERROR,
-						(errcode(ERRCODE_PROTOCOL_VIOLATION),
-						 errmsg("protocol '%c' is not supported in a GPDB parallel retrieve cursor connection",
-								firstchar)));
-		}
-	}
-
 }
 
+static void
+forbidden_in_retrieve_handler(char firstchar)
+{
+	if (am_cursor_retrieve_handler)
+		ereport(ERROR,
+				(errcode(ERRCODE_PROTOCOL_VIOLATION),
+				 errmsg("protocol '%c' is not supported in a GPDB parallel retrieve cursor connection",
+						firstchar)));
+}
 
 /* ----------------------------------------------------------------
  * PostgresMain
@@ -5574,6 +5564,7 @@ PostgresMain(int argc, char *argv[],
 
 			case 'F':			/* fastpath function call */
 				forbidden_in_wal_sender(firstchar);
+				forbidden_in_retrieve_handler(firstchar);
 
 				/* Set statement_timestamp() */
 				SetCurrentStatementStartTimestamp();
