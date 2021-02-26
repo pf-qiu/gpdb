@@ -42,7 +42,7 @@ typedef struct
 	char		cursorName[NAMEDATALEN];
 	int8		token[ENDPOINT_TOKEN_LEN];
 	int			dbid;
-	enum AttachStatus attachStatus;
+	EndpointState state;
 	pid_t		senderPid;
 	Oid			userId;
 	int			sessionId;
@@ -71,8 +71,8 @@ extern Datum gp_endpoints_info(PG_FUNCTION_ARGS);
 extern Datum gp_endpoints_status_info(PG_FUNCTION_ARGS);
 
 /* Used in UDFs */
-static char *status_enum_to_string(enum AttachStatus status);
-static enum AttachStatus status_string_to_enum(const char *status);
+static char *state_enum_to_string(EndpointState state);
+static EndpointState state_string_to_enum(const char *state);
 static bool check_parallel_retrieve_cursor(const char *cursorName, bool isWait);
 
 /* Endpoint control information for current session. */
@@ -420,7 +420,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 					StrNCpy(mystatus->status[idx].cursorName, PQgetvalue(result, j, 1), NAMEDATALEN);
 					endpoint_parse_token(mystatus->status[idx].token, PQgetvalue(result, j, 2));
 					mystatus->status[idx].dbid = atoi(PQgetvalue(result, j, 3));
-					mystatus->status[idx].attachStatus = status_string_to_enum(PQgetvalue(result, j, 4));
+					mystatus->status[idx].state = state_string_to_enum(PQgetvalue(result, j, 4));
 					mystatus->status[idx].senderPid = atoi(PQgetvalue(result, j, 5));
 					mystatus->status[idx].userId = atooid(PQgetvalue(result, j, 6));
 					mystatus->status[idx].sessionId = atoi(PQgetvalue(result, j, 7));
@@ -476,7 +476,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 					status->dbid = contentid_get_dbid(
 					MASTER_CONTENT_ID, GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY,
 													  false);
-					status->attachStatus = entry->attachStatus;
+					status->state = entry->state;
 					status->senderPid = entry->senderPid;
 					status->userId = entry->userID;
 					status->sessionId = entry->sessionID;
@@ -537,7 +537,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 		 * find out the status of end-point
 		 */
 		values[7] =
-			CStringGetTextDatum(status_enum_to_string(qe_status->attachStatus));
+			CStringGetTextDatum(state_enum_to_string(qe_status->state));
 		nulls[7] = false;
 
 		if (qe_status)
@@ -641,7 +641,7 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 			nulls[2] = false;
 			values[3] = Int32GetDatum(entry->receiverPid);
 			nulls[3] = false;
-			status = status_enum_to_string(entry->attachStatus);
+			status = state_enum_to_string(entry->state);
 			values[4] = CStringGetTextDatum(status);
 			nulls[4] = false;
 			values[5] = Int32GetDatum(GpIdentity.dbid);
@@ -668,28 +668,28 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 }
 
 static char *
-status_enum_to_string(enum AttachStatus status)
+state_enum_to_string(EndpointState state)
 {
 	char	   *result = NULL;
 
-	switch (status)
+	switch (state)
 	{
-		case Status_Ready:
-			result = GP_ENDPOINT_STATUS_READY;
+		case ENDPOINTSTATE_READY:
+			result = GP_ENDPOINT_STATE_READY;
 			break;
-		case Status_Retrieving:
-			result = GP_ENDPOINT_STATUS_RETRIEVING;
+		case ENDPOINTSTATE_RETRIEVING:
+			result = GP_ENDPOINT_STATE_RETRIEVING;
 			break;
-		case Status_Attached:
-			result = GP_ENDPOINT_STATUS_ATTACHED;
+		case ENDPOINTSTATE_ATTACHED:
+			result = GP_ENDPOINT_STATE_ATTACHED;
 			break;
-		case Status_Finished:
-			result = GP_ENDPOINT_STATUS_FINISHED;
+		case ENDPOINTSTATE_FINISHED:
+			result = GP_ENDPOINT_STATE_FINISHED;
 			break;
-		case Status_Released:
-			result = GP_ENDPOINT_STATUS_RELEASED;
+		case ENDPOINTSTATE_RELEASED:
+			result = GP_ENDPOINT_STATE_RELEASED;
 			break;
-		case Status_Invalid:
+		case ENDPOINTSTATE_INVALID:
 
 			/*
 			 * This function is called when displays endpoint's information.
@@ -703,33 +703,22 @@ status_enum_to_string(enum AttachStatus status)
 	return result;
 }
 
-static enum AttachStatus
-status_string_to_enum(const char *status)
+static EndpointState
+state_string_to_enum(const char *state)
 {
-	Assert(status);
-	if (strcmp(status, GP_ENDPOINT_STATUS_READY) == 0)
-	{
-		return Status_Ready;
-	}
-	else if (strcmp(status, GP_ENDPOINT_STATUS_RETRIEVING) == 0)
-	{
-		return Status_Retrieving;
-	}
-	else if (strcmp(status, GP_ENDPOINT_STATUS_ATTACHED) == 0)
-	{
-		return Status_Attached;
-	}
-	else if (strcmp(status, GP_ENDPOINT_STATUS_FINISHED) == 0)
-	{
-		return Status_Finished;
-	}
-	else if (strcmp(status, GP_ENDPOINT_STATUS_RELEASED) == 0)
-	{
-		return Status_Released;
-	}
+	if (strcmp(state, GP_ENDPOINT_STATE_READY) == 0)
+		return ENDPOINTSTATE_READY;
+	else if (strcmp(state, GP_ENDPOINT_STATE_RETRIEVING) == 0)
+		return ENDPOINTSTATE_RETRIEVING;
+	else if (strcmp(state, GP_ENDPOINT_STATE_ATTACHED) == 0)
+		return ENDPOINTSTATE_ATTACHED;
+	else if (strcmp(state, GP_ENDPOINT_STATE_FINISHED) == 0)
+		return ENDPOINTSTATE_FINISHED;
+	else if (strcmp(state, GP_ENDPOINT_STATE_RELEASED) == 0)
+		return ENDPOINTSTATE_RELEASED;
 	else
 	{
-		elog(ERROR, "unknown endpoint status %s", status);
-		return Status_Invalid;
+		elog(ERROR, "unknown endpoint status %s", state);
+		return ENDPOINTSTATE_INVALID;
 	}
 }

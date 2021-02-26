@@ -19,11 +19,11 @@
 #define ENDPOINT_TOKEN_STR_LEN			 (2 + ENDPOINT_TOKEN_LEN * 2) // "tk0A1B...4E5F"
 #define InvalidSession					 (-1)
 
-#define GP_ENDPOINT_STATUS_READY		 "READY"
-#define GP_ENDPOINT_STATUS_RETRIEVING	 "RETRIEVING"
-#define GP_ENDPOINT_STATUS_ATTACHED		 "ATTACHED"
-#define GP_ENDPOINT_STATUS_FINISHED		 "FINISHED"
-#define GP_ENDPOINT_STATUS_RELEASED		 "RELEASED"
+#define GP_ENDPOINT_STATE_READY		 "READY"
+#define GP_ENDPOINT_STATE_RETRIEVING	 "RETRIEVING"
+#define GP_ENDPOINT_STATE_ATTACHED		 "ATTACHED"
+#define GP_ENDPOINT_STATE_FINISHED		 "FINISHED"
+#define GP_ENDPOINT_STATE_RELEASED		 "RELEASED"
 
 #define ENDPOINT_KEY_TUPLE_DESC_LEN		1
 #define ENDPOINT_KEY_TUPLE_DESC			2
@@ -46,15 +46,15 @@
 /*
  * Endpoint attach status, used by parallel retrieve cursor.
  */
-enum AttachStatus
+typedef enum EndpointState
 {
-	Status_Invalid = 0,
-	Status_Ready,
-	Status_Retrieving,
-	Status_Attached,
-	Status_Finished,
-	Status_Released
-}	AttachStatus;
+	ENDPOINTSTATE_INVALID,
+	ENDPOINTSTATE_READY,
+	ENDPOINTSTATE_RETRIEVING,
+	ENDPOINTSTATE_ATTACHED,
+	ENDPOINTSTATE_FINISHED,
+	ENDPOINTSTATE_RELEASED,
+} EndpointState;
 
 /*
  * Endpoint Description, used by parallel retrieve cursor.
@@ -73,7 +73,7 @@ typedef struct EndpointDesc
 								 * queue */
 	Latch		ackDone;		/* Latch to sync EPR_SENDER and EPR_RECEIVER
 								 * status */
-	enum AttachStatus attachStatus;		/* The attach status of the endpoint */
+	EndpointState state;		/* The state of the endpoint */
 	int			sessionID;		/* Connection session id */
 	Oid			userID;			/* User ID of the current executed PARALLEL
 								 * RETRIEVE CURSOR */

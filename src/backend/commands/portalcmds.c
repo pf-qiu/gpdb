@@ -347,9 +347,9 @@ PortalCleanup(Portal portal)
 		/*
 		 * Clear the sender of parallel retrieve cursor if exists.
 		 */
-		if (queryDesc->estate && queryDesc->estate->es_sender_state)
+		if (queryDesc->estate && queryDesc->estate->es_prc_sender_state)
 		{
-			ClearParallelRtrvCursorSenderState(queryDesc->estate->es_sender_state);
+			ClearParallelRtrvCursorSenderState(queryDesc->estate->es_prc_sender_state);
 			FreeParallelRtrvCursorSenderState(queryDesc->estate);
 		}
 

@@ -145,15 +145,15 @@ static const int8 *get_or_create_token(void);
 
 /* Endpoint helper function */
 static EndpointDesc *alloc_endpoint(const char *cursorName, dsm_handle dsmHandle);
-static void free_endpoint(volatile EndpointDesc * endpoint);
+static void free_endpoint(EndpointDesc *endpoint);
 static void create_and_connect_mq(TupleDesc tupleDesc,
 					  dsm_segment **mqSeg /* out */ ,
 					  shm_mq_handle **mqHandle /* out */ );
 static void detach_mq(dsm_segment *dsmSeg);
 static void init_session_info_entry(void);
-static void wait_receiver(struct ParallelRtrvCursorSenderState * state);
-static void unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc);
-static void abort_endpoint(struct ParallelRtrvCursorSenderState * state);
+static void wait_receiver(struct ParallelRtrvCursorSenderState *state);
+static void unset_endpoint_sender_pid(EndpointDesc *endPointDesc);
+static void abort_endpoint(struct ParallelRtrvCursorSenderState *state);
 static void wait_parallel_retrieve_close(void);
 
 /* utility */
@@ -220,7 +220,7 @@ init_shared_endpoints(Endpoint endpoints)
 		endpoints[i].mqDsmHandle = DSM_HANDLE_INVALID;
 		endpoints[i].sessionID = InvalidSession;
 		endpoints[i].userID = InvalidOid;
-		endpoints[i].attachStatus = Status_Invalid;
+		endpoints[i].state = ENDPOINTSTATE_INVALID;
 		endpoints[i].empty = true;
 		InitSharedLatch(&endpoints[i].ackDone);
 	}
@@ -493,7 +493,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	sharedEndpoints[i].userID = GetSessionUserId();
 	sharedEndpoints[i].senderPid = MyProcPid;
 	sharedEndpoints[i].receiverPid = InvalidPid;
-	sharedEndpoints[i].attachStatus = Status_Ready;
+	sharedEndpoints[i].state = ENDPOINTSTATE_READY;
 	sharedEndpoints[i].empty = false;
 	sharedEndpoints[i].mqDsmHandle = dsmHandle;
 	OwnLatch(&sharedEndpoints[i].ackDone);
@@ -683,7 +683,7 @@ checkQDConnectionAlive()
  * from the queue, the queue will be not available for receiver.
  */
 static void
-wait_receiver(struct ParallelRtrvCursorSenderState * state)
+wait_receiver(struct ParallelRtrvCursorSenderState *state)
 {
 	elog(DEBUG3, "CDB_ENDPOINTS: wait receiver.");
 	while (true)
@@ -752,7 +752,7 @@ detach_mq(dsm_segment *dsmSeg)
  * Needs to be called with exclusive lock on ParallelCursorEndpointLock.
  */
 static void
-unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
+unset_endpoint_sender_pid(EndpointDesc *endPointDesc)
 {
 	SessionTokenTag tag;
 
@@ -781,7 +781,7 @@ unset_endpoint_sender_pid(volatile EndpointDesc * endPointDesc)
  * abort_endpoint - xact abort routine for endpoint
  */
 static void
-abort_endpoint(struct ParallelRtrvCursorSenderState * state)
+abort_endpoint(struct ParallelRtrvCursorSenderState *state)
 {
 	if (state->endpoint)
 	{
@@ -880,7 +880,7 @@ wait_parallel_retrieve_close(void)
  * Needs to be called with exclusive lock on ParallelCursorEndpointLock.
  */
 static void
-free_endpoint(volatile EndpointDesc * endpoint)
+free_endpoint(EndpointDesc *endpoint)
 {
 	SessionTokenTag tag;
 	SessionInfoEntry *infoEntry = NULL;
@@ -1109,7 +1109,7 @@ AllocParallelRtrvCursorSenderState(EState *estate)
 
 	oldcontext = MemoryContextSwitchTo(estate->es_query_cxt);
 
-	estate->es_sender_state = palloc0(sizeof(struct ParallelRtrvCursorSenderState));
+	estate->es_prc_sender_state = palloc0(sizeof(struct ParallelRtrvCursorSenderState));
 
 	MemoryContextSwitchTo(oldcontext);
 }
@@ -1117,8 +1117,8 @@ AllocParallelRtrvCursorSenderState(EState *estate)
 void
 FreeParallelRtrvCursorSenderState(EState *estate)
 {
-	if (estate->es_sender_state)
+	if (estate->es_prc_sender_state)
 	{
-		pfree(estate->es_sender_state);
+		pfree(estate->es_prc_sender_state);
 	}
 }

@@ -722,7 +722,7 @@ typedef struct EState
 	bool eliminateAliens;
 
 	/* Information relevant to parallel retrieve cursor */
-	struct ParallelRtrvCursorSenderState *es_sender_state;
+	struct ParallelRtrvCursorSenderState *es_prc_sender_state;
 } EState;
 
 struct PlanState;

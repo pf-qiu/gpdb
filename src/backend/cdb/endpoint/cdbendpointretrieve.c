@@ -248,7 +248,7 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
  * endpoint if it's the first time to retrieve the endpoint.
  * Attach to the endpoint's shm_mq.
  *
- * Set the endpoint status to Status_Retrieving.
+ * Set the endpoint status to ENDPOINTSTATE_RETRIEVING.
  *
  * When call RETRIEVE statement in PQprepare() & PQexecPrepared(), this func will
  * be called 2 times.
@@ -305,10 +305,10 @@ start_retrieve(const char *endpointName)
 	}
 
 	/* begins to retrieve tuples from endpoint if still have data to retrieve. */
-	if (endpointDesc->attachStatus == Status_Ready ||
-		endpointDesc->attachStatus == Status_Attached)
+	if (endpointDesc->state == ENDPOINTSTATE_READY ||
+		endpointDesc->state == ENDPOINTSTATE_ATTACHED)
 	{
-		endpointDesc->attachStatus = Status_Retrieving;
+		endpointDesc->state = ENDPOINTSTATE_RETRIEVING;
 	}
 	LWLockRelease(ParallelCursorEndpointLock);
 	entry->endpoint = endpointDesc;
@@ -341,8 +341,8 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 								"RETRIEVE CURSOR creator to retrieve.")));
 	}
 
-	if (!(endpointDesc->attachStatus == Status_Ready ||
-		endpointDesc->attachStatus == Status_Attached))
+	if (!(endpointDesc->state == ENDPOINTSTATE_READY ||
+		endpointDesc->state == ENDPOINTSTATE_ATTACHED))
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
@@ -458,7 +458,7 @@ notify_sender(MsgQueueStatusEntry * entry, bool isFinished)
 	}
 	if (isFinished)
 	{
-		endpoint->attachStatus = Status_Finished;
+		endpoint->state = ENDPOINTSTATE_FINISHED;
 	}
 	SetLatch(&endpoint->ackDone);
 	LWLockRelease(ParallelCursorEndpointLock);
@@ -575,8 +575,8 @@ receive_tuple_slot(MsgQueueStatusEntry * entry)
  * message queue reading, then don't reset it's pid.
  *
  * If current retrieve statement retrieve all tuples from endpoint. Set endpoint's
- * status to Status_Finished.
- * Otherwise, set endpoint's status from Status_Retrieving to Status_Attached.
+ * state to ENDPOINTSTATE_FINISHED.
+ * Otherwise, set endpoint's status from ENDPOINTSTATE_RETRIEVING to ENDPOINTSTATE_ATTACHED.
  *
  * Note: don't drop the result slot, we only have one chance to built it.
  * Errors in these function is not expect to be raised.
@@ -618,17 +618,17 @@ finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 	if (resetPID)
 		endpoint->receiverPid = InvalidPid;
 
-	/* Don't set if Status_Finished */
-	if (endpoint->attachStatus == Status_Retrieving)
+	/* Don't set if ENDPOINTSTATE_FINISHED */
+	if (endpoint->state == ENDPOINTSTATE_RETRIEVING)
 	{
 		/*
 		 * If finish retrieving, set the endpoint to FINISHED, otherwise set
 		 * the endpoint to ATTACHED.
 		 */
 		if (entry->retrieveStatus == RETRIEVE_STATUS_FINISH)
-			endpoint->attachStatus = Status_Finished;
+			endpoint->state = ENDPOINTSTATE_FINISHED;
 		else
-			endpoint->attachStatus = Status_Attached;
+			endpoint->state = ENDPOINTSTATE_ATTACHED;
 	}
 
 	LWLockRelease(ParallelCursorEndpointLock);
@@ -660,10 +660,10 @@ retrieve_cancel_action(MsgQueueStatusEntry * entry, char *msg)
 	endpoint = get_endpoint_from_mq_status_entry(entry);
 
 	if (endpoint && endpoint->receiverPid == MyProcPid &&
-		endpoint->attachStatus != Status_Finished)
+		endpoint->state != ENDPOINTSTATE_FINISHED)
 	{
 		endpoint->receiverPid = InvalidPid;
-		endpoint->attachStatus = Status_Released;
+		endpoint->state = ENDPOINTSTATE_RELEASED;
 		if (endpoint->senderPid != InvalidPid)
 		{
 			elog(DEBUG3, "CDB_ENDPOINT: signal sender to abort");
