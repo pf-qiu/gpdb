@@ -1357,35 +1357,35 @@ ROLLBACK
 BEGIN
 1: DECLARE c8 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'get_cell SESSION81 3 1 ; match_sub session81 $SESSION81' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
+1: @out_sh 'get_cell SESSION81 3 1 ; match_sub_tt session81 $SESSION81' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
  sessionid | status
 -----------+--------
- session81         | READY
- session81         | READY
- session81         | READY
+ session81 | READY
+ session81 | READY
+ session81 | READY
 (3 rows)
 -- Session 2 can only see its own cursors by default.
 2: BEGIN;
 BEGIN
 2: DECLARE c8 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-2: @out_sh 'get_cell SESSION82 3 1 ; match_sub session82 $SESSION82' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
+2: @out_sh 'get_cell SESSION82 3 1 ; match_sub_tt session82 $SESSION82' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
  sessionid | status
 -----------+--------
- session82         | READY
- session82         | READY
- session82         | READY
+ session82 | READY
+ session82 | READY
+ session82 | READY
 (3 rows)
 -- Session 2 can only see all cursors with gp_endpoints_info(true).
-2: SELECT sessionid,status FROM gp_endpoints_info(true) WHERE cursorname='c8';
+2: SELECT sessionid,status FROM gp_endpoints_info(true) WHERE cursorname='c8' order by sessionid;
  sessionid | status 
 -----------+--------
- session81         | READY  
- session81         | READY  
- session81         | READY  
- session82         | READY  
- session82         | READY  
- session82         | READY  
+ session82 | READY  
+ session82 | READY  
+ session82 | READY  
+ session81 | READY  
+ session81 | READY  
+ session81 | READY  
 (6 rows)
 
 1: CLOSE c8;
