@@ -98,8 +98,8 @@ DECLARE
 ERROR:  endpoint endpoint_id1_1 is already attached by receiver(pid: PID)
 DETAIL:  An endpoint can only be attached by one retrieving session.
 3R: @in_sh 'sub_endpoint_name @ENDPOINT2' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
-ERROR:  endpoint endpoint_id2_1 is already attached by receiver(pid: PID)
-DETAIL:  An endpoint can only be attached by one retrieving session.
+ERROR:  endpoint endpoint_id2_1 was used by another retrieve session (pid: 110292)
+DETAIL:  If pid is -1, the previous session has been detached.
 3R: @in_sh 'sub_endpoint_name @ENDPOINT3' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
  a  
 ----
