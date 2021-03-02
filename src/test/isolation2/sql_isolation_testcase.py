@@ -779,7 +779,7 @@ class SQLIsolationExecutor(object):
                         # error in the daemon shell cannot be recovered
                         raise
                     except Exception as e:
-                        print("FAILED: ", e, file=output_file)
+                        print(" FAILED: ", e, file=output_file)
                     command = ""
                 else:
                     command += command_part

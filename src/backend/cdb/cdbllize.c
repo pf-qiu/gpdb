@@ -1564,8 +1564,11 @@ motion_sanity_check(PlannerInfo *root, Plan *plan)
 static void
 adjust_top_path_for_parallel_retrieve_cursor(Path *path, PlanSlice *slice)
 {
-	Assert(path);
-	Assert(slice);
+	/*
+	 * TODO/FIXME:
+	 * 1. Can we extract similar code in create_motion_plan() to a comm func?
+	 * 2. I believe the logic could be improved.
+	 */
 	if (CdbPathLocus_IsSingleQE(path->locus)
 		|| CdbPathLocus_IsGeneral(path->locus)
 		|| CdbPathLocus_IsEntry(path->locus))
@@ -1582,7 +1585,7 @@ adjust_top_path_for_parallel_retrieve_cursor(Path *path, PlanSlice *slice)
 		/*
 		 * queries to replicated table run on a single segment.
 		 */
-		slice->segindex = 0;
+		slice->segindex = gp_session_id % path->locus.numsegments;
 		slice->numsegments = path->locus.numsegments;
 		slice->gangType = GANGTYPE_SINGLETON_READER;
 	}
