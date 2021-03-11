@@ -64,6 +64,7 @@
 
 #include "postgres.h"
 
+#include "access/session.h"
 #include "access/tupdesc.h"
 #include "access/xact.h"
 #include "cdb/cdbdisp_query.h"
@@ -218,6 +219,7 @@ init_shared_endpoints(Endpoint endpoints)
 		endpoints[i].senderPid = InvalidPid;
 		endpoints[i].receiverPid = InvalidPid;
 		endpoints[i].mqDsmHandle = DSM_HANDLE_INVALID;
+		endpoints[i].sessionDsmHandle = DSM_HANDLE_INVALID;
 		endpoints[i].sessionID = InvalidSession;
 		endpoints[i].userID = InvalidOid;
 		endpoints[i].state = ENDPOINTSTATE_INVALID;
@@ -426,8 +428,15 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	int			i;
 	int			foundIdx = -1;
 	EndpointDesc *ret = NULL;
+	dsm_handle	session_dsm_handle;
 
 	Assert(sharedEndpoints);
+
+	session_dsm_handle = GetSessionDsmHandle();
+	if (session_dsm_handle == DSM_HANDLE_INVALID)
+		ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
+				errmsg("failed to create the per-session DSM segment.")));
+
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 
 #ifdef FAULT_INJECTOR
@@ -448,6 +457,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 						 DUMMY_CURSOR_NAME);
 				sharedEndpoints[i].databaseID = MyDatabaseId;
 				sharedEndpoints[i].mqDsmHandle = DSM_HANDLE_INVALID;
+				sharedEndpoints[i].sessionDsmHandle = DSM_HANDLE_INVALID;
 				sharedEndpoints[i].sessionID = gp_session_id;
 				sharedEndpoints[i].userID = GetSessionUserId();
 				sharedEndpoints[i].senderPid = InvalidPid;
@@ -496,6 +506,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	sharedEndpoints[i].state = ENDPOINTSTATE_READY;
 	sharedEndpoints[i].empty = false;
 	sharedEndpoints[i].mqDsmHandle = dsmHandle;
+	sharedEndpoints[i].sessionDsmHandle = session_dsm_handle;
 	OwnLatch(&sharedEndpoints[i].ackDone);
 	ret = &sharedEndpoints[i];
 
@@ -551,11 +562,8 @@ create_and_connect_mq(TupleDesc tupleDesc, dsm_segment **mqSeg /* out */ ,
 
 	*mqSeg = dsm_create(tocSize, 0);
 	if (*mqSeg == NULL)
-	{
-		ereport(
-				ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
-			errmsg("failed to create shared message queue for endpoints.")));
-	}
+		ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
+				errmsg("failed to create shared message queue for endpoints.")));
 	dsm_pin_mapping(*mqSeg);
 
 	toc = shm_toc_create(ENDPOINT_MSG_QUEUE_MAGIC, dsm_segment_address(*mqSeg),
@@ -892,6 +900,7 @@ free_endpoint(EndpointDesc *endpoint)
 
 	endpoint->databaseID = InvalidOid;
 	endpoint->mqDsmHandle = DSM_HANDLE_INVALID;
+	endpoint->sessionDsmHandle = DSM_HANDLE_INVALID;
 	endpoint->empty = true;
 	memset((char *) endpoint->name, '\0', NAMEDATALEN);
 	ResetLatch(&endpoint->ackDone);

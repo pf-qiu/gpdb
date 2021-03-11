@@ -43,6 +43,7 @@
 
 #include "postgres.h"
 
+#include "access/session.h"
 #include "access/xact.h"
 #include "cdb/cdbendpoint.h"
 #include "cdb/cdbsrlz.h"
@@ -100,7 +101,7 @@ static void detach_receiver_mq(MsgQueueStatusEntry * entry);
 static void notify_sender(MsgQueueStatusEntry * entry, bool isFinished);
 static void retrieve_cancel_action(MsgQueueStatusEntry * entry, char *msg);
 static void retrieve_exit_callback(int code, Datum arg);
-static void retrieve_xact_abort_callback(XactEvent ev, void *vp);
+static void retrieve_xact_callback(XactEvent ev, void *arg);
 static void retrieve_subxact_abort_callback(SubXactEvent event,
 								SubTransactionId mySubid,
 								SubTransactionId parentSubid,
@@ -128,7 +129,7 @@ AuthEndpoint(Oid userID, const char *tokenStr)
 		isFound = true;
 		before_shmem_exit(retrieve_exit_callback, (Datum) 0);
 		RegisterSubXactCallback(retrieve_subxact_abort_callback, NULL);
-		RegisterXactCallback(retrieve_xact_abort_callback, NULL);
+		RegisterXactCallback(retrieve_xact_callback, NULL);
 	}
 
 	return isFound;
@@ -223,7 +224,7 @@ init_msg_queue_status_entry(MsgQueueStatusEntry * entry)
  *
  * Get endpoint from the entry if exists and validate the endpoint slot
  * still belong to current entry since it may get reused by other endpoint.
- * ParallelCursorEndpointLock shout be acquired before calling this function.
+ * ParallelCursorEndpointLock shoud be acquired before calling this function.
  */
 static Endpoint
 get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
@@ -235,7 +236,7 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
 		{
 			return entry->endpoint;
 		}
-		elog(DEBUG3, "CDB_ENDPOINTS: exists endpoint slot in MsgQueueStatusEntry is reused by other");
+		elog(WARNING, "endpoint slot in MsgQueueStatusEntry is reused by others");
 		entry->endpoint = NULL;
 	}
 	return NULL;
@@ -315,6 +316,9 @@ start_retrieve(const char *endpointName)
 	if (!found)
 		attach_receiver_mq(entry, handle);
 
+	if (CurrentSession->segment == NULL)
+		AttachSession(endpointDesc->sessionDsmHandle);
+
 	return entry;
 }
 
@@ -331,7 +335,9 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 						errmsg("%s could not attach endpoint",
 				  endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole))));
 	}
+
 	Assert(endpointDesc->mqDsmHandle != DSM_HANDLE_INVALID);
+
 	if (endpointDesc->userID != GetSessionUserId())
 	{
 		ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -550,6 +556,10 @@ receive_tuple_slot(MsgQueueStatusEntry * entry)
 		 * SIGUSR1 is coming from the CLOSE CURSOR.
 		 */
 		detach_receiver_mq(entry);
+		/*
+		 * We do not call DetachSession() here since we still need that for the
+		 * transient record tuples.
+		 */
 		entry->retrieveStatus = RETRIEVE_STATUS_FINISH;
 		notify_sender(entry, true);
 		return NULL;
@@ -683,7 +693,7 @@ retrieve_cancel_action(MsgQueueStatusEntry * entry, char *msg)
  * the endpoints and their message queues in this session have to be detached when
  * process exits. In this case, the active MsgQueueStatusEntry will be detached
  * first in retrieve_exit_callback. Thus, no need to detach it again in
- * retrieve_xact_abort_callback.
+ * retrieve_xact_callback.
  *
  * shmem_exit()
  * --> ... (other before shmem callback if exists)
@@ -694,13 +704,13 @@ retrieve_cancel_action(MsgQueueStatusEntry * entry, char *msg)
  *	   --> AbortOutOfAnyTransaction
  *		   --> AbortTransaction
  *			   --> CallXactCallbacks
- *				   --> retrieve_xact_abort_callback
+ *				   --> retrieve_xact_callback
  *		   --> CleanupTransaction
  * --> dsm_backend_shutdown
  *
  * For Normal Transaction Aborts:
  * Retriever clean up job will be done in xact abort callback
- * retrieve_xact_abort_callback which will only clean the active
+ * retrieve_xact_callback which will only clean the active
  * MsgQueueStatusEntry.
  *
  * Question:
@@ -741,6 +751,9 @@ retrieve_exit_callback(int code, Datum arg)
 	}
 	mqStatusHTB = NULL;
 	ClearParallelRtrvCursorExecRole();
+
+	if (CurrentSession->segment != NULL)
+		DetachSession();
 }
 
 /*
@@ -753,7 +766,7 @@ retrieve_exit_callback(int code, Datum arg)
  * endpoint_name. Since we call these two methods before dsm detach.
  */
 static void
-retrieve_xact_abort_callback(XactEvent ev, void *vp)
+retrieve_xact_callback(XactEvent ev, void *arg pg_attribute_unused())
 {
 	if (ev == XACT_EVENT_ABORT)
 	{
@@ -769,15 +782,20 @@ retrieve_xact_abort_callback(XactEvent ev, void *vp)
 		}
 		ClearParallelRtrvCursorExecRole();
 	}
+
+	if (CurrentSession->segment != NULL)
+		DetachSession();
 }
 
 /*
  * Callback for retrieve role's sub-xact abort .
  */
 static void
-retrieve_subxact_abort_callback(SubXactEvent event, SubTransactionId mySubid,
-								SubTransactionId parentSubid, void *arg)
+retrieve_subxact_abort_callback(SubXactEvent event,
+								SubTransactionId mySubid pg_attribute_unused(),
+								SubTransactionId parentSubid pg_attribute_unused(),
+								void *arg pg_attribute_unused())
 {
 	if (event == SUBXACT_EVENT_ABORT_SUB)
-		retrieve_xact_abort_callback(XACT_EVENT_ABORT, NULL);
+		retrieve_xact_callback(XACT_EVENT_ABORT, NULL);
 }

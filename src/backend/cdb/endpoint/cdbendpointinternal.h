@@ -79,6 +79,8 @@ typedef struct EndpointDesc
 								 * RETRIEVE CURSOR */
 	bool		empty;			/* Whether current EndpointDesc slot in DSM is
 								 * free */
+	dsm_handle	sessionDsmHandle;	/* DSM handle, which contains per-session
+									 * DSM (see session.c). */
 }	EndpointDesc;
 
 /*
