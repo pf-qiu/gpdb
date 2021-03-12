@@ -76,8 +76,7 @@ static EndpointState state_string_to_enum(const char *state);
 static bool check_parallel_retrieve_cursor(const char *cursorName, bool isWait);
 
 /* Endpoint control information for current session. */
-struct EndpointControl EndpointCtl = {
-PARALLEL_RETRIEVE_NONE, InvalidSession,.receiver = {NULL}};
+struct EndpointControl EndpointCtl = {InvalidSession, .receiver = {NULL}};
 
 /*
  * Convert the string tk0123456789 to int 0123456789 and save it into
@@ -117,67 +116,6 @@ endpoint_print_token(const int8 *token)
 	res[len - 1] = 0;
 
 	return res;
-}
-
-/*
- * Set the role of endpoint, sender or receiver.
- * When call RETRIEVE statement in PQprepare() & PQexecPrepared(), this
- * func will be called 2 times.
- */
-void
-SetParallelRtrvCursorExecRole(enum ParallelRtrvCursorExecRole role)
-{
-	if (EndpointCtl.GpParallelRtrvRole != PARALLEL_RETRIEVE_NONE && EndpointCtl.GpParallelRtrvRole != role)
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg("endpoint role %s is already set to %s",
-					 endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole),
-							   endpoint_role_to_string(role))));
-
-	elog(DEBUG3, "CDB_ENDPOINT: set endpoint role to %s",
-		 endpoint_role_to_string(role));
-
-	EndpointCtl.GpParallelRtrvRole = role;
-}
-
-/*
- * Clear the role of endpoint
- */
-void
-ClearParallelRtrvCursorExecRole(void)
-{
-	elog(DEBUG3, "CDB_ENDPOINT: unset endpoint role %s",
-		 endpoint_role_to_string(EndpointCtl.GpParallelRtrvRole));
-
-	EndpointCtl.GpParallelRtrvRole = PARALLEL_RETRIEVE_NONE;
-}
-
-/*
- * Return the value of static variable GpPrceRole
- */
-enum ParallelRtrvCursorExecRole
-GetParallelRtrvCursorExecRole(void)
-{
-	return EndpointCtl.GpParallelRtrvRole;
-}
-
-const char *
-endpoint_role_to_string(enum ParallelRtrvCursorExecRole role)
-{
-	switch (role)
-	{
-		case PARALLEL_RETRIEVE_SENDER:
-			return "[END POINT SENDER]";
-
-		case PARALLEL_RETRIEVE_RECEIVER:
-			return "[END POINT RECEIVER]";
-
-		case PARALLEL_RETRIEVE_NONE:
-			return "[END POINT NONE]";
-
-		default:
-			Assert(false);
-			return "";
-	}
 }
 
 /*
@@ -266,7 +204,7 @@ check_parallel_retrieve_cursor(const char *cursorName, bool isWait)
 						errmsg("cursor \"%s\" does not exist", cursorName)));
 		return false;			/* keep compiler happy */
 	}
-	if (!PortalIsParallelRetrieve())
+	if (!PortalIsParallelRetrieveCursor())
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),

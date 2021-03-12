@@ -35,23 +35,6 @@
 #include "nodes/execnodes.h"
 
 /*
- * Roles that used in PARALLEL RETRIEVE CURSOR execution.
- *
- * PARALLEL_RETRIEVE_SENDER behaves like a store, the client could retrieve
- * results from it. The PARALLEL_RETRIEVE_SENDER could be on master or
- * some/all segments, depending on the query of the PARALLEL RETRIEVE CURSOR.
- *
- * PARALLEL_RETRIEVE_RECEIVER connect to each PARALLEL_RETRIEVE_SENDER via
- * "retrieve" mode to retrieve results.
- */
-enum ParallelRtrvCursorExecRole
-{
-	PARALLEL_RETRIEVE_SENDER = 1,
-	PARALLEL_RETRIEVE_RECEIVER,
-	PARALLEL_RETRIEVE_NONE
-};
-
-/*
  * Endpoint allocate positions.
  */
 enum EndPointExecPosition
@@ -94,11 +77,7 @@ extern void ExecRetrieveStmt(const RetrieveStmt *stmt, DestReceiver *dest);
 
 /* cdbendpointutils.c */
 /* Utility functions */
-extern void SetParallelRtrvCursorExecRole(enum ParallelRtrvCursorExecRole role);
-extern void ClearParallelRtrvCursorExecRole(void);
-extern enum ParallelRtrvCursorExecRole GetParallelRtrvCursorExecRole(void);
 extern void ClearParallelRtrvCursorSenderState(struct ParallelRtrvCursorSenderState *state);
-
 extern void AllocParallelRtrvCursorSenderState(EState *state);
 
 #endif   /* CDBENDPOINT_H */

@@ -329,7 +329,6 @@ CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
 
 	Assert(!state->endpoint);
 	Assert(!state->dsmSeg);
-	Assert(EndpointCtl.GpParallelRtrvRole == PARALLEL_RETRIEVE_SENDER);
 
 	/*
 	 * The message queue needs to be created first since the dsm_handle has to
@@ -413,7 +412,6 @@ DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
 	state->endpoint = NULL;
 	detach_mq(state->dsmSeg);
 	state->dsmSeg = NULL;
-	ClearParallelRtrvCursorExecRole();
 }
 
 /*
@@ -820,7 +818,6 @@ abort_endpoint(struct ParallelRtrvCursorSenderState *state)
 		detach_mq(state->dsmSeg);
 		state->dsmSeg = NULL;
 	}
-	ClearParallelRtrvCursorExecRole();
 }
 
 /*
@@ -1107,7 +1104,6 @@ ClearParallelRtrvCursorSenderState(
 {
 	abort_endpoint(state);
 	clean_session_token_info();
-	ClearParallelRtrvCursorExecRole();
 	pfree(state);
 }
 

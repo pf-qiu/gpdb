@@ -2255,8 +2255,6 @@ UtilityTupleDescriptor(Node *parsetree)
 			{
 				RetrieveStmt *n = (RetrieveStmt *) parsetree;
 
-                SetParallelRtrvCursorExecRole(PARALLEL_RETRIEVE_RECEIVER);
-
 				return CreateTupleDescCopy(GetRetrieveStmtTupleDesc(n));
 			}
 

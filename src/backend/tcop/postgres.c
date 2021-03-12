@@ -1132,7 +1132,6 @@ exec_mpp_query(const char *query_string,
 	SliceTable *sliceTable = NULL;
 	ExecSlice  *slice = NULL;
 	ParamListInfo paramLI = NULL;
-	bool forParallelCursor = false;
 
 	Assert(Gp_role == GP_ROLE_EXECUTE);
 	/*
@@ -1226,12 +1225,6 @@ exec_mpp_query(const char *query_string,
 
 		if (ddesc->oidAssignments)
 			AddPreassignedOids(ddesc->oidAssignments);
-
-		// Whether current statement is dispatched from DECLARE PARALLEL CURSOR.
-		if (ddesc->parallelCursorName && ddesc->parallelCursorName[0])
-		{
-			forParallelCursor = true;
-		}
     }
 
 	if ( !plan )
@@ -1264,14 +1257,6 @@ exec_mpp_query(const char *query_string,
 					rte->requiredPerms &= ~removeperms;
 			}
 		}
-		/*
-		 * If current slice to execute is the root slice for main plan and
-		 * the plan is dispatched from DECLARE PARALLEL CURSOR,
-		 * then current QE/Entry DB it parallel retrieve cursor sender which will
-		 * create endpoint on itself later.
-		 */
-		if ((commandType == CMD_SELECT) && IS_ROOT_SLICE_FOR_MAIN_PLAN(slice) && forParallelCursor)
-			SetParallelRtrvCursorExecRole(PARALLEL_RETRIEVE_SENDER);
 	}
 
 

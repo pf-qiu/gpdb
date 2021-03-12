@@ -761,7 +761,7 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 	CmdType		operation;
 	DestReceiver *dest;
 	bool		sendTuples;
-	bool        isParallelRetrieveSender;
+	bool        isParallelRetrieveCursor = false;
 	MemoryContext oldcontext;
 	DestReceiver *endpointDest		= NULL;
 	/*
@@ -778,8 +778,6 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 
 	Assert(estate != NULL);
 	Assert(!(estate->es_top_eflags & EXEC_FLAG_EXPLAIN_ONLY));
-
-	isParallelRetrieveSender = (GetParallelRtrvCursorExecRole() == PARALLEL_RETRIEVE_SENDER);
 
 	/*
 	 * Switch into per-query memory context
@@ -885,6 +883,9 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 		}
 		else if (exec_identity == GP_ROOT_SLICE)
 		{
+			isParallelRetrieveCursor = (queryDesc->ddesc &&
+										queryDesc->ddesc->parallelCursorName &&
+										queryDesc->ddesc->parallelCursorName[0]);
 
 			/*
 			 * When run a root slice, and it is a PARALLEL RETRIEVE CURSOR, it means
@@ -895,7 +896,7 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 			 * For the scenario: endpoint on QE, the query plan is changed,
 			 * the root slice also exists on QE.
 			 */
-			if (isParallelRetrieveSender)
+			if (isParallelRetrieveCursor)
 			{
 				AllocParallelRtrvCursorSenderState(estate);
 				endpointDest = CreateTQDestReceiverForEndpoint(
@@ -914,10 +915,10 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 						queryDesc->planstate,
 						queryDesc->plannedstmt->parallelModeNeeded,
 						operation,
-						(isParallelRetrieveSender ? true : sendTuples),
+						isParallelRetrieveCursor ? true : sendTuples,
 						count,
 						direction,
-						(isParallelRetrieveSender? endpointDest : dest),
+						isParallelRetrieveCursor? endpointDest : dest,
 						execute_once);
 		}
 		else
@@ -964,7 +965,7 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 	/*
 	 * shutdown tuple receiver, if we started it
 	 */
-	if (isParallelRetrieveSender && endpointDest != NULL)
+	if (isParallelRetrieveCursor && endpointDest != NULL)
 	{
 		DestroyTQDestReceiverForEndpoint(endpointDest, estate->es_prc_sender_state);
 	}

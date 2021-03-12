@@ -110,9 +110,6 @@ typedef struct MsgQueueStatusEntry MsgQueueStatusEntry;
  */
 typedef struct EndpointControl
 {
-	/* Current PARALLEL RETRIEVE CURSOR role */
-	enum ParallelRtrvCursorExecRole GpParallelRtrvRole;
-
 	/*
 	 * Which session that the endpoint is created in. For senders, this is the
 	 * same with gp_session_id. For receivers, this is decided by the auth
@@ -140,7 +137,6 @@ extern void get_token_by_session_id(int sessionId, Oid userID, int8 *token /* ou
 extern int	get_session_id_for_auth(Oid userID, const int8 *token);
 
 /* utility functions in "cdbendpointutilities.c" */
-extern const char *endpoint_role_to_string(enum ParallelRtrvCursorExecRole role);
 extern bool endpoint_token_equals(const int8 *token1, const int8 *token2);
 extern bool endpoint_name_equals(const char *name1, const char *name2);
 extern void endpoint_parse_token(int8 *token /* out */ , const char *tokenStr);
