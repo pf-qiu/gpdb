@@ -302,7 +302,6 @@ typedef struct QueryDesc
 	/* This field is set by ExecutorEnd after collecting cdbdisp results */
 	uint64		es_processed;	/* # of tuples processed */
 	bool		extended_query;   /* simple or extended query protocol? */
-	bool		parallel_retrieve_cursor;   /* if is a PARALLEL RETRIEVE CURSOR */
 	char		*portal_name;	/* NULL for unnamed portal */
 
 	QueryDispatchDesc *ddesc;

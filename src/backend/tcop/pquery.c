@@ -114,7 +114,6 @@ CreateQueryDesc(PlannedStmt *plannedstmt,
 	qd->totaltime = NULL;
 
 	qd->extended_query = false; /* default value */
-	qd->parallel_retrieve_cursor = false;
 	qd->portal_name = NULL;
 
 	qd->ddesc = NULL;
@@ -196,9 +195,6 @@ ProcessQuery(Portal portal,
 									dest, params, queryEnv,
 									GP_INSTRUMENT_OPTS);
 	queryDesc->ddesc = portal->ddesc;
-
-	if (PortalIsParallelRetrieveCursor())
-		queryDesc->parallel_retrieve_cursor = true;
 
 	/* GPDB hook for collecting query info */
 	if (query_info_collect_hook)
@@ -647,7 +643,6 @@ PortalStart(Portal portal, ParamListInfo params,
 				{
 					if (queryDesc->ddesc == NULL)
 						queryDesc->ddesc = makeNode(QueryDispatchDesc);
-					queryDesc->parallel_retrieve_cursor = true;
 					queryDesc->ddesc->parallelCursorName = queryDesc->portal_name;
 				}
 
