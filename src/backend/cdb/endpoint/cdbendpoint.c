@@ -1108,6 +1108,7 @@ ClearParallelRtrvCursorSenderState(
 	abort_endpoint(state);
 	clean_session_token_info();
 	ClearParallelRtrvCursorExecRole();
+	pfree(state);
 }
 
 void
@@ -1121,13 +1122,4 @@ AllocParallelRtrvCursorSenderState(EState *estate)
 	estate->es_prc_sender_state = palloc0(sizeof(struct ParallelRtrvCursorSenderState));
 
 	MemoryContextSwitchTo(oldcontext);
-}
-
-void
-FreeParallelRtrvCursorSenderState(EState *estate)
-{
-	if (estate->es_prc_sender_state)
-	{
-		pfree(estate->es_prc_sender_state);
-	}
 }

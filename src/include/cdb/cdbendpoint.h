@@ -100,6 +100,5 @@ extern enum ParallelRtrvCursorExecRole GetParallelRtrvCursorExecRole(void);
 extern void ClearParallelRtrvCursorSenderState(struct ParallelRtrvCursorSenderState *state);
 
 extern void AllocParallelRtrvCursorSenderState(EState *state);
-extern void FreeParallelRtrvCursorSenderState(EState *state);
 
 #endif   /* CDBENDPOINT_H */
