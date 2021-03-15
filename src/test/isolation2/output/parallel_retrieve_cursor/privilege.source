@@ -133,7 +133,7 @@ SET
  1        
 (1 row)
 0R: SELECT SESSION_USER, CURRENT_USER;
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 0U: SELECT auth_token, userid FROM gp_endpoints_status_info();
  auth_token                         | userid 
 ------------------------------------+--------
@@ -157,7 +157,7 @@ ERROR:  Only allow RETRIEVE statement for retrieve role
 (1 row)
 --- Login as u1 and retrieve all to finish the test
 0R: SELECT SESSION_USER, CURRENT_USER;
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 0R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE 1 FROM ENDPOINT "@ENDPOINT2";
  a 
 ---
@@ -212,7 +212,7 @@ DECLARE
 0Rq: ... <quitting>
 3Rq: FAILED:  Sessions not started cannot be quit
 1<:  <... completed>
-FAILED:  Execution failed
+ FAILED:  Execution failed
 1: END;
 ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished endpoint backends will be cancelled"
 2q: ... <quitting>
@@ -266,20 +266,20 @@ DECLARE
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 *R: SELECT SESSION_USER, CURRENT_USER;
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 *R: @in_sh 'sub_endpoint_name @ENDPOINT4': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT4";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
@@ -380,11 +380,11 @@ SET
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 
-ERROR:  Only allow RETRIEVE statement for retrieve role
+ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 *U: SELECT auth_token, userid FROM gp_endpoints_status_info();
  auth_token | userid 
 ------------+--------
