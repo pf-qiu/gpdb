@@ -635,6 +635,39 @@ drop table i;
 create table i (i int) partition by range(i) (start (1) end(3) every(1));
 alter table i add partition foo2 start(40) end (50);
 alter table i drop partition foo2;
+
+-- when using the partition name to find target partition table,
+-- we shoud check whether the matched table belong to the partitioned table.
+-- raise error instead of executing on the irrelevant table.
+create table i_1_prt_3 (like i);
+
+-- create another partitioned table which contains a partition table that
+-- could be matched by partition name when targeted on an irrelevant table.
+create table i2 (i int) partition by range(i) (start (1) end(3) every(1));
+create table i_1_prt_4 partition of i2 for values from (4) to (5);
+
+-- the matechd table name is i_1_prt_3, but it's a normal table, raise error.
+alter table i drop partition "3";
+-- the matched table name is i_1_prt_4, but it belongs to i2, raise error
+alter table i drop partition "4";
+
+-- should raise error since we always make sure the partitioned table at least have one partition;
+alter table i drop partition "1", drop partition "2";
+
+drop table i;
+drop table i2;
+drop table i_1_prt_3;
+
+create table i (i int) partition by range(i) (start(1) end(3) every(1), default partition extra);
+-- should raise error since we always make sure the partitioned table at least have one partition;
+alter table i drop partition "2", drop partition "3", drop default partition;
+drop table i;
+
+create table i (i int, c text) partition by range(i) subpartition by list(c)
+subpartition template (subpartition a values ('a'), subpartition b values ('b'))
+(start (1) end(3) every(1));
+-- should raise error since we always make sure the partitioned table at least have one partition;
+alter table i alter partition "1" drop partition a, alter partition "1" drop partition b;
 drop table i;
 
 CREATE TABLE PARTSUPP (

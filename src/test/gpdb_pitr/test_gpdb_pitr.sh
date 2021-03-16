@@ -16,7 +16,7 @@
 
 # Store gpdemo master and primary segment data directories.
 # This assumes default settings for the ports and data directories.
-DATADIR="${MASTER_DATA_DIRECTORY%*/*/*}"
+DATADIR="${COORDINATOR_DATA_DIRECTORY%*/*/*}"
 MASTER=${DATADIR}/qddir/demoDataDir-1
 PRIMARY1=${DATADIR}/dbfast1/demoDataDir0
 PRIMARY2=${DATADIR}/dbfast2/demoDataDir1
@@ -34,10 +34,7 @@ REPLICA_PRIMARY1=$TEMP_DIR/replica_p1
 REPLICA_PRIMARY2=$TEMP_DIR/replica_p2
 REPLICA_PRIMARY3=$TEMP_DIR/replica_p3
 
-ARCHIVE_MASTER=$TEMP_DIR/archive_m
-ARCHIVE_PRIMARY1=$TEMP_DIR/archive_p1
-ARCHIVE_PRIMARY2=$TEMP_DIR/archive_p2
-ARCHIVE_PRIMARY3=$TEMP_DIR/archive_p3
+ARCHIVE_PREFIX=$TEMP_DIR/archive_seg
 
 REPLICA_MASTER_DBID=10
 REPLICA_PRIMARY1_DBID=11
@@ -76,13 +73,12 @@ run_test_isolation2()
 # the new settings.
 echo "Setting up WAL Archiving configurations..."
 for segment_role in MASTER PRIMARY1 PRIMARY2 PRIMARY3; do
-  ARCHIVE_VAR=ARCHIVE_$segment_role
   DATADIR_VAR=$segment_role
   echo "wal_level = replica
 archive_mode = on
-archive_command = 'cp %p ${!ARCHIVE_VAR}/%f'" >> ${!DATADIR_VAR}/postgresql.conf
-  mkdir -p ${!ARCHIVE_VAR}
+archive_command = 'cp %p ${ARCHIVE_PREFIX}%c/%f'" >> ${!DATADIR_VAR}/postgresql.conf
 done
+mkdir -p ${ARCHIVE_PREFIX}{-1,0,1,2}
 gpstop -ar -q
 
 # Create the basebackups which will be our replicas for Point-In-Time
@@ -92,7 +88,7 @@ for segment_role in MASTER PRIMARY1 PRIMARY2 PRIMARY3; do
   PORT_VAR=${segment_role}_PORT
   REPLICA_VAR=REPLICA_$segment_role
   REPLICA_DBID_VAR=REPLICA_${segment_role}_DBID
-  pg_basebackup -h localhost -p ${!PORT_VAR} -D ${!REPLICA_VAR} --target-gp-dbid ${!REPLICA_DBID_VAR}
+  pg_basebackup -h localhost -p ${!PORT_VAR} -X stream -D ${!REPLICA_VAR} --target-gp-dbid ${!REPLICA_DBID_VAR}
 done
 
 # Create our test database.
@@ -107,21 +103,22 @@ run_test_isolation2 gpdb_pitr_setup
 echo "Stopping gpdemo cluster to now focus on PITR cluster..."
 gpstop -a -q
 
-# Create recovery.conf files in all the replicas to set up for
-# Point-In-Time Recovery. Specifically, we need to have the
-# restore_command and recovery_target_name set up properly. We'll also
-# need to empty out the postgresql.auto.conf file to disable
-# synchronous replication on the PITR cluster since it won't have
-# mirrors to replicate to.
-echo "Creating recovery.conf files in the replicas and starting them up..."
+# Appending recovery settings to postgresql.conf in all the replicas to setup
+# for Point-In-Time Recovery. Specifically, we need to have the restore_command
+# and recovery_target_name set up properly. We'll also need to empty out the
+# postgresql.auto.conf file to disable synchronous replication on the PITR
+# cluster since it won't have mirrors to replicate to.
+# Also touch a recovery_finished file in the datadirs to demonstrate that the
+# recovery_end_command GUC is functional.
+echo "Appending recovery settings to postgresql.conf files in the replicas and starting them up..."
 for segment_role in MASTER PRIMARY1 PRIMARY2 PRIMARY3; do
-  ARCHIVE_VAR=ARCHIVE_$segment_role
   REPLICA_VAR=REPLICA_$segment_role
-  echo "standby_mode = 'on'
-restore_command = 'cp ${!ARCHIVE_VAR}/%f %p'
+echo "restore_command = 'cp ${ARCHIVE_PREFIX}%c/%f %p'
 recovery_target_name = 'test_restore_point'
-primary_conninfo = ''" > ${!REPLICA_VAR}/recovery.conf
+recovery_target_action = 'promote'
+recovery_end_command = 'touch ${!REPLICA_VAR}/recovery_finished'" >> ${!REPLICA_VAR}/postgresql.conf
   echo "" > ${!REPLICA_VAR}/postgresql.auto.conf
+  touch ${!REPLICA_VAR}/recovery.signal
   pg_ctl start -D ${!REPLICA_VAR} -l /dev/null
 done
 
@@ -155,8 +152,8 @@ UPDATE gp_segment_configuration SET dbid=${REPLICA_PRIMARY3_DBID}, datadir='${RE
 
 # Restart the cluster to get the MPP parts working.
 echo "Restarting cluster now that the new cluster is properly configured..."
-export MASTER_DATA_DIRECTORY=$REPLICA_MASTER
-gpstop -ar -q
+export COORDINATOR_DATA_DIRECTORY=$REPLICA_MASTER
+gpstop -ar
 
 # Run validation test to confirm we have gone back in time.
 run_test gpdb_pitr_validate

@@ -1928,7 +1928,6 @@ ServerLoop(void)
 		checkPgDir("/base");
 		checkPgDir("/global");
 		checkPgDir("/pg_twophase");
-		checkPgDir("/pg_utilitymodedtmredo");
 		checkPgDir("/pg_distributedlog");
 		checkPgDir("/pg_multixact");
 		checkPgDir("/pg_subtrans");

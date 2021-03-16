@@ -3522,6 +3522,13 @@ _outAlterRoleSetStmt(StringInfo str, const AlterRoleSetStmt *node)
 	WRITE_NODE_FIELD(setstmt);
 }
 
+static  void
+_outAlterSystemStmt(StringInfo str, const AlterSystemStmt *node)
+{
+	WRITE_NODE_TYPE("ALTERSYSTEMSTMT");
+
+	WRITE_NODE_FIELD(setstmt);
+}
 
 static  void
 _outAlterOwnerStmt(StringInfo str, const AlterOwnerStmt *node)
@@ -5325,8 +5332,8 @@ _outGpPartitionDefinition(StringInfo str, const GpPartitionDefinition *node)
 	WRITE_NODE_TYPE("GPPARTITIONDEFINITION");
 
 	WRITE_NODE_FIELD(partDefElems);
-	WRITE_NODE_FIELD(enc_clauses);
-	WRITE_BOOL_FIELD(istemplate);
+	WRITE_NODE_FIELD(encClauses);
+	WRITE_BOOL_FIELD(isTemplate);
 }
 
 static void
@@ -6096,6 +6103,10 @@ outNode(StringInfo str, const void *obj)
 				break;
 			case T_AlterRoleSetStmt:
 				_outAlterRoleSetStmt(str, obj);
+				break;
+
+			case T_AlterSystemStmt:
+				_outAlterSystemStmt(str, obj);
 				break;
 
 			case T_AlterObjectSchemaStmt:

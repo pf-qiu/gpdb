@@ -5503,6 +5503,7 @@ OptTabPartitionSpec: '(' TabPartitionElemList ')'
 				{
 					GpPartitionDefinition *n = makeNode(GpPartitionDefinition);
 					n->partDefElems  = $2;
+					n->fromCatalog = false;
 					n->location  = @2;
 					$$ = (Node *) n;
 				}
@@ -5514,6 +5515,7 @@ OptTabSubPartitionSpec:
 				{
 					GpPartitionDefinition *n = makeNode(GpPartitionDefinition);
 					n->partDefElems  = $2;
+					n->fromCatalog = false;
 					n->location  = @2;
 					$$ = (Node *) n;
 				}
@@ -5882,7 +5884,8 @@ TabSubPartitionTemplate:
 				{
 					GpPartitionDefinition *n = makeNode(GpPartitionDefinition);
 					n->partDefElems  = $4;
-					n->istemplate  = true;
+					n->isTemplate  = true;
+					n->fromCatalog = false;
 					n->location  = @3;
 					$$ = (Node *)n;
 

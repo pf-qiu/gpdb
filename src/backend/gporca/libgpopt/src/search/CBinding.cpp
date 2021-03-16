@@ -28,7 +28,7 @@ using namespace gpopt;
 //
 //---------------------------------------------------------------------------
 CGroupExpression *
-CBinding::PgexprNext(CGroup *pgroup, CGroupExpression *pgexpr) const
+CBinding::PgexprNext(CGroup *pgroup, CGroupExpression *pgexpr)
 {
 	CGroupProxy gp(pgroup);
 
@@ -108,8 +108,9 @@ CBinding::PexprFinalize(CMemoryPool *mp, CGroupExpression *pgexpr,
 	COperator *pop = pgexpr->Pop();
 
 	pop->AddRef();
-	CExpression *pexpr = GPOS_NEW(mp)
-		CExpression(mp, pop, pgexpr, pdrgpexpr, nullptr /*input_stats*/);
+	CExpression *pexpr =
+		GPOS_NEW(mp) CExpression(mp, pop, pgexpr, pdrgpexpr, nullptr /* prpp */,
+								 nullptr /*input_stats*/);
 
 	return pexpr;
 }
