@@ -761,9 +761,9 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 	CmdType		operation;
 	DestReceiver *dest;
 	bool		sendTuples;
-	bool        isParallelRetrieveCursor = false;
 	MemoryContext oldcontext;
-	DestReceiver *endpointDest		= NULL;
+	EndpointExecState *endpointExecState = NULL;
+
 	/*
 	 * NOTE: Any local vars that are set in the PG_TRY block and examined in the
 	 * PG_CATCH block should be declared 'volatile'. (setjmp shenanigans)
@@ -883,6 +883,9 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 		}
 		else if (exec_identity == GP_ROOT_SLICE)
 		{
+			bool isParallelRetrieveCursor = false;
+			DestReceiver *endpointDest = NULL;
+
 			isParallelRetrieveCursor = (queryDesc->ddesc &&
 										queryDesc->ddesc->parallelCursorName &&
 										queryDesc->ddesc->parallelCursorName[0]);
@@ -898,10 +901,12 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 			 */
 			if (isParallelRetrieveCursor)
 			{
-				AllocParallelRtrvCursorSenderState(estate);
-				endpointDest = CreateTQDestReceiverForEndpoint(
-					queryDesc->tupDesc, queryDesc->ddesc->parallelCursorName,  estate->es_prc_sender_state);
-				(*endpointDest->rStartup) (dest, operation, queryDesc->tupDesc);
+				endpointExecState = allocEndpointExecState();
+				CreateTQDestReceiverForEndpoint(queryDesc->tupDesc,
+												queryDesc->ddesc->parallelCursorName,
+												endpointExecState);
+				endpointDest = endpointExecState->dest;
+				(endpointDest->rStartup)(endpointDest, operation, queryDesc->tupDesc);
 			}
 
 			/*
@@ -965,10 +970,8 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 	/*
 	 * shutdown tuple receiver, if we started it
 	 */
-	if (isParallelRetrieveCursor && endpointDest != NULL)
-	{
-		DestroyTQDestReceiverForEndpoint(endpointDest, estate->es_prc_sender_state);
-	}
+	if (endpointExecState != NULL)
+		DestroyTQDestReceiverForEndpoint(endpointExecState);
 
 	if (sendTuples)
 		dest->rShutdown(dest);

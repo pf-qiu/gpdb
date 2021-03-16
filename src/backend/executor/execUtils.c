@@ -211,8 +211,6 @@ CreateExecutorState(void)
 	estate->currentSliceId = 0;
 	estate->eliminateAliens = false;
 
-	estate->es_prc_sender_state = NULL;
-
 	/*
 	 * Return the executor state structure
 	 */
@@ -261,7 +259,6 @@ FreeExecutorState(EState *estate)
 	}
 
 	estate->dispatcherState = NULL;
-	estate->es_prc_sender_state = NULL;
 
 	/* release JIT context, if allocated */
 	if (estate->es_jit)

@@ -130,7 +130,6 @@ struct MemTupleBinding;
 struct MemTupleData;
 struct HeapScanDescData;
 struct SliceTable;
-struct ParallelRtrvCursorSenderState;
 
 /* ----------------
  *	  IndexInfo information
@@ -720,9 +719,6 @@ typedef struct EState
 
 	/* Should the executor skip past the alien plan nodes */
 	bool eliminateAliens;
-
-	/* Information relevant to parallel retrieve cursor */
-	struct ParallelRtrvCursorSenderState *es_prc_sender_state;
 } EState;
 
 struct PlanState;

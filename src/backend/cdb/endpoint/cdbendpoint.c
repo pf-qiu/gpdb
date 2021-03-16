@@ -102,6 +102,8 @@
 #define DUMMY_CURSOR_NAME	"DUMMYCURSORNAME"
 #endif
 
+static List *allEndpointExecStates;
+
 typedef struct SessionTokenTag
 {
 	int			sessionID;
@@ -152,9 +154,9 @@ static void create_and_connect_mq(TupleDesc tupleDesc,
 					  shm_mq_handle **mqHandle /* out */ );
 static void detach_mq(dsm_segment *dsmSeg);
 static void init_session_info_entry(void);
-static void wait_receiver(struct ParallelRtrvCursorSenderState *state);
+static void wait_receiver(EndpointExecState *state);
 static void unset_endpoint_sender_pid(EndpointDesc *endPointDesc);
-static void abort_endpoint(struct ParallelRtrvCursorSenderState *state);
+static void abort_endpoint(EndpointExecState *state);
 static void wait_parallel_retrieve_close(void);
 
 /* utility */
@@ -321,14 +323,12 @@ get_or_create_token(void)
  * Create TupleQueueDestReceiver base on the message queue to pass tuples to
  * retriever.
  */
-DestReceiver *
+void
 CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
-								struct ParallelRtrvCursorSenderState * state)
+								EndpointExecState *state)
 {
-	shm_mq_handle *shmMqHandle;
-
-	Assert(!state->endpoint);
-	Assert(!state->dsmSeg);
+	shm_mq_handle	*shmMqHandle;
+	DestReceiver	*endpointDest;
 
 	/*
 	 * The message queue needs to be created first since the dsm_handle has to
@@ -348,7 +348,8 @@ CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
 	 * message to QD so DECLARE PARALLEL RETRIEVE CURSOR statement can finish.
 	 */
 	cdbdisp_sendAckMessageToQD(ENDPOINT_READY_ACK);
-	return CreateTupleQueueDestReceiver(shmMqHandle);
+	endpointDest	= CreateTupleQueueDestReceiver(shmMqHandle);
+	state->dest = endpointDest;
 }
 
 
@@ -363,9 +364,10 @@ CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
  * Should also clean all other endpoint info here.
  */
 void
-DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
-								 struct ParallelRtrvCursorSenderState * state)
+DestroyTQDestReceiverForEndpoint(EndpointExecState *state)
 {
+	DestReceiver	*endpointDest = state->dest;
+
 	Assert(state->endpoint);
 	Assert(state->dsmSeg);
 
@@ -408,10 +410,12 @@ DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	free_endpoint(state->endpoint);
 	LWLockRelease(ParallelCursorEndpointLock);
-
 	state->endpoint = NULL;
+
 	detach_mq(state->dsmSeg);
 	state->dsmSeg = NULL;
+
+	allEndpointExecStates = list_delete(allEndpointExecStates, state);
 }
 
 /*
@@ -689,7 +693,7 @@ checkQDConnectionAlive()
  * from the queue, the queue will be not available for receiver.
  */
 static void
-wait_receiver(struct ParallelRtrvCursorSenderState *state)
+wait_receiver(EndpointExecState *state)
 {
 	elog(DEBUG3, "CDB_ENDPOINTS: wait receiver.");
 	while (true)
@@ -787,7 +791,7 @@ unset_endpoint_sender_pid(EndpointDesc *endPointDesc)
  * abort_endpoint - xact abort routine for endpoint
  */
 static void
-abort_endpoint(struct ParallelRtrvCursorSenderState *state)
+abort_endpoint(EndpointExecState *state)
 {
 	if (state->endpoint)
 	{
@@ -1092,30 +1096,52 @@ clean_session_token_info()
 	LWLockRelease(ParallelCursorEndpointLock);
 }
 
-/*
- * Clean up for the sender of parallel retrieve cursor sender.
- *	1. Free the endpoint and detach the message queue;
- *	2. clear session-token mapping;
- *	3. clear parallel retrieve cursor role.
- */
-void
-ClearParallelRtrvCursorSenderState(
-								struct ParallelRtrvCursorSenderState * state)
+static void
+cleanupEndpointExecStateCallback(const struct ResourceOwnerData *owner)
 {
-	abort_endpoint(state);
-	clean_session_token_info();
-	pfree(state);
+	ListCell *curr, *next, *prev;
+
+	curr = list_head(allEndpointExecStates);
+	prev = NULL;
+	while (curr != NULL)
+	{
+		EndpointExecState *state = (EndpointExecState *) lfirst(curr);
+		next = lnext(curr);
+
+		if (state->owner != owner)
+			prev = curr;
+		else
+		{
+			abort_endpoint(state);
+			clean_session_token_info();
+			pfree(state);
+
+			allEndpointExecStates = list_delete_cell(allEndpointExecStates, curr, prev);
+		}
+
+		curr = next;
+	}
 }
 
 void
-AllocParallelRtrvCursorSenderState(EState *estate)
+AtAbort_EndpointExecState()
 {
-	Assert(estate);
-	MemoryContext oldcontext;
+	CdbResourceOwnerWalker(CurrentResourceOwner, cleanupEndpointExecStateCallback);
+}
 
-	oldcontext = MemoryContextSwitchTo(estate->es_query_cxt);
+EndpointExecState *
+allocEndpointExecState()
+{
+	EndpointExecState	*endpointExecState;
+	MemoryContext		 oldcontext;
 
-	estate->es_prc_sender_state = palloc0(sizeof(struct ParallelRtrvCursorSenderState));
+	oldcontext = MemoryContextSwitchTo(TopMemoryContext);
+
+	endpointExecState = palloc0(sizeof(EndpointExecState));
+	endpointExecState->owner = CurrentResourceOwner;
+	allEndpointExecStates = lappend(allEndpointExecStates, endpointExecState);
 
 	MemoryContextSwitchTo(oldcontext);
+
+	return endpointExecState;
 }

@@ -45,6 +45,17 @@ enum EndPointExecPosition
 	ENDPOINT_ON_ALL_QE
 };
 
+/*
+ * The state information for parallel retrieve cursor
+ */
+typedef struct EndpointExecState
+{
+	struct EndpointDesc *endpoint;      /* endpoint entry */
+	DestReceiver        *dest;
+	dsm_segment         *dsmSeg;        /* dsm_segment pointer */
+	ResourceOwner        owner;    /* owner of this handle */
+} EndpointExecState;
+
 extern bool am_cursor_retrieve_handler;
 extern bool retrieve_conn_authenticated;
 
@@ -58,14 +69,15 @@ extern void EndpointCTXShmemInit(void);
  */
 extern enum EndPointExecPosition GetParallelCursorEndpointPosition(PlannedStmt *plan);
 extern void WaitEndpointReady(EState *estate);
+extern void AtAbort_EndpointExecState(void);
+extern EndpointExecState *allocEndpointExecState(void);
 
 /*
  * Below functions should run on Endpoints(QE/Entry DB).
  */
-extern DestReceiver* CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc,
-		const char *cursorName, struct ParallelRtrvCursorSenderState *state);
-extern void DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
-		struct ParallelRtrvCursorSenderState *state);
+extern void CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc,
+		const char *cursorName, EndpointExecState *state);
+extern void DestroyTQDestReceiverForEndpoint(EndpointExecState *state);
 
 /* cdbendpointretrieve.c */
 /*
@@ -74,10 +86,5 @@ extern void DestroyTQDestReceiverForEndpoint(DestReceiver *endpointDest,
 extern bool AuthEndpoint(Oid userID, const char *tokenStr);
 extern TupleDesc GetRetrieveStmtTupleDesc(const RetrieveStmt *stmt);
 extern void ExecRetrieveStmt(const RetrieveStmt *stmt, DestReceiver *dest);
-
-/* cdbendpointutils.c */
-/* Utility functions */
-extern void ClearParallelRtrvCursorSenderState(struct ParallelRtrvCursorSenderState *state);
-extern void AllocParallelRtrvCursorSenderState(EState *state);
 
 #endif   /* CDBENDPOINT_H */

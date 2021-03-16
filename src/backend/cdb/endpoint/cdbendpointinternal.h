@@ -84,15 +84,6 @@ typedef struct EndpointDesc
 }	EndpointDesc;
 
 /*
- * The state information for parallel retrieve cursor
- */
-typedef struct ParallelRtrvCursorSenderState
-{
-	struct EndpointDesc *endpoint;		/* endpoint entry */
-	dsm_segment *dsmSeg;		/* dsm_segment pointer */
-}	ParallelRtrvCursorSenderState;
-
-/*
  * Retrieve role status.
  */
 enum RetrieveStatus

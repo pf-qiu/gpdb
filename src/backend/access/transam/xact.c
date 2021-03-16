@@ -81,6 +81,7 @@
 #include "access/distributedlog.h"
 #include "catalog/oid_dispatch.h"
 #include "cdb/cdbdistributedsnapshot.h"
+#include "cdb/cdbendpoint.h"
 #include "cdb/cdbgang.h"
 #include "cdb/cdblocaldistribxact.h"
 #include "cdb/cdbtm.h"
@@ -3475,6 +3476,7 @@ AbortTransaction(void)
 	AfterTriggerEndXact(false); /* 'false' means it's abort */
 	AtAbort_Portals();
 	AtAbort_DispatcherState();
+	AtAbort_EndpointExecState();
 	AtEOXact_SharedSnapshot();
 
 	/* Perform any Resource Scheduler abort procesing. */
