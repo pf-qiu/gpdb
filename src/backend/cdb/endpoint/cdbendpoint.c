@@ -102,7 +102,7 @@
 #define DUMMY_CURSOR_NAME	"DUMMYCURSORNAME"
 #endif
 
-static List *allEndpointExecStates;
+static EndpointExecState *CurrEndpointExecState;
 
 typedef struct SessionTokenTag
 {
@@ -415,7 +415,7 @@ DestroyTQDestReceiverForEndpoint(EndpointExecState *state)
 	detach_mq(state->dsmSeg);
 	state->dsmSeg = NULL;
 
-	allEndpointExecStates = list_delete(allEndpointExecStates, state);
+	CurrEndpointExecState = state;
 }
 
 /*
@@ -1096,37 +1096,19 @@ clean_session_token_info()
 	LWLockRelease(ParallelCursorEndpointLock);
 }
 
-static void
-cleanupEndpointExecStateCallback(const struct ResourceOwnerData *owner)
-{
-	ListCell *curr, *next, *prev;
-
-	curr = list_head(allEndpointExecStates);
-	prev = NULL;
-	while (curr != NULL)
-	{
-		EndpointExecState *state = (EndpointExecState *) lfirst(curr);
-		next = lnext(curr);
-
-		if (state->owner != owner)
-			prev = curr;
-		else
-		{
-			abort_endpoint(state);
-			clean_session_token_info();
-			pfree(state);
-
-			allEndpointExecStates = list_delete_cell(allEndpointExecStates, curr, prev);
-		}
-
-		curr = next;
-	}
-}
-
 void
 AtAbort_EndpointExecState()
 {
-	CdbResourceOwnerWalker(CurrentResourceOwner, cleanupEndpointExecStateCallback);
+	EndpointExecState *state = CurrEndpointExecState;
+
+	if (state != NULL)
+	{
+		abort_endpoint(state);
+		clean_session_token_info();
+		pfree(state);
+
+		CurrEndpointExecState = NULL;
+	}
 }
 
 EndpointExecState *
@@ -1135,11 +1117,14 @@ allocEndpointExecState()
 	EndpointExecState	*endpointExecState;
 	MemoryContext		 oldcontext;
 
+	if (unlikely(CurrEndpointExecState != NULL))
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("Previous endpoint estate is cleaned up.")));
+
 	oldcontext = MemoryContextSwitchTo(TopMemoryContext);
 
 	endpointExecState = palloc0(sizeof(EndpointExecState));
-	endpointExecState->owner = CurrentResourceOwner;
-	allEndpointExecStates = lappend(allEndpointExecStates, endpointExecState);
+	CurrEndpointExecState = endpointExecState;
 
 	MemoryContextSwitchTo(oldcontext);
 

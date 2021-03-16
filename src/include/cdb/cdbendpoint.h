@@ -53,7 +53,6 @@ typedef struct EndpointExecState
 	struct EndpointDesc *endpoint;      /* endpoint entry */
 	DestReceiver        *dest;
 	dsm_segment         *dsmSeg;        /* dsm_segment pointer */
-	ResourceOwner        owner;    /* owner of this handle */
 } EndpointExecState;
 
 extern bool am_cursor_retrieve_handler;
