@@ -131,8 +131,8 @@ class GlobalShellExecutor(object):
 
         output = ""
         while self.sh_proc.poll() is None:
-            # If not returns in 5 seconds, consider it as an fatal error.
-            r, w, e = select.select([self.master_fd], [], [self.master_fd], 5)
+            # If not returns in 10 seconds, consider it as an fatal error.
+            r, w, e = select.select([self.master_fd], [], [self.master_fd], 10)
             if e:
                 # Terminate the shell when we get any output from stderr
                 o = os.read(self.master_fd, 10240)
