@@ -17,24 +17,24 @@ DECLARE
 DECLARE
 1: DECLARE c3 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
+1: @post_run 'parse_endpoint_info 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
  endpoint_id3_1 | token_id | host_id | port_id | READY
  endpoint_id3_2 | token_id | host_id | port_id | READY
  endpoint_id3_3 | token_id | host_id | port_id | READY
 (3 rows)
 
 -- in one retrieve session, retrieve mutiple tokens (begin retrieving, finished retrieving, not yet retrieve)
-0R: @in_sh 'sub_endpoint_name @ENDPOINT1' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT1' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
  a  
 ----
  2  
@@ -48,7 +48,7 @@ DECLARE
  22 
  24 
 (10 rows)
-0R: @in_sh 'sub_endpoint_name @ENDPOINT2' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT2' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  a  
 ----
  2  
@@ -94,13 +94,13 @@ DECLARE
 
 -- a new retrieve session. c1 & c2 cannot be retrieved since an existing retrieve session has
 -- retrieved them at least once.
-3R: @in_sh 'sub_endpoint_name @ENDPOINT1' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
+3R: @pre_run 'set_endpoint_variable @ENDPOINT1' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
 ERROR:  endpoint endpoint_id1_1 is already attached by receiver(pid: PID)
 DETAIL:  An endpoint can only be attached by one retrieving session.
-3R: @in_sh 'sub_endpoint_name @ENDPOINT2' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
+3R: @pre_run 'set_endpoint_variable @ENDPOINT2' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  endpoint endpoint_id2_1 was used by another retrieve session (pid: 110292)
 DETAIL:  If pid is -1, the previous session has been detached.
-3R: @in_sh 'sub_endpoint_name @ENDPOINT3' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
+3R: @pre_run 'set_endpoint_variable @ENDPOINT3' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
  a  
 ----
  2  

@@ -11,13 +11,13 @@ SELECT make_record(x) FROM t1;
 
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT make_record(x) FROM t1;
-1: @out_sh 'parse_endpoint 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
 
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c1');
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');
 
-*U: @in_sh 'sub_endpoint_name @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
-*R: @in_sh 'sub_endpoint_name @ENDPOINT1': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT1";
+*U: @pre_run 'set_endpoint_variable @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
+*R: @pre_run 'set_endpoint_variable @ENDPOINT1': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT1";
 
 1<:
 1: CLOSE c1;

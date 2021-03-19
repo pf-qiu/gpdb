@@ -11,43 +11,33 @@ export NL="
 # Arg 2 (input): Row number.
 # Arg 3 (input): Column number.
 # Example:
-# 1: @out_sh 'get_cell USER_NAME 3 2': SELECT id,name,status FROM users;
+# 1: @post_run 'get_cell USER_NAME 1 2': SELECT id,name,status FROM users;
 # Assume 'SELECT id,name,status FROM users;' returns:
 # | id | name  | status |
 # |----+-------+--------|
 # | 1  | Jonh  | Alive  |
 # | 2  | Alice | Dead   |
-# by calling `get_cell USER_NAME 2 3' will set $USER_NAME to 'Jonh'.
-get_cell() {
+# by calling `get_cell USER_NAME 1 2' will set $USER_NAME to 'Jonh'.
+get_tuple_cell() {
     var_name=$1
     row=$2
     col=$3
-    cmd="echo \"\$RAW_STR\" | awk -F '|' 'NR==$row {print \$$col}' | awk '{\$1=\$1;print}'"
+    cmd="echo \"\$RAW_STR\" | awk -F '|' 'NR==(($row+2)) {print \$$col}' | awk '{\$1=\$1;print}'"
     output=`eval $cmd`
     eval $var_name="$output"
-}
-
-# Behaves similar to the get_cell(), except $RETRIEVE_TOKEN will be set to the cell value.
-# Arg 1 (output): Variable name.
-# Arg 2 (input): Row number.
-# Arg 3 (input): Column number.
-get_token_cell() {
-    var_name=$1
-    get_cell "$@"
-    eval RETRIEVE_TOKEN="\$$var_name"
 }
 
 # Generate $MATCHSUBS and echo the $RAWSTR based on the given original string and replacement pairs.
 # Arg 1n (input): The original string to be replaced.
 # Arg 2n (input): The replacement string.
 # Example:
-# 1: @out_sh 'match_sub $USER_NAME user1, $USER_ID, id1': SELECT id,name,status FROM users;
+# 1: @post_run 'genereate_match_sub $USER_NAME user1 $USER_ID id1': SELECT id,name,status FROM users;
 # here we assume $USER_NAME and $USER_ID has been set to 'Jonh' and '1' already. Then the above
 # statement will generate $MATCHSUBS section:
 # m/\bJonh\b/
 # s/\bJonh\b/user1/
 # \b here is for matching the whole word. (word boundaries)
-match_sub() {
+create_match_sub() {
     to_replace=""
     for var in "$@"
         do
@@ -56,7 +46,7 @@ match_sub() {
             to_replace=$var
         else
             # \b is trying to match the whole word to make it more stable.
-            export MATCHSUBS="${MATCHSUBS}${NL}m/\\b${var}\\b/${NL}s/\\b${var}\\b/${to_replace}/${NL}"
+            export MATCHSUBS="${MATCHSUBS}${NL}m/\\b${to_replace}\\b/${NL}s/\\b${to_replace}\\b/${var}/${NL}"
             to_replace=""
         fi
     done
@@ -64,7 +54,7 @@ match_sub() {
 }
 
 # Generate $MATCHSUBS and Trim the Tailing spaces.
-# This is similar to match_sub() but dealing with the tailing spaces.
+# This is similar to create_match_sub() but dealing with the tailing spaces.
 # Sometimes we have variable length cells, like userid:
 # | username | userid | gender |
 # |----------+--------+--------|
@@ -85,7 +75,7 @@ match_sub() {
 # | jonh     | userid1 | male   |
 # Notice here that there is no space following userid1 since we replace the whole userid with
 # its tailing spaces with 'userid1'. Like '123   ' -> 'userid'.
-match_sub_tt() {
+create_match_sub_with_spaces() {
     to_replace=""
     for var in "$@"
         do
@@ -94,7 +84,7 @@ match_sub_tt() {
             to_replace=$var
         else
             # \b is trying to match the whole word to make it more stable.
-            export MATCHSUBS="${MATCHSUBS}${NL}m/\\b${var}\\b/${NL}s/\\b${var} */${to_replace} /${NL}"
+            export MATCHSUBS="${MATCHSUBS}${NL}m/\\b${to_replace}\\b/${NL}s/\\b${to_replace} */${var} /${NL}"
             to_replace=""
         fi
     done
@@ -104,11 +94,11 @@ match_sub_tt() {
 # Substitute in the $RAW_STR and echo the result.
 # Multi substitution pairs can be passed as arguments, like:
 # sub "to_replace_1" "replacement_1" "to_replace_2" "replacement_2"
-# This could be useful for both @in_sh and @out_sh. e.g.:
-# @in_sh 'sub @TOKEN1 ${TOKEN1}': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='@TOKEN1';
+# This could be useful for both @pre_run and @post_run. e.g.:
+# @pre_run 'sub @TOKEN1 ${TOKEN1}': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='@TOKEN1';
 # Assume the $TOKEN has value '01234', The SQL will become:
 # SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='01234';
-sub() {
+create_sub() {
     to_replace=""
     for var in "$@"
         do
@@ -123,8 +113,8 @@ sub() {
     echo "${RAW_STR}"
 }
 
-# Parse the endpoint status info output and save them into environment variables for @out_sh.
-# Usage: parse_endpoint <postfix> <endpoint_col> <token_col> <host_col> <port_col>
+# Parse the endpoint status info output and save them into environment variables for @post_run.
+# Usage: parse_endpoint_info <postfix> <endpoint_col> <token_col> <host_col> <port_col>
 # Output(environment variables):
 #   "TOKEN$postfix"
 #   "ENDPOINT_NAME$postfix[]"
@@ -139,7 +129,7 @@ sub() {
 #  c1_00001507_00000001 | tk071500004015dc6da471b20417afed65 | host_1112 | 25433 | READY
 #  c1_00001507_00000002 | tk071500004015dc6da471b20417afed65 | host_1113 | 25434 | READY
 # (3 rows)
-# parse_endpoint 1 1 2 3 4 will setup below variables:
+# parse_endpoint_info 1 1 2 3 4 will setup below variables:
 # TOEKN1='tk071500004015dc6da471b20417afed65'
 # ENDPOINT_NAME1[0]='c1_00001507_00000000'
 # ENDPOINT_TOKEN1[0]='tk071500004015dc6da471b20417afed65'
@@ -153,7 +143,7 @@ sub() {
 # ENDPOINT_TOKEN1[2]='tk071500004015dc6da471b20417afed65'
 # ENDPOINT_HOST1[2]='host_1113'
 # ENDPOINT_PORT1[2]='25434'
-parse_endpoint() {
+parse_endpoint_info() {
     local postfix=$1
     local endpoint_name_col=$2
     local token_col=$3
@@ -183,10 +173,10 @@ parse_endpoint() {
         eval "TOKEN${postfix}=${token}"
         export RETRIEVE_TOKEN=${token}
 
-        match_sub_tt "endpoint_id${postfix}_${index}" "${name}" \
-            port_id "${port}" \
-            token_id "${token}" \
-            host_id "${host}" > /dev/null
+        create_match_sub_with_spaces  "${name}" "endpoint_id${postfix}_${index}" \
+            "${port}" port_id \
+            "${token}" token_id \
+            "${host}" host_id > /dev/null
 
         index=$((index+1))
     # Filter out the first two lines and the last line.
@@ -196,15 +186,15 @@ parse_endpoint() {
 }
 
 # Find the corresponding endpoint in the environment variables saved by previous
-# parse_endpoint call, and substitute in the SQL. Used by @in_sh.
+# parse_endpoint call, and substitute in the SQL. Used by @pre_run.
 # The finding process relies on the $GP_HOSTNAME and $GP_PORT to be set to the
 # current postgres connection.
-# Usage: sub_endpoint_name <ENDPOINT_STR><postfix>
+# Usage: set_endpoint_variable <ENDPOINT_STR><postfix>
 # e.g.:
-# sub_endpoint_name "@ENDPOINT1"
+# set_endpoint_variable "@ENDPOINT1"
 # This will replace "@ENDPOINT1" in the SQL statement with the corresponding endpoint name
 # with postfix "1".
-sub_endpoint_name() {
+set_endpoint_variable() {
     export CURRENT_ENDPOINT_POSTFIX=""
     CURRENT_ENDPOINT_POSTFIX="$(echo "$1" | sed 's/@ENDPOINT//')"
     eval "local names=(\${ENDPOINT_NAME${CURRENT_ENDPOINT_POSTFIX}[@]})"
@@ -214,7 +204,7 @@ sub_endpoint_name() {
     for h in "${hosts[@]}" ; do
         if [ "$GP_HOSTNAME" = "$h" ] ; then
             if [ "$GP_PORT" = "${ports[$i]}" ] ; then
-                sub "$1" "${names[$i]}"
+                create_sub "$1" "${names[$i]}"
                 return
             fi
         fi
@@ -239,5 +229,5 @@ get_retrieve_token() {
         fi
         i=$((i+1))
     done
-    echo "CANNOT_FIND_TOKEN"
+    echo "Can not find the token."
 }

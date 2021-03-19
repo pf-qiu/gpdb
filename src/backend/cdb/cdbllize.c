@@ -1574,7 +1574,8 @@ adjust_top_path_for_parallel_retrieve_cursor(Path *path, PlanSlice *slice)
 		|| CdbPathLocus_IsEntry(path->locus))
 	{
 		/*
-		 * AGG, catalog, UDF queries run on the entry db.
+		 * For these scenarios, parallel retrieve cursor needs to run on entrydb
+		 * since endpoint QE needs to interacts with the retrieve connections.
 		 */
 		slice->segindex = 0;
 		slice->numsegments = 1;

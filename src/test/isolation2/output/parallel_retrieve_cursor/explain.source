@@ -199,7 +199,7 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM rt1;
 -- Test: explain output: Endpoint info (on master/on some segments/on all segments)
 -- Here because replicated table will execute on seg id: session_id % segment_number
 -- Just replace the random specific seg id to SEGIDX for the output
-1: @out_sh 'sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1;
+1: @post_run 'create_sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1;
  QUERY PLAN
 --------------------------------------
  Seq Scan on public.rt1
@@ -207,7 +207,7 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM rt1;
   Endpoint: on segments: contentid [SEGIDX]
  Optimizer: Postgres query optimizer
 (4 rows)
-1: @out_sh 'sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1 ORDER BY a;
+1: @post_run 'create_sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1 ORDER BY a;
  QUERY PLAN
 --------------------------------------
  Sort
@@ -218,7 +218,7 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM rt1;
   Endpoint: on segments: contentid [SEGIDX]
  Optimizer: Postgres query optimizer
 (7 rows)
-1: @out_sh 'sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1 WHERE a=1;
+1: @post_run 'create_sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1 WHERE a=1;
  QUERY PLAN
 --------------------------------------
  Seq Scan on public.rt1
@@ -227,7 +227,7 @@ EXPLAIN (VERBOSE, COSTS false) DECLARE c1 CURSOR FOR SELECT * FROM rt1;
   Endpoint: on segments: contentid [SEGIDX]
  Optimizer: Postgres query optimizer
 (5 rows)
-1: @out_sh 'sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1 WHERE a=1 OR a=2;
+1: @post_run 'create_sub  "Endpoint: on segments: contentid \[[0-9]+\]" " Endpoint: on segments: contentid [SEGIDX]" ':EXPLAIN (VERBOSE, COSTS false) DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM rt1 WHERE a=1 OR a=2;
  QUERY PLAN
 ----------------------------------------
  Seq Scan on public.rt1

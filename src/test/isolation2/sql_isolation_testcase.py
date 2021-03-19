@@ -99,7 +99,7 @@ class GlobalShellExecutor(object):
                                         stdout=self.slave_fd,
                                         stderr=self.slave_fd,
                                         universal_newlines=True)
-        self.bash_log_file = open("%s_sh.log" % self.initfile_prefix, "w+")
+        self.bash_log_file = open("%s.log" % self.initfile_prefix, "w+")
         self.__run_command("export PS1='%s'" % GlobalShellExecutor.BASH_PS1)
         self.__run_command("export PS2=''")
         self.__run_command("source global_sh_executor.sh")
@@ -280,7 +280,7 @@ class SQLIsolationExecutor(object):
                 self.mode, pipe, self.dbname, user=self.user, passwd=self.passwd)
             sp.do()
 
-        def query(self, command, out_sh_cmd, global_sh_executor):
+        def query(self, command, post_run_cmd, global_sh_executor):
             print(file=self.out_file)
             self.out_file.flush()
             if len(command.strip()) == 0:
@@ -295,8 +295,8 @@ class SQLIsolationExecutor(object):
             if re.match(r"^#.*:", r):
                 raise SQLIsolationExecutor.SessionError(self.name, self.mode, r)
 
-            if out_sh_cmd != None:
-                new_out = global_sh_executor.exec_global_shell_with_orig_str(r.rstrip(), out_sh_cmd, True)
+            if post_run_cmd != None:
+                new_out = global_sh_executor.exec_global_shell_with_orig_str(r.rstrip(), post_run_cmd, True)
                 for line in new_out:
                     print(line.rstrip(), file=self.out_file)
             else:
@@ -575,15 +575,15 @@ class SQLIsolationExecutor(object):
             raise Exception("Invalid gp_segment_configuration contents")
         return [int(content[0]) for content in result]
 
-    def __preprocess_sql(self, name, in_sh_cmd, sql, global_sh_executor):
-        if not in_sh_cmd:
+    def __preprocess_sql(self, name, pre_run_cmd, sql, global_sh_executor):
+        if not pre_run_cmd:
             return sql
 
         (hostname, port) = ConnectionInfo.get_hostname_port(name, 'p')
         # Inject the current hostname and port to the shell.
         global_sh_executor.exec_global_shell("GP_HOSTNAME=%s" % hostname, True)
         global_sh_executor.exec_global_shell("GP_PORT=%s" % port, True)
-        sqls = global_sh_executor.exec_global_shell_with_orig_str(sql, in_sh_cmd, True)
+        sqls = global_sh_executor.exec_global_shell_with_orig_str(sql, pre_run_cmd, True)
         if (len(sqls) != 1):
             raise Exception("Invalid shell commmand: %v", sqls)
 
@@ -615,8 +615,8 @@ class SQLIsolationExecutor(object):
         dbname = ""
         retrieve_token = None
         retrieve_user = None
-        in_sh_cmd = None
-        out_sh_cmd = None
+        pre_run_cmd = None
+        post_run_cmd = None
         m = self.command_pattern.match(command)
         if m:
             process_name = m.groups()[0]
@@ -646,11 +646,11 @@ class SQLIsolationExecutor(object):
                     raise Exception("Invalid syntax with dbname, should be of the form 1:@db_name <db_name>: <sql>")
                 sql = sql_parts[1]
             else:
-                (found_hd, in_sh_cmd, ex_sql) =  global_sh_executor.extract_sh_cmd('@in_sh', sql)
+                (found_hd, pre_run_cmd, ex_sql) =  global_sh_executor.extract_sh_cmd('@pre_run', sql)
                 if found_hd:
                     sql = ex_sql
                 else:
-                    (found_hd, out_sh_cmd, ex_sql) = global_sh_executor.extract_sh_cmd('@out_sh', sql)
+                    (found_hd, post_run_cmd, ex_sql) = global_sh_executor.extract_sh_cmd('@post_run', sql)
                     if found_hd:
                         sql = ex_sql
 
@@ -680,8 +680,8 @@ class SQLIsolationExecutor(object):
                     print('-- end_ignore', file=output_file)
                     print('(exited with code {})'.format(cmd_output.returncode), file=output_file)
             else:
-                sql_new = self.__preprocess_sql(process_name, in_sh_cmd, sql.strip(), global_sh_executor)
-                self.get_process(output_file, process_name, con_mode, dbname=dbname).query(sql_new, out_sh_cmd, global_sh_executor)
+                sql_new = self.__preprocess_sql(process_name, pre_run_cmd, sql.strip(), global_sh_executor)
+                self.get_process(output_file, process_name, con_mode, dbname=dbname).query(sql_new, post_run_cmd, global_sh_executor)
         elif flag == "&":
             self.get_process(output_file, process_name, con_mode, dbname=dbname).fork(sql.strip(), True, global_sh_executor)
         elif flag == ">":
@@ -701,10 +701,10 @@ class SQLIsolationExecutor(object):
                 process_names = [process_name]
 
             for name in process_names:
-                sql_new = self.__preprocess_sql(name, in_sh_cmd, sql.strip(), global_sh_executor)
-                self.get_process(output_file, name, con_mode, dbname=dbname).query(sql_new, out_sh_cmd, global_sh_executor)
+                sql_new = self.__preprocess_sql(name, pre_run_cmd, sql.strip(), global_sh_executor)
+                self.get_process(output_file, name, con_mode, dbname=dbname).query(sql_new, post_run_cmd, global_sh_executor)
         elif flag == "U&":
-            sql_new = self.__preprocess_sql(process_name, in_sh_cmd, sql.strip(), global_sh_executor)
+            sql_new = self.__preprocess_sql(process_name, pre_run_cmd, sql.strip(), global_sh_executor)
             self.get_process(output_file, process_name, con_mode, dbname=dbname).fork(sql_new, True, global_sh_executor)
         elif flag == "U<":
             if len(sql) > 0:
@@ -715,8 +715,8 @@ class SQLIsolationExecutor(object):
                 raise Exception("No query should be given on quit")
             self.quit_process(output_file, process_name, con_mode, dbname=dbname)
         elif flag == "S":
-            sql_new = self.__preprocess_sql(process_name, in_sh_cmd, sql.strip(), global_sh_executor)
-            self.get_process(output_file, process_name, con_mode, dbname=dbname).query(sql_new, out_sh_cmd, global_sh_executor)
+            sql_new = self.__preprocess_sql(process_name, pre_run_cmd, sql.strip(), global_sh_executor)
+            self.get_process(output_file, process_name, con_mode, dbname=dbname).query(sql_new, post_run_cmd, global_sh_executor)
         elif flag == "R":
             if process_name == '*':
                 process_names = [str(content) for content in self.get_all_primary_contentids(dbname)]
@@ -725,15 +725,15 @@ class SQLIsolationExecutor(object):
 
             for name in process_names:
                 try:
-                    sql_new = self.__preprocess_sql(name, in_sh_cmd, sql.strip(), global_sh_executor)
+                    sql_new = self.__preprocess_sql(name, pre_run_cmd, sql.strip(), global_sh_executor)
                     (retrieve_user, retrieve_token) = self.__get_retrieve_user_token(name, global_sh_executor)
-                    self.get_process(output_file, name, con_mode, dbname=dbname, user=retrieve_user, passwd=retrieve_token).query(sql_new, out_sh_cmd, global_sh_executor)
+                    self.get_process(output_file, name, con_mode, dbname=dbname, user=retrieve_user, passwd=retrieve_token).query(sql_new, post_run_cmd, global_sh_executor)
                 except SQLIsolationExecutor.SessionError as e:
                     print (str(e), file=output_file)
                     self.processes[(e.name, e.mode)].terminate()
                     del self.processes[(e.name, e.mode)]
         elif flag == "R&":
-            sql_new = self.__preprocess_sql(process_name, in_sh_cmd, sql.strip(), global_sh_executor)
+            sql_new = self.__preprocess_sql(process_name, pre_run_cmd, sql.strip(), global_sh_executor)
             (retrieve_user, retrieve_token) = self.__get_retrieve_user_token(process_name, global_sh_executor)
             self.get_process(output_file, process_name, con_mode, dbname=dbname, user=retrieve_user, passwd=retrieve_token).fork(sql_new, True, global_sh_executor)
         elif flag == "R<":
@@ -912,13 +912,13 @@ class SQLIsolationTestCase:
 
         Shell Execution for SQL or Output:
 
-        @in_sh can be used for executing shell command to change input (i.e. each SQL statement) or get input info;
-        @out_sh can be used for executing shell command to change ouput (i.e. the result set printed for each SQL execution)
+        @pre_run can be used for executing shell command to change input (i.e. each SQL statement) or get input info;
+        @post_run can be used for executing shell command to change ouput (i.e. the result set printed for each SQL execution)
         or get output info. Just use the env variable ${RAW_STR} to refer to the input/out stream before shell execution,
         and the output of the shell commmand will be used as the SQL exeucted or output printed into results file.
 
-        1: @out_sh ' TOKEN1=` echo "${RAW_STR}" | awk \'NR==3\' | awk \'{print $1}\'` && export MATCHSUBS="${MATCHSUBS}${NL}m/${TOKEN1}/${NL}s/${TOKEN1}/token_id1/${NL}" && echo "${RAW_STR}" ': SELECT token,hostname,status FROM GP_ENDPOINTS WHERE cursorname='c1';
-        2R: @in_sh ' echo "${RAW_STR}" | sed "s#@TOKEN1#${TOKEN1}#" ': RETRIEVE ALL FROM "@TOKEN1";
+        1: @post_run ' TOKEN1=` echo "${RAW_STR}" | awk \'NR==3\' | awk \'{print $1}\'` && export MATCHSUBS="${MATCHSUBS}${NL}m/${TOKEN1}/${NL}s/${TOKEN1}/token_id1/${NL}" && echo "${RAW_STR}" ': SELECT token,hostname,status FROM GP_ENDPOINTS WHERE cursorname='c1';
+        2R: @pre_run ' echo "${RAW_STR}" | sed "s#@TOKEN1#${TOKEN1}#" ': RETRIEVE ALL FROM "@TOKEN1";
 
         These 2 sample is to:
         - Sample 1: set env variable ${TOKEN1} to the cell (row 3, col 1) of the result set, and print the raw result.

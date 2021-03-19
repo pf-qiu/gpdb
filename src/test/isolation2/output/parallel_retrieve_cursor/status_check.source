@@ -16,7 +16,7 @@ CREATE
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
@@ -27,7 +27,7 @@ DECLARE
  f        
 (1 row)
 
-*U: @in_sh 'sub_endpoint_name @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
+*U: @pre_run 'set_endpoint_variable @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
  status 
 --------
 (0 rows)
@@ -46,7 +46,7 @@ DECLARE
 --------
  READY  
 (1 row)
-*R: @in_sh 'sub_endpoint_name @ENDPOINT1': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT1";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT1': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT1";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
@@ -203,13 +203,13 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 -- test RETRIEVE success on seg1
-0R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
  a  
 ----
  2  
@@ -257,7 +257,7 @@ DECLARE
  t        | f        | READY  
 (1 row)
 -- check status if some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-0R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
  a  
 ----
  27 
@@ -271,7 +271,7 @@ DECLARE
  51 
  53 
 (10 rows)
-1R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  a  
 ----
  1  
@@ -339,12 +339,12 @@ DECLARE
  t        | f        | READY  
 (1 row)
 -- return 0 row instead of reporting error if finished retrieving data from this endpoint, while other endpoint have not finished retrieving.
-1R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  a 
 ---
 (0 rows)
 -- finished retrieving all endpoints and check status
-*R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
@@ -471,7 +471,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c3 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
+1: @post_run 'parse_endpoint_info 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
  endpoint_id3_1 | token_id | host_id | port_id | READY
  endpoint_id3_2 | token_id | host_id | port_id | READY
  endpoint_id3_3 | token_id | host_id | port_id | READY
@@ -481,7 +481,7 @@ DECLARE
 ----------
  f        
 (1 row)
-0R: @in_sh 'sub_endpoint_name @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
  a  
 ----
  2  
@@ -496,13 +496,13 @@ DECLARE
  24 
 (10 rows)
 -- a new retrieve session should report error
-3R: @in_sh 'sub_endpoint_name @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
+3R: @pre_run 'set_endpoint_variable @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
 ERROR:  endpoint endpoint_id3_1 is already attached by receiver(pid: PID)
 DETAIL:  An endpoint can only be attached by one retrieving session.
 -- quit this new retrieve session
 3Rq: ... <quitting>
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-1R: @in_sh 'sub_endpoint_name @ENDPOINT3': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT3";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT3': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT3";
  a  
 ----
  1  
@@ -544,13 +544,13 @@ DETAIL:  An endpoint can only be attached by one retrieving session.
  98 
 (37 rows)
 -- get senderpid which is endpoint execution backend
-0U: @out_sh 'get_cell PID31 3 1 ; sub "$PID31[ \t]*" senderpid31': SELECT senderpid, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
+0U: @post_run 'get_tuple_cell PID31 1 1 ; create_sub "$PID31[ \t]*" senderpid31': SELECT senderpid, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
  senderpid | ?column? | status
 -----------+----------+----------
  senderpid31| t        | ATTACHED
 (1 row)
 -- run 'kill -s INT senderpid' to cancel the endpoint execution backend, retrieve session still can work
-42: @in_sh 'kill -s INT ${PID31} && echo "${RAW_STR}" ': SELECT 1;
+42: @pre_run 'kill -s INT ${PID31} && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
@@ -622,7 +622,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c4 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 4 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
+1: @post_run 'parse_endpoint_info 4 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c4';
  endpoint_id4_1 | token_id | host_id | port_id | READY
  endpoint_id4_2 | token_id | host_id | port_id | READY
  endpoint_id4_3 | token_id | host_id | port_id | READY
@@ -633,7 +633,7 @@ DECLARE
  f        
 (1 row)
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-0R: @in_sh 'sub_endpoint_name @ENDPOINT4': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT4";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT4': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT4";
  a  
 ----
  2  
@@ -647,7 +647,7 @@ DECLARE
  22 
  24 
 (10 rows)
-1R: @in_sh 'sub_endpoint_name @ENDPOINT4': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT4";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT4': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT4";
  a  
 ----
  1  
@@ -689,13 +689,13 @@ DECLARE
  98 
 (37 rows)
 -- get senderpid which is endpoint execution backend
-0U: @out_sh 'get_cell PID41 3 1 ; sub "${PID41}[ \t]*" senderpid41': SELECT senderpid, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
+0U: @post_run 'get_tuple_cell PID41 1 1 ; create_sub "${PID41}[ \t]*" senderpid41': SELECT senderpid, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
  senderpid | ?column? | status
 -----------+----------+----------
  senderpid41| t        | ATTACHED
 (1 row)
 -- run 'kill -s QUIT senderpid' to cancel the endpoint execution backend, retrieve session still can work
-42: @in_sh 'kill -s QUIT ${PID41} && echo "${RAW_STR}" ': SELECT 1;
+42: @pre_run 'kill -s QUIT ${PID41} && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
@@ -772,7 +772,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c5 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 5 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
+1: @post_run 'parse_endpoint_info 5 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c5';
  endpoint_id5_1 | token_id | host_id | port_id | READY
  endpoint_id5_2 | token_id | host_id | port_id | READY
  endpoint_id5_3 | token_id | host_id | port_id | READY
@@ -783,7 +783,7 @@ DECLARE
  f        
 (1 row)
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-0R: @in_sh 'sub_endpoint_name @ENDPOINT5': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT5";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT5': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT5";
  a  
 ----
  2  
@@ -798,11 +798,11 @@ DECLARE
  24 
 (10 rows)
 -- 1R still bind to Test4 session, so can not retrieve from current endpoint.
-1R: @in_sh 'sub_endpoint_name @ENDPOINT5': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT5";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT5': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT5";
 ERROR:  failed to attach non-existing endpoint endpoint_id5_2 
 -- Since seg1 retrieve session is bind to Test4 session. And Test4 session get killed. We need to restart it.
 1Rq: ... <quitting>
-1R: @in_sh 'sub_endpoint_name @ENDPOINT5': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT5";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT5': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT5";
  a  
 ----
  1  
@@ -844,13 +844,13 @@ ERROR:  failed to attach non-existing endpoint endpoint_id5_2
  98 
 (37 rows)
 -- get senderpid which is endpoint execution backend
-0U: @out_sh 'get_cell PID51 3 1 ; sub "${PID51}[ \t]*" senderpid51': SELECT senderpid, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
+0U: @post_run 'get_tuple_cell PID51 1 1 ; create_sub "${PID51}[ \t]*" senderpid51': SELECT senderpid, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
  senderpid | ?column? | status
 -----------+----------+----------
  senderpid51| t        | ATTACHED
 (1 row)
 -- run 'kill -s TERM senderpid' to cancel the endpoint execution backend, retrieve session still can work
-42: @in_sh 'kill -s TERM ${PID51} && echo "${RAW_STR}" ': SELECT 1;
+42: @pre_run 'kill -s TERM ${PID51} && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
@@ -933,19 +933,19 @@ ROLLBACK
 BEGIN
 1: DECLARE c6 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
+1: @post_run 'parse_endpoint_info 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c6';
  endpoint_id6_1 | token_id | host_id | port_id | READY
  endpoint_id6_2 | token_id | host_id | port_id | READY
  endpoint_id6_3 | token_id | host_id | port_id | READY
 (3 rows)
 -- get backend pid of this session which run 'gp_wait_parallel_retrieve_cursor'
-1: @out_sh 'get_cell PID61 3 1 ; sub "${PID61}[ \t]*" QDPid61': select pg_backend_pid();
+1: @post_run 'get_tuple_cell PID61 1 1 ; create_sub "${PID61}[ \t]*" QDPid61': select pg_backend_pid();
  pg_backend_pid
 ----------------
  QDPid61
 (1 row)
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-0R: @in_sh 'sub_endpoint_name @ENDPOINT6': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT6";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT6': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT6";
  a  
 ----
  2  
@@ -959,7 +959,7 @@ DECLARE
  22 
  24 
 (10 rows)
-1R: @in_sh 'sub_endpoint_name @ENDPOINT6': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT6";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT6': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT6";
  a  
 ----
  1  
@@ -1003,7 +1003,7 @@ DECLARE
 -- run 'kill -s INT QDPid' to cancel the endpoint execution backend, retrieve session still can work
 -- fault injection sleep to wait for canceling the endpoint execution backend, retrieve session still can work
 1&: SELECT * FROM gp_check_parallel_retrieve_cursor('c6');  <waiting ...>
-0U: @in_sh 'kill -s INT ${PID61} && echo "${RAW_STR}" ': SELECT 1;
+0U: @pre_run 'kill -s INT ${PID61} && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
@@ -1075,19 +1075,19 @@ ROLLBACK
 BEGIN
 1: DECLARE c61 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 61 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c61';
+1: @post_run 'parse_endpoint_info 61 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c61';
  endpoint_id61_1 | token_id | host_id | port_id | READY
  endpoint_id61_2 | token_id | host_id | port_id | READY
  endpoint_id61_3 | token_id | host_id | port_id | READY
 (3 rows)
 -- get backend pid of this session which run 'gp_wait_parallel_retrieve_cursor'
-1: @out_sh 'get_cell PID611 3 1 ; sub "${PID611}[ \t]*" QDPid611': select pg_backend_pid();
+1: @post_run 'get_tuple_cell PID611 1 1 ; create_sub "${PID611}[ \t]*" QDPid611': select pg_backend_pid();
  pg_backend_pid
 ----------------
  QDPid611
 (1 row)
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-0R: @in_sh 'sub_endpoint_name @ENDPOINT61': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT61";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT61': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT61";
  a  
 ----
  2  
@@ -1101,7 +1101,7 @@ DECLARE
  22 
  24 
 (10 rows)
-1R: @in_sh 'sub_endpoint_name @ENDPOINT61': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT61";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT61': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT61";
  a  
 ----
  1  
@@ -1145,7 +1145,7 @@ DECLARE
 -- run 'kill -s INT QDPid' to cancel the endpoint execution backend, retrieve session still can work
 -- fault injection sleep to wait for canceling the endpoint execution backend, retrieve session still can work
 1&: SELECT * FROM gp_check_parallel_retrieve_cursor('c61');  <waiting ...>
-0U: @in_sh 'kill -s INT ${PID611} && echo "${RAW_STR}" ': SELECT 1;
+0U: @pre_run 'kill -s INT ${PID611} && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
@@ -1215,19 +1215,19 @@ ERROR:  canceling statement due to user request
 BEGIN
 1: DECLARE c7 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 7 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c7';
+1: @post_run 'parse_endpoint_info 7 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c7';
  endpoint_id7_1 | token_id | host_id | port_id | READY
  endpoint_id7_2 | token_id | host_id | port_id | READY
  endpoint_id7_3 | token_id | host_id | port_id | READY
 (3 rows)
 -- get backend pid of this session which run 'gp_wait_parallel_retrieve_cursor'
-1: @out_sh 'get_cell PID71 3 1 ; sub "${PID71}[ \t]*" QDPid71': select pg_backend_pid();
+1: @post_run 'get_tuple_cell PID71 1 1 ; create_sub "${PID71}[ \t]*" QDPid71': select pg_backend_pid();
  pg_backend_pid
 ----------------
  QDPid71
 (1 row)
 -- some endpoint retrieve partial results, some endpoint finished retrieving, some endpoint not start retrieving
-0R: @in_sh 'sub_endpoint_name @ENDPOINT7': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT7";
+0R: @pre_run 'set_endpoint_variable @ENDPOINT7': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT7";
  a  
 ----
  2  
@@ -1241,7 +1241,7 @@ DECLARE
  22 
  24 
 (10 rows)
-1R: @in_sh 'sub_endpoint_name @ENDPOINT7': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT7";
+1R: @pre_run 'set_endpoint_variable @ENDPOINT7': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT7";
  a  
 ----
  1  
@@ -1290,7 +1290,7 @@ DECLARE
 -- run 'kill -s QUIT QDPid' to cancel the endpoint execution backend, retrieve session still can work
 -- here need to sleep sometime to wait for endpoint QE backend to detect QD connection lost.
 1&: SELECT * FROM gp_check_parallel_retrieve_cursor('c7');  <waiting ...>
-0U: @in_sh 'kill -s QUIT ${PID71}&& sleep 5 && echo "${RAW_STR}" ': SELECT 1;
+0U: @pre_run 'kill -s QUIT ${PID71}&& sleep 5 && echo "${RAW_STR}" ': SELECT 1;
  ?column? 
 ----------
  1        
@@ -1357,7 +1357,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c8 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'get_cell SESSION81 3 1 ; match_sub_tt session81 $SESSION81' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
+1: @post_run 'get_tuple_cell SESSION81 1 1 ; create_match_sub_with_spaces $SESSION81 session81' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
  sessionid | status
 -----------+--------
  session81 | READY
@@ -1369,7 +1369,7 @@ DECLARE
 BEGIN
 2: DECLARE c8 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-2: @out_sh 'get_cell SESSION82 3 1 ; match_sub_tt session82 $SESSION82' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
+2: @post_run 'get_tuple_cell SESSION82 1 1 ; create_match_sub_with_spaces $SESSION82 session82' : SELECT sessionid,status FROM GP_ENDPOINTS WHERE cursorname='c8';
  sessionid | status
 -----------+--------
  session82 | READY

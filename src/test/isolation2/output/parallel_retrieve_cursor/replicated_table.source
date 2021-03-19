@@ -25,13 +25,13 @@ DECLARE
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions,
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @post_run 'parse_endpoint_info 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
  endpoint_id1_1 | token_id | host_id | port_id | READY
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');  <waiting ...>
-*U: @in_sh 'sub_endpoint_name @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
+*U: @pre_run 'set_endpoint_variable @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
  status 
 --------
 (0 rows)
@@ -48,7 +48,7 @@ DECLARE
  status 
 --------
 (0 rows)
-*R: @in_sh 'sub_endpoint_name @ENDPOINT1': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT1': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
@@ -119,13 +119,13 @@ DECLARE
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions,
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');  <waiting ...>
-*U: @in_sh 'sub_endpoint_name @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
  status 
 --------
 (0 rows)
@@ -142,7 +142,7 @@ DECLARE
  status 
 --------
 (0 rows)
-*R: @in_sh 'sub_endpoint_name @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT2";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
@@ -213,13 +213,13 @@ DECLARE
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions,
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 3 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @post_run 'parse_endpoint_info 3 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
  endpoint_id3_1 | token_id | host_id | port_id | READY
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');  <waiting ...>
-*U: @in_sh 'sub_endpoint_name @ENDPOINT3': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT3';
+*U: @pre_run 'set_endpoint_variable @ENDPOINT3': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT3';
  status 
 --------
 (0 rows)
@@ -236,7 +236,7 @@ DECLARE
  status 
 --------
 (0 rows)
-*R: @in_sh 'sub_endpoint_name @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
@@ -307,13 +307,13 @@ DECLARE
 -- Just declare & CHECK PARALLEL RETRIEVE CURSORs in all segment_number (i.e. 3) sessions,
 -- so that there should have specific session: MOD(sessionid,3)=1;
 -- Get token only in specific session id and retrieve this token.
-4: @out_sh 'parse_endpoint 4 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
+4: @post_run 'parse_endpoint_info 4 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM GP_ENDPOINTS_INFO(TRUE) WHERE MOD(sessionid,3)=1;
  endpoint_id4_1 | token_id | host_id | port_id | READY
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 2&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 3&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3');  <waiting ...>
-*U: @in_sh 'sub_endpoint_name @ENDPOINT4': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT4';
+*U: @pre_run 'set_endpoint_variable @ENDPOINT4': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT4';
  status 
 --------
 (0 rows)
@@ -330,7 +330,7 @@ DECLARE
  status 
 --------
 (0 rows)
-*R: @in_sh 'sub_endpoint_name @ENDPOINT4': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT4";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT4': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT4";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 

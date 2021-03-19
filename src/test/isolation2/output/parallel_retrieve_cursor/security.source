@@ -11,7 +11,7 @@ CREATE OR REPLACE FUNCTION myappend(anyarray, anyelement) RETURNS anyarray AS $$
 CREATE
 
 -- Test: Retrieve login without valid token.
-1: @in_sh 'export RETRIEVE_TOKEN="123" ; echo $RAW_STR' : SELECT 1;
+1: @pre_run 'export RETRIEVE_TOKEN="123" ; echo $RAW_STR' : SELECT 1;
  ?column? 
 ----------
  1        
@@ -25,7 +25,7 @@ CREATE
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @out_sh 'parse_endpoint 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
@@ -93,7 +93,7 @@ ERROR:  failed to attach non-existing endpoint tk1122
 ERROR:  failed to attach non-existing endpoint tktt223344556677889900112233445566
 
 -- Retrieve data.
-*R: @in_sh 'sub_endpoint_name @ENDPOINT1': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
+*R: @pre_run 'set_endpoint_variable @ENDPOINT1': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT1";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
 
 
