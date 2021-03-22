@@ -762,7 +762,7 @@ retrieve_xact_callback(XactEvent ev, void *arg pg_attribute_unused())
 		}
 	}
 
-	if (CurrentSession->segment != NULL)
+	if (CurrentSession != NULL && CurrentSession->segment != NULL)
 		DetachSession();
 }
 
