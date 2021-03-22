@@ -397,6 +397,7 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: SELECT * FROM gp_wait_parallel_retrieve_cursor('c23');
 -- check no endpoint info
 1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c23';
+1: ROLLBACK;
 -1Rq:
 
 -- Test24: endpoint name is too long to be truncated.
@@ -411,6 +412,9 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 *R: @pre_run 'set_endpoint_variable @ENDPOINT24_1': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT24_1";
 *R: @pre_run 'set_endpoint_variable @ENDPOINT24_2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT24_2";
 1: ROLLBACK;
+0Rq:
+1Rq:
+2Rq:
 
 -- Test25: cursor name is too long to be truncated.
 1: BEGIN;
@@ -434,4 +438,26 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 -- check no endpoint info
 1: CLOSE C2;
 1: COMMIT;
-1q:
+
+-- Test27: General locus should run on entry db. Test23 tested Entry locus.
+1: BEGIN;
+1: DECLARE c27 PARALLEL RETRIEVE CURSOR FOR SELECT generate_series(1,10);
+1: @post_run 'parse_endpoint_info 27 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c27';
+1: SELECT * FROM gp_check_parallel_retrieve_cursor('c27');
+
+*U: @pre_run 'set_endpoint_variable @ENDPOINT27': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT27';
+*R: @pre_run 'set_endpoint_variable @ENDPOINT27': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT27";
+
+-- test check and wait after finished retrieving
+1: SELECT * FROM gp_wait_parallel_retrieve_cursor('c27');
+-- check no endpoint info
+1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c27';
+-1Rq:
+
+-- Final: clean up
+DROP TABLE t1;
+DROP TABLE t11;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;

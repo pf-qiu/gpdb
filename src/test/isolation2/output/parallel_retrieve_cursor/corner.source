@@ -1968,6 +1968,8 @@ DECLARE
 ----------
  FINISHED 
 (1 row)
+1: ROLLBACK;
+ROLLBACK
 -1Rq: ... <quitting>
 
 -- Test24: endpoint name is too long to be truncated.
@@ -2071,6 +2073,9 @@ DECLARE
 (4 rows)
 1: ROLLBACK;
 ROLLBACK
+0Rq: ... <quitting>
+1Rq: ... <quitting>
+2Rq: ... <quitting>
 
 -- Test25: cursor name is too long to be truncated.
 1: BEGIN;
@@ -2117,4 +2122,86 @@ DETAIL:  If pid is -1, the previous session has been detached.
 CLOSE
 1: COMMIT;
 COMMIT
-1q: ... <quitting>
+
+-- Test27: General locus should run on entry db. Test23 tested Entry locus.
+1: BEGIN;
+BEGIN
+1: DECLARE c27 PARALLEL RETRIEVE CURSOR FOR SELECT generate_series(1,10);
+DECLARE
+1: @post_run 'parse_endpoint_info 27 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c27';
+ endpoint_id27_1 | token_id | host_id | port_id | READY
+(1 row)
+1: SELECT * FROM gp_check_parallel_retrieve_cursor('c27');
+ finished 
+----------
+ f        
+(1 row)
+
+*U: @pre_run 'set_endpoint_variable @ENDPOINT27': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT27';
+ status 
+--------
+ READY  
+(1 row)
+
+ status 
+--------
+(0 rows)
+
+ status 
+--------
+(0 rows)
+
+ status 
+--------
+(0 rows)
+*R: @pre_run 'set_endpoint_variable @ENDPOINT27': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT27";
+ generate_series 
+-----------------
+ 1               
+ 2               
+ 3               
+ 4               
+ 5               
+ 6               
+ 7               
+ 8               
+ 9               
+ 10              
+(10 rows)
+
+#0retrieve> FATAL:  Retrieve auth token is invalid
+
+
+#1retrieve> FATAL:  Retrieve auth token is invalid
+
+
+#2retrieve> FATAL:  Retrieve auth token is invalid
+
+
+-- test check and wait after finished retrieving
+1: SELECT * FROM gp_wait_parallel_retrieve_cursor('c27');
+ finished 
+----------
+ t        
+(1 row)
+-- check no endpoint info
+1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c27';
+ status   
+----------
+ FINISHED 
+(1 row)
+-1Rq: ... <quitting>
+
+-- Final: clean up
+DROP TABLE t1;
+DROP
+DROP TABLE t11;
+DROP
+DROP TABLE t2;
+DROP
+DROP TABLE t3;
+DROP
+DROP TABLE t4;
+DROP
+DROP TABLE t5;
+DROP
