@@ -20,7 +20,6 @@
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CPhysicalHashJoin.h"
-#include "gpopt/xforms/CXform.h"
 #include "gpopt/xforms/CXformContext.h"
 #include "gpopt/xforms/CXformResult.h"
 #include "naucrates/traceflags/traceflags.h"
@@ -45,7 +44,7 @@ using namespace gpos;
 //		base class for all transformations
 //
 //---------------------------------------------------------------------------
-class CXform : public CRefCount
+class CXform : public CRefCount, public DbgPrintMixin<CXform>
 {
 private:
 	// pattern

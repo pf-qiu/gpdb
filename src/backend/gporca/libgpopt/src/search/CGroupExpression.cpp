@@ -18,6 +18,7 @@
 #include "gpos/task/CAutoSuspendAbort.h"
 #include "gpos/task/CWorker.h"
 
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/COptimizationContext.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CPhysicalAgg.h"
@@ -28,6 +29,8 @@
 #include "naucrates/traceflags/traceflags.h"
 
 using namespace gpopt;
+
+FORCE_GENERATE_DBGSTR(CGroupExpression);
 
 #define GPOPT_COSTCTXT_HT_BUCKETS 100
 

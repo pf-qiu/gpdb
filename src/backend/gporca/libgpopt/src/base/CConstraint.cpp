@@ -23,6 +23,7 @@
 #include "gpopt/base/CConstraintDisjunction.h"
 #include "gpopt/base/CConstraintInterval.h"
 #include "gpopt/base/CConstraintNegation.h"
+#include "gpopt/base/COptCtxt.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/base/IColConstraintsMapper.h"
 #include "gpopt/operators/CPredicateUtils.h"
@@ -34,6 +35,8 @@
 #include "naucrates/md/IMDType.h"
 
 using namespace gpopt;
+
+FORCE_GENERATE_DBGSTR(CConstraint);
 
 // initialize constant true
 BOOL CConstraint::m_fTrue(true);
@@ -764,13 +767,13 @@ CConstraint::PdrgpcnstrDeduplicate(CMemoryPool *mp,
 
 	const ULONG length = pdrgpcnstr->Size();
 
-	pdrgpcnstr->AddRef();
 	if (length >= 5)
 	{
 		arccm = GPOS_NEW(mp) CColConstraintsHashMapper(mp, pdrgpcnstr);
 	}
 	else
 	{
+		pdrgpcnstr->AddRef();
 		arccm = GPOS_NEW(mp) CColConstraintsArrayMapper(mp, pdrgpcnstr);
 	}
 
