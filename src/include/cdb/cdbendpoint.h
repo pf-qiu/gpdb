@@ -50,7 +50,7 @@ enum EndPointExecPosition
  */
 typedef struct EndpointExecState
 {
-	struct EndpointDesc *endpoint;      /* endpoint entry */
+	Endpoint			 endpoint;      /* endpoint entry */
 	DestReceiver        *dest;
 	dsm_segment         *dsmSeg;        /* dsm_segment pointer */
 } EndpointExecState;

@@ -11,6 +11,9 @@
  *-------------------------------------------------------------------------
  */
 
+#include "storage/latch.h"
+#include "nodes/execnodes.h" /* EState */
+
 #ifndef CDBENDPOINTINTERNAL_H
 #define CDBENDPOINTINTERNAL_H
 
@@ -57,10 +60,10 @@ typedef enum EndpointState
 } EndpointState;
 
 /*
- * Endpoint Description, used by parallel retrieve cursor.
+ * Endpoint, used by parallel retrieve cursor.
  * Entries are maintained in shared memory.
  */
-typedef struct EndpointDesc
+struct EndpointData
 {
 	char		name[NAMEDATALEN];		/* Endpoint name */
 	char		cursorName[NAMEDATALEN];		/* Parallel cursor name */
@@ -77,11 +80,11 @@ typedef struct EndpointDesc
 	int			sessionID;		/* Connection session id */
 	Oid			userID;			/* User ID of the current executed PARALLEL
 								 * RETRIEVE CURSOR */
-	bool		empty;			/* Whether current EndpointDesc slot in DSM is
+	bool		empty;			/* Whether current Endpoint slot in DSM is
 								 * free */
 	dsm_handle	sessionDsmHandle;	/* DSM handle, which contains per-session
 									 * DSM (see session.c). */
-}	EndpointDesc;
+};
 
 /*
  * Retrieve role status.
@@ -108,22 +111,19 @@ typedef struct EndpointControl
 	 */
 	int			sessionID;
 
-	struct receiver
-	{
-		/* Track current msg queue entry for running RETRIEVE statement */
-		MsgQueueStatusEntry *currentMQEntry;
-	}			receiver;
+	/* Track current msg queue entry for running RETRIEVE statement */
+	MsgQueueStatusEntry *rxMQEntry;
 }	EndpointControl;
 
-typedef EndpointDesc *Endpoint;
+typedef struct EndpointData *Endpoint;
 
 extern EndpointControl EndpointCtl;		/* Endpoint ctrl */
 
 extern void check_parallel_cursor_errors(EState *estate);
 
 /* Endpoint shared memory utility functions in "cdbendpoint.c" */
-extern EndpointDesc *get_endpointdesc_by_index(int index);
-extern EndpointDesc *find_endpoint(const char *endpointName, int sessionID);
+extern Endpoint get_endpointdesc_by_index(int index);
+extern Endpoint find_endpoint(const char *endpointName, int sessionID);
 extern void get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ );
 extern int	get_session_id_for_auth(Oid userID, const int8 *token);
 
@@ -132,5 +132,6 @@ extern bool endpoint_token_equals(const int8 *token1, const int8 *token2);
 extern bool endpoint_name_equals(const char *name1, const char *name2);
 extern void endpoint_parse_token(int8 *token /* out */ , const char *tokenStr);
 extern char *endpoint_print_token(const int8 *token);	/* Need to pfree the result */
+extern char *state_enum_to_string(EndpointState state);
 
 #endif   /* CDBENDPOINTINTERNAL_H */

@@ -20,12 +20,12 @@
  *
  * When a parallel retrieve cursor is declared, the query plan will be dispatched
  * to the corresponding QEs. Before the query execution, endpoints will be
- * created first on QEs. An entry of EndpointDesc in the shared memory represents
- * the endpoint. Through the EndpointDesc, the client could know the endpoint's
+ * created first on QEs. An entry of Endpoint in the shared memory represents
+ * the endpoint. Through the Endpoint, the client could know the endpoint's
  * identification (endpoint name), location (dbid, host, port and session id),
  * and the status for the retrieve session. All of those information can be
  * obtained on QD by UDF "gp_endpoints_info" or on QE's retrieve session by UDF
- * "gp_endpoint_status_info". The EndpointDesc are stored on QE only in the
+ * "gp_endpoint_status_info". The Endpoint are stored on QE only in the
  * shared memory. QD doesn't know the endpoint's information unless it sends a
  * query request (by UDF "gp_endpoint_status_info") to QE.
  *
@@ -33,7 +33,7 @@
  * endpoints writes the results to TQueueDestReceiver which is a shared memory
  * queue and can be retrieved from a different process. See
  * CreateTQDestReceiverForEndpoint(). The information about the message queue is
- * also stored in the EndpointDesc so that the retrieve session on the same QE
+ * also stored in the Endpoint so that the retrieve session on the same QE
  * can know.
  *
  * The token is stored in a different structure SessionInfoEntry to make the
@@ -67,12 +67,6 @@
 #include "access/session.h"
 #include "access/tupdesc.h"
 #include "access/xact.h"
-#include "cdb/cdbdisp_query.h"
-#include "cdb/cdbdispatchresult.h"
-#include "cdb/cdbendpoint.h"
-#include "cdb/cdbsrlz.h"
-#include "cdb/cdbvars.h"
-#include "cdbendpointinternal.h"
 #include "libpq-fe.h"
 #include "libpq/libpq.h"
 #include "pgstat.h"
@@ -84,6 +78,12 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
+#include "cdbendpointinternal.h"
+#include "cdb/cdbdisp_query.h"
+#include "cdb/cdbdispatchresult.h"
+#include "cdb/cdbendpoint.h"
+#include "cdb/cdbsrlz.h"
+#include "cdb/cdbvars.h"
 
 /* The timeout before returns failure for endpoints initialization, in milliseconds */
 #define WAIT_NORMAL_TIMEOUT				100
@@ -94,7 +94,7 @@
  */
 #define ENDPOINT_TUPLE_QUEUE_SIZE		65536
 
-#define SHMEM_ENDPOINTS_ENTRIES			"SharedMemoryEndpointDescEntries"
+#define SHMEM_ENDPOINTS_ENTRIES			"SharedMemoryEndpointEntries"
 #define SHMEM_ENPOINTS_SESSION_INFO		"EndpointsSessionInfosHashtable"
 
 #ifdef FAULT_INJECTOR
@@ -137,8 +137,8 @@ typedef struct SessionInfoEntry
 /* Shared hash table for session infos */
 static HTAB *sharedSessionInfoHash = NULL;
 
-/* Point to EndpointDesc entries in shared memory */
-static EndpointDesc *sharedEndpoints = NULL;
+/* Point to Endpoint entries in shared memory */
+static struct EndpointData *sharedEndpoints = NULL;
 
 /* Init helper functions */
 static void init_shared_endpoints(Endpoint endpoints);
@@ -147,15 +147,15 @@ static void init_shared_endpoints(Endpoint endpoints);
 static const int8 *get_or_create_token(void);
 
 /* Endpoint helper function */
-static EndpointDesc *alloc_endpoint(const char *cursorName, dsm_handle dsmHandle);
-static void free_endpoint(EndpointDesc *endpoint);
+static Endpoint alloc_endpoint(const char *cursorName, dsm_handle dsmHandle);
+static void free_endpoint(Endpoint endpoint);
 static void create_and_connect_mq(TupleDesc tupleDesc,
 					  dsm_segment **mqSeg /* out */ ,
 					  shm_mq_handle **mqHandle /* out */ );
 static void detach_mq(dsm_segment *dsmSeg);
 static void init_session_info_entry(void);
 static void wait_receiver(EndpointExecState *state);
-static void unset_endpoint_sender_pid(EndpointDesc *endPointDesc);
+static void unset_endpoint_sender_pid(Endpoint endPoint);
 static void abort_endpoint(EndpointExecState *state);
 static void wait_parallel_retrieve_close(void);
 
@@ -174,7 +174,7 @@ EndpointShmemSize(void)
 {
 	Size		size;
 
-	size = MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(EndpointDesc)));
+	size = MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(struct EndpointData)));
 	size = add_size(
 	  size, hash_estimate_size(MAX_ENDPOINT_SIZE, sizeof(SessionInfoEntry)));
 	return size;
@@ -190,9 +190,9 @@ EndpointCTXShmemInit(void)
 	bool		isShmemReady;
 	HASHCTL		hctl;
 
-	sharedEndpoints = (EndpointDesc *) ShmemInitStruct(
+	sharedEndpoints = (Endpoint) ShmemInitStruct(
 													 SHMEM_ENDPOINTS_ENTRIES,
-				 MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(EndpointDesc))),
+				 MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(struct EndpointData))),
 													   &isShmemReady);
 	Assert(isShmemReady || !IsUnderPostmaster);
 	if (!isShmemReady)
@@ -210,7 +210,7 @@ EndpointCTXShmemInit(void)
 }
 
 /*
- * Init EndpointDesc entries.
+ * Init Endpoint entries.
  */
 static void
 init_shared_endpoints(Endpoint endpoints)
@@ -400,7 +400,7 @@ DestroyTQDestReceiverForEndpoint(EndpointExecState *state)
 
 	/*
 	 * If all data get sent, hang the process and wait for QD to close it. The
-	 * purpose is to not clean up EndpointDesc entry until CLOSE/COMMIT/ABORT
+	 * purpose is to not clean up Endpoint entry until CLOSE/COMMIT/ABORT
 	 * (i.e. PortalCleanup get executed). So user can still see the finished
 	 * endpoint status through gp_endpoints_info UDF. This is needed because
 	 * pg_cursor view can still see the PARALLEL RETRIEVE CURSOR
@@ -419,17 +419,17 @@ DestroyTQDestReceiverForEndpoint(EndpointExecState *state)
 }
 
 /*
- * alloc_endpoint - Allocate an EndpointDesc entry in shared memory.
+ * alloc_endpoint - Allocate an Endpoint entry in shared memory.
  *
  * cursorName - the parallel retrieve cursor name.
  * dsmHandle  - dsm handle of shared memory message queue.
  */
-static EndpointDesc *
+static Endpoint
 alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 {
 	int			i;
 	int			foundIdx = -1;
-	EndpointDesc *ret = NULL;
+	Endpoint	ret = NULL;
 	dsm_handle	session_dsm_handle;
 
 	Assert(sharedEndpoints);
@@ -718,7 +718,8 @@ wait_receiver(EndpointExecState *state)
 		{
 			if (!checkQDConnectionAlive())
 			{
-				elog(LOG, "CDB_ENDPOINT: sender found that the connection to QD is broken.");
+				ereport(LOG,
+						(errmsg("CDB_ENDPOINT: sender found that the connection to QD is broken.")));
 				abort_endpoint(state);
 				proc_exit(0);
 			}
@@ -728,7 +729,8 @@ wait_receiver(EndpointExecState *state)
 		if (wr & WL_POSTMASTER_DEATH)
 		{
 			abort_endpoint(state);
-			elog(LOG, "CDB_ENDPOINT: postmaster exit, close shared memory message queue.");
+			ereport(LOG,
+					(errmsg("CDB_ENDPOINT: postmaster exit, close shared memory message queue.")));
 			proc_exit(0);
 		}
 
@@ -757,33 +759,32 @@ detach_mq(dsm_segment *dsmSeg)
 /*
  * Unset endpoint sender pid.
  *
- * Clean the EndpointDesc entry sender pid when endpoint finish it's
+ * Clean the Endpoint entry sender pid when endpoint finish it's
  * job or abort.
  * Needs to be called with exclusive lock on ParallelCursorEndpointLock.
  */
 static void
-unset_endpoint_sender_pid(EndpointDesc *endPointDesc)
+unset_endpoint_sender_pid(Endpoint endpoint)
 {
 	SessionTokenTag tag;
 
 	tag.sessionID = gp_session_id;
 	tag.userID = GetSessionUserId();
 
-	if (!endPointDesc || endPointDesc->empty)
-	{
+	if (endpoint == NULL || endpoint->empty)
 		return;
-	}
+
 	elog(DEBUG3, "CDB_ENDPOINT: unset endpoint sender pid.");
 
 	/*
 	 * Only the endpoint QE/entry DB execute this unset sender pid function.
 	 * The sender pid in Endpoint entry must be MyProcPid or InvalidPid.
 	 */
-	Assert(MyProcPid == endPointDesc->senderPid ||
-		   endPointDesc->senderPid == InvalidPid);
-	if (MyProcPid == endPointDesc->senderPid)
+	Assert(MyProcPid == endpoint->senderPid ||
+		   endpoint->senderPid == InvalidPid);
+	if (MyProcPid == endpoint->senderPid)
 	{
-		endPointDesc->senderPid = InvalidPid;
+		endpoint->senderPid = InvalidPid;
 	}
 }
 
@@ -828,7 +829,7 @@ abort_endpoint(EndpointExecState *state)
  * Wait for PARALLEL RETRIEVE CURSOR cleanup after endpoint send all data.
  *
  * If all data get sent, hang the process and wait for QD to close it.
- * The purpose is to not clean up EndpointDesc entry until
+ * The purpose is to not clean up Endpoint entry until
  * CLOSE/COMMIT/ABORT (ie. PortalCleanup get executed).
  */
 static void
@@ -855,7 +856,8 @@ wait_parallel_retrieve_close(void)
 
 		if (wr & WL_POSTMASTER_DEATH)
 		{
-			elog(LOG, "CDB_ENDPOINT: postmaster exit, close shared memory message queue.");
+			ereport(LOG,
+					(errmsg("CDB_ENDPOINT: postmaster exit, close shared memory message queue.")));
 			proc_exit(0);
 		}
 
@@ -863,7 +865,8 @@ wait_parallel_retrieve_close(void)
 		{
 			if (!checkQDConnectionAlive())
 			{
-				elog(LOG, "CDB_ENDPOINT: sender found that the connection to QD is broken.");
+				ereport(LOG,
+						(errmsg("CDB_ENDPOINT: sender found that the connection to QD is broken.")));
 				proc_exit(0);
 			}
 			continue;
@@ -889,7 +892,7 @@ wait_parallel_retrieve_close(void)
  * Needs to be called with exclusive lock on ParallelCursorEndpointLock.
  */
 static void
-free_endpoint(EndpointDesc *endpoint)
+free_endpoint(Endpoint endpoint)
 {
 	SessionTokenTag tag;
 	SessionInfoEntry *infoEntry = NULL;
@@ -922,7 +925,7 @@ free_endpoint(EndpointDesc *endpoint)
 	endpoint->userID = InvalidOid;
 }
 
-EndpointDesc *
+Endpoint
 get_endpointdesc_by_index(int index)
 {
 	Assert(sharedEndpoints);
@@ -941,10 +944,10 @@ get_endpointdesc_by_index(int index)
  *
  * The caller is responsible for acquiring ParallelCursorEndpointLock lock.
  */
-EndpointDesc *
+Endpoint
 find_endpoint(const char *endpointName, int sessionID)
 {
-	EndpointDesc *res = NULL;
+	Endpoint res = NULL;
 
 	Assert(endpointName);
 

@@ -2110,10 +2110,10 @@ DECLARE
 
 -- connect again and retrieve twice
 2R: @pre_run 'set_endpoint_variable @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
-ERROR:  endpoint endpoint_id26_3 was used by another retrieve session (pid: 78042)
+ERROR:  endpoint endpoint_id26_3 (state: FINISHED) was used by another retrieve session (pid: 31847)
 DETAIL:  If pid is -1, the previous session has been detached.
 2R: @pre_run 'set_endpoint_variable @ENDPOINT26' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT26";
-ERROR:  endpoint endpoint_id26_3 was used by another retrieve session (pid: 78042)
+ERROR:  endpoint endpoint_id26_3 (state: FINISHED) was used by another retrieve session (pid: 31847)
 DETAIL:  If pid is -1, the previous session has been detached.
 2Rq: ... <quitting>
 

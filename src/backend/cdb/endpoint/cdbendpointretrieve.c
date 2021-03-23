@@ -45,9 +45,6 @@
 
 #include "access/session.h"
 #include "access/xact.h"
-#include "cdb/cdbendpoint.h"
-#include "cdb/cdbsrlz.h"
-#include "cdbendpointinternal.h"
 #include "storage/ipc.h"
 #include "utils/backend_cancel.h"
 #include "utils/dynahash.h"
@@ -55,6 +52,9 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
+#include "cdbendpointinternal.h"
+#include "cdb/cdbendpoint.h"
+#include "cdb/cdbsrlz.h"
 
 bool am_cursor_retrieve_handler = false;
 bool retrieve_conn_authenticated = false;
@@ -146,14 +146,9 @@ AuthEndpoint(Oid userID, const char *tokenStr)
 TupleDesc
 GetRetrieveStmtTupleDesc(const RetrieveStmt * stmt)
 {
-	Assert(stmt);
+	EndpointCtl.rxMQEntry = start_retrieve(stmt->endpoint_name);
 
-	EndpointCtl.receiver.currentMQEntry = start_retrieve(stmt->endpoint_name);
-
-	Assert(EndpointCtl.receiver.currentMQEntry->retrieveTs);
-	Assert(EndpointCtl.receiver.currentMQEntry->retrieveTs->tts_tupleDescriptor);
-
-	return EndpointCtl.receiver.currentMQEntry->retrieveTs->tts_tupleDescriptor;
+	return EndpointCtl.rxMQEntry->retrieveTs->tts_tupleDescriptor;
 }
 
 /*
@@ -170,7 +165,7 @@ ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
 	TupleTableSlot *result = NULL;
 	int64		retrieveCount = 0;
 
-	if (EndpointCtl.receiver.currentMQEntry == NULL)
+	if (EndpointCtl.rxMQEntry == NULL)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 						errmsg("endpoint %s has not been attached.",
@@ -186,11 +181,11 @@ ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
 							retrieveCount)));
 	}
 
-	if (EndpointCtl.receiver.currentMQEntry->retrieveStatus < RETRIEVE_STATUS_FINISH)
+	if (EndpointCtl.rxMQEntry->retrieveStatus < RETRIEVE_STATUS_FINISH)
 	{
 		while (stmt->is_all || retrieveCount > 0)
 		{
-			result = receive_tuple_slot(EndpointCtl.receiver.currentMQEntry);
+			result = receive_tuple_slot(EndpointCtl.rxMQEntry);
 			if (!result)
 				break;
 
@@ -200,7 +195,7 @@ ExecRetrieveStmt(const RetrieveStmt * stmt, DestReceiver *dest)
 		}
 	}
 
-	finish_retrieve(EndpointCtl.receiver.currentMQEntry, false);
+	finish_retrieve(EndpointCtl.rxMQEntry, false);
 }
 
 /*
@@ -235,7 +230,9 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
 		{
 			return entry->endpoint;
 		}
-		elog(WARNING, "endpoint slot in MsgQueueStatusEntry is reused by others");
+		ereport(WARNING,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("endpoint slot in MsgQueueStatusEntry is reused by others")));
 		entry->endpoint = NULL;
 	}
 	return NULL;
@@ -257,7 +254,7 @@ static MsgQueueStatusEntry *
 start_retrieve(const char *endpointName)
 {
 	bool		found;
-	Endpoint	endpointDesc;
+	Endpoint	endpoint;
 	MsgQueueStatusEntry *entry;
 	dsm_handle	handle = DSM_HANDLE_INVALID;
 
@@ -278,16 +275,18 @@ start_retrieve(const char *endpointName)
 		ctl.hash = string_hash;
 		mqStatusHTB = hash_create("endpoint hash", MAX_ENDPOINT_SIZE, &ctl,
 								  (HASH_ELEM | HASH_FUNCTION));
+		found = false;
 	}
+	else
+		entry = hash_search(mqStatusHTB, endpointName, HASH_FIND, &found);
 
-	entry = hash_search(mqStatusHTB, endpointName, HASH_FIND, &found);
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	if (found)
-		endpointDesc = get_endpoint_from_mq_status_entry(entry);
+		endpoint = get_endpoint_from_mq_status_entry(entry);
 	else
-		endpointDesc = find_endpoint(endpointName, EndpointCtl.sessionID);
+		endpoint = find_endpoint(endpointName, EndpointCtl.sessionID);
 
-	if (!endpointDesc)
+	if (!endpoint)
 	{
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 						errmsg("failed to attach non-existing endpoint %s",
@@ -296,27 +295,27 @@ start_retrieve(const char *endpointName)
 	if (!found)
 	{
 		/* if endpoint was not retrieved before, validate endpoint info */
-		validate_retrieve_endpoint(endpointDesc, endpointName);
-		endpointDesc->receiverPid = MyProcPid;
-		handle = endpointDesc->mqDsmHandle;
+		validate_retrieve_endpoint(endpoint, endpointName);
+		endpoint->receiverPid = MyProcPid;
+		handle = endpoint->mqDsmHandle;
 		/* insert it into hashtable */
 		entry = hash_search(mqStatusHTB, endpointName, HASH_ENTER, &found);
 		init_msg_queue_status_entry(entry);
 	}
 
 	/* begins to retrieve tuples from endpoint if still have data to retrieve. */
-	if (endpointDesc->state == ENDPOINTSTATE_READY ||
-		endpointDesc->state == ENDPOINTSTATE_ATTACHED)
+	if (endpoint->state == ENDPOINTSTATE_READY ||
+		endpoint->state == ENDPOINTSTATE_ATTACHED)
 	{
-		endpointDesc->state = ENDPOINTSTATE_RETRIEVING;
+		endpoint->state = ENDPOINTSTATE_RETRIEVING;
 	}
 	LWLockRelease(ParallelCursorEndpointLock);
-	entry->endpoint = endpointDesc;
+	entry->endpoint = endpoint;
 	if (!found)
 		attach_receiver_mq(entry, handle);
 
 	if (CurrentSession->segment == NULL)
-		AttachSession(endpointDesc->sessionDsmHandle);
+		AttachSession(endpoint->sessionDsmHandle);
 
 	return entry;
 }
@@ -326,11 +325,11 @@ start_retrieve(const char *endpointName)
  * validate whether it meets the requirements.
  */
 static void
-validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
+validate_retrieve_endpoint(Endpoint endpoint, const char *endpointName)
 {
-	Assert(endpointDesc->mqDsmHandle != DSM_HANDLE_INVALID);
+	Assert(endpoint->mqDsmHandle != DSM_HANDLE_INVALID);
 
-	if (endpointDesc->userID != GetSessionUserId())
+	if (endpoint->userID != GetSessionUserId())
 	{
 		ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 						errmsg("the PARALLEL RETRIEVE CURSOR was created by "
@@ -339,25 +338,26 @@ validate_retrieve_endpoint(Endpoint endpointDesc, const char *endpointName)
 								"RETRIEVE CURSOR creator to retrieve.")));
 	}
 
-	if (!(endpointDesc->state == ENDPOINTSTATE_READY ||
-		endpointDesc->state == ENDPOINTSTATE_ATTACHED))
+	if (!(endpoint->state == ENDPOINTSTATE_READY ||
+		  endpoint->state == ENDPOINTSTATE_ATTACHED))
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("endpoint %s was used by another retrieve session (pid: %d)",
-					  endpointName, endpointDesc->receiverPid),
+				 errmsg("endpoint %s (state: %s) was used by another retrieve session (pid: %d)",
+						endpointName,
+						state_enum_to_string(endpoint->state),
+						endpoint->receiverPid),
 				 errdetail("If pid is -1, the previous session has been detached.")));
-
 	}
 
-	if (endpointDesc->receiverPid != InvalidPid &&
-		endpointDesc->receiverPid != MyProcPid)
+	if (endpoint->receiverPid != InvalidPid &&
+		endpoint->receiverPid != MyProcPid)
 	{
 		/* already attached by other process before */
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-			   errmsg("endpoint %s is already attached by receiver(pid: %d)",
-					  endpointName, endpointDesc->receiverPid),
+				 errmsg("endpoint %s was already attached by receiver(pid: %d)",
+						endpointName, endpoint->receiverPid),
 				 errdetail("An endpoint can only be attached by one retrieving session.")));
 	}
 }
@@ -440,7 +440,7 @@ detach_receiver_mq(MsgQueueStatusEntry * entry)
 static void
 notify_sender(MsgQueueStatusEntry * entry, bool isFinished)
 {
-	EndpointDesc *endpoint;
+	Endpoint endpoint;
 
 	Assert(entry);
 
@@ -586,7 +586,7 @@ receive_tuple_slot(MsgQueueStatusEntry * entry)
 static void
 finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 {
-	EndpointDesc *endpoint = NULL;
+	Endpoint endpoint = NULL;
 
 	Assert(entry);
 
@@ -595,13 +595,13 @@ finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 	if (endpoint == NULL)
 	{
 		/*
-		 * The endpoint has already cleaned the EndpointDesc entry. Or during
-		 * the retrieve abort stage, sender cleaned the EndpointDesc entry.
+		 * The endpoint has already cleaned the Endpoint entry. Or during
+		 * the retrieve abort stage, sender cleaned the Endpoint entry.
 		 * And another endpoint gets allocated just after the clean, which
 		 * will occupy current endpoint entry.
 		 */
 		LWLockRelease(ParallelCursorEndpointLock);
-		EndpointCtl.receiver.currentMQEntry = NULL;
+		EndpointCtl.rxMQEntry = NULL;
 		return;
 	}
 
@@ -633,7 +633,7 @@ finish_retrieve(MsgQueueStatusEntry * entry, bool resetPID)
 	}
 
 	LWLockRelease(ParallelCursorEndpointLock);
-	EndpointCtl.receiver.currentMQEntry = NULL;
+	EndpointCtl.rxMQEntry = NULL;
 }
 
 /*
@@ -713,8 +713,8 @@ retrieve_exit_callback(int code, Datum arg)
 		return;
 
 	/* If the MQ entry has not be retrieved in this run. */
-	if (EndpointCtl.receiver.currentMQEntry)
-		finish_retrieve(EndpointCtl.receiver.currentMQEntry, true);
+	if (EndpointCtl.rxMQEntry)
+		finish_retrieve(EndpointCtl.rxMQEntry, true);
 
 	/* Cancel all partially retrieved endpoints in this retrieve session */
 	hash_seq_init(&status, mqStatusHTB);
@@ -753,12 +753,12 @@ retrieve_xact_callback(XactEvent ev, void *arg pg_attribute_unused())
 	{
 		elog(DEBUG3, "CDB_ENDPOINT: retrieve xact abort callback");
 		if (EndpointCtl.sessionID != InvalidSession &&
-			EndpointCtl.receiver.currentMQEntry)
+			EndpointCtl.rxMQEntry)
 		{
-			if (EndpointCtl.receiver.currentMQEntry->retrieveStatus != RETRIEVE_STATUS_FINISH)
-				retrieve_cancel_action(EndpointCtl.receiver.currentMQEntry,
+			if (EndpointCtl.rxMQEntry->retrieveStatus != RETRIEVE_STATUS_FINISH)
+				retrieve_cancel_action(EndpointCtl.rxMQEntry,
 									   "Endpoint retrieve statement aborted");
-			finish_retrieve(EndpointCtl.receiver.currentMQEntry, true);
+			finish_retrieve(EndpointCtl.rxMQEntry, true);
 		}
 	}
 

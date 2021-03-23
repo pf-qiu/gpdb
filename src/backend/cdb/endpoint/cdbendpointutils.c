@@ -13,12 +13,6 @@
 
 #include "postgres.h"
 
-#include "cdb/cdbdisp_query.h"
-#include "cdb/cdbdispatchresult.h"
-#include "cdb/cdbendpoint.h"
-#include "cdb/cdbutil.h"
-#include "cdb/cdbvars.h"
-#include "cdbendpointinternal.h"
 #include "funcapi.h"
 #include "libpq-fe.h"
 #include "utils/builtins.h"
@@ -26,6 +20,12 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
+#include "cdbendpointinternal.h"
+#include "cdb/cdbdisp_query.h"
+#include "cdb/cdbdispatchresult.h"
+#include "cdb/cdbendpoint.h"
+#include "cdb/cdbutil.h"
+#include "cdb/cdbvars.h"
 
 #define atooid(x)  ((Oid) strtoul((x), NULL, 10))
 
@@ -61,8 +61,8 @@ typedef struct
 
 typedef struct
 {
-	int			endpointsNum;	/* number of EndpointDesc in the list */
-	int			currentIdx;		/* current index of EndpointDesc in the list */
+	int			endpointsNum;	/* number of Endpoint in the list */
+	int			currentIdx;		/* current index of Endpoint in the list */
 }	EndpointsStatusInfo;
 
 extern Datum gp_check_parallel_retrieve_cursor(PG_FUNCTION_ARGS);
@@ -71,12 +71,11 @@ extern Datum gp_endpoints_info(PG_FUNCTION_ARGS);
 extern Datum gp_endpoints_status_info(PG_FUNCTION_ARGS);
 
 /* Used in UDFs */
-static char *state_enum_to_string(EndpointState state);
 static EndpointState state_string_to_enum(const char *state);
 static bool check_parallel_retrieve_cursor(const char *cursorName, bool isWait);
 
 /* Endpoint control information for current session. */
-struct EndpointControl EndpointCtl = {InvalidSession, .receiver = {NULL}};
+struct EndpointControl EndpointCtl = {InvalidSession, NULL};
 
 /*
  * Convert the string tk0123456789 to int 0123456789 and save it into
@@ -373,7 +372,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 
 		for (int i = 0; i < MAX_ENDPOINT_SIZE; i++)
 		{
-			const EndpointDesc *entry = get_endpointdesc_by_index(i);
+			const Endpoint entry = get_endpointdesc_by_index(i);
 
 			if (!entry->empty && (superuser() || entry->userID == GetUserId()))
 				cnt++;
@@ -397,7 +396,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 
 			for (int i = 0; i < MAX_ENDPOINT_SIZE; i++)
 			{
-				const EndpointDesc *entry = get_endpointdesc_by_index(i);
+				const Endpoint entry = get_endpointdesc_by_index(i);
 
 				/*
 				 * Only allow current user to get own endpoints. Or let
@@ -497,7 +496,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 }
 
 /*
- * Display the status of all valid EndpointDesc of current
+ * Display the status of all valid Endpoint of current
  * backend in shared memory.
  * If current user is superuser, list all endpoints on this segment.
  * Or only show current user's endpoints on this segment.
@@ -556,7 +555,7 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 		memset(nulls, 0, sizeof(nulls));
 		Datum		result;
 
-		const EndpointDesc *entry =
+		const Endpoint entry =
 		get_endpointdesc_by_index(mystatus->currentIdx);
 
 		/*
@@ -605,7 +604,7 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 	SRF_RETURN_DONE(funcctx);
 }
 
-static char *
+char *
 state_enum_to_string(EndpointState state)
 {
 	char	   *result = NULL;
@@ -631,10 +630,10 @@ state_enum_to_string(EndpointState state)
 
 			/*
 			 * This function is called when displays endpoint's information.
-			 * Only valid endpoints will be printed out. So the status of the
+			 * Only valid endpoints will be printed out. So the state of the
 			 * endpoint shouldn't be invalid.
 			 */
-			elog(ERROR, "invalid status of endpoint");
+			ereport(ERROR, (errmsg("invalid state of endpoint")));
 			break;
 	}
 	Assert(result != NULL);
@@ -656,7 +655,7 @@ state_string_to_enum(const char *state)
 		return ENDPOINTSTATE_RELEASED;
 	else
 	{
-		elog(ERROR, "unknown endpoint status %s", state);
+		ereport(ERROR, (errmsg("unknown endpoint state %s", state)));
 		return ENDPOINTSTATE_INVALID;
 	}
 }

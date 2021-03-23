@@ -481,7 +481,7 @@ DECLARE
 (10 rows)
 -- a new retrieve session should report error
 3R: @pre_run 'set_endpoint_variable @ENDPOINT3': RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
-ERROR:  endpoint endpoint_id3_1 is already attached by receiver(pid: PID)
+ERROR:  endpoint endpoint_id3_1 was already attached by receiver(pid: PID)
 DETAIL:  An endpoint can only be attached by one retrieving session.
 -- quit this new retrieve session
 3Rq: ... <quitting>
