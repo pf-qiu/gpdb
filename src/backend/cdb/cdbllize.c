@@ -1564,11 +1564,6 @@ motion_sanity_check(PlannerInfo *root, Plan *plan)
 static void
 adjust_top_path_for_parallel_retrieve_cursor(Path *path, PlanSlice *slice)
 {
-	/*
-	 * TODO/FIXME:
-	 * 1. Can we extract similar code in create_motion_plan() to a comm func?
-	 * 2. I believe the logic could be improved.
-	 */
 	if (CdbPathLocus_IsSingleQE(path->locus)
 		|| CdbPathLocus_IsGeneral(path->locus)
 		|| CdbPathLocus_IsEntry(path->locus))
@@ -1577,7 +1572,6 @@ adjust_top_path_for_parallel_retrieve_cursor(Path *path, PlanSlice *slice)
 		 * For these scenarios, parallel retrieve cursor needs to run on entrydb
 		 * since endpoint QE needs to interacts with the retrieve connections.
 		 */
-		slice->segindex = 0;
 		slice->numsegments = 1;
 		slice->gangType = GANGTYPE_ENTRYDB_READER;
 	}
@@ -1595,7 +1589,6 @@ adjust_top_path_for_parallel_retrieve_cursor(Path *path, PlanSlice *slice)
 		/*
 		 * queries to non-replicated table run on segments.
 		 */
-		slice->segindex = 0;
 		slice->numsegments = path->locus.numsegments;
 		slice->gangType = GANGTYPE_PRIMARY_READER;
 	}
