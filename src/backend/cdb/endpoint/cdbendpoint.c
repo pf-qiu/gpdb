@@ -78,10 +78,10 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
-#include "cdbendpointinternal.h"
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbdispatchresult.h"
 #include "cdb/cdbendpoint.h"
+#include "cdbendpoint_private.h"
 #include "cdb/cdbsrlz.h"
 #include "cdb/cdbvars.h"
 
@@ -222,7 +222,7 @@ init_shared_endpoints(Endpoint endpoints)
 		endpoints[i].receiverPid = InvalidPid;
 		endpoints[i].mqDsmHandle = DSM_HANDLE_INVALID;
 		endpoints[i].sessionDsmHandle = DSM_HANDLE_INVALID;
-		endpoints[i].sessionID = InvalidSession;
+		endpoints[i].sessionID = InvalidEndpointSessionId;
 		endpoints[i].userID = InvalidOid;
 		endpoints[i].state = ENDPOINTSTATE_INVALID;
 		endpoints[i].empty = true;
@@ -297,7 +297,7 @@ WaitEndpointReady(EState *estate)
 static const int8 *
 get_or_create_token(void)
 {
-	static int	sessionId = InvalidSession;
+	static int	sessionId = InvalidEndpointSessionId;
 	static int8 currentToken[ENDPOINT_TOKEN_LEN] = {0};
 	const static int sessionIdLen = sizeof(sessionId);
 
@@ -921,7 +921,7 @@ free_endpoint(Endpoint endpoint)
 		infoEntry->endpointCounter--;
 	}
 
-	endpoint->sessionID = InvalidSession;
+	endpoint->sessionID = InvalidEndpointSessionId;
 	endpoint->userID = InvalidOid;
 }
 
@@ -997,7 +997,7 @@ get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ )
 int
 get_session_id_for_auth(Oid userID, const int8 *token)
 {
-	int			sessionId = InvalidSession;
+	int			sessionId = InvalidEndpointSessionId;
 	SessionInfoEntry *infoEntry = NULL;
 	HASH_SEQ_STATUS status;
 

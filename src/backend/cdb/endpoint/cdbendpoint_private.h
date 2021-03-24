@@ -1,18 +1,17 @@
 /*-------------------------------------------------------------------------
  *
- * cdbendpointinternal.h
+ * cdbendpoint_private.h
  *	  Internal routines for parallel retrieve cursor.
  *
  *
  * Copyright (c) 2019-Present Pivotal Software, Inc
  *
- * src/backend/cdb/endpoints/cdbendpointinternal.h
+ * src/backend/cdb/endpoints/cdbendpoint_private.h
  *
  *-------------------------------------------------------------------------
  */
 
-#include "storage/latch.h"
-#include "nodes/execnodes.h" /* EState */
+#include "cdb/cdbendpoint.h"
 
 #ifndef CDBENDPOINTINTERNAL_H
 #define CDBENDPOINTINTERNAL_H
@@ -20,13 +19,7 @@
 #define MAX_ENDPOINT_SIZE				 1024
 #define ENDPOINT_TOKEN_LEN				 16
 #define ENDPOINT_TOKEN_STR_LEN			 (2 + ENDPOINT_TOKEN_LEN * 2) // "tk0A1B...4E5F"
-#define InvalidSession					 (-1)
-
-#define GP_ENDPOINT_STATE_READY		 "READY"
-#define GP_ENDPOINT_STATE_RETRIEVING	 "RETRIEVING"
-#define GP_ENDPOINT_STATE_ATTACHED		 "ATTACHED"
-#define GP_ENDPOINT_STATE_FINISHED		 "FINISHED"
-#define GP_ENDPOINT_STATE_RELEASED		 "RELEASED"
+#define InvalidEndpointSessionId					 (-1)
 
 #define ENDPOINT_KEY_TUPLE_DESC_LEN		1
 #define ENDPOINT_KEY_TUPLE_DESC			2
@@ -40,51 +33,11 @@
  */
 
 /* ACK NOTICE MESSAGE FROM ENDPOINT QE/Entry DB to QD */
-#define ENDPOINT_READY_ACK "ENDPOINT_READY"
-#define ENDPOINT_FINISHED_ACK "ENDPOINT_FINISHED"
-#define ENDPOINT_NAME_SESSIONID_LEN 8
-#define ENDPOINT_NAME_RANDOM_LEN 10
+#define ENDPOINT_READY_ACK			"ENDPOINT_READY"
+#define ENDPOINT_FINISHED_ACK		"ENDPOINT_FINISHED"
+#define ENDPOINT_NAME_SESSIONID_LEN	8
+#define ENDPOINT_NAME_RANDOM_LEN	10
 #define ENDPOINT_NAME_CURSOR_LEN (NAMEDATALEN - 1 - ENDPOINT_NAME_SESSIONID_LEN - ENDPOINT_NAME_RANDOM_LEN)
-
-/*
- * Endpoint attach status, used by parallel retrieve cursor.
- */
-typedef enum EndpointState
-{
-	ENDPOINTSTATE_INVALID,
-	ENDPOINTSTATE_READY,
-	ENDPOINTSTATE_RETRIEVING,
-	ENDPOINTSTATE_ATTACHED,
-	ENDPOINTSTATE_FINISHED,
-	ENDPOINTSTATE_RELEASED,
-} EndpointState;
-
-/*
- * Endpoint, used by parallel retrieve cursor.
- * Entries are maintained in shared memory.
- */
-struct EndpointData
-{
-	char		name[NAMEDATALEN];		/* Endpoint name */
-	char		cursorName[NAMEDATALEN];		/* Parallel cursor name */
-	Oid			databaseID;		/* Database OID */
-	pid_t		senderPid;		/* The PID of EPR_SENDER(endpoint), set before
-								 * endpoint sends data */
-	pid_t		receiverPid;	/* The retrieve role's PID that connect to
-								 * current endpoint */
-	dsm_handle	mqDsmHandle;	/* DSM handle, which contains shared message
-								 * queue */
-	Latch		ackDone;		/* Latch to sync EPR_SENDER and EPR_RECEIVER
-								 * status */
-	EndpointState state;		/* The state of the endpoint */
-	int			sessionID;		/* Connection session id */
-	Oid			userID;			/* User ID of the current executed PARALLEL
-								 * RETRIEVE CURSOR */
-	bool		empty;			/* Whether current Endpoint slot in DSM is
-								 * free */
-	dsm_handle	sessionDsmHandle;	/* DSM handle, which contains per-session
-									 * DSM (see session.c). */
-};
 
 /*
  * Retrieve role status.
@@ -115,9 +68,7 @@ typedef struct EndpointControl
 	MsgQueueStatusEntry *rxMQEntry;
 }	EndpointControl;
 
-typedef struct EndpointData *Endpoint;
-
-extern EndpointControl EndpointCtl;		/* Endpoint ctrl */
+extern EndpointControl EndpointCtl;
 
 extern void check_parallel_cursor_errors(EState *estate);
 

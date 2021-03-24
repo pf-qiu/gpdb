@@ -16,8 +16,8 @@
  * statement behavior is similar to the "FETCH count" statement, while it only
  * can be executed in retrieve mode connection to endpoint.
  *
- * #NOTE: Orca is not support PARALLEL RETRIEVE CURSOR for now. It should fall back
- * to postgres optimizer.
+ * #NOTE: ORCA does not support PARALLEL RETRIEVE CURSOR for now. It should
+ * fall back to postgres optimizer.
  *
  * Copyright (c) 2019-Present Pivotal Software, Inc
  *
@@ -45,6 +45,54 @@ enum EndPointExecPosition
 	ENDPOINT_ON_ALL_QE
 };
 
+#define STR_ENDPOINT_STATE_READY		 "READY"
+#define STR_ENDPOINT_STATE_RETRIEVING	 "RETRIEVING"
+#define STR_ENDPOINT_STATE_ATTACHED		 "ATTACHED"
+#define STR_ENDPOINT_STATE_FINISHED		 "FINISHED"
+#define STR_ENDPOINT_STATE_RELEASED		 "RELEASED"
+
+/*
+ * Endpoint attach status, used by parallel retrieve cursor.
+ */
+typedef enum EndpointState
+{
+	ENDPOINTSTATE_INVALID,
+	ENDPOINTSTATE_READY,
+	ENDPOINTSTATE_RETRIEVING,
+	ENDPOINTSTATE_ATTACHED,
+	ENDPOINTSTATE_FINISHED,
+	ENDPOINTSTATE_RELEASED,
+} EndpointState;
+
+/*
+ * Endpoint, used by parallel retrieve cursor.
+ * Entries are maintained in shared memory.
+ */
+struct EndpointData
+{
+	char		name[NAMEDATALEN];		/* Endpoint name */
+	char		cursorName[NAMEDATALEN];		/* Parallel cursor name */
+	Oid			databaseID;		/* Database OID */
+	pid_t		senderPid;		/* The PID of EPR_SENDER(endpoint), set before
+								 * endpoint sends data */
+	pid_t		receiverPid;	/* The retrieve role's PID that connect to
+								 * current endpoint */
+	dsm_handle	mqDsmHandle;	/* DSM handle, which contains shared message
+								 * queue */
+	Latch		ackDone;		/* Latch to sync EPR_SENDER and EPR_RECEIVER
+								 * status */
+	EndpointState state;		/* The state of the endpoint */
+	int			sessionID;		/* Connection session id */
+	Oid			userID;			/* User ID of the current executed PARALLEL
+								 * RETRIEVE CURSOR */
+	bool		empty;			/* Whether current Endpoint slot in DSM is
+								 * free */
+	dsm_handle	sessionDsmHandle;	/* DSM handle, which contains per-session
+									 * DSM (see session.c). */
+};
+
+typedef struct EndpointData *Endpoint;
+
 /*
  * The state information for parallel retrieve cursor
  */
@@ -59,6 +107,7 @@ extern bool am_cursor_retrieve_handler;
 extern bool retrieve_conn_authenticated;
 
 /* cbdendpoint.c */
+
 /* Endpoint shared memory context init */
 extern Size EndpointShmemSize(void);
 extern void EndpointCTXShmemInit(void);
@@ -79,8 +128,9 @@ extern void CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc,
 extern void DestroyTQDestReceiverForEndpoint(EndpointExecState *state);
 
 /* cdbendpointretrieve.c */
+
 /*
- * Below functions should run on retrieve role backend.
+ * Below functions should run on the retrieve backend.
  */
 extern bool AuthEndpoint(Oid userID, const char *tokenStr);
 extern TupleDesc GetRetrieveStmtTupleDesc(const RetrieveStmt *stmt);

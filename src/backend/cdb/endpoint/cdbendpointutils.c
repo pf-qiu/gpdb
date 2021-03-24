@@ -20,16 +20,14 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
-#include "cdbendpointinternal.h"
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbdispatchresult.h"
 #include "cdb/cdbendpoint.h"
+#include "cdbendpoint_private.h"
 #include "cdb/cdbutil.h"
 #include "cdb/cdbvars.h"
 
 #define atooid(x)  ((Oid) strtoul((x), NULL, 10))
-
-#define GP_ENDPOINTS_INFO_ATTRNUM 9
 
 /*
  * EndpointStatus, EndpointsInfo and EndpointsStatusInfo structures are used
@@ -75,7 +73,7 @@ static EndpointState state_string_to_enum(const char *state);
 static bool check_parallel_retrieve_cursor(const char *cursorName, bool isWait);
 
 /* Endpoint control information for current session. */
-struct EndpointControl EndpointCtl = {InvalidSession, NULL};
+struct EndpointControl EndpointCtl = {InvalidEndpointSessionId, NULL};
 
 /*
  * Convert the string tk0123456789 to int 0123456789 and save it into
@@ -277,8 +275,9 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 	FuncCallContext *funcctx;
 	EndpointsInfo *mystatus;
 	MemoryContext oldcontext;
-	Datum		values[GP_ENDPOINTS_INFO_ATTRNUM];
-	bool		nulls[GP_ENDPOINTS_INFO_ATTRNUM] = {true};
+#define ENDPOINTS_INFO_ATTRNUM 9
+	Datum		values[ENDPOINTS_INFO_ATTRNUM];
+	bool		nulls[ENDPOINTS_INFO_ATTRNUM] = {true};
 	HeapTuple	tuple;
 	int			res_number = 0;
 
@@ -292,7 +291,7 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 
 		/* build tuple descriptor */
 		TupleDesc	tupdesc =
-		CreateTemplateTupleDesc(GP_ENDPOINTS_INFO_ATTRNUM);
+		CreateTemplateTupleDesc(ENDPOINTS_INFO_ATTRNUM);
 
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "auth_token", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "cursorname", TEXTOID, -1, 0);
@@ -612,19 +611,19 @@ state_enum_to_string(EndpointState state)
 	switch (state)
 	{
 		case ENDPOINTSTATE_READY:
-			result = GP_ENDPOINT_STATE_READY;
+			result = STR_ENDPOINT_STATE_READY;
 			break;
 		case ENDPOINTSTATE_RETRIEVING:
-			result = GP_ENDPOINT_STATE_RETRIEVING;
+			result = STR_ENDPOINT_STATE_RETRIEVING;
 			break;
 		case ENDPOINTSTATE_ATTACHED:
-			result = GP_ENDPOINT_STATE_ATTACHED;
+			result = STR_ENDPOINT_STATE_ATTACHED;
 			break;
 		case ENDPOINTSTATE_FINISHED:
-			result = GP_ENDPOINT_STATE_FINISHED;
+			result = STR_ENDPOINT_STATE_FINISHED;
 			break;
 		case ENDPOINTSTATE_RELEASED:
-			result = GP_ENDPOINT_STATE_RELEASED;
+			result = STR_ENDPOINT_STATE_RELEASED;
 			break;
 		case ENDPOINTSTATE_INVALID:
 
@@ -643,15 +642,15 @@ state_enum_to_string(EndpointState state)
 static EndpointState
 state_string_to_enum(const char *state)
 {
-	if (strcmp(state, GP_ENDPOINT_STATE_READY) == 0)
+	if (strcmp(state, STR_ENDPOINT_STATE_READY) == 0)
 		return ENDPOINTSTATE_READY;
-	else if (strcmp(state, GP_ENDPOINT_STATE_RETRIEVING) == 0)
+	else if (strcmp(state, STR_ENDPOINT_STATE_RETRIEVING) == 0)
 		return ENDPOINTSTATE_RETRIEVING;
-	else if (strcmp(state, GP_ENDPOINT_STATE_ATTACHED) == 0)
+	else if (strcmp(state, STR_ENDPOINT_STATE_ATTACHED) == 0)
 		return ENDPOINTSTATE_ATTACHED;
-	else if (strcmp(state, GP_ENDPOINT_STATE_FINISHED) == 0)
+	else if (strcmp(state, STR_ENDPOINT_STATE_FINISHED) == 0)
 		return ENDPOINTSTATE_FINISHED;
-	else if (strcmp(state, GP_ENDPOINT_STATE_RELEASED) == 0)
+	else if (strcmp(state, STR_ENDPOINT_STATE_RELEASED) == 0)
 		return ENDPOINTSTATE_RELEASED;
 	else
 	{

@@ -52,8 +52,8 @@
 #ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
 #endif
-#include "cdbendpointinternal.h"
 #include "cdb/cdbendpoint.h"
+#include "cdbendpoint_private.h"
 #include "cdb/cdbsrlz.h"
 
 bool am_cursor_retrieve_handler = false;
@@ -124,7 +124,7 @@ AuthEndpoint(Oid userID, const char *tokenStr)
 	endpoint_parse_token(token, tokenStr);
 
 	EndpointCtl.sessionID = get_session_id_for_auth(userID, token);
-	if (EndpointCtl.sessionID != InvalidSession)
+	if (EndpointCtl.sessionID != InvalidEndpointSessionId)
 	{
 		isFound = true;
 		before_shmem_exit(retrieve_exit_callback, (Datum) 0);
@@ -752,7 +752,7 @@ retrieve_xact_callback(XactEvent ev, void *arg pg_attribute_unused())
 	if (ev == XACT_EVENT_ABORT)
 	{
 		elog(DEBUG3, "CDB_ENDPOINT: retrieve xact abort callback");
-		if (EndpointCtl.sessionID != InvalidSession &&
+		if (EndpointCtl.sessionID != InvalidEndpointSessionId &&
 			EndpointCtl.rxMQEntry)
 		{
 			if (EndpointCtl.rxMQEntry->retrieveStatus != RETRIEVE_STATUS_FINISH)
