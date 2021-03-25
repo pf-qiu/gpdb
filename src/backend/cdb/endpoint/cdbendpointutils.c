@@ -27,10 +27,8 @@
 #include "cdb/cdbutil.h"
 #include "cdb/cdbvars.h"
 
-#define atooid(x)  ((Oid) strtoul((x), NULL, 10))
-
 /*
- * EndpointStatus, EndpointsInfo and EndpointsStatusInfo structures are used
+ * EndpointStatus, EndpointsInfo are used
  * in UDFs(gp_endpoints_info, gp_endpoints_status_info) that show endpoint and
  * token information.
  */
@@ -38,7 +36,7 @@ typedef struct
 {
 	char		name[NAMEDATALEN];
 	char		cursorName[NAMEDATALEN];
-	int8		token[ENDPOINT_TOKEN_LEN];
+	int8		token[ENDPOINT_TOKEN_HEX_LEN];
 	int			dbid;
 	EndpointState state;
 	pid_t		senderPid;
@@ -57,12 +55,6 @@ typedef struct
 	int			status_num;
 }	EndpointsInfo;
 
-typedef struct
-{
-	int			endpointsNum;	/* number of Endpoint in the list */
-	int			currentIdx;		/* current index of Endpoint in the list */
-}	EndpointsStatusInfo;
-
 extern Datum gp_check_parallel_retrieve_cursor(PG_FUNCTION_ARGS);
 extern Datum gp_wait_parallel_retrieve_cursor(PG_FUNCTION_ARGS);
 extern Datum gp_endpoints_info(PG_FUNCTION_ARGS);
@@ -70,24 +62,24 @@ extern Datum gp_endpoints_status_info(PG_FUNCTION_ARGS);
 
 /* Used in UDFs */
 static EndpointState state_string_to_enum(const char *state);
-static bool check_parallel_retrieve_cursor(const char *cursorName, bool isWait);
+static bool check_parallel_retrieve_cursor(const char *cursorName, bool wait);
 
 /* Endpoint control information for current session. */
 struct EndpointControl EndpointCtl = {InvalidEndpointSessionId, NULL};
 
 /*
- * Convert the string tk0123456789 to int 0123456789 and save it into
+ * Convert the string tk0123456789 to int 0x0123456789 and save it into
  * the given token pointer.
  */
 void
-endpoint_parse_token(int8 *token /* out */ , const char *tokenStr)
+endpoint_token_str2hex(int8 *token /* out */ , const char *tokenStr)
 {
 	const char *msg = "Retrieve auth token is invalid";
 
 	if (tokenStr[0] == 't' && tokenStr[1] == 'k' &&
 		strlen(tokenStr) == ENDPOINT_TOKEN_STR_LEN)
 	{
-		hex_decode(tokenStr + 2, ENDPOINT_TOKEN_LEN * 2, (char *) token);
+		hex_decode(tokenStr + 2, ENDPOINT_TOKEN_HEX_LEN * 2, (char *) token);
 	}
 	else
 	{
@@ -101,7 +93,7 @@ endpoint_parse_token(int8 *token /* out */ , const char *tokenStr)
  * Note: need to pfree() the result
  */
 char *
-endpoint_print_token(const int8 *token)
+endpoint_token_hex2str(const int8 *token)
 {
 	const size_t len =
 	ENDPOINT_TOKEN_STR_LEN + 1; /* 2('tk') + HEX string length + 1('\0') */
@@ -109,7 +101,7 @@ endpoint_print_token(const int8 *token)
 
 	res[0] = 't';
 	res[1] = 'k';
-	hex_encode((const char *) token, ENDPOINT_TOKEN_LEN, res + 2);
+	hex_encode((const char *) token, ENDPOINT_TOKEN_HEX_LEN, res + 2);
 	res[len - 1] = 0;
 
 	return res;
@@ -119,7 +111,7 @@ endpoint_print_token(const int8 *token)
  * Returns true if the two given endpoint tokens are equal.
  */
 bool
-endpoint_token_equals(const int8 *token1, const int8 *token2)
+endpoint_token_hex_equals(const int8 *token1, const int8 *token2)
 {
 	Assert(token1);
 	Assert(token2);
@@ -128,7 +120,7 @@ endpoint_token_equals(const int8 *token1, const int8 *token2)
 	 * memcmp should be good enough. Timing attack would not be a concern
 	 * here.
 	 */
-	return memcmp(token1, token2, ENDPOINT_TOKEN_LEN) == 0;
+	return memcmp(token1, token2, ENDPOINT_TOKEN_HEX_LEN) == 0;
 }
 
 bool
@@ -143,7 +135,7 @@ endpoint_name_equals(const char *name1, const char *name2)
  * Check whether given parallel retrieve cursor is finished immediately.
  *
  * Return true means finished.
- * Error out when parallel retrieve cursor has exception raised.
+ * Error out when the cursor has exception raised.
  */
 Datum
 gp_check_parallel_retrieve_cursor(PG_FUNCTION_ARGS)
@@ -158,10 +150,10 @@ gp_check_parallel_retrieve_cursor(PG_FUNCTION_ARGS)
 /*
  * gp_check_parallel_retrieve_cursor
  *
- * Wait until given parallel retrieve cursor is finished.
+ * Wait until the given parallel retrieve cursor is finished.
  *
- * Return true means finished.
- * Error out when parallel retrieve cursor has exception raised.
+ * Return true when the cursor finishes.
+ * Error out when the cursor has exception raised.
  */
 Datum
 gp_wait_parallel_retrieve_cursor(PG_FUNCTION_ARGS)
@@ -181,13 +173,13 @@ gp_wait_parallel_retrieve_cursor(PG_FUNCTION_ARGS)
  * gp_wait_parallel_retrieve_cursor
  *
  * Check whether given parallel retrieve cursor is finished.
- * If isWait is true, hang until parallel retrieve cursor finished.
+ * If wait is true, hang until parallel retrieve cursor finished.
  *
  * Return true means finished.
  * Error out when parallel retrieve cursor has exception raised.
  */
 static bool
-check_parallel_retrieve_cursor(const char *cursorName, bool isWait)
+check_parallel_retrieve_cursor(const char *cursorName, bool wait)
 {
 	bool		retVal = false;
 	Portal		portal;
@@ -199,36 +191,30 @@ check_parallel_retrieve_cursor(const char *cursorName, bool isWait)
 	{
 		ereport(ERROR, (errcode(ERRCODE_UNDEFINED_CURSOR),
 						errmsg("cursor \"%s\" does not exist", cursorName)));
-		return false;			/* keep compiler happy */
+		return false;
 	}
-	if (!PortalIsParallelRetrieveCursor())
+	if (!PortalIsParallelRetrieveCursor(portal))
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
 			   errmsg("this UDF only works for PARALLEL RETRIEVE CURSOR.")));
 		return false;
 	}
+
 	estate = portal->queryDesc->estate;
-	retVal = cdbdisp_checkDispatchAckMessage(estate->dispatcherState, ENDPOINT_FINISHED_ACK, isWait);
-
-#ifdef FAULT_INJECTOR
-	HOLD_INTERRUPTS();
+	retVal = cdbdisp_checkDispatchAckMessage(estate->dispatcherState, ENDPOINT_FINISHED_ACK, wait);
 	SIMPLE_FAULT_INJECTOR("check_parallel_retrieve_cursor_after_udf");
-	RESUME_INTERRUPTS();
-#endif
+	check_parallel_retrieve_cursor_errors(estate);
 
-	check_parallel_cursor_errors(estate);
 	return retVal;
 }
 
 /*
- * check_parallel_cursor_errors - Check the PARALLEL RETRIEVE CURSOR execution
- * status
- *
- * If get error, then rethrow the error.
+ * check_parallel_retrieve_cursor_errors - Check the PARALLEL RETRIEVE CURSOR
+ * execution status. If get error, then rethrow the error.
  */
 void
-check_parallel_cursor_errors(EState *estate)
+check_parallel_retrieve_cursor_errors(EState *estate)
 {
 	CdbDispatcherState *ds;
 
@@ -236,9 +222,7 @@ check_parallel_cursor_errors(EState *estate)
 
 	ds = estate->dispatcherState;
 
-	/*
-	 * If QD, wait for QEs to finish and check their results.
-	 */
+	/* wait for QEs to finish and check their results. */
 	if (cdbdisp_checkResultsErrcode(ds->primaryResults))
 	{
 		ErrorData  *qeError = NULL;
@@ -247,6 +231,7 @@ check_parallel_cursor_errors(EState *estate)
 		Assert(qeError);
 		estate->dispatcherState = NULL;
 		cdbdisp_cancelDispatch(ds);
+		FlushErrorState();
 		ReThrowError(qeError);
 	}
 }
@@ -354,11 +339,11 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 				{
 					StrNCpy(mystatus->status[idx].name, PQgetvalue(result, j, 0), NAMEDATALEN);
 					StrNCpy(mystatus->status[idx].cursorName, PQgetvalue(result, j, 1), NAMEDATALEN);
-					endpoint_parse_token(mystatus->status[idx].token, PQgetvalue(result, j, 2));
+					endpoint_token_str2hex(mystatus->status[idx].token, PQgetvalue(result, j, 2));
 					mystatus->status[idx].dbid = atoi(PQgetvalue(result, j, 3));
 					mystatus->status[idx].state = state_string_to_enum(PQgetvalue(result, j, 4));
 					mystatus->status[idx].senderPid = atoi(PQgetvalue(result, j, 5));
-					mystatus->status[idx].userId = atooid(PQgetvalue(result, j, 6));
+					mystatus->status[idx].userId = (Oid) strtoul(PQgetvalue(result, j, 6), NULL, 10);
 					mystatus->status[idx].sessionId = atoi(PQgetvalue(result, j, 7));
 					idx++;
 				}
@@ -448,43 +433,30 @@ gp_endpoints_info(PG_FUNCTION_ARGS)
 
 		GpSegConfigEntry *segCnfInfo = dbid_get_dbinfo(qe_status->dbid);
 
-		memset(values, 0, sizeof(values));
-		memset(nulls, 0, sizeof(nulls));
+		MemSet(values, 0, sizeof(values));
+		MemSet(nulls, 0, sizeof(nulls));
 
-		char	   *token = endpoint_print_token(qe_status->token);
+		char	   *token = endpoint_token_hex2str(qe_status->token);
 
 		values[0] = CStringGetTextDatum(token);
 		pfree(token);
-		nulls[0] = false;
 		values[1] = CStringGetTextDatum(qe_status->cursorName);
-		nulls[1] = false;
 		values[2] = Int32GetDatum(qe_status->sessionId);
-		nulls[2] = false;
 		values[3] = CStringGetTextDatum(segCnfInfo->hostname);
-		nulls[3] = false;
 		values[4] = Int32GetDatum(segCnfInfo->port);
-		nulls[4] = false;
 		values[5] = Int32GetDatum(segCnfInfo->dbid);
-		nulls[5] = false;
 		values[6] = ObjectIdGetDatum(qe_status->userId);
-		nulls[6] = false;
 
 		/*
 		 * find out the status of end-point
 		 */
 		values[7] =
 			CStringGetTextDatum(state_enum_to_string(qe_status->state));
-		nulls[7] = false;
 
 		if (qe_status)
-		{
 			values[8] = CStringGetTextDatum(qe_status->name);
-			nulls[8] = false;
-		}
 		else
-		{
 			nulls[8] = true;
-		}
 
 		tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 		result = HeapTupleGetDatum(tuple);
@@ -504,11 +476,11 @@ Datum
 gp_endpoints_status_info(PG_FUNCTION_ARGS)
 {
 	FuncCallContext *funcctx;
-	EndpointsStatusInfo *mystatus;
 	MemoryContext oldcontext;
 	Datum		values[10];
 	bool		nulls[10] = {true};
 	HeapTuple	tuple;
+	int			*endpoint_idx;
 
 	if (SRF_IS_FIRSTCALL())
 	{
@@ -532,72 +504,60 @@ gp_endpoints_status_info(PG_FUNCTION_ARGS)
 		TupleDescInitEntry(tupdesc, (AttrNumber) 9, "endpointname", TEXTOID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 10, "cursorname", TEXTOID, -1, 0);
 
-
 		funcctx->tuple_desc = BlessTupleDesc(tupdesc);
 
-		mystatus = (EndpointsStatusInfo *) palloc0(sizeof(EndpointsStatusInfo));
-		funcctx->user_fctx = (void *) mystatus;
-		mystatus->endpointsNum = MAX_ENDPOINT_SIZE;
-		mystatus->currentIdx = 0;
+		endpoint_idx = (int *) palloc0(sizeof(int));
+		funcctx->user_fctx = (void *) endpoint_idx;
 
 		/* return to original context when allocating transient memory */
 		MemoryContextSwitchTo(oldcontext);
 	}
 
 	funcctx = SRF_PERCALL_SETUP();
-	mystatus = funcctx->user_fctx;
+	endpoint_idx = (int *) funcctx->user_fctx;
 
 	LWLockAcquire(ParallelCursorEndpointLock, LW_SHARED);
-	while (mystatus->currentIdx < mystatus->endpointsNum)
+	while (*endpoint_idx < MAX_ENDPOINT_SIZE)
 	{
-		memset(values, 0, sizeof(values));
-		memset(nulls, 0, sizeof(nulls));
 		Datum		result;
+		const Endpoint entry = get_endpointdesc_by_index(*endpoint_idx);
 
-		const Endpoint entry =
-		get_endpointdesc_by_index(mystatus->currentIdx);
+		MemSet(values, 0, sizeof(values));
+		MemSet(nulls, 0, sizeof(nulls));
 
 		/*
-		 * Only allow current user to list his own endpoints. Or let superuser
-		 * list all endpoints.
+		 * Only allow current user to list his/her own endpoints, or let
+		 * superuser list all endpoints.
 		 */
 		if (!entry->empty && (superuser() || entry->userID == GetUserId()))
 		{
 			char	   *status = NULL;
-			int8		token[ENDPOINT_TOKEN_LEN];
+			int8		token[ENDPOINT_TOKEN_HEX_LEN];
 
 			get_token_by_session_id(entry->sessionID, entry->userID, token);
-			char	   *tokenStr = endpoint_print_token(token);
+			char	   *tokenStr = endpoint_token_hex2str(token);
 
 			values[0] = CStringGetTextDatum(tokenStr);
-			nulls[0] = false;
+			pfree(tokenStr);
 			values[1] = Int32GetDatum(entry->databaseID);
-			nulls[1] = false;
 			values[2] = Int32GetDatum(entry->senderPid);
-			nulls[2] = false;
 			values[3] = Int32GetDatum(entry->receiverPid);
-			nulls[3] = false;
 			status = state_enum_to_string(entry->state);
 			values[4] = CStringGetTextDatum(status);
-			nulls[4] = false;
 			values[5] = Int32GetDatum(GpIdentity.dbid);
-			nulls[5] = false;
 			values[6] = Int32GetDatum(entry->sessionID);
-			nulls[6] = false;
 			values[7] = ObjectIdGetDatum(entry->userID);
-			nulls[7] = false;
 			values[8] = CStringGetTextDatum(entry->name);
-			nulls[8] = false;
 			values[9] = CStringGetTextDatum(entry->cursorName);
-			nulls[9] = false;
+
 			tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 			result = HeapTupleGetDatum(tuple);
-			mystatus->currentIdx++;
+			(*endpoint_idx)++;
 			LWLockRelease(ParallelCursorEndpointLock);
-			pfree(tokenStr);
 			SRF_RETURN_NEXT(funcctx, result);
 		}
-		mystatus->currentIdx++;
+		else
+			(*endpoint_idx)++;
 	}
 	LWLockRelease(ParallelCursorEndpointLock);
 	SRF_RETURN_DONE(funcctx);

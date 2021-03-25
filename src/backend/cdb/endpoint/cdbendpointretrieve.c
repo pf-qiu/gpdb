@@ -119,9 +119,9 @@ bool
 AuthEndpoint(Oid userID, const char *tokenStr)
 {
 	bool		isFound = false;
-	int8		token[ENDPOINT_TOKEN_LEN] = {0};
+	int8		token[ENDPOINT_TOKEN_HEX_LEN] = {0};
 
-	endpoint_parse_token(token, tokenStr);
+	endpoint_token_str2hex(token, tokenStr);
 
 	EndpointCtl.sessionID = get_session_id_for_auth(userID, token);
 	if (EndpointCtl.sessionID != InvalidEndpointSessionId)

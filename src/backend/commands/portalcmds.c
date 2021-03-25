@@ -189,7 +189,7 @@ PerformCursorOpen(DeclareCursorStmt *cstmt, ParamListInfo params,
 
 	Assert(portal->strategy == PORTAL_ONE_SELECT);
 
-	if (PortalIsParallelRetrieveCursor())
+	if (PortalIsParallelRetrieveCursor(portal))
 	{
 		WaitEndpointReady(portal->queryDesc->estate);
 	}
@@ -237,7 +237,7 @@ PerformPortalFetch(FetchStmt *stmt,
 		return;					/* keep compiler happy */
 	}
 
-	if (PortalIsParallelRetrieveCursor())
+	if (PortalIsParallelRetrieveCursor(portal))
 	{
 		if (stmt->ismove)
 		{

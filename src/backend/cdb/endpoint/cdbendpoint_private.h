@@ -17,8 +17,8 @@
 #define CDBENDPOINTINTERNAL_H
 
 #define MAX_ENDPOINT_SIZE				 1024
-#define ENDPOINT_TOKEN_LEN				 16
-#define ENDPOINT_TOKEN_STR_LEN			 (2 + ENDPOINT_TOKEN_LEN * 2) // "tk0A1B...4E5F"
+#define ENDPOINT_TOKEN_HEX_LEN				 16
+#define ENDPOINT_TOKEN_STR_LEN			 (2 + ENDPOINT_TOKEN_HEX_LEN * 2) // "tk0A1B...4E5F"
 #define InvalidEndpointSessionId					 (-1)
 
 #define ENDPOINT_KEY_TUPLE_DESC_LEN		1
@@ -70,7 +70,7 @@ typedef struct EndpointControl
 
 extern EndpointControl EndpointCtl;
 
-extern void check_parallel_cursor_errors(EState *estate);
+extern void check_parallel_retrieve_cursor_errors(EState *estate);
 
 /* Endpoint shared memory utility functions in "cdbendpoint.c" */
 extern Endpoint get_endpointdesc_by_index(int index);
@@ -79,10 +79,10 @@ extern void get_token_by_session_id(int sessionId, Oid userID, int8 *token /* ou
 extern int	get_session_id_for_auth(Oid userID, const int8 *token);
 
 /* utility functions in "cdbendpointutilities.c" */
-extern bool endpoint_token_equals(const int8 *token1, const int8 *token2);
+extern bool endpoint_token_hex_equals(const int8 *token1, const int8 *token2);
 extern bool endpoint_name_equals(const char *name1, const char *name2);
-extern void endpoint_parse_token(int8 *token /* out */ , const char *tokenStr);
-extern char *endpoint_print_token(const int8 *token);	/* Need to pfree the result */
+extern void endpoint_token_str2hex(int8 *token /* out */ , const char *tokenStr);
+extern char *endpoint_token_hex2str(const int8 *token);	/* Need to pfree the result */
 extern char *state_enum_to_string(EndpointState state);
 
 #endif   /* CDBENDPOINTINTERNAL_H */

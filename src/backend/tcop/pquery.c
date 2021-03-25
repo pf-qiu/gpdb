@@ -639,7 +639,7 @@ PortalStart(Portal portal, ParamListInfo params,
 					queryDesc->portal_name = (portal->name ? pstrdup(portal->name) : (char *) NULL);
 				}
 
-				if (PortalIsParallelRetrieveCursor())
+				if (PortalIsParallelRetrieveCursor(portal))
 				{
 					if (queryDesc->ddesc == NULL)
 						queryDesc->ddesc = makeNode(QueryDispatchDesc);

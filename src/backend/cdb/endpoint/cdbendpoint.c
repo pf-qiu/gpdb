@@ -129,7 +129,7 @@ typedef struct SessionInfoEntry
 	SessionTokenTag tag;
 
 	/* The auth token for this session. */
-	int8		token[ENDPOINT_TOKEN_LEN];
+	int8		token[ENDPOINT_TOKEN_HEX_LEN];
 	/* How many endpoints are referred to this entry. */
 	uint16		endpointCounter;
 }	SessionInfoEntry;
@@ -285,7 +285,7 @@ WaitEndpointReady(EState *estate)
 	CdbDispatcherState *ds = estate->dispatcherState;
 
 	cdbdisp_checkDispatchAckMessage(ds, ENDPOINT_READY_ACK, true);
-	check_parallel_cursor_errors(estate);
+	check_parallel_retrieve_cursor_errors(estate);
 }
 
 /*
@@ -298,7 +298,7 @@ static const int8 *
 get_or_create_token(void)
 {
 	static int	sessionId = InvalidEndpointSessionId;
-	static int8 currentToken[ENDPOINT_TOKEN_LEN] = {0};
+	static int8 currentToken[ENDPOINT_TOKEN_HEX_LEN] = {0};
 	const static int sessionIdLen = sizeof(sessionId);
 
 	if (sessionId != gp_session_id)
@@ -306,7 +306,7 @@ get_or_create_token(void)
 		sessionId = gp_session_id;
 		memcpy(currentToken, &sessionId, sessionIdLen);
 		if (!pg_strong_random(currentToken + sessionIdLen,
-							  ENDPOINT_TOKEN_LEN - sessionIdLen))
+							  ENDPOINT_TOKEN_HEX_LEN - sessionIdLen))
 		{
 			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 						  errmsg("failed to generate a new random token.")));
@@ -619,7 +619,7 @@ init_session_info_entry(void)
 	if (!found)
 	{
 		token = get_or_create_token();
-		memcpy(infoEntry->token, token, ENDPOINT_TOKEN_LEN);
+		memcpy(infoEntry->token, token, ENDPOINT_TOKEN_HEX_LEN);
 
 		{
 			/*
@@ -987,7 +987,7 @@ get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ )
 				   errmsg("token for user id: %u, session: %d doesn't exist",
 						  tag.userID, sessionId)));
 	}
-	memcpy(token, infoEntry->token, ENDPOINT_TOKEN_LEN);
+	memcpy(token, infoEntry->token, ENDPOINT_TOKEN_HEX_LEN);
 	LWLockRelease(ParallelCursorEndpointLock);
 }
 
@@ -1005,7 +1005,7 @@ get_session_id_for_auth(Oid userID, const int8 *token)
 	hash_seq_init(&status, sharedSessionInfoHash);
 	while ((infoEntry = (SessionInfoEntry *) hash_seq_search(&status)) != NULL)
 	{
-		if (endpoint_token_equals(infoEntry->token, token) &&
+		if (endpoint_token_hex_equals(infoEntry->token, token) &&
 			userID == infoEntry->tag.userID)
 		{
 			sessionId = infoEntry->tag.sessionID;

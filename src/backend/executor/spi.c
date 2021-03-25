@@ -1581,7 +1581,7 @@ Portal
 SPI_cursor_find(const char *name)
 {
 	Portal portal = GetPortalByName(name);
-	if (portal != NULL && PortalIsParallelRetrieveCursor())
+	if (portal != NULL && PortalIsParallelRetrieveCursor(portal))
 	{
 		ereport(ERROR,
 		(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
