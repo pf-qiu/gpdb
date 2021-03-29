@@ -253,9 +253,9 @@ get_endpoint_from_mq_status_entry(MsgQueueStatusEntry * entry)
 static MsgQueueStatusEntry *
 start_retrieve(const char *endpointName)
 {
-	bool		found;
+	bool		found = false;
 	Endpoint	endpoint;
-	MsgQueueStatusEntry *entry;
+	MsgQueueStatusEntry *entry = NULL;
 	dsm_handle	handle = DSM_HANDLE_INVALID;
 
 	Assert(endpointName);
