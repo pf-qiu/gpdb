@@ -28,31 +28,31 @@ CREATE
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t2;
 DECLARE
-1: @post_run 'parse_endpoint_info 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 6 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id6_1 | token_id | host_id | port_id | READY
  endpoint_id6_2 | token_id | host_id | port_id | READY
  endpoint_id6_3 | token_id | host_id | port_id | READY
 (3 rows)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
-0U: SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c1';
- status 
---------
- READY  
+0U: SELECT state FROM gp_segment_endpoints() WHERE cursorname='c1';
+ state 
+-------
+ READY 
 (1 row)
 0R&: @pre_run 'set_endpoint_variable @ENDPOINT6': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT6";  <waiting ...>
 
-2U: SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c1';
- status 
---------
- READY  
+2U: SELECT state FROM gp_segment_endpoints() WHERE cursorname='c1';
+ state 
+-------
+ READY 
 (1 row)
 2R&: @pre_run 'set_endpoint_variable @ENDPOINT6': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT6";  <waiting ...>
 
-1U: SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE cursorname='c1';
- status 
---------
- READY  
+1U: SELECT state FROM gp_segment_endpoints() WHERE cursorname='c1';
+ state 
+-------
+ READY 
 (1 row)
 1R: @pre_run 'set_endpoint_variable @ENDPOINT6': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT6";
 ERROR:  canceling statement due to user request

@@ -36,7 +36,7 @@ INSERT 10
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
@@ -44,26 +44,26 @@ DECLARE
 1: CLOSE c1;
 CLOSE
 -- check no endpoint info
-1: SELECT auth_token,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- auth_token | status 
-------------+--------
+1: SELECT auth_token,state FROM gp_endpoints() WHERE cursorname='c1';
+ auth_token | state 
+------------+-------
 (0 rows)
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
-*U: @pre_run 'set_endpoint_variable @ENDPOINT1': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT1';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT1': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT1';
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
 -- error out for closed cursor
@@ -77,7 +77,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c11 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t11;
 DECLARE
-1: @post_run 'parse_endpoint_info 11 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c11';
+1: @post_run 'parse_endpoint_info 11 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c11';
  endpoint_id11_1 | token_id | host_id | port_id | READY
  endpoint_id11_2 | token_id | host_id | port_id | READY
  endpoint_id11_3 | token_id | host_id | port_id | READY
@@ -85,26 +85,26 @@ DECLARE
 1: CLOSE c11;
 CLOSE
 -- check no endpoint info
-1: SELECT auth_token,status FROM gp_endpoints_info(true) WHERE cursorname='c11';
- auth_token | status 
-------------+--------
+1: SELECT auth_token,state FROM gp_endpoints() WHERE cursorname='c11';
+ auth_token | state 
+------------+-------
 (0 rows)
 -- check no token info on QE after close PARALLEL RETRIEVE CURSOR
-*U: @pre_run 'set_endpoint_variable @ENDPOINT11': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT11';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT11': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT11';
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
 -- error out for closed cursor
@@ -141,9 +141,9 @@ DECLARE
 1: ROLLBACK;
 ROLLBACK
 -- check no endpoint info
-1: SELECT auth_token,status FROM gp_endpoints_info(true);
- auth_token | status 
-------------+--------
+1: SELECT auth_token,state FROM gp_endpoints();
+ auth_token | state 
+------------+-------
 (0 rows)
 
 -- Test3: execute non-existing PARALLEL RETRIEVE CURSOR
@@ -164,9 +164,9 @@ ERROR:  cursor "c2" does not exist
 1: ROLLBACK;
 ROLLBACK
 -- check no endpoint info
-1: SELECT auth_token,status FROM gp_endpoints_info(true);
- auth_token | status 
-------------+--------
+1: SELECT auth_token,state FROM gp_endpoints();
+ auth_token | state 
+------------+-------
 (0 rows)
 
 -- Test4: execute one of PARALLEL RETRIEVE CURSORs
@@ -194,7 +194,7 @@ DECLARE
 DECLARE
 1: DECLARE c11 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
@@ -207,24 +207,24 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
@@ -352,9 +352,9 @@ DECLARE
 ----------
  t        
 (1 row)
--- check all endpoint status
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+-- check all endpoint state
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -363,9 +363,9 @@ DECLARE
 1: ROLLBACK;
 ROLLBACK
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status 
---------
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state 
+-------
 (0 rows)
 
 -- Test5: if conflict with normal cursors
@@ -376,7 +376,7 @@ DECLARE
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 ERROR:  cursor "c1" already exists
 -- check no endpoint info
-1: SELECT auth_token,status FROM gp_endpoints_info(true);
+1: SELECT auth_token,state FROM gp_endpoints();
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 1: ROLLBACK;
 ROLLBACK
@@ -387,31 +387,31 @@ BEGIN
 DECLARE
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 #-1retrieve> FATAL:  Retrieve auth token is invalid
@@ -535,8 +535,8 @@ DECLARE
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -550,26 +550,26 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1 ORDER BY a LIMIT 10;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
- READY  
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  a  
@@ -604,8 +604,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -617,7 +617,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1 ORDER BY a LIMIT 0;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
@@ -627,22 +627,22 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
- READY  
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  a 
@@ -666,8 +666,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -679,7 +679,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t2;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
@@ -691,24 +691,24 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -736,8 +736,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -751,7 +751,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t3;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
@@ -763,24 +763,24 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -818,8 +818,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -833,7 +833,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t4;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
@@ -845,24 +845,24 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -890,8 +890,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c2';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c2';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -905,7 +905,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1 WHERE a = 50;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c1');
@@ -915,10 +915,10 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
-1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
- READY  
+1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
+ READY 
 (1 row)
 1R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  a  
@@ -937,8 +937,8 @@ DECLARE
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -950,7 +950,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT SUM(a) FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c1');
@@ -960,10 +960,10 @@ DECLARE
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
--1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
- READY  
+-1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
+ READY 
 (1 row)
 -1R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  sum  
@@ -981,8 +981,8 @@ DECLARE
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -994,14 +994,14 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT AVG(a) FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 
--1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
- READY  
+-1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
+ READY 
 (1 row)
 -1R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  avg                 
@@ -1019,8 +1019,8 @@ DECLARE
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -1032,15 +1032,15 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
--1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
- READY  
+-1U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
+ READY 
 (1 row)
 -1R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
  count 
@@ -1053,8 +1053,8 @@ DECLARE
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -1066,7 +1066,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1, t5 where t1.a = t5.b;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
@@ -1103,8 +1103,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -1118,7 +1118,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) FROM t1, t5 where t1.a = t5.b;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
 (1 row)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
@@ -1134,8 +1134,8 @@ DECLARE
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -1147,31 +1147,31 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -1297,31 +1297,31 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
 CLOSE
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -1443,8 +1443,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -1458,31 +1458,31 @@ ROLLBACK
 BEGIN
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -1612,31 +1612,31 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
 CLOSE
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 1&: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1');  <waiting ...>
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT2';
- status 
---------
+*U: @pre_run 'set_endpoint_variable @ENDPOINT2': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT2';
+ state 
+-------
 (0 rows)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
- READY  
+ state 
+-------
+ READY 
 (1 row)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT2': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
 ERROR:  failed to attach non-existing endpoint @ENDPOINT2
@@ -1758,8 +1758,8 @@ ERROR:  failed to attach non-existing endpoint @ENDPOINT2
 ----------
  t        
 (1 row)
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state    
 ----------
  FINISHED 
  FINISHED 
@@ -1775,16 +1775,16 @@ BEGIN
 SAVEPOINT
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
 1: ROLLBACK TO s1;
 ROLLBACK
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c1';
- status 
---------
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c1';
+ state 
+-------
 (0 rows)
 
 1: ROLLBACK;
@@ -1814,7 +1814,7 @@ COMMIT
 BEGIN
 1: DECLARE c21a PARALLEL RETRIEVE CURSOR FOR SELECT COUNT(*) from t1;
 DECLARE
-1: @post_run 'get_tuple_cell TOKEN21a 1 1 ; create_match_sub $TOKEN21a token21a' : SELECT auth_token FROM gp_endpoints_info(true) WHERE cursorname='c21a';
+1: @post_run 'get_tuple_cell TOKEN21a 1 1 ; create_match_sub $TOKEN21a token21a' : SELECT auth_token FROM gp_endpoints() WHERE cursorname='c21a';
  auth_token
 ------------------------------------
  token21a
@@ -1824,7 +1824,7 @@ DECLARE
 DECLARE
 1: DECLARE c21c PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
-1: SELECT auth_token FROM gp_endpoints_info(true) WHERE cursorname='c21a';
+1: SELECT auth_token FROM gp_endpoints() WHERE cursorname='c21a';
  auth_token                         
 ------------------------------------
  token21a 
@@ -1842,7 +1842,7 @@ COMMIT
 BEGIN
 1: DECLARE c22 PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM generate_series(1,10);
 DECLARE
-1: @post_run 'parse_endpoint_info 22 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c22';
+1: @post_run 'parse_endpoint_info 22 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c22';
  endpoint_id22_1 | token_id | host_id | port_id | READY
 (1 row)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c22');
@@ -1851,22 +1851,22 @@ DECLARE
  f        
 (1 row)
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT22': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT22';
- status 
---------
- READY  
+*U: @pre_run 'set_endpoint_variable @ENDPOINT22': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT22';
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT22': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT22";
  generate_series 
@@ -1899,8 +1899,8 @@ DECLARE
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c22';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c22';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -1915,7 +1915,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c23 PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT relname FROM pg_class where relname='pg_class';
 DECLARE
-1: @post_run 'parse_endpoint_info 23 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c23';
+1: @post_run 'parse_endpoint_info 23 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c23';
  endpoint_id23_1 | token_id | host_id | port_id | READY
 (1 row)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c23');
@@ -1924,22 +1924,22 @@ DECLARE
  f        
 (1 row)
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT23': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT23';
- status 
---------
- READY  
+*U: @pre_run 'set_endpoint_variable @ENDPOINT23': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT23';
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT23': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT23";
  relname  
@@ -1963,8 +1963,8 @@ DECLARE
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c23';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c23';
+ state    
 ----------
  FINISHED 
 (1 row)
@@ -1981,17 +1981,17 @@ DECLARE
 DECLARE
 1: DECLARE "x1234567890123456789012345678901234567890123456789012345678901x" PARALLEL RETRIEVE CURSOR WITHOUT HOLD FOR SELECT * FROM t5;
 DECLARE
-1: @post_run 'parse_endpoint_info 24 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789x';
+1: @post_run 'parse_endpoint_info 24 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789x';
  endpoint_id24_1 | token_id | host_id | port_id | READY
  endpoint_id24_2 | token_id | host_id | port_id | READY
  endpoint_id24_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @post_run 'parse_endpoint_info 24_1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789012';
+1: @post_run 'parse_endpoint_info 24_1 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='x12345678901234567890123456789012345678901234567890123456789012';
  endpoint_id24_1_1 | token_id | host_id | port_id | READY
  endpoint_id24_1_2 | token_id | host_id | port_id | READY
  endpoint_id24_1_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @post_run 'parse_endpoint_info 24_2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='x1234567890123456789012345678901234567890123456789012345678901x';
+1: @post_run 'parse_endpoint_info 24_2 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='x1234567890123456789012345678901234567890123456789012345678901x';
  endpoint_id24_2_1 | token_id | host_id | port_id | READY
  endpoint_id24_2_2 | token_id | host_id | port_id | READY
  endpoint_id24_2_3 | token_id | host_id | port_id | READY
@@ -2092,7 +2092,7 @@ ROLLBACK
 BEGIN
 1: DECLARE c2 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t5;
 DECLARE
-1: @post_run 'parse_endpoint_info 26 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 26 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id26_1 | token_id | host_id | port_id | READY
  endpoint_id26_2 | token_id | host_id | port_id | READY
  endpoint_id26_3 | token_id | host_id | port_id | READY
@@ -2128,7 +2128,7 @@ COMMIT
 BEGIN
 1: DECLARE c27 PARALLEL RETRIEVE CURSOR FOR SELECT generate_series(1,10);
 DECLARE
-1: @post_run 'parse_endpoint_info 27 1 2 3 4': SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c27';
+1: @post_run 'parse_endpoint_info 27 1 2 3 4': SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c27';
  endpoint_id27_1 | token_id | host_id | port_id | READY
 (1 row)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c27');
@@ -2137,22 +2137,22 @@ DECLARE
  f        
 (1 row)
 
-*U: @pre_run 'set_endpoint_variable @ENDPOINT27': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE endpointname='@ENDPOINT27';
- status 
---------
- READY  
+*U: @pre_run 'set_endpoint_variable @ENDPOINT27': SELECT state FROM gp_segment_endpoints() WHERE endpointname='@ENDPOINT27';
+ state 
+-------
+ READY 
 (1 row)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 
- status 
---------
+ state 
+-------
 (0 rows)
 *R: @pre_run 'set_endpoint_variable @ENDPOINT27': RETRIEVE ALL FROM ENDPOINT "@ENDPOINT27";
  generate_series 
@@ -2185,8 +2185,8 @@ DECLARE
  t        
 (1 row)
 -- check no endpoint info
-1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c27';
- status   
+1: SELECT state FROM gp_endpoints() WHERE cursorname='c27';
+ state    
 ----------
  FINISHED 
 (1 row)

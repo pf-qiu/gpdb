@@ -339,13 +339,13 @@ main(int argc, char **argv)
 	/*
 	 * get the endpoints info of this PARALLEL RETRIEVE CURSOR
 	 */
-	const char *sql1 = "select hostname,port,auth_token,endpointname from pg_catalog.gp_endpoints where cursorname='myportal';";
+	const char *sql1 = "select hostname,port,auth_token,endpointname from pg_catalog.gp_endpoints() where cursorname='myportal';";
 
 	printf("\nExec SQL on Master:\n\t> %s\n", sql1);
 	res1 = PQexec(master_conn, sql1);
 	if (PQresultStatus(res1) != PGRES_TUPLES_OK)
 	{
-		fprintf(stderr, "select gp_endpoints view didn't return tuples properly\n");
+		fprintf(stderr, "Cannot find the endpoint for parallel retrieve cursor myportal\n");
 		PQclear(res1);
 		goto LABEL_ERR;
 	}
@@ -354,7 +354,7 @@ main(int argc, char **argv)
 
 	if (ntup <= 0)
 	{
-		fprintf(stderr, "select gp_endpoints view doesn't return rows\n");
+		fprintf(stderr, "No rows for the endpoint (cursor myportal)\n");
 		goto LABEL_ERR;
 	}
 

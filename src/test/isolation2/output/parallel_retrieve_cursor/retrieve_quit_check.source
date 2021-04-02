@@ -17,17 +17,17 @@ DECLARE
 DECLARE
 1: DECLARE c3 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 DECLARE
-1: @post_run 'parse_endpoint_info 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c1';
+1: @post_run 'parse_endpoint_info 1 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c1';
  endpoint_id1_1 | token_id | host_id | port_id | READY
  endpoint_id1_2 | token_id | host_id | port_id | READY
  endpoint_id1_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @post_run 'parse_endpoint_info 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c2';
+1: @post_run 'parse_endpoint_info 2 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c2';
  endpoint_id2_1 | token_id | host_id | port_id | READY
  endpoint_id2_2 | token_id | host_id | port_id | READY
  endpoint_id2_3 | token_id | host_id | port_id | READY
 (3 rows)
-1: @post_run 'parse_endpoint_info 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,status FROM gp_endpoints_info(true) WHERE cursorname='c3';
+1: @post_run 'parse_endpoint_info 3 1 2 3 4' : SELECT endpointname,auth_token,hostname,port,state FROM gp_endpoints() WHERE cursorname='c3';
  endpoint_id3_1 | token_id | host_id | port_id | READY
  endpoint_id3_2 | token_id | host_id | port_id | READY
  endpoint_id3_3 | token_id | host_id | port_id | READY
@@ -115,8 +115,8 @@ DETAIL:  If pid is -1, the previous session has been detached.
  24 
 (10 rows)
 
-2: SELECT cursorname, status FROM gp_endpoints_info(true);
- cursorname | status   
+2: SELECT cursorname, state FROM gp_endpoints();
+ cursorname | state    
 ------------+----------
  c1         | ATTACHED 
  c1         | READY    
@@ -129,8 +129,8 @@ DETAIL:  If pid is -1, the previous session has been detached.
  c3         | READY    
 (9 rows)
 -- verify endpoints on seg0 for c2 has been finishied
-0U: SELECT cursorname,senderpid<>-1, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
- cursorname | ?column? | ?column? | status   
+0U: SELECT cursorname,senderpid<>-1, receiverpid<>-1, state FROM gp_segment_endpoints();
+ cursorname | ?column? | ?column? | state    
 ------------+----------+----------+----------
  c1         | t        | t        | ATTACHED 
  c2         | f        | t        | FINISHED 
@@ -157,8 +157,8 @@ DETAIL:  If pid is -1, the previous session has been detached.
 -- by this retrieve process should be cancelled.
 -- The endpoint on seg0 for c1 should firstly become to RELEASED (the retrieve process set it),
 -- and then was removed (during the endpoint QE cancelled)
-2: SELECT cursorname, status FROM gp_endpoints_info(true);
- cursorname | status   
+2: SELECT cursorname, state FROM gp_endpoints();
+ cursorname | state    
 ------------+----------
  c1         | READY    
  c1         | READY    
@@ -171,8 +171,8 @@ DETAIL:  If pid is -1, the previous session has been detached.
 (8 rows)
 
 -- verify endpoints for c1 is gone
-3U: SELECT cursorname, senderpid<>-1, receiverpid<>-1, status FROM GP_ENDPOINTS_STATUS_INFO();
- cursorname | ?column? | ?column? | status   
+3U: SELECT cursorname, senderpid<>-1, receiverpid<>-1, state FROM gp_segment_endpoints();
+ cursorname | ?column? | ?column? | state    
 ------------+----------+----------+----------
  c2         | f        | t        | FINISHED 
  c3         | t        | t        | ATTACHED 
@@ -186,17 +186,17 @@ ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
-2: SELECT cursorname, status FROM gp_endpoints_info(true);
- cursorname | status 
-------------+--------
+2: SELECT cursorname, state FROM gp_endpoints();
+ cursorname | state 
+------------+-------
 (0 rows)
 
 1: END;
 END
 
-2: SELECT cursorname, status FROM gp_endpoints_info(true);
- cursorname | status 
-------------+--------
+2: SELECT cursorname, state FROM gp_endpoints();
+ cursorname | state 
+------------+-------
 (0 rows)
 
 -- quit all sessions

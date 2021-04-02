@@ -554,9 +554,6 @@ CREATE VIEW pg_config AS
 REVOKE ALL on pg_config FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION pg_config() FROM PUBLIC;
 
-CREATE VIEW gp_endpoints AS
-    SELECT * FROM gp_endpoints_info(false);
-
 -- Statistics views
 
 CREATE VIEW pg_stat_all_tables_internal AS
@@ -1784,3 +1781,16 @@ CREATE OR REPLACE VIEW gp_stat_archiver AS
     SELECT -1 AS gp_segment_id, * FROM pg_stat_archiver
     UNION
     SELECT gp_execution_segment() AS gp_segment_id, * FROM gp_dist_random('pg_stat_archiver');
+
+CREATE FUNCTION gp_session_endpoints (OUT gp_segment_id int, OUT auth_token text,
+									  OUT cursorname text, OUT sessionid int, OUT hostname text,
+									  OUT port int, OUT userid oid, OUT state text,
+									  OUT endpointname text)
+RETURNS SETOF RECORD AS
+$$
+   SELECT * FROM gp_endpoints()
+	WHERE sessionid = (SELECT setting FROM pg_settings WHERE name = 'gp_session_id')::int4
+$$
+LANGUAGE SQL EXECUTE ON COORDINATOR;
+
+COMMENT ON FUNCTION pg_catalog.gp_session_endpoints() IS 'All endpoints in this session that are visible to the current user.';

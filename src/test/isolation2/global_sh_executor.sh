@@ -11,9 +11,9 @@ export NL="
 # Arg 2 (input): Row number.
 # Arg 3 (input): Column number.
 # Example:
-# 1: @post_run 'get_cell USER_NAME 1 2': SELECT id,name,status FROM users;
-# Assume 'SELECT id,name,status FROM users;' returns:
-# | id | name  | status |
+# 1: @post_run 'get_cell USER_NAME 1 2': SELECT id,name,state FROM users;
+# Assume 'SELECT id,name,state FROM users;' returns:
+# | id | name  | state |
 # |----+-------+--------|
 # | 1  | Jonh  | Alive  |
 # | 2  | Alice | Dead   |
@@ -31,7 +31,7 @@ get_tuple_cell() {
 # Arg 1n (input): The original string to be replaced.
 # Arg 2n (input): The replacement string.
 # Example:
-# 1: @post_run 'genereate_match_sub $USER_NAME user1 $USER_ID id1': SELECT id,name,status FROM users;
+# 1: @post_run 'genereate_match_sub $USER_NAME user1 $USER_ID id1': SELECT id,name,state FROM users;
 # here we assume $USER_NAME and $USER_ID has been set to 'Jonh' and '1' already. Then the above
 # statement will generate $MATCHSUBS section:
 # m/\bJonh\b/
@@ -95,9 +95,9 @@ create_match_sub_with_spaces() {
 # Multi substitution pairs can be passed as arguments, like:
 # sub "to_replace_1" "replacement_1" "to_replace_2" "replacement_2"
 # This could be useful for both @pre_run and @post_run. e.g.:
-# @pre_run 'sub @TOKEN1 ${TOKEN1}': SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='@TOKEN1';
+# @pre_run 'sub @TOKEN1 ${TOKEN1}': SELECT state FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='@TOKEN1';
 # Assume the $TOKEN has value '01234', The SQL will become:
-# SELECT status FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='01234';
+# SELECT state FROM GP_ENDPOINTS_STATUS_INFO() WHERE token='01234';
 create_sub() {
     to_replace=""
     for var in "$@"
@@ -113,7 +113,7 @@ create_sub() {
     echo "${RAW_STR}"
 }
 
-# Parse the endpoint status info output and save them into environment variables for @post_run.
+# Parse the endpoint state info output and save them into environment variables for @post_run.
 # Usage: parse_endpoint_info <postfix> <endpoint_col> <token_col> <host_col> <port_col>
 # Output(environment variables):
 #   "TOKEN$postfix"
@@ -123,7 +123,7 @@ create_sub() {
 #   "ENDPOINT_PORT$postfix[]"
 # e.g.:
 # For the given SQL result:
-#      endpointname     |               token                |  hostname | port  | status
+#      endpointname     |               token                |  hostname | port  | state
 # ----------------------+------------------------------------+-------------+-------+--------
 #  c1_00001507_00000000 | tk071500004015dc6da471b20417afed65 | host_1111 | 25432 | READY
 #  c1_00001507_00000001 | tk071500004015dc6da471b20417afed65 | host_1112 | 25433 | READY
