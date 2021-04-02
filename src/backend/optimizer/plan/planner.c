@@ -394,6 +394,9 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 
 	glob->boundParams = boundParams;
 	glob->is_parallel_cursor = !!(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE);
+	if (glob->is_parallel_cursor && Gp_role != GP_ROLE_DISPATCH)
+		ereport(ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
+						errmsg("Parallel retrieve cursor should run on the dispatcher only")));
 	glob->subplans = NIL;
 	glob->subroots = NIL;
 	glob->rewindPlanIDs = NULL;

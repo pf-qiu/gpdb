@@ -454,6 +454,11 @@ INSERT INTO t5 SELECT GENERATE_SERIES(1, 10);
 1: SELECT status FROM gp_endpoints_info(true) WHERE cursorname='c27';
 -1Rq:
 
+-- Test28: Parallel retrieve cursor should run on the dispatcher only.
+-1U: BEGIN;
+-1U: DECLARE c28 PARALLEL RETRIEVE CURSOR FOR SELECT generate_series(1,10);
+-1Uq:
+
 -- Final: clean up
 DROP TABLE t1;
 DROP TABLE t11;

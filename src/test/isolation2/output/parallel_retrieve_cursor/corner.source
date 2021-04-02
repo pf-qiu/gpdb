@@ -2192,6 +2192,13 @@ DECLARE
 (1 row)
 -1Rq: ... <quitting>
 
+-- Test28: Parallel retrieve cursor should run on the dispatcher only.
+-1U: BEGIN;
+BEGIN
+-1U: DECLARE c28 PARALLEL RETRIEVE CURSOR FOR SELECT generate_series(1,10);
+ERROR:  Parallel retrieve cursor should run on the dispatcher only
+-1Uq: ... <quitting>
+
 -- Final: clean up
 DROP TABLE t1;
 DROP

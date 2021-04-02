@@ -251,10 +251,8 @@ Datum
 gp_endpoints_info(PG_FUNCTION_ARGS)
 {
 	if (Gp_role != GP_ROLE_DISPATCH)
-		ereport(
-				ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
-						errmsg(
-			 "gp_endpoints_info() only can be called on query dispatcher")));
+		ereport(ERROR, (errcode(ERRCODE_GP_COMMAND_ERROR),
+						errmsg("gp_endpoints_info() only can be called on query dispatcher")));
 
 	bool		allSessions = PG_GETARG_BOOL(0);
 	FuncCallContext *funcctx;
