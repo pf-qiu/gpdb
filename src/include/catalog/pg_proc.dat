@@ -10992,10 +10992,10 @@
    proname => 'gp_endpoints_status_info', prorows => '1000', proretset => 't', provolatile => 'v', proparallel => 'u', prorettype => 'record', proargtypes => '', proallargtypes => '{text,int4,int4,int4,text,int4,int4,oid,text,text}', proargmodes => '{o,o,o,o,o,o,o,o,o,o}', proargnames => '{auth_token,databaseid,senderpid,receiverpid,status,dbid,sessionid,userid,endpointname,cursorname}', prosrc => 'gp_endpoints_status_info' },
 
 { oid => 7182, descr => 'check whether all endpoint of this parallel retrieve cursor has been retrieved finished',
-   proname => 'gp_check_parallel_retrieve_cursor', provolatile => 'v', proparallel => 'u', prorettype => 'bool', proargtypes => 'text', proallargtypes => '{text,bool}', proargmodes => '{i,o}', proargnames => '{cursorname,finished}', prosrc => 'gp_check_parallel_retrieve_cursor' },
+   proname => 'gp_check_parallel_retrieve_cursor', provolatile => 'v', proparallel => 'u', prorettype => 'bool', proargtypes => 'text', proallargtypes => '{text,bool}', proargmodes => '{i,o}', proargnames => '{cursorname,finished}', prosrc => 'gp_check_parallel_retrieve_cursor', proexeclocation => 'c' },
 
 { oid => 7183, descr => 'wait until all endpoint of this parallel retrieve cursor has been retrieved finished',
-   proname => 'gp_wait_parallel_retrieve_cursor', provolatile => 'v', proparallel => 'u', prorettype => 'bool', proargtypes => 'text', proallargtypes => '{text,bool}', proargmodes => '{i,o}', proargnames => '{cursorname,finished}', prosrc => 'gp_wait_parallel_retrieve_cursor' },
+   proname => 'gp_wait_parallel_retrieve_cursor', provolatile => 'v', proparallel => 'u', prorettype => 'bool', proargtypes => 'text', proallargtypes => '{text,bool}', proargmodes => '{i,o}', proargnames => '{cursorname,finished}', prosrc => 'gp_wait_parallel_retrieve_cursor', proexeclocation => 'c' },
 
 { oid => 7050, oid_symbol => 'BITMAP_INDEXAM_HANDLER_OID', descr => 'bitmap(internal)',
    proname => 'bmhandler', provolatile => 'v', prorettype => 'index_am_handler', proargtypes => 'internal', prosrc => 'bmhandler' },
