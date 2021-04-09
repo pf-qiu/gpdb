@@ -1025,10 +1025,10 @@ CXformUtils::SubqueryAllToAgg(
 
 	// generate a group by expression with sum(subquery-test) and sum(inner null indicator) aggreagtes
 	CColRefArray *colref_array = GPOS_NEW(mp) CColRefArray(mp);
-	CColRef *pcrSubqTest = const_cast<CColRef *>(
-		CScalarProjectElement::PopConvert((*(*pexprPrj)[1])[0]->Pop())->Pcr());
-	CColRef *pcrInnerNullTest = const_cast<CColRef *>(
-		CScalarProjectElement::PopConvert((*(*pexprPrj)[1])[1]->Pop())->Pcr());
+	CColRef *pcrSubqTest =
+		CScalarProjectElement::PopConvert((*(*pexprPrj)[1])[0]->Pop())->Pcr();
+	CColRef *pcrInnerNullTest =
+		CScalarProjectElement::PopConvert((*(*pexprPrj)[1])[1]->Pop())->Pcr();
 	colref_array->Append(pcrSubqTest);
 	colref_array->Append(pcrInnerNullTest);
 	CExpression *pexprGbAggSum =
@@ -2122,9 +2122,10 @@ CXformUtils::FIndexApplicable(CMemoryPool *mp, const IMDIndex *pmdindex,
 {
 	// GiST can match with either Btree or Bitmap indexes
 	if (pmdindex->IndexType() == IMDIndex::EmdindGist ||
-		// GIN can only match with Bitmap Indexes
+		// GIN and BRIN can only match with Bitmap Indexes
 		(emdindtype == IMDIndex::EmdindBitmap &&
-		 IMDIndex::EmdindGin == pmdindex->IndexType()))
+		 (IMDIndex::EmdindGin == pmdindex->IndexType() ||
+		  IMDIndex::EmdindBrin == pmdindex->IndexType())))
 	{
 		// continue
 	}
@@ -3107,9 +3108,12 @@ CXformUtils::PexprBitmapSelectBestIndex(
 				mp, pdrgpcrOutput, pmdindex, pmdrel);
 
 			// make sure the first key of index is included in the scalar predicate
+			// (except for BRIN, which are symmetrical)
+			// FIXME: Consider removing the first column check for GIN as well
 			const CColRef *pcrFirstIndexKey = (*indexColumns)[0];
 
-			if (!pcrsScalar->FMember(pcrFirstIndexKey))
+			if (!pcrsScalar->FMember(pcrFirstIndexKey) &&
+				pmdindex->IndexType() != IMDIndex::EmdindBrin)
 			{
 				indexColumns->Release();
 				pdrgpexprIndex->Release();
@@ -3680,9 +3684,9 @@ CXformUtils::FJoinPredOnSingleChild(CMemoryPool *mp, CExpressionHandle &exprhdl)
 		pdrgpcrs->Append(pcrsOutput);
 	}
 
-	GPOS_ASSERT(nullptr != exprhdl.PexprScalarExactChild(arity - 1));
 	CExpressionArray *pdrgpexprPreds = CPredicateUtils::PdrgpexprConjuncts(
-		mp, exprhdl.PexprScalarExactChild(arity - 1));
+		mp, exprhdl.PexprScalarExactChild(arity - 1,
+										  true /*error_on_null_return*/));
 	const ULONG ulPreds = pdrgpexprPreds->Size();
 	BOOL fPredUsesSingleChild = false;
 	for (ULONG ulPred = 0; !fPredUsesSingleChild && ulPred < ulPreds; ulPred++)
@@ -3864,8 +3868,7 @@ CXformUtils::MapPrjElemsWithDistinctAggs(
 			pexprKey = pexprTrue;
 		}
 
-		CExpressionArray *pdrgpexpr =
-			const_cast<CExpressionArray *>(phmexprdrgpexpr->Find(pexprKey));
+		CExpressionArray *pdrgpexpr = phmexprdrgpexpr->Find(pexprKey);
 		BOOL fExists = (nullptr != pdrgpexpr);
 		if (!fExists)
 		{
