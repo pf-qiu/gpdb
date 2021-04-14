@@ -42,6 +42,7 @@
 #include "utils/lsyscache.h"
 #include "utils/rel.h"
 #include "utils/syscache.h"
+#include "nodes/makefuncs.h"
 
 #include "catalog/oid_dispatch.h"
 
@@ -1547,6 +1548,21 @@ CreateForeignTable(CreateForeignTableStmt *stmt, Oid relid, bool skip_permission
 	Oid			ownerId;
 	ForeignDataWrapper *fdw;
 	ForeignServer *server;
+
+	if (stmt->distributedBy && stmt->distributedBy->ptype == POLICYTYPE_PARTITIONED)
+	{
+		/* Create foreign table with a partitioned distribution policy, either hash or random,
+		 * implies "all segments" mpp_execute option. */
+		char mpp_execute = SeparateOutMppExecute(&stmt->options);
+		if (mpp_execute != FTEXECLOCATION_ALL_SEGMENTS && mpp_execute != FTEXECLOCATION_NOT_DEFINED)
+		{
+			/* If mpp_execute is specified as "any", "master" or "coordinator", notice user about option override. */
+			elog(NOTICE, "Distribution policy of foreign table implies mpp_execute option \"all segments\", override existing option");
+		}
+
+		Node *val = (Node *) makeString("all segments");
+		stmt->options = lappend(stmt->options, makeDefElem("mpp_execute", val, -1));
+	}
 
 	/*
 	 * Advance command counter to ensure the pg_attribute tuple is visible;
