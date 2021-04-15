@@ -98,8 +98,7 @@ DECLARE
 ERROR:  endpoint endpoint_id1_1 was already attached by receiver(pid: PID)
 DETAIL:  An endpoint can only be attached by one retrieving session.
 3R: @pre_run 'set_endpoint_variable @ENDPOINT2' : RETRIEVE ALL FROM ENDPOINT "@ENDPOINT2";
-ERROR:  endpoint endpoint_id2_1 (state: FINISHED) was used by another retrieve session (pid: 34801)
-DETAIL:  If pid is -1, the previous session has been detached.
+ERROR:  another session (pid: 49941) used the endpoint and completed retrieving
 3R: @pre_run 'set_endpoint_variable @ENDPOINT3' : RETRIEVE 10 FROM ENDPOINT "@ENDPOINT3";
  a  
 ----
@@ -181,7 +180,7 @@ DETAIL:  If pid is -1, the previous session has been detached.
 -- Now check on c1 will trigger the error, all endpoints should be aborted since the transaction
 -- will be terminated.
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c1');
-ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished endpoint backends will be cancelled"  (seg0 127.0.0.1:25432 pid=231244)
+ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=69700)
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c2');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 1: SELECT * FROM gp_check_parallel_retrieve_cursor('c3');

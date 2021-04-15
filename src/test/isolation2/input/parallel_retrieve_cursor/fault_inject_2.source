@@ -4,8 +4,6 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 (a INT) DISTRIBUTED by (a);
 insert into t2 select generate_series(1,10000000);
 
-CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
-
 -- Test1: error inject at the 1000th time while retrieving tuples from endpoint. other retrieve session finished.
 -- This test may cause GPDB hang/crash on MacOS because the UDP thread receive signal which shouldn't.
 -- (OS-X pthread_sigmask is broken: MPP-4923).
@@ -35,3 +33,4 @@ CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
 1: ROLLBACK;
 1: SELECT gp_inject_fault('fetch_tuples_from_endpoint', 'reset', 3);
 
+DROP TABLE t2;

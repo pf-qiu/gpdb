@@ -90,7 +90,7 @@
 
 /*
  * The size of endpoint tuple queue in bytes.
- * This value is copy from PG's PARALLEL_TUPLE_QUEUE_SIZE
+ * This value refers upstream PARALLEL_TUPLE_QUEUE_SIZE
  */
 #define ENDPOINT_TUPLE_QUEUE_SIZE		65536
 
@@ -603,9 +603,6 @@ init_session_info_entry(void)
 	tag.sessionID = gp_session_id;
 	tag.userID = GetSessionUserId();
 
-	/* track current session id for clean_session_token_info  */
-	EndpointCtl.sessionID = gp_session_id;
-
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	infoEntry = (SessionInfoEntry *) hash_search(sharedSessionInfoHash, &tag,
 												 HASH_ENTER, &found);
@@ -1040,9 +1037,8 @@ generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 	int			cursorLen = strlen(cursorName);
 
 	if (cursorLen > ENDPOINT_NAME_CURSOR_LEN)
-	{
 		cursorLen = ENDPOINT_NAME_CURSOR_LEN;
-	}
+
 	Assert((cursorLen + ENDPOINT_NAME_SESSIONID_LEN + ENDPOINT_NAME_RANDOM_LEN) < NAMEDATALEN);
 	memcpy(name, cursorName, cursorLen);
 	len += cursorLen;
@@ -1073,15 +1069,13 @@ generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 static void
 clean_session_token_info()
 {
-	elog(DEBUG3,
-	  "CDB_ENDPOINT: clean_session_token_info clean token for session %d",
-		 EndpointCtl.sessionID);
-
+	elog(DEBUG3, "CDB_ENDPOINT: clean_session_token_info clean token for session %d",
+		 gp_session_id);
 
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	SessionTokenTag tag;
 
-	tag.sessionID = EndpointCtl.sessionID;
+	tag.sessionID = gp_session_id;
 	tag.userID = GetSessionUserId();
 
 	SessionInfoEntry *infoEntry = (SessionInfoEntry *) hash_search(
@@ -1093,7 +1087,7 @@ clean_session_token_info()
 		elog(DEBUG3,
 			 "CDB_ENDPOINT: clean_session_token_info removes existing entry for "
 			 "user id: %u, session: %d",
-			 tag.userID, EndpointCtl.sessionID);
+			 tag.userID, gp_session_id);
 	}
 
 	LWLockRelease(ParallelCursorEndpointLock);

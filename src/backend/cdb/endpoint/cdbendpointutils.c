@@ -51,8 +51,6 @@ typedef struct
 static EndpointState state_string_to_enum(const char *state);
 static bool check_parallel_retrieve_cursor(const char *cursorName, bool wait);
 
-struct EndpointControl EndpointCtl = {InvalidEndpointSessionId, NULL};
-
 /*
  * Convert the string tk0123456789 to int 0x0123456789 and save it into
  * the given token pointer.
@@ -68,9 +66,7 @@ endpoint_token_str2hex(int8 *token /* out */ , const char *tokenStr)
 		hex_decode(tokenStr + 2, ENDPOINT_TOKEN_HEX_LEN * 2, (char *) token);
 	}
 	else
-	{
 		ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD), errmsg("%s", msg)));
-	}
 }
 
 /*

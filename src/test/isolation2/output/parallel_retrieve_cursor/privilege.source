@@ -214,7 +214,7 @@ DECLARE
 1<:  <... completed>
 FAILED:  Execution failed
 1: END;
-ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished endpoint backends will be cancelled"
+ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=71508)
 2q: ... <quitting>
 3: @pre_run 'unset RETRIEVE_USER; echo $RAW_STR ' : SELECT 1;
  ?column? 

@@ -8,9 +8,6 @@ CREATE
 insert into t1 select generate_series(1,100);
 INSERT 100
 
-CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
-CREATE
-
 --------- Test1: Basic test for parallel retrieve interface & close cursor
 1: BEGIN;
 BEGIN

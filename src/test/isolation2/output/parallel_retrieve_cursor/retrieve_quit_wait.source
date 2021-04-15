@@ -256,7 +256,7 @@ DECLARE
 
 -- Since c1 has been only partially retrieved, an error will be raised when transaction ends.
 1: END;
-ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished endpoint backends will be cancelled"
+ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=69967)
 
 2: SELECT cursorname, state FROM gp_endpoints();
  cursorname | state 
@@ -466,7 +466,7 @@ DECLARE
 
 -- Since retrieving session abort, waiting should be interrupted.
 1<:  <... completed>
-ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished endpoint backends will be cancelled"
+ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=70221)
 
 -- All endpoints should be removed since error happened.
 2: SELECT cursorname, state FROM gp_endpoints();

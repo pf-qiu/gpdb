@@ -7,9 +7,6 @@ CREATE
 insert into t2 select generate_series(1,10000000);
 INSERT 10000000
 
-CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
-CREATE
-
 -- Test1: error inject at the 1000th time while retrieving tuples from endpoint. other retrieve session finished.
 -- This test may cause GPDB hang/crash on MacOS because the UDP thread receive signal which shouldn't.
 -- (OS-X pthread_sigmask is broken: MPP-4923).
@@ -61,9 +58,9 @@ ERROR:  canceling statement due to user request
 ERROR:  canceling MPP operation: "Endpoint retrieve statement aborted"
 
 0R<:  <... completed>
-ERROR:  Parallel RETRIEVE CURSOR endpoint endpoint_id6_1 aborted unexpectedly.
+ERROR:  endpoint is not available because the parallel retrieve cursor was aborted (cdbendpointretrieve.c:245)
 2R<:  <... completed>
-ERROR:  Parallel RETRIEVE CURSOR endpoint endpoint_id6_3 aborted unexpectedly.
+ERROR:  endpoint is not available because the parallel retrieve cursor was aborted (cdbendpointretrieve.c:245)
 
 1<:  <... completed>
 FAILED:  Execution failed
@@ -75,3 +72,5 @@ ROLLBACK
  Success:        
 (1 row)
 
+DROP TABLE t2;
+DROP
