@@ -276,7 +276,7 @@ ERROR:  failed to attach non-existing endpoint endpoint_id2_2
 ERROR:  failed to attach non-existing endpoint endpoint_id2_3 
 
 1<:  <... completed>
- FAILED:  Execution failed
+FAILED:  Execution failed
 1: ROLLBACK;
 ROLLBACK
 1: SELECT auth_token,state FROM gp_endpoints() WHERE cursorname='c1';
@@ -338,7 +338,7 @@ ERROR:  failed to attach non-existing endpoint endpoint_id3_1
 ERROR:  failed to attach non-existing endpoint endpoint_id3_3 
 
 1<:  <... completed>
- FAILED:  Execution failed
+FAILED:  Execution failed
 1: ROLLBACK;
 ROLLBACK
 1: SELECT auth_token,state FROM gp_endpoints() WHERE cursorname='c1';
@@ -435,7 +435,7 @@ ERROR:  canceling MPP operation: "Endpoint retrieve statement aborted"  (seg0 12
 ERROR:  failed to attach non-existing endpoint endpoint_id4_3 
 
 1<:  <... completed>
- FAILED:  Execution failed
+FAILED:  Execution failed
 1: ROLLBACK;
 ROLLBACK
 1: SELECT gp_inject_fault('fetch_tuples_from_endpoint', 'reset', 2);
@@ -518,7 +518,7 @@ ERROR:  Parallel RETRIEVE CURSOR endpoint endpoint_id5_1 aborted unexpectedly.
 ERROR:  Parallel RETRIEVE CURSOR endpoint endpoint_id5_3 aborted unexpectedly.
 
 1<:  <... completed>
- FAILED:  Execution failed
+FAILED:  Execution failed
 1: ROLLBACK;
 ROLLBACK
 1: SELECT gp_inject_fault('fetch_tuples_from_endpoint', 'reset', 2);

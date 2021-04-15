@@ -210,9 +210,9 @@ DECLARE
 #3retrieve> FATAL:  Retrieve auth token is invalid
 
 0Rq: ... <quitting>
-3Rq: FAILED:  Sessions not started cannot be quit
+3Rq:FAILED:  Sessions not started cannot be quit
 1<:  <... completed>
- FAILED:  Execution failed
+FAILED:  Execution failed
 1: END;
 ERROR:  canceling MPP operation: "Endpoint retrieve session quit, all unfinished endpoint backends will be cancelled"
 2q: ... <quitting>

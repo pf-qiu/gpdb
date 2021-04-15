@@ -352,7 +352,7 @@ class SQLIsolationExecutor(object):
             # it to pipe when we get the first execute_command call.
             self.create_exception = None
             if self.mode == "utility":
-                (hostname, port) = ConnectionInfo.get_hostname_port(name, 'p')
+                (hostname, port) = self.get_hostname_port(name, 'p')
                 self.con = self.connectdb(given_dbname=self.dbname,
                                           given_host=hostname,
                                           given_port=port,
@@ -364,7 +364,7 @@ class SQLIsolationExecutor(object):
                 # as mirror.  This is useful for scenarios where a
                 # test needs to promote a standby without using
                 # gpactivatestandby.
-                (hostname, port) = ConnectionInfo.get_hostname_port(name, 'm')
+                (hostname, port) = self.get_hostname_port(name, 'm')
                 self.con = self.connectdb(given_dbname=self.dbname,
                                           given_host=hostname,
                                           given_port=port,
@@ -414,6 +414,22 @@ class SQLIsolationExecutor(object):
             if con is not None:
                 con.set_notice_receiver(null_notice_receiver)
             return con
+ 
+        def get_hostname_port(self, contentid, role):
+            """
+                Gets the port number/hostname combination of the
+                contentid and role
+            """
+            query = ("SELECT hostname, port FROM gp_segment_configuration WHERE"
+                     " content = %s AND role = '%s'") % (contentid, role)
+            con = self.connectdb(self.dbname, given_opt="-c gp_role=utility")
+            r = con.query(query).getresult()
+            con.close()
+            if len(r) == 0:
+                raise Exception("Invalid content %s" % contentid)
+            if r[0][0] == socket.gethostname():
+                return (None, int(r[0][1]))
+            return (r[0][0], int(r[0][1]))
 
         def printout_result(self, r):
             """
@@ -779,7 +795,7 @@ class SQLIsolationExecutor(object):
                         # error in the daemon shell cannot be recovered
                         raise
                     except Exception as e:
-                        print(" FAILED: ", e, file=output_file)
+                        print("FAILED: ", e, file=output_file)
                     command = ""
                 else:
                     command += command_part

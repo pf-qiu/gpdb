@@ -66,7 +66,7 @@ ERROR:  Parallel RETRIEVE CURSOR endpoint endpoint_id6_1 aborted unexpectedly.
 ERROR:  Parallel RETRIEVE CURSOR endpoint endpoint_id6_3 aborted unexpectedly.
 
 1<:  <... completed>
- FAILED:  Execution failed
+FAILED:  Execution failed
 1: ROLLBACK;
 ROLLBACK
 1: SELECT gp_inject_fault('fetch_tuples_from_endpoint', 'reset', 3);

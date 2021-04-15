@@ -44,7 +44,7 @@ insert into t1 select generate_series(1,100);
 2: SELECT cursorname, state FROM gp_endpoints();
 
 -- verify endpoints for c1 is gone
-3U: SELECT cursorname, senderpid<>-1, receiverpid<>-1, state FROM gp_segment_endpoints();
+0U: SELECT cursorname, senderpid<>-1, receiverpid<>-1, state FROM gp_segment_endpoints();
 
 -- Now check on c1 will trigger the error, all endpoints should be aborted since the transaction
 -- will be terminated.
@@ -60,4 +60,4 @@ insert into t1 select generate_series(1,100);
 -- quit all sessions
 1q:
 2q:
-3Rq:
+0Uq:

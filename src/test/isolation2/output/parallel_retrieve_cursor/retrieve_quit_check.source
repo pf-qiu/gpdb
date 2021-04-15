@@ -171,7 +171,7 @@ DETAIL:  If pid is -1, the previous session has been detached.
 (8 rows)
 
 -- verify endpoints for c1 is gone
-3U: SELECT cursorname, senderpid<>-1, receiverpid<>-1, state FROM gp_segment_endpoints();
+0U: SELECT cursorname, senderpid<>-1, receiverpid<>-1, state FROM gp_segment_endpoints();
  cursorname | ?column? | ?column? | state    
 ------------+----------+----------+----------
  c2         | f        | t        | FINISHED 
@@ -202,4 +202,4 @@ END
 -- quit all sessions
 1q: ... <quitting>
 2q: ... <quitting>
-3Rq: ... <quitting>
+0Uq: ... <quitting>
