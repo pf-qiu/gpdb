@@ -5,8 +5,8 @@ CREATE TABLE t1 (a INT) DISTRIBUTED by (a);
 insert into t1 select generate_series(1,100);
 
 --------- Test1: fault injection end-point shared memory slot full on QE
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'reset', 2);
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'full_memory_slot', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full', 'reset', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full', 'skip', 2);
 
 1: BEGIN;
 -- should report error on seg0
@@ -17,8 +17,8 @@ insert into t1 select generate_series(1,100);
 3: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;
 3: ROLLBACK;
 -- reset the fault injection
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'reset', 2);
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'revert_memory_slot', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full_reset', 'reset', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full_reset', 'skip', 2);
 --should work as normal
 1: BEGIN;
 1: DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM t1;

@@ -3,7 +3,7 @@
  *
  * Utility functions for endpoints implementation.
  *
- * Copyright (c) 2019 - Present Pivotal Software, Inc.
+ * Copyright (c) 2020-Present VMware, Inc. or its affiliates
  *
  * IDENTIFICATION
  *		src/backend/cdb/cdbendpointutils.c
@@ -184,7 +184,7 @@ check_parallel_retrieve_cursor(const char *cursorName, bool wait)
 	}
 
 	estate = portal->queryDesc->estate;
-	retVal = cdbdisp_checkDispatchAckMessage(estate->dispatcherState, ENDPOINT_FINISHED_ACK, wait);
+	retVal = cdbdisp_checkDispatchAckMessage(estate->dispatcherState, ENDPOINT_FINISHED_ACK_MSG, wait);
 	SIMPLE_FAULT_INJECTOR("check_parallel_retrieve_cursor_after_udf");
 	check_parallel_retrieve_cursor_errors(estate);
 
@@ -199,18 +199,15 @@ void
 check_parallel_retrieve_cursor_errors(EState *estate)
 {
 	CdbDispatcherState *ds;
-
-	Assert(estate);
+	ErrorData  *qeError = NULL;
 
 	ds = estate->dispatcherState;
 
-	/* wait for QEs to finish and check their results. */
-	if (cdbdisp_checkResultsErrcode(ds->primaryResults))
-	{
-		ErrorData  *qeError = NULL;
+	/* Wait for QEs to finish and check their results. */
+	cdbdisp_getDispatchResults(ds, &qeError);
 
-		cdbdisp_getDispatchResults(ds, &qeError);
-		Assert(qeError);
+	if (qeError != NULL)
+	{
 		estate->dispatcherState = NULL;
 		cdbdisp_cancelDispatch(ds);
 		FlushErrorState();

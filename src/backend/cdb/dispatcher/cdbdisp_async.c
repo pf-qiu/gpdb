@@ -74,9 +74,9 @@ typedef struct CdbDispatchCmdAsync
 	volatile DispatchWaitMode waitMode;
 
 	/*
-	 * When waitMode is set to DISPATCH_WAIT_ACK_MESSAGE, the expected acknowledge
-	 * message from QE should be specified. This field stores the expected text
-	 * message from QE.
+	 * When waitMode is set to DISPATCH_WAIT_ACK_MESSAGE, the expected
+	 * acknowledge message from QE should be specified. This field stores the
+	 * expected acknowledge message.
 	 */
 	const char	*ackMessage;
 
@@ -357,9 +357,7 @@ cdbdisp_checkAckMessage_async(struct CdbDispatcherState *ds, const char *message
 	 * receivedAckMsg to false.
 	 */
 	for (int i = 0; i < pParms->dispatchCount; i++)
-	{
 		pParms->dispatchResultPtrArray[i]->receivedAckMsg = false;
-	}
 
 	checkDispatchResult(ds, wait);
 
@@ -1165,12 +1163,8 @@ processResults(CdbDispatchResult *dispatchResult)
 			/* respond back on this libpq connection with the next value */
 			send_sequence_response(segdbDesc->conn, seq_oid, last, cached, increment, overflow, false /* error */);
 		}
-		else if (strcmp(qnotifies->relname, CDB_NOTIFY_QE_ACKNOWLEDGE) == 0)
+		else if (strcmp(qnotifies->relname, CDB_NOTIFY_ENDPOINT_ACK) == 0)
 		{
-			/*
-			 * retrieve acknowledge NOTIFY message from QE, put it into
-			 * dispatchResult->ackPGNotifies queue.
-			 */
 			qnotifies->next = (struct pgNotify *) dispatchResult->ackPGNotifies;
 			dispatchResult->ackPGNotifies = (struct PGnotify *) qnotifies;
 

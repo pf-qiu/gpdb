@@ -741,7 +741,10 @@ extern const char * lookup_autostats_mode_by_value(GpAutoStatsModeValue val);
 /* notification condition name of next value, used in PGnotify */
 #define CDB_NOTIFY_NEXTVAL "nextval"
 
-/* notification condition name of acknowledge notify, used in PGnotify */
-#define CDB_NOTIFY_QE_ACKNOWLEDGE "ack_notify"
+/*
+ * notification condition name of endpoint ack information. Used in PGnotify
+ * for parallel retrieve cursor.
+ */
+#define CDB_NOTIFY_ENDPOINT_ACK "ack_notify"
 
 #endif   /* CDBVARS_H */

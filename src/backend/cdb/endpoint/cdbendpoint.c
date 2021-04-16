@@ -3,37 +3,35 @@
  *
  * An endpoint is a query result source for a parallel retrieve cursor on a
  * dedicated QE. One parallel retrieve cursor could have multiple endpoints
- * on different QEs to allow the retrieving to be done in parallel.
+ * on different QEs to allow retrieving in parallel.
  *
  * This file implements the sender part of endpoint.
  *
- * Endpoint may exist on master or segments, depends on the query of the PARALLEL
- * RETRIEVE CURSOR:
- * (1) An endpoint is on QD only if the query of the parallel cursor needs to be
- *	   finally gathered by the master. e.g.:
- * > DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM T1 ORDER BY C1;
+ * Endpoint may exist on the coordinator or segments, depends on the query of
+ * the PARALLEL RETRIEVE CURSOR:
+ * (1) An endpoint is on QD only if the query of the parallel cursor needs to
+ *     be finally gathered by the master. e.g.:
+ *     > DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM T1 ORDER BY C1;
  * (2) The endpoints are on specific segments node if the direct dispatch happens.
  *	   e.g.:
- * > DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM T1 WHERE C1=1 OR C1=2;
+ *     > DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM T1 WHERE C1=1;
  * (3) The endpoints are on all segments node. e.g:
- * > DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM T1;
+ *     > DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT * FROM T1;
  *
- * When a parallel retrieve cursor is declared, the query plan will be dispatched
- * to the corresponding QEs. Before the query execution, endpoints will be
- * created first on QEs. An entry of Endpoint in the shared memory represents
- * the endpoint. Through the Endpoint, the client could know the endpoint's
- * identification (endpoint name), location (dbid, host, port and session id),
- * and the status for the retrieve session. All of those information can be
- * obtained on QD by UDF "gp_endpoints_info" or on QE's retrieve session by UDF
- * "gp_endpoint_status_info". The Endpoint are stored on QE only in the
- * shared memory. QD doesn't know the endpoint's information unless it sends a
- * query request (by UDF "gp_endpoint_status_info") to QE.
+ * When a parallel retrieve cursor is declared, the query plan will be
+ * dispatched to the corresponding QEs. Before the query execution, endpoints
+ * will be created first on QEs. An struct of Endpoint in the shared memory
+ * represents the endpoint. Through the Endpoint, the client could know the
+ * endpoint's identification (endpoint name), location (dbid, host, port and
+ * session id), and the state for the retrieve session. All of those
+ * information can be obtained on QD by UDF gp_endpoints() via dispatching
+ * endpoint queries or on QE's retrieve session by UDF gp_segment_endpoints().
  *
- * Instead of returning the query result to master through a normal dest receiver,
+ * Instead of returning the query result to QD through a normal dest receiver,
  * endpoints writes the results to TQueueDestReceiver which is a shared memory
  * queue and can be retrieved from a different process. See
- * CreateTQDestReceiverForEndpoint(). The information about the message queue is
- * also stored in the Endpoint so that the retrieve session on the same QE
+ * CreateTQDestReceiverForEndpoint(). The information about the message queue
+ * is also stored in the Endpoint so that the retrieve session on the same QE
  * can know.
  *
  * The token is stored in a different structure SessionInfoEntry to make the
@@ -41,20 +39,19 @@
  * each QE after plan get dispatched.
  *
  * DECLARE returns only when endpoint and token are ready and query starts
- * execution. See WaitEndpointReady().
+ * execution. See WaitEndpointsReady().
  *
  * When the query finishes, the endpoint won't be destroyed immediately since we
- * may still want to check its status on QD. In the implementation, the
+ * may still want to check its state on QD. In the implementation, the
  * DestroyTQDestReceiverForEndpoint is blocked until the parallel retrieve cursor
  * is closed explicitly through CLOSE statement or error happens.
  *
- * About implementation of endpoint receiver, see "cdbendpointretrieve.c".
+ * UDF gp_check_parallel_retrieve_cursor() and
+ * gp_wait_parallel_retrieve_cursor() are supplied as helper functions
+ * to monitor the retrieve state. They should be run in the declare transaction
+ * block on QD.
  *
- * UDF gp_check_parallel_retrieve_cursor and gp_wait_parallel_retrieve_cursor are
- * supplied as client helper functions to monitor the retrieve status through
- * QD - QE libpq connection.
- *
- * Copyright (c) 2019-Present Pivotal Software, Inc.
+ * Copyright (c) 2020-Present VMware, Inc. or its affiliates
  *
  * IDENTIFICATION
  *		src/backend/cdb/cdbendpoint.c
@@ -69,15 +66,14 @@
 #include "access/xact.h"
 #include "libpq-fe.h"
 #include "libpq/libpq.h"
+#include "libpq/pqformat.h"
 #include "pgstat.h"
 #include "storage/ipc.h"
 #include "storage/latch.h"
 #include "storage/procsignal.h"
 #include "utils/backend_cancel.h"
 #include "utils/builtins.h"
-#ifdef FAULT_INJECTOR
 #include "utils/faultinjector.h"
-#endif
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbdispatchresult.h"
 #include "cdb/cdbendpoint.h"
@@ -141,12 +137,13 @@ static HTAB *sharedSessionInfoHash = NULL;
 static struct EndpointData *sharedEndpoints = NULL;
 
 /* Init helper functions */
-static void init_shared_endpoints(Endpoint endpoints);
+static void InitSharedEndpoints(void);
 
 /* Token utility functions */
 static const int8 *get_or_create_token(void);
 
 /* Endpoint helper function */
+static void EndpointNotifyQD(const char *message);
 static Endpoint alloc_endpoint(const char *cursorName, dsm_handle dsmHandle);
 static void free_endpoint(Endpoint endpoint);
 static void create_and_connect_mq(TupleDesc tupleDesc,
@@ -166,8 +163,7 @@ static void generate_endpoint_name(char *name, const char *cursorName,
 static void clean_session_token_info();
 
 /*
- * Endpoint_ShmemSize - Calculate the shared memory size for PARALLEL RETRIEVE
- * CURSOR execute.
+ * Calculate the shared memory size for PARALLEL RETRIEVE CURSOR execute.
  */
 Size
 EndpointShmemSize(void)
@@ -175,30 +171,30 @@ EndpointShmemSize(void)
 	Size		size;
 
 	size = MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(struct EndpointData)));
+	/*
+	 * Maximum parallel retrieve cursor session number should be no more than
+	 * the maximum endpoint number, so use MAX_ENDPOINT_SIZE here.
+	 */
 	size = add_size(
 	  size, hash_estimate_size(MAX_ENDPOINT_SIZE, sizeof(SessionInfoEntry)));
 	return size;
 }
 
 /*
- * Endpoint_CTX_ShmemInit - Init shared memory structure for PARALLEL RETRIEVE
- * CURSOR execute.
+ * Initialize shared memory for PARALLEL RETRIEVE CURSOR.
  */
 void
-EndpointCTXShmemInit(void)
+EndpointShmemInit(void)
 {
-	bool		isShmemReady;
+	bool		found;
 	HASHCTL		hctl;
 
-	sharedEndpoints = (Endpoint) ShmemInitStruct(
-													 SHMEM_ENDPOINTS_ENTRIES,
-				 MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(struct EndpointData))),
-													   &isShmemReady);
-	Assert(isShmemReady || !IsUnderPostmaster);
-	if (!isShmemReady)
-	{
-		init_shared_endpoints(sharedEndpoints);
-	}
+	sharedEndpoints = (Endpoint)
+		ShmemInitStruct(SHMEM_ENDPOINTS_ENTRIES,
+						MAXALIGN(mul_size(MAX_ENDPOINT_SIZE, sizeof(struct EndpointData))),
+						&found);
+	if (!found)
+		InitSharedEndpoints();
 
 	memset(&hctl, 0, sizeof(hctl));
 	hctl.keysize = sizeof(SessionTokenTag);
@@ -210,13 +206,17 @@ EndpointCTXShmemInit(void)
 }
 
 /*
- * Init Endpoint entries.
+ * Initialize shared memory Endpoint array.
  */
 static void
-init_shared_endpoints(Endpoint endpoints)
+InitSharedEndpoints()
 {
+	Endpoint endpoints = sharedEndpoints;
+
 	for (int i = 0; i < MAX_ENDPOINT_SIZE; ++i)
 	{
+		endpoints[i].name[0] = '\0';
+		endpoints[i].cursorName[0] = '\0';
 		endpoints[i].databaseID = InvalidOid;
 		endpoints[i].senderPid = InvalidPid;
 		endpoints[i].receiverPid = InvalidPid;
@@ -231,60 +231,37 @@ init_shared_endpoints(Endpoint endpoints)
 }
 
 /*
- * GetParallelCursorEndpointPosition - get PARALLEL RETRIEVE CURSOR endpoint
- * allocate position
- *
- * If already focused and flow is CdbLocusType_SingleQE, CdbLocusType_Entry,
- * we assume the endpoint should be existed on QD. Else, on QEs.
+ * Get where is the endpoint located? Currently used in EXPLAIN only.
  */
 enum EndPointExecPosition
 GetParallelCursorEndpointPosition(PlannedStmt *plan)
 {
-	if (plan->planTree->flow->flotype == FLOW_SINGLETON &&
-		plan->planTree->flow->locustype != CdbLocusType_SegmentGeneral)
+	if (plan->planTree->flow->flotype == FLOW_SINGLETON)
 	{
-		return ENDPOINT_ON_ENTRY_DB;
+		if (plan->planTree->flow->locustype == CdbLocusType_SegmentGeneral)
+			return ENDPOINT_ON_SINGLE_QE;
+		else
+			return ENDPOINT_ON_ENTRY_DB;
+	}
+	else if (plan->slices[0].directDispatch.isDirectDispatch &&
+			 plan->slices[0].directDispatch.contentIds != NULL)
+	{
+		return ENDPOINT_ON_SOME_QE;
 	}
 	else
-	{
-		if (plan->planTree->flow->flotype == FLOW_SINGLETON)
-		{
-			/*
-			 * In this case, the plan is for replicated table. locustype must
-			 * be CdbLocusType_SegmentGeneral.
-			 */
-			Assert(plan->planTree->flow->locustype == CdbLocusType_SegmentGeneral);
-			return ENDPOINT_ON_SINGLE_QE;
-		}
-		else if (plan->slices[0].directDispatch.isDirectDispatch &&
-				 plan->slices[0].directDispatch.contentIds != NULL)
-		{
-			/*
-			 * Direct dispatch to some segments, so end-points only exist on
-			 * these segments
-			 */
-			return ENDPOINT_ON_SOME_QE;
-		}
-		else
-		{
-			return ENDPOINT_ON_ALL_QE;
-		}
-	}
+		return ENDPOINT_ON_ALL_QE;
 }
 
 /*
- * WaitEndpointReady - wait until the PARALLEL RETRIEVE CURSOR ready for retrieve
- *
- * On QD, after dispatch the plan to QEs, QD will wait for QEs' ENDPOINT_READY
- * acknowledge NOTIFY message. Then, we know all endpoints are ready for retrieve.
+ * QD waits until the cursor ready for retrieve on the related segments.
  */
 void
-WaitEndpointReady(EState *estate)
+WaitEndpointsReady(EState *estate)
 {
 	Assert(estate);
 	CdbDispatcherState *ds = estate->dispatcherState;
 
-	cdbdisp_checkDispatchAckMessage(ds, ENDPOINT_READY_ACK, true);
+	cdbdisp_checkDispatchAckMessage(ds, ENDPOINT_READY_ACK_MSG, true);
 	check_parallel_retrieve_cursor_errors(estate);
 }
 
@@ -309,19 +286,31 @@ get_or_create_token(void)
 							  ENDPOINT_TOKEN_HEX_LEN - sessionIdLen))
 		{
 			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						  errmsg("failed to generate a new random token.")));
+							errmsg("failed to generate a new random token.")));
 		}
 	}
 	return currentToken;
 }
 
 /*
- * CreateTQDestReceiverForEndpoint - Creates a dest receiver for PARALLEL RETRIEVE
- * CURSOR
- *
- * Also creates shared memory message queue here. Set the local
- * Create TupleQueueDestReceiver base on the message queue to pass tuples to
- * retriever.
+ * Send acknowledge message to QD.
+ */
+static void
+EndpointNotifyQD(const char *message)
+{
+	StringInfoData buf;
+
+	pq_beginmessage(&buf, 'A');
+	pq_sendint(&buf, MyProcPid, sizeof(int32));
+	pq_sendstring(&buf, CDB_NOTIFY_ENDPOINT_ACK);
+	pq_sendstring(&buf, message);
+	pq_endmessage(&buf);
+	pq_flush();
+}
+
+/*
+ * Creates a dest receiver for PARALLEL RETRIEVE CURSOR. The dest reciever is
+ * based on shm_mq that is used by the parallel work.
  */
 void
 CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
@@ -347,7 +336,7 @@ CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
 	 * Once the endpoint has been created in shared memory, send acknowledge
 	 * message to QD so DECLARE PARALLEL RETRIEVE CURSOR statement can finish.
 	 */
-	cdbdisp_sendAckMessageToQD(ENDPOINT_READY_ACK);
+	EndpointNotifyQD(ENDPOINT_READY_ACK_MSG);
 	endpointDest	= CreateTupleQueueDestReceiver(shmMqHandle);
 	state->dest = endpointDest;
 }
@@ -396,7 +385,7 @@ DestroyTQDestReceiverForEndpoint(EndpointExecState *state)
 	unset_endpoint_sender_pid(state->endpoint);
 	LWLockRelease(ParallelCursorEndpointLock);
 	/* Notify QD */
-	cdbdisp_sendAckMessageToQD(ENDPOINT_FINISHED_ACK);
+	EndpointNotifyQD(ENDPOINT_FINISHED_ACK_MSG);
 
 	/*
 	 * If all data get sent, hang the process and wait for QD to close it. The
@@ -432,8 +421,6 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	Endpoint	ret = NULL;
 	dsm_handle	session_dsm_handle;
 
-	Assert(sharedEndpoints);
-
 	session_dsm_handle = GetSessionDsmHandle();
 	if (session_dsm_handle == DSM_HANDLE_INVALID)
 		ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
@@ -443,10 +430,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 
 #ifdef FAULT_INJECTOR
 	/* inject fault "skip" to set end-point shared memory slot full */
-	FaultInjectorType_e typeE =
-	SIMPLE_FAULT_INJECTOR("endpoint_shared_memory_slot_full");
-
-	if (typeE == FaultInjectorTypeFullMemorySlot)
+	if (SIMPLE_FAULT_INJECTOR("alloc_endpoint_slot_full") == FaultInjectorTypeSkip)
 	{
 		for (i = 0; i < MAX_ENDPOINT_SIZE; ++i)
 		{
@@ -468,7 +452,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 			}
 		}
 	}
-	else if (typeE == FaultInjectorTypeRevertMemorySlot)
+	if (SIMPLE_FAULT_INJECTOR("alloc_endpoint_slot_full_reset") == FaultInjectorTypeSkip)
 	{
 		for (i = 0; i < MAX_ENDPOINT_SIZE; ++i)
 		{
@@ -493,10 +477,8 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	}
 
 	if (foundIdx == -1)
-	{
 		ereport(ERROR, (errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
 						errmsg("failed to allocate endpoint")));
-	}
 
 	generate_endpoint_name(sharedEndpoints[i].name, cursorName, gp_session_id);
 	StrNCpy(sharedEndpoints[i].cursorName, cursorName, NAMEDATALEN);
@@ -538,8 +520,6 @@ create_and_connect_mq(TupleDesc tupleDesc, dsm_segment **mqSeg /* out */ ,
 	char	   *tupdescSpace;
 	TupleDescNode *node = makeNode(TupleDescNode);
 
-	Assert(Gp_role == GP_ROLE_EXECUTE);
-
 	elog(DEBUG3,
 		 "CDB_ENDPOINTS: create and setup the shared memory message queue.");
 
@@ -549,23 +529,16 @@ create_and_connect_mq(TupleDesc tupleDesc, dsm_segment **mqSeg /* out */ ,
 	tupdescSer =
 		serializeNode((Node *) node, &tupdescLen, NULL /* uncompressed_size */ );
 
-	/*
-	 * Calculate dsm size, size = toc meta + toc_nentry(3) * entry size +
-	 * tuple desc length size + tuple desc size + queue size.
-	 */
+	/* Estimate the dsm size */
 	shm_toc_initialize_estimator(&tocEst);
 	shm_toc_estimate_chunk(&tocEst, sizeof(tupdescLen));
 	shm_toc_estimate_chunk(&tocEst, tupdescLen);
-	shm_toc_estimate_keys(&tocEst, 2);
-
 	shm_toc_estimate_chunk(&tocEst, ENDPOINT_TUPLE_QUEUE_SIZE);
-	shm_toc_estimate_keys(&tocEst, 1);
+	shm_toc_estimate_keys(&tocEst, 3);
 	tocSize = shm_toc_estimate(&tocEst);
 
+	/* Create dsm and initilaize toc. */
 	*mqSeg = dsm_create(tocSize, 0);
-	if (*mqSeg == NULL)
-		ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY),
-				errmsg("failed to create shared message queue for endpoints.")));
 	dsm_pin_mapping(*mqSeg);
 
 	toc = shm_toc_create(ENDPOINT_MSG_QUEUE_MAGIC, dsm_segment_address(*mqSeg),
@@ -802,7 +775,7 @@ abort_endpoint(EndpointExecState *state)
 		free_endpoint(state->endpoint);
 		LWLockRelease(ParallelCursorEndpointLock);
 		/* Notify QD */
-		cdbdisp_sendAckMessageToQD(ENDPOINT_FINISHED_ACK);
+		EndpointNotifyQD(ENDPOINT_FINISHED_ACK_MSG);
 		state->endpoint = NULL;
 	}
 

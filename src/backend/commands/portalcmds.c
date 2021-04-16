@@ -190,9 +190,8 @@ PerformCursorOpen(DeclareCursorStmt *cstmt, ParamListInfo params,
 	Assert(portal->strategy == PORTAL_ONE_SELECT);
 
 	if (PortalIsParallelRetrieveCursor(portal))
-	{
-		WaitEndpointReady(portal->queryDesc->estate);
-	}
+		WaitEndpointsReady(portal->queryDesc->estate);
+
 	/*
 	 * We're done; the query won't actually be run until PerformPortalFetch is
 	 * called.

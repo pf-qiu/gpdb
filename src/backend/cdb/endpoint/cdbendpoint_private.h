@@ -4,7 +4,7 @@
  *	  Internal routines for parallel retrieve cursor.
  *
  *
- * Copyright (c) 2019-Present Pivotal Software, Inc
+ * Copyright (c) 2020-Present VMware, Inc. or its affiliates
  *
  * src/backend/cdb/endpoints/cdbendpoint_private.h
  *
@@ -19,7 +19,7 @@
 #define MAX_ENDPOINT_SIZE				1024
 #define ENDPOINT_TOKEN_HEX_LEN			16
 #define ENDPOINT_TOKEN_STR_LEN			(2 + ENDPOINT_TOKEN_HEX_LEN * 2) // "tk0A1B...4E5F"
-#define InvalidEndpointSessionId		(-1)
+#define InvalidEndpointSessionId		(-1) /* follows invalid gp_session_id */
 
 #define ENDPOINT_KEY_TUPLE_DESC_LEN		1
 #define ENDPOINT_KEY_TUPLE_DESC			2
@@ -33,8 +33,8 @@
  */
 
 /* ACK NOTICE MESSAGE FROM ENDPOINT QE/Entry DB to QD */
-#define ENDPOINT_READY_ACK			"ENDPOINT_READY"
-#define ENDPOINT_FINISHED_ACK		"ENDPOINT_FINISHED"
+#define ENDPOINT_READY_ACK_MSG			"ENDPOINT_READY"
+#define ENDPOINT_FINISHED_ACK_MSG		"ENDPOINT_FINISHED"
 #define ENDPOINT_NAME_SESSIONID_LEN	8
 #define ENDPOINT_NAME_RANDOM_LEN	10
 #define ENDPOINT_NAME_CURSOR_LEN	(NAMEDATALEN - 1 - ENDPOINT_NAME_SESSIONID_LEN - ENDPOINT_NAME_RANDOM_LEN)

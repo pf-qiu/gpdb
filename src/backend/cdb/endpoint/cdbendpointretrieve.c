@@ -5,13 +5,15 @@
  * CURSOR, Once a PARALLEL RETRIEVE CURSOR is declared, the QE backends start
  * to send query results to so-called endpoints (see cdbendpoint.c). The
  * results can be retrieved through dedicated retrieve sessions in shared
- * memory. A retrieve session is a special session that can executes the
- * RETRIEVE statement only.
+ * memory via the shared-memory base message queue mechanism. A retrieve
+ * session is a special session that can executes the RETRIEVE statement only.
  *
  * To start a retrieve session, the endpoint's token is needed as the password
- * for authentication, The user should be the same as the one who declares the
- * parallel retrieve cursor. The guc gp_retrieve_conn=true needs to be set to
- * start the retrieve session.
+ * for authentication. The token could be obtained via some endpoint related
+ * UDFs. The user should be the same as the one who declares the parallel
+ * retrieve cursor. The guc gp_retrieve_conn=true needs to be set to start the
+ * retrieve session. The guc "gp_retrieve_conn=true" imples utility mode
+ * connection.
  *
  * Once a retrieve session has attached to an endpoint, no other retrieve
  * session can attach to that endpoint.  It is possible to retrieve multiple
@@ -19,7 +21,7 @@
  * other words, one retrieve session can attach and retrieve from multiple
  * endpoints.
  *
- * Copyright (c) 2019-Present Pivotal Software, Inc.
+ * Copyright (c) 2020-Present VMware, Inc. or its affiliates
  *
  * IDENTIFICATION
  *		src/backend/cdb/cdbendpointretrieve.c

@@ -810,14 +810,10 @@ bool
 cdbdisp_checkResultsErrcode(struct CdbDispatchResults *meleeResults)
 {
 	if (meleeResults == NULL)
-	{
 		return false;
-	}
 
 	if (meleeResults->errcode)
-	{
 		return true;
-	}
 
 	return false;
 }

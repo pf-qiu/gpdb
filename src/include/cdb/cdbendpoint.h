@@ -19,7 +19,7 @@
  * #NOTE: ORCA does not support PARALLEL RETRIEVE CURSOR for now. It should
  * fall back to postgres optimizer.
  *
- * Copyright (c) 2019-Present Pivotal Software, Inc
+ * Copyright (c) 2020-Present VMware, Inc. or its affiliates
  *
  *
  * IDENTIFICATION
@@ -110,13 +110,13 @@ extern bool retrieve_conn_authenticated;
 
 /* Endpoint shared memory context init */
 extern Size EndpointShmemSize(void);
-extern void EndpointCTXShmemInit(void);
+extern void EndpointShmemInit(void);
 
 /*
  * Below functions should run on dispatcher.
  */
 extern enum EndPointExecPosition GetParallelCursorEndpointPosition(PlannedStmt *plan);
-extern void WaitEndpointReady(EState *estate);
+extern void WaitEndpointsReady(EState *estate);
 extern void AtAbort_EndpointExecState(void);
 extern EndpointExecState *allocEndpointExecState(void);
 

@@ -387,8 +387,9 @@ CreateSharedMemoryAndSemaphores(int port)
 	if (!IsUnderPostmaster)
 		dsm_postmaster_startup(shim);
 
-	/* Initialize token and endpoint shared memory */
-	EndpointCTXShmemInit();
+	/* Initialize shared memory for parallel retrieve cursor */
+	if (!IsUnderPostmaster)
+		EndpointShmemInit();
 
 	/*
 	 * Now give loadable modules a chance to set up their shmem allocations

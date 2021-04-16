@@ -100,14 +100,12 @@ cdbdisp_waitDispatchFinish(struct CdbDispatcherState *ds)
  *
  * On QD, check if any expected acknowledge messages from QEs have arrived.
  * In some cases, QD needs to check or wait the expected acknowledge messages
- * from QEs, e.g. when define a parallel retrieve cursor. So that QD can
+ * from QEs, e.g. when define a parallel retrieve cursor, so that QD can
  * know if QEs run as expected.
  *
  * message: specifies the expected ACK message to check.
  * wait: if true, this function will wait until required ACK messages
- *       have been received from all QEs.s
- *
- * QEs should call cdbdisp_sendAckMessageToQD to send acknowledge messages to QD.
+ *       have been received from all dispatched QEs.
  */
 bool
 cdbdisp_checkDispatchAckMessage(struct CdbDispatcherState *ds,
@@ -115,6 +113,7 @@ cdbdisp_checkDispatchAckMessage(struct CdbDispatcherState *ds,
 {
 	if (pDispatchFuncs == NULL || pDispatchFuncs->checkAckMessage == NULL)
 		return false;
+
 	return (pDispatchFuncs->checkAckMessage) (ds, message, wait);
 }
 
@@ -419,28 +418,6 @@ cdbdisp_destroyDispatcherState(CdbDispatcherState *ds)
 
 	if (h != NULL)
 		destroy_dispatcher_handle(h);
-}
-
-/*
- * cdbdisp_sendAckMessageToQD - send acknowledge message to QD(runs on QE).
- *
- * QD uses cdbdisp_waitDispatchAckMessage to wait QE acknowledge message.
- */
-void
-cdbdisp_sendAckMessageToQD(const char *message)
-{
-	StringInfoData buf;
-
-	Assert(Gp_role == GP_ROLE_EXECUTE);
-	Assert(message);
-	Assert(whereToSendOutput == DestRemote);
-
-	pq_beginmessage(&buf, 'A');
-	pq_sendint(&buf, MyProcPid, sizeof(int32));
-	pq_sendstring(&buf, CDB_NOTIFY_QE_ACKNOWLEDGE);
-	pq_sendstring(&buf, message);
-	pq_endmessage(&buf);
-	pq_flush();
 }
 
 void
