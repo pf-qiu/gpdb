@@ -123,24 +123,24 @@ create_sub() {
 #   "ENDPOINT_PORT$postfix[]"
 # e.g.:
 # For the given SQL result:
-#      endpointname     |               token                |  hostname | port  | state
-# ----------------------+------------------------------------+-------------+-------+--------
-#  c1_00001507_00000000 | tk071500004015dc6da471b20417afed65 | host_1111 | 25432 | READY
-#  c1_00001507_00000001 | tk071500004015dc6da471b20417afed65 | host_1112 | 25433 | READY
-#  c1_00001507_00000002 | tk071500004015dc6da471b20417afed65 | host_1113 | 25434 | READY
+#      endpointname     |             token                |  hostname | port  | state
+# ----------------------+----------------------------------+-------------+-------+--------
+#  c1_00001507_00000000 | 071500004015dc6da471b20417afed65 | host_1111 | 25432 | READY
+#  c1_00001507_00000001 | 071500004015dc6da471b20417afed65 | host_1112 | 25433 | READY
+#  c1_00001507_00000002 | 071500004015dc6da471b20417afed65 | host_1113 | 25434 | READY
 # (3 rows)
 # parse_endpoint_info 1 1 2 3 4 will setup below variables:
-# TOEKN1='tk071500004015dc6da471b20417afed65'
+# TOEKN1='071500004015dc6da471b20417afed65'
 # ENDPOINT_NAME1[0]='c1_00001507_00000000'
-# ENDPOINT_TOKEN1[0]='tk071500004015dc6da471b20417afed65'
+# ENDPOINT_TOKEN1[0]='071500004015dc6da471b20417afed65'
 # ENDPOINT_HOST1[0]='host_1111'
 # ENDPOINT_PORT1[0]='25432'
 # ENDPOINT_NAME1[1]='c1_00001507_00000001'
-# ENDPOINT_TOKEN1[1]='tk071500004015dc6da471b20417afed65'
+# ENDPOINT_TOKEN1[1]='071500004015dc6da471b20417afed65'
 # ENDPOINT_HOST1[1]='host_1112'
 # ENDPOINT_PORT1[1]='25433'
 # ENDPOINT_NAME1[2]='c1_00001507_00000002'
-# ENDPOINT_TOKEN1[2]='tk071500004015dc6da471b20417afed65'
+# ENDPOINT_TOKEN1[2]='071500004015dc6da471b20417afed65'
 # ENDPOINT_HOST1[2]='host_1113'
 # ENDPOINT_PORT1[2]='25434'
 parse_endpoint_info() {

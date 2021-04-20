@@ -115,8 +115,8 @@ SET
 
 --- adminuser should be able to see the cursor state change to READY
 2: SELECT auth_token, usename, state FROM gp_endpoints() endpoints, pg_user WHERE endpoints.userid = pg_user.usesysid order by usename;
- auth_token                         | usename   | state 
-------------------------------------+-----------+-------
+ auth_token                       | usename   | state 
+----------------------------------+-----------+-------
  token_id | adminuser | READY 
  token_id | adminuser | READY 
  token_id | adminuser | READY 
@@ -135,8 +135,8 @@ SET
 0R: SELECT SESSION_USER, CURRENT_USER;
 ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 0U: SELECT auth_token, userid FROM gp_segment_endpoints();
- auth_token                         | userid 
-------------------------------------+--------
+ auth_token                       | userid 
+----------------------------------+--------
  token_id | admin_id 
  token_id | u1_id 
 (2 rows)
@@ -390,20 +390,20 @@ ERROR:  This is  a retrieve connection, but query is not RETRIEVE.
 ------------+--------
 (0 rows)
 
- auth_token                         | userid 
-------------------------------------+--------
+ auth_token                       | userid 
+----------------------------------+--------
  token_id | admin_id 
  token_id | u1_id 
 (2 rows)
 
- auth_token                         | userid 
-------------------------------------+--------
+ auth_token                       | userid 
+----------------------------------+--------
  token_id | admin_id 
  token_id | u1_id 
 (2 rows)
 
- auth_token                         | userid 
-------------------------------------+--------
+ auth_token                       | userid 
+----------------------------------+--------
  token_id | admin_id 
  token_id | u1_id 
 (2 rows)

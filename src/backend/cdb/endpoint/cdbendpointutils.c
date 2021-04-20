@@ -52,41 +52,27 @@ static EndpointState state_string_to_enum(const char *state);
 static bool check_parallel_retrieve_cursor(const char *cursorName, bool wait);
 
 /*
- * Convert the string tk0123456789 to int 0x0123456789 and save it into
- * the given token pointer.
+ * Convert the string-format token to int (e.g. "123456789" to 0x123456789).
  */
 void
-endpoint_token_str2hex(int8 *token /* out */ , const char *tokenStr)
+endpoint_token_str2hex(int8 *token, const char *tokenStr)
 {
-	const char *msg = "Retrieve auth token is invalid";
-
-	if (tokenStr[0] == 't' && tokenStr[1] == 'k' &&
-		strlen(tokenStr) == ENDPOINT_TOKEN_STR_LEN)
-	{
-		hex_decode(tokenStr + 2, ENDPOINT_TOKEN_HEX_LEN * 2, (char *) token);
-	}
+	if (strlen(tokenStr) == ENDPOINT_TOKEN_STR_LEN)
+		hex_decode(tokenStr, ENDPOINT_TOKEN_STR_LEN, (char *) token);
 	else
-		ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD), errmsg("%s", msg)));
+		ereport(FATAL,
+				(errcode(ERRCODE_INVALID_PASSWORD),
+				 errmsg("Retrieve auth token is invalid")));
 }
 
 /*
- * Generate a string tk0123456789 from int 0123456789
- *
- * Note: need to pfree() the result
+ * Convert the hex-format token to string (e.g. 0x123456789 to "123456789").
  */
-char *
-endpoint_token_hex2str(const int8 *token)
+void
+endpoint_token_hex2str(const int8 *token, char *tokenStr)
 {
-	const size_t len =
-	ENDPOINT_TOKEN_STR_LEN + 1; /* 2('tk') + HEX string length + 1('\0') */
-	char	   *res = palloc(len);
-
-	res[0] = 't';
-	res[1] = 'k';
-	hex_encode((const char *) token, ENDPOINT_TOKEN_HEX_LEN, res + 2);
-	res[len - 1] = 0;
-
-	return res;
+	hex_encode((const char *) token, ENDPOINT_TOKEN_HEX_LEN, tokenStr);
+	tokenStr[ENDPOINT_TOKEN_STR_LEN] = 0;
 }
 
 /*
@@ -95,9 +81,6 @@ endpoint_token_hex2str(const int8 *token)
 bool
 endpoint_token_hex_equals(const int8 *token1, const int8 *token2)
 {
-	Assert(token1);
-	Assert(token2);
-
 	/*
 	 * memcmp should be good enough. Timing attack would not be a concern
 	 * here.
@@ -364,7 +347,7 @@ gp_endpoints(PG_FUNCTION_ARGS)
 						contentid_get_dbid(MASTER_CONTENT_ID,
 										   GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY,
 										   false);
-					get_token_by_session_id(entry->sessionID, entry->userID,
+					get_token_from_session_hashtable(entry->sessionID, entry->userID,
 											info->token);
 					StrNCpy(info->name, entry->name, NAMEDATALEN);
 					StrNCpy(info->cursorName, entry->cursorName, NAMEDATALEN);
@@ -386,18 +369,17 @@ gp_endpoints(PG_FUNCTION_ARGS)
 
 	while (all_info->cur_idx < all_info->total_num)
 	{
-		Datum		result;
-		EndpointInfo *info = &all_info->infos[all_info->cur_idx++];
-		GpSegConfigEntry *segCnfInfo = dbid_get_dbinfo(info->dbid);
+		Datum				result;
+		char				tokenStr[ENDPOINT_TOKEN_STR_LEN + 1];
+		EndpointInfo	   *info = &all_info->infos[all_info->cur_idx++];
+		GpSegConfigEntry   *segCnfInfo = dbid_get_dbinfo(info->dbid);
 
 		MemSet(values, 0, sizeof(values));
 		MemSet(nulls, 0, sizeof(nulls));
 
-		char	   *token = endpoint_token_hex2str(info->token);
-
 		values[0] = Int32GetDatum(segCnfInfo->segindex);
-		values[1] = CStringGetTextDatum(token);
-		pfree(token);
+		endpoint_token_hex2str(info->token, tokenStr);
+		values[1] = CStringGetTextDatum(tokenStr);
 		values[2] = CStringGetTextDatum(info->cursorName);
 		values[3] = Int32GetDatum(info->sessionId);
 		values[4] = CStringGetTextDatum(segCnfInfo->hostname);
@@ -481,12 +463,11 @@ gp_segment_endpoints(PG_FUNCTION_ARGS)
 		{
 			char	   *state = NULL;
 			int8		token[ENDPOINT_TOKEN_HEX_LEN];
+			char	    tokenStr[ENDPOINT_TOKEN_STR_LEN + 1];
 
-			get_token_by_session_id(entry->sessionID, entry->userID, token);
-			char	   *tokenStr = endpoint_token_hex2str(token);
-
+			get_token_from_session_hashtable(entry->sessionID, entry->userID, token);
+			endpoint_token_hex2str(token, tokenStr);
 			values[0] = CStringGetTextDatum(tokenStr);
-			pfree(tokenStr);
 			values[1] = Int32GetDatum(entry->databaseID);
 			values[2] = Int32GetDatum(entry->senderPid);
 			values[3] = Int32GetDatum(entry->receiverPid);

@@ -1816,7 +1816,7 @@ BEGIN
 DECLARE
 1: @post_run 'get_tuple_cell TOKEN21a 1 1 ; create_match_sub $TOKEN21a token21a' : SELECT auth_token FROM gp_endpoints() WHERE cursorname='c21a';
  auth_token
-------------------------------------
+----------------------------------
  token21a
 (1 row)
 -- Declare more cursors in the same session should not change the first one's token
@@ -1825,8 +1825,8 @@ DECLARE
 1: DECLARE c21c PARALLEL RETRIEVE CURSOR FOR SELECT * from t1;
 DECLARE
 1: SELECT auth_token FROM gp_endpoints() WHERE cursorname='c21a';
- auth_token                         
-------------------------------------
+ auth_token                       
+----------------------------------
  token21a 
 (1 row)
 1: COMMIT;

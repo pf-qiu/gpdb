@@ -8,12 +8,12 @@ insert into t1 select generate_series(1,100);
 INSERT 100
 
 --------- Test1: fault injection end-point shared memory slot full on QE
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'reset', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full', 'reset', 2);
  gp_inject_fault 
 -----------------
  Success:        
 (1 row)
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'full_memory_slot', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full', 'skip', 2);
  gp_inject_fault 
 -----------------
  Success:        
@@ -34,12 +34,12 @@ ERROR:  failed to allocate endpoint
 3: ROLLBACK;
 ROLLBACK
 -- reset the fault injection
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'reset', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full_reset', 'reset', 2);
  gp_inject_fault 
 -----------------
  Success:        
 (1 row)
-2: SELECT gp_inject_fault('endpoint_shared_memory_slot_full', 'revert_memory_slot', 2);
+2: SELECT gp_inject_fault('alloc_endpoint_slot_full_reset', 'skip', 2);
  gp_inject_fault 
 -----------------
  Success:        

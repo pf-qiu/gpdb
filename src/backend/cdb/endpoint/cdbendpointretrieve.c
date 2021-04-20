@@ -140,7 +140,7 @@ AuthEndpoint(Oid userID, const char *tokenStr)
 
 	endpoint_token_str2hex(token, tokenStr);
 
-	RetrieveCtl.sessionID = get_session_id_for_auth(userID, token);
+	RetrieveCtl.sessionID = get_session_id_from_token(userID, token);
 	if (RetrieveCtl.sessionID != InvalidEndpointSessionId)
 	{
 		found = true;

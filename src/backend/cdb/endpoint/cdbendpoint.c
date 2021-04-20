@@ -109,16 +109,6 @@ typedef struct SessionTokenTag
 /*
  * sharedSessionInfoHash is located in shared memory on each segment for
  * authentication purpose.
- *
- * For each session, generate auth token and create SessionInfoEntry for
- * each user who 'DECLARE PARALLEL CURSOR'.
- * Once session exit, clean entries for current session.
- *
- * The issue here is that there is no way to register clean function during
- * session exit on segments(QE exit does not mean session exit). So we
- * register transaction callback(clean_session_token_info) to clean
- * entries for each transaction exit callback instead. And create new entry
- * if not exists.
  */
 typedef struct SessionInfoEntry
 {
@@ -127,7 +117,7 @@ typedef struct SessionInfoEntry
 	/* The auth token for this session. */
 	int8		token[ENDPOINT_TOKEN_HEX_LEN];
 	/* How many endpoints are referred to this entry. */
-	uint16		endpointCounter;
+	uint16		refCount;
 }	SessionInfoEntry;
 
 /* Shared hash table for session infos */
@@ -150,7 +140,7 @@ static void create_and_connect_mq(TupleDesc tupleDesc,
 					  dsm_segment **mqSeg /* out */ ,
 					  shm_mq_handle **mqHandle /* out */ );
 static void detach_mq(dsm_segment *dsmSeg);
-static void init_session_info_entry(void);
+static void setup_session_info_entry(void);
 static void wait_receiver(EndpointExecState *state);
 static void unset_endpoint_sender_pid(Endpoint endPoint);
 static void abort_endpoint(EndpointExecState *state);
@@ -159,8 +149,6 @@ static void wait_parallel_retrieve_close(void);
 /* utility */
 static void generate_endpoint_name(char *name, const char *cursorName,
 					   int32 sessionID);
-
-static void clean_session_token_info();
 
 /*
  * Calculate the shared memory size for PARALLEL RETRIEVE CURSOR execute.
@@ -267,27 +255,19 @@ WaitEndpointsReady(EState *estate)
 
 /*
  * Get or create a authentication token for current session.
- * Token is unique for every session id. This is guaranteed by using the session
- * id as a part of the token. And same session will have the same token. Thus the
- * retriever will know which session to attach when doing authentication.
  */
 static const int8 *
 get_or_create_token(void)
 {
 	static int	sessionId = InvalidEndpointSessionId;
 	static int8 currentToken[ENDPOINT_TOKEN_HEX_LEN] = {0};
-	const static int sessionIdLen = sizeof(sessionId);
 
 	if (sessionId != gp_session_id)
 	{
 		sessionId = gp_session_id;
-		memcpy(currentToken, &sessionId, sessionIdLen);
-		if (!pg_strong_random(currentToken + sessionIdLen,
-							  ENDPOINT_TOKEN_HEX_LEN - sessionIdLen))
-		{
+		if (!pg_strong_random(currentToken, ENDPOINT_TOKEN_HEX_LEN))
 			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 							errmsg("failed to generate a new random token.")));
-		}
 	}
 	return currentToken;
 }
@@ -310,7 +290,7 @@ EndpointNotifyQD(const char *message)
 
 /*
  * Creates a dest receiver for PARALLEL RETRIEVE CURSOR. The dest reciever is
- * based on shm_mq that is used by the parallel work.
+ * based on shm_mq that is used by the upstream parallel work.
  */
 void
 CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
@@ -330,7 +310,7 @@ CreateTQDestReceiverForEndpoint(TupleDesc tupleDesc, const char *cursorName,
 	 */
 	state->endpoint =
 		alloc_endpoint(cursorName, dsm_segment_handle(state->dsmSeg));
-	init_session_info_entry();
+	setup_session_info_entry();
 
 	/*
 	 * Once the endpoint has been created in shared memory, send acknowledge
@@ -408,7 +388,7 @@ DestroyTQDestReceiverForEndpoint(EndpointExecState *state)
 }
 
 /*
- * alloc_endpoint - Allocate an Endpoint entry in shared memory.
+ * Allocate an Endpoint entry in shared memory.
  *
  * cursorName - the parallel retrieve cursor name.
  * dsmHandle  - dsm handle of shared memory message queue.
@@ -452,6 +432,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 			}
 		}
 	}
+
 	if (SIMPLE_FAULT_INJECTOR("alloc_endpoint_slot_full_reset") == FaultInjectorTypeSkip)
 	{
 		for (i = 0; i < MAX_ENDPOINT_SIZE; ++i)
@@ -466,7 +447,7 @@ alloc_endpoint(const char *cursorName, dsm_handle dsmHandle)
 	}
 #endif
 
-	/* find a new slot */
+	/* find an available slot */
 	for (i = 0; i < MAX_ENDPOINT_SIZE; ++i)
 	{
 		if (sharedEndpoints[i].empty)
@@ -560,13 +541,11 @@ create_and_connect_mq(TupleDesc tupleDesc, dsm_segment **mqSeg /* out */ ,
 }
 
 /*
- * init_session_info_entry.
- *
  * Create/reuse SessionInfoEntry for current session in shared memory.
- * SessionInfoEntry is used for retrieve auth.
+ * SessionInfoEntry is used for authentication in the retrieve sessions.
  */
 static void
-init_session_info_entry(void)
+setup_session_info_entry()
 {
 	SessionInfoEntry *infoEntry = NULL;
 	bool		found = false;
@@ -579,40 +558,23 @@ init_session_info_entry(void)
 	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
 	infoEntry = (SessionInfoEntry *) hash_search(sharedSessionInfoHash, &tag,
 												 HASH_ENTER, &found);
-	elog(DEBUG3, "CDB_ENDPOINT: Finish endpoint init. Found SessionInfoEntry: %d",
+	elog(DEBUG3, "CDB_ENDPOINT: Finish endpoint init. Found SessionInfoEntry? %d",
 		 found);
 
 	/*
 	 * Save the token if it is the first time we create endpoint in current
-	 * session. We guarantee that one session will map to one token only.
+	 * session. One session will be mapped to one token only.
 	 */
 	if (!found)
 	{
 		token = get_or_create_token();
 		memcpy(infoEntry->token, token, ENDPOINT_TOKEN_HEX_LEN);
-
-		{
-			/*
-			 * To avoid counter wrapped, the max value of
-			 * SessionInfoEntry.endpointCounter has to be bigger than
-			 * MAX_ENDPOINT_SIZE.
-			 */
-			infoEntry->endpointCounter = -1;
-			Assert(infoEntry->endpointCounter > MAX_ENDPOINT_SIZE);
-		}
-
-		infoEntry->endpointCounter = 0;
+		infoEntry->refCount = 0;
 	}
 
-	infoEntry->endpointCounter++;
+	infoEntry->refCount++;
+	Assert(infoEntry->refCount <= MAX_ENDPOINT_SIZE);
 
-	/*
-	 * Overwrite exists token in case the wrapped session id entry not get
-	 * removed For example, 1 hours ago, a session 7 exists and have entry
-	 * with token 123. And for some reason the entry not get remove by
-	 * clean_session_token_info. Now current session is session 7 again.
-	 * Here need to overwrite the old token.
-	 */
 	LWLockRelease(ParallelCursorEndpointLock);
 }
 
@@ -884,13 +846,12 @@ free_endpoint(Endpoint endpoint)
 	tag.userID = endpoint->userID;
 	infoEntry = (SessionInfoEntry *) hash_search(
 							   sharedSessionInfoHash, &tag, HASH_FIND, NULL);
-	Assert(infoEntry);
-	Assert(infoEntry->endpointCounter > 0);
 	if (infoEntry)
 	{
-		infoEntry->endpointCounter--;
+		infoEntry->refCount--;
+		if (infoEntry->refCount == 0)
+			hash_search(sharedSessionInfoHash, &tag, HASH_REMOVE, NULL);
 	}
-
 	endpoint->sessionID = InvalidEndpointSessionId;
 	endpoint->userID = InvalidOid;
 }
@@ -937,10 +898,10 @@ find_endpoint(const char *endpointName, int sessionID)
 }
 
 /*
- * get_token_by_session_id - get token based on given session id and user.
+ * Find the token from the hash table based on given session id and user.
  */
 void
-get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ )
+get_token_from_session_hashtable(int sessionId, Oid userID, int8 *token /* out */ )
 {
 	SessionInfoEntry *infoEntry = NULL;
 	SessionTokenTag tag;
@@ -949,23 +910,23 @@ get_token_by_session_id(int sessionId, Oid userID, int8 *token /* out */ )
 	tag.userID = userID;
 
 	LWLockAcquire(ParallelCursorEndpointLock, LW_SHARED);
+
 	infoEntry = (SessionInfoEntry *) hash_search(sharedSessionInfoHash, &tag,
 												 HASH_FIND, NULL);
 	if (infoEntry == NULL)
-	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 				   errmsg("token for user id: %u, session: %d doesn't exist",
 						  tag.userID, sessionId)));
-	}
 	memcpy(token, infoEntry->token, ENDPOINT_TOKEN_HEX_LEN);
+
 	LWLockRelease(ParallelCursorEndpointLock);
 }
 
 /*
- * get_session_id_for_auth - Find the corresponding session id by the given token.
+ * Get the corresponding session id by the given token.
  */
 int
-get_session_id_for_auth(Oid userID, const int8 *token)
+get_session_id_from_token(Oid userID, const int8 *token)
 {
 	int			sessionId = InvalidEndpointSessionId;
 	SessionInfoEntry *infoEntry = NULL;
@@ -989,83 +950,43 @@ get_session_id_for_auth(Oid userID, const int8 *token)
 }
 
 /*
- * generate_endpoint_name
- *
- * Generate the endpoint name based on the PARALLEL RETRIEVE CURSOR name,
- * the sessionID and 5 random bytes.
- * The endpoint name should be unique across sessions.
+ * Generate the endpoint name.
  */
 static void
 generate_endpoint_name(char *name, const char *cursorName, int32 sessionID)
 {
-	/*
-	 * Use counter to avoid duplicated endpoint names when error happens.
-	 * Since the retrieve session won't be terminated when transaction abort,
-	 * reuse the previous endpoint name may cause unexpected behavior for the
-	 * retrieving session.
-	 */
-	int			len = 0;
+	int			len, cursorLen;
 
-	/* part1:cursor name */
-	int			cursorLen = strlen(cursorName);
+	len = 0;
 
+	/* part1: cursor name */
+	cursorLen = strlen(cursorName);
 	if (cursorLen > ENDPOINT_NAME_CURSOR_LEN)
 		cursorLen = ENDPOINT_NAME_CURSOR_LEN;
-
-	Assert((cursorLen + ENDPOINT_NAME_SESSIONID_LEN + ENDPOINT_NAME_RANDOM_LEN) < NAMEDATALEN);
 	memcpy(name, cursorName, cursorLen);
 	len += cursorLen;
 
-	/* part2:sessionID */
-	snprintf(name + len, ENDPOINT_NAME_SESSIONID_LEN + 1,
-			 "%08x", sessionID);
+	/* part2: sessionID */
+	snprintf(name + len, ENDPOINT_NAME_SESSIONID_LEN + 1, "%08x", sessionID);
 	len += ENDPOINT_NAME_SESSIONID_LEN;
 
 	/* part3:random */
-	char	   *random = palloc(ENDPOINT_NAME_RANDOM_LEN / 2);
+	char       *random = palloc(ENDPOINT_NAME_RANDOM_LEN / 2);
 
 	if (!pg_strong_random(random, ENDPOINT_NAME_RANDOM_LEN / 2))
-	{
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 						errmsg("failed to generate a new random.")));
-	}
 	hex_encode((const char *) random, ENDPOINT_NAME_RANDOM_LEN / 2,
 			   name + len);
 	pfree(random);
 	len += ENDPOINT_NAME_RANDOM_LEN;
+
 	name[len] = '\0';
 }
 
 /*
- * Clean "session - token" mapping entry
+ * Called during xaction abort.
  */
-static void
-clean_session_token_info()
-{
-	elog(DEBUG3, "CDB_ENDPOINT: clean_session_token_info clean token for session %d",
-		 gp_session_id);
-
-	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
-	SessionTokenTag tag;
-
-	tag.sessionID = gp_session_id;
-	tag.userID = GetSessionUserId();
-
-	SessionInfoEntry *infoEntry = (SessionInfoEntry *) hash_search(
-					   sharedSessionInfoHash, &tag, HASH_FIND, NULL);
-
-	if (infoEntry && infoEntry->endpointCounter == 0)
-	{
-		hash_search(sharedSessionInfoHash, &tag, HASH_REMOVE, NULL);
-		elog(DEBUG3,
-			 "CDB_ENDPOINT: clean_session_token_info removes existing entry for "
-			 "user id: %u, session: %d",
-			 tag.userID, gp_session_id);
-	}
-
-	LWLockRelease(ParallelCursorEndpointLock);
-}
-
 void
 AtAbort_EndpointExecState()
 {
@@ -1074,7 +995,6 @@ AtAbort_EndpointExecState()
 	if (state != NULL)
 	{
 		abort_endpoint(state);
-		clean_session_token_info();
 		pfree(state);
 
 		CurrEndpointExecState = NULL;
