@@ -94,14 +94,14 @@ url_fclose(URL_FILE *file, bool failOnError, const char *relname)
 		default: /* unknown or unsupported type - oh dear */
 			elog(ERROR, "unrecognized external table type: %d", file->type);
 			break;
-    }
+	}
 }
 
 bool
 url_feof(URL_FILE *file, int bytesread)
 {
-    switch (file->type)
-    {
+	switch (file->type)
+	{
 		case CFTYPE_FILE:
 			return url_file_feof(file, bytesread);
 
@@ -143,13 +143,10 @@ url_ferror(URL_FILE *file, int bytesread, char *ebuf, int ebuflen)
 }
 
 size_t
-url_fread(void *ptr,
-          size_t size,
-          URL_FILE *file,
-          CopyState pstate)
+url_fread(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
 {
-    switch (file->type)
-    {
+	switch (file->type)
+	{
 		case CFTYPE_FILE:
 			return url_file_fread(ptr, size, file, pstate);
 
@@ -164,14 +161,14 @@ url_fread(void *ptr,
 
 		default: /* unknown or supported type */
 			elog(ERROR, "unrecognized external table type: %d", file->type);
-    }
+	}
 }
 
 size_t
 url_fwrite(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
 {
-    switch (file->type)
-    {
+	switch (file->type)
+	{
 		case CFTYPE_FILE:
 			elog(ERROR, "CFTYPE_FILE not yet supported in url.c");
 			return 0;		/* keep compiler quiet */
@@ -187,7 +184,7 @@ url_fwrite(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
 
 		default: /* unknown or unsupported type */
 			elog(ERROR, "unrecognized external table type: %d", file->type);
-    }
+	}
 }
 
 /*
@@ -196,8 +193,8 @@ url_fwrite(void *ptr, size_t size, URL_FILE *file, CopyState pstate)
 void
 url_fflush(URL_FILE *file, CopyState pstate)
 {
-    switch (file->type)
-    {
+	switch (file->type)
+	{
 		case CFTYPE_FILE:
 			elog(ERROR, "CFTYPE_FILE not yet supported in url.c");
 			break;
@@ -213,5 +210,5 @@ url_fflush(URL_FILE *file, CopyState pstate)
 
 		default: /* unknown or unsupported type */
 			elog(ERROR, "unrecognized external table type: %d", file->type);
-    }
+	}
 }
