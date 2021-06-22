@@ -1,0 +1,5 @@
+# gp2gp_fdw extension
+comment = 'GP2GP Foreign Data Wrapper'
+default_version = '1.0'
+module_pathname = '$libdir/gp2gp_fdw'
+relocatable = true
