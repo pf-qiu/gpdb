@@ -305,15 +305,19 @@ static void setup_next_conn(ParallelCursorWorkingState *state)
 	DefElem *e = lfirst(state->next_cursor);
 	CursorInfo *info = &state->current_info;
 	parse_cursor_info(e, info);
+	StringInfo si = makeStringInfo();
+	appendStringInfo(si, "-c gp_retrieve_token=%s", info->token);
 
-	PGconn *conn = PQsetdbLogin(info->host, info->port, "-c gp_retrieve_conn=true",
+	PGconn *conn = PQsetdbLogin(info->host, info->port, si->data,
 							 false, info->db,
-							 info->user, info->token);
+							 info->user, NULL);
 	if (PQstatus(conn) != CONNECTION_OK)
 	{
+		char *msg = pstrdup(PQerrorMessage(conn));
+		PQfinish(conn);
 		ereport(ERROR, (errcode(ERRCODE_CONNECTION_FAILURE), 
 				errmsg("Connection to database \"%s\" failed: %s",
-				info->db, PQerrorMessage(conn))));
+				info->db, msg)));
 	}
 	state->current_conn = conn;
 

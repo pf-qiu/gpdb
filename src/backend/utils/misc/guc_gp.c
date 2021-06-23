@@ -896,18 +896,6 @@ struct config_bool ConfigureNamesBool_gp[] =
 	},
 
 	{
-		{"gp_retrieve_conn", PGC_BACKEND, GP_WORKER_IDENTITY,
-			gettext_noop("Specify this is a connection for parallel cursor retrieve"),
-			NULL,
-			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_NO_RESET_ALL
-		},
-		&am_cursor_retrieve_handler,
-		false,
-		NULL, NULL, NULL
-	},
-
-
-	{
 		{"gp_cost_hashjoin_chainwalk", PGC_USERSET, QUERY_TUNING_COST,
 			gettext_noop("Enable the cost for walking the chain in the hash join"),
 			NULL,
@@ -4308,6 +4296,17 @@ struct config_string ConfigureNamesString_gp[] =
 		NULL, NULL, NULL
 	},
 #endif  /* ENABLE_IC_PROXY */
+
+	{
+		{"gp_retrieve_token", PGC_BACKEND, GP_WORKER_IDENTITY,
+			gettext_noop("Specify this is a connection for parallel cursor retrieve"),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_NO_RESET_ALL
+		},
+		&gp_retrieve_token,
+		false,
+		NULL, NULL, NULL
+	},
 
 	/* End-of-list marker */
 	{

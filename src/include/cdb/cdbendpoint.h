@@ -105,6 +105,7 @@ typedef struct EndpointExecState
 
 extern bool am_cursor_retrieve_handler;
 extern bool retrieve_conn_authenticated;
+extern char *gp_retrieve_token;
 
 /* cbdendpoint.c */
 

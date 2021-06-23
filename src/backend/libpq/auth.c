@@ -367,16 +367,16 @@ auth_failed(Port *port, int status, char *logdetail)
 }
 
 /*
- * Return true if command line contains gp_retrieve_conn=true
+ * Return token if command line contains gp_retrieve_token
  */
-static bool
+static char*
 cmd_options_include_retrieve_conn(char* cmd_options)
 {
 	char	  **av;
 	int			maxac;
 	int			ac;
 	int			flag;
-	bool		ret = false;
+	char      *token = NULL;
 
 	if (!cmd_options)
 		return false;
@@ -408,7 +408,8 @@ cmd_options_include_retrieve_conn(char* cmd_options)
 			case 'c':
 			case '-':
 				{
-					char *name, *value;
+					char *name;
+					char *value;
 					ParseLongOption(optarg, &name, &value);
 					if (!value)
 					{
@@ -428,13 +429,10 @@ cmd_options_include_retrieve_conn(char* cmd_options)
 					 * Only check if gp_role is set to retrieve, but do not
 					 * break in case there are more than one such option.
 					 */
-					if ((guc_name_compare(name, "gp_retrieve_conn") == 0) &&
-						!parse_bool(value, &ret))
+					if (guc_name_compare(name, "gp_retrieve_token") == 0)
 					{
-						ereport(ERROR,
-								(errcode(ERRCODE_SYNTAX_ERROR),
-								 errmsg("invalid value for guc gp_retrieve_conn: \"%s\"",
-										value)));
+						if (value != NULL && strlen(value) == 32)
+							token = pstrdup(value);
 					}
 
 					free(name);
@@ -456,66 +454,7 @@ cmd_options_include_retrieve_conn(char* cmd_options)
 	optreset = 1;	/* some systems need this too */
 #endif
 
-	return ret;
-}
-
-static bool
-guc_options_include_retrieve_conn(List *guc_options)
-{
-	ListCell   *gucopts;
-	bool		ret = false;
-
-	gucopts = list_head(guc_options);
-	while (gucopts)
-	{
-		char       *name;
-		char       *value;
-
-		name = lfirst(gucopts);
-		gucopts = lnext(gucopts);
-
-		value = lfirst(gucopts);
-		gucopts = lnext(gucopts);
-
-		if (guc_name_compare(name, "gp_retrieve_conn") == 0)
-		{
-			/* Do not break in case there are more than one such option. */
-			if (!parse_bool(value, &ret))
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("invalid value for guc gp_retrieve_conn: \"%s\"",
-								value)));
-
-		}
-	}
-
-	return ret;
-}
-
-/*
- * Retrieve role directly uses the token of PARALLEL RETRIEVE CURSOR as password to authenticate.
- */
-static void
-retrieve_conn_authentication(Port *port)
-{
-	char	   *passwd;
-	Oid        owner_uid;
-	const char *msg = "Retrieve auth token is invalid";
-
-	sendAuthRequest(port, AUTH_REQ_PASSWORD, NULL, 0);
-	passwd = recv_password_packet(port);
-	if (passwd == NULL)
-		ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD), errmsg("%s", msg)));
-
-	/*
-	 * verify that the username is same as the owner of PARALLEL RETRIEVE CURSOR and the
-	 * password is the token
-	 */
-	owner_uid = get_role_oid(port->user_name, false);
-	if (!AuthEndpoint(owner_uid, passwd))
-		ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD), errmsg("%s", msg)));
-
-	FakeClientAuthentication(port);
+	return token;
 }
 
 /*
@@ -634,13 +573,16 @@ ClientAuthentication(Port *port)
 	 * For parallel retrieve cursor,
 	 * retrieve token authentication is performed.
 	 */
-	retrieve_conn_authenticated = false;
-	if (cmd_options_include_retrieve_conn(port->cmdline_options) ||
-		guc_options_include_retrieve_conn(port->guc_options))
+	char *cmd_token = cmd_options_include_retrieve_conn(port->cmdline_options);
+	if (cmd_token != NULL)
 	{
-		retrieve_conn_authentication(port);
+		Oid owner_uid = get_role_oid(port->user_name, false);
+		if (!AuthEndpoint(owner_uid, cmd_token))
+			ereport(FATAL, (errcode(ERRCODE_INVALID_PASSWORD),
+				errmsg("invalid gp_retrieve_token: %s", cmd_token)));
+
 		retrieve_conn_authenticated = true;
-		return;
+		am_cursor_retrieve_handler = true;
 	}
 
 	/*

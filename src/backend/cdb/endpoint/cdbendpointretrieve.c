@@ -50,6 +50,9 @@ bool am_cursor_retrieve_handler = false;
  */
 bool retrieve_conn_authenticated = false;
 
+/* 32 hex characters token. */
+char *gp_retrieve_token;
+
 /* Retrieve role state. */
 enum RetrieveState
 {

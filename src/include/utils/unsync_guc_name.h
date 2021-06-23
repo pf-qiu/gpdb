@@ -242,7 +242,7 @@
 		"gp_resqueue_priority_inactivity_timeout",
 		"gp_resqueue_priority_local_interval",
 		"gp_resqueue_priority_sweeper_interval",
-		"gp_retrieve_conn",
+		"gp_retrieve_token",
 		"gp_role",
 		"gp_safefswritesize",
 		"gp_segment_connect_timeout",
