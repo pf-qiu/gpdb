@@ -320,8 +320,7 @@ sendnumrows_internal(int numrejected, int64 numcompleted)
 	 * somewhere..
 	 */
 	pq_sendint(&buf, numrejected, 4);
-	if (numcompleted > 0)		/* optional send completed num for COPY FROM
-								 * ON SEGMENT */
+	if (numcompleted > 0)		/* optional send completed num */
 		pq_sendint64(&buf, numcompleted);
 	pq_endmessage(&buf);
 }
